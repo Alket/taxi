@@ -1,0 +1,373 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Direction {
+  airport_to_dest
+  dest_to_airport
+}
+
+enum FlightStatus {
+  scheduled
+  on_time
+  delayed
+  landed
+  cancelled
+}
+
+enum BookingStatus {
+  pending
+  confirmed
+  driver_assigned
+  driver_accepted
+  en_route
+  arrived
+  in_progress
+  completed
+  cancelled
+}
+
+enum CancellationOutcome {
+  free_cancellation
+  deposit_forfeited
+}
+
+enum PaymentStatus {
+  unpaid
+  deposit_paid
+  paid
+  fully_paid
+  refunded
+  failed
+}
+
+enum VehicleType {
+  sedan
+  comfort
+  minivan
+  premium
+}
+
+enum PaymentProvider {
+  stripe
+  paypal
+  manual
+}
+
+enum NotificationChannel {
+  email
+  sms
+  whatsapp
+}
+
+enum NotificationType {
+  confirmation
+  driver_assigned
+  flight_delay
+  reminder
+  cancellation
+}
+
+enum NotificationStatus {
+  pending
+  sent
+  failed
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  phone     String
+  stripeCustomerId String? @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bookings         Booking[]
+  notificationLogs NotificationLog[]
+
+  @@index([email])
+}
+
+model Driver {
+  id             String      @id @default(cuid())
+  name           String
+  phone          String
+  whatsappNumber String
+  vehicleMake    String
+  vehicleModel   String
+  plateNumber    String      @unique
+  vehicleType    VehicleType
+  languages      String[]
+  vetted         Boolean     @default(false)
+  active         Boolean     @default(true)
+  avgRating      Float       @default(0)
+  /** bcrypt hash of the driver's dashboard PIN (null = cannot log in). */
+  pinHash        String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  bookings Booking[]
+  reviews  Review[]
+
+  @@index([active, vetted])
+  @@index([phone])
+}
+
+model Zone {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  centroidLat Float
+  centroidLng Float
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  pricingRules PricingRule[]
+  bookings     Booking[]
+
+  @@index([active])
+}
+
+model PricingRule {
+  id          String      @id @default(cuid())
+  zoneId      String
+  vehicleType VehicleType
+  baseFare    Decimal     @db.Decimal(10, 2)
+  perKmRate   Decimal     @db.Decimal(10, 2)
+  minFare     Decimal     @db.Decimal(10, 2)
+  currency    String      @default("EUR")
+  active      Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  zone Zone @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+
+  @@unique([zoneId, vehicleType])
+  @@index([zoneId, active])
+}
+
+enum PaymentType {
+  deposit
+  balance
+}
+
+model Booking {
+  id                    String        @id @default(cuid())
+  referenceCode         String        @unique
+  /** Short unique PIN shown after booking for pickup verification. */
+  pickupPin             String        @unique
+  direction             Direction
+  pickupAddress         String
+  dropoffAddress        String
+  pickupDateTime        DateTime
+  flightNumber          String
+  flightStatus          FlightStatus  @default(scheduled)
+  passengerCount        Int
+  luggageCount          Int
+  vehicleType           VehicleType
+  totalPrice            Decimal       @db.Decimal(10, 2)
+  depositAmount         Decimal       @default(0) @db.Decimal(10, 2)
+  depositPaid           Decimal       @default(0) @db.Decimal(10, 2)
+  balanceDue            Decimal       @default(0) @db.Decimal(10, 2)
+  isBalanceCharged      Boolean       @default(false)
+  balanceChargedAt      DateTime?
+  balanceChargedBy      String?
+  paymentStatus         PaymentStatus @default(unpaid)
+  status                BookingStatus        @default(pending)
+  cancelledAt           DateTime?
+  cancellationOutcome   CancellationOutcome?
+  currency              String               @default("EUR")
+  freeCancellationUntil DateTime
+  meetAndGreet          Boolean       @default(false)
+  isRoundTrip           Boolean       @default(false)
+  roundTripId           String?
+  notes                 String?
+  customerId            String
+  driverId              String?
+  zoneId                String?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  customer           Customer             @relation(fields: [customerId], references: [id])
+  driver             Driver?              @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  zone               Zone?                @relation(fields: [zoneId], references: [id], onDelete: SetNull)
+  payments           Payment[]
+  reviews            Review[]
+  statusEvents       BookingStatusEvent[]
+  flightStatusEvents FlightStatusEvent[]
+  notificationLogs   NotificationLog[]
+
+  @@index([status])
+  @@index([paymentStatus])
+  @@index([pickupDateTime])
+  @@index([driverId])
+  @@index([customerId])
+  @@index([zoneId])
+  @@index([roundTripId])
+}
+
+model BookingStatusEvent {
+  id        String        @id @default(cuid())
+  bookingId String
+  status    BookingStatus
+  timestamp DateTime      @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId, timestamp])
+}
+
+model Payment {
+  id         String          @id @default(cuid())
+  bookingId  String
+  type       PaymentType     @default(deposit)
+  amount     Decimal         @db.Decimal(10, 2)
+  currency   String          @default("EUR")
+  status     PaymentStatus
+  provider   PaymentProvider
+  externalId String?
+  paidAt     DateTime?
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+  @@index([status])
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  bookingId String   @unique
+  driverId  String
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  driver  Driver  @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@index([driverId])
+}
+
+model FlightStatusEvent {
+  id           String       @id @default(cuid())
+  bookingId    String
+  flightNumber String
+  status       FlightStatus
+  scheduledAt  DateTime?
+  observedAt   DateTime     @default(now())
+  delayMinutes Int?
+  source       String?
+  createdAt    DateTime     @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId, observedAt])
+  @@index([flightNumber])
+}
+
+model NotificationLog {
+  id           String              @id @default(cuid())
+  bookingId    String?
+  customerId   String?
+  channel      NotificationChannel
+  type         NotificationType
+  status       NotificationStatus  @default(pending)
+  recipient    String
+  subject      String?
+  body         String?
+  sentAt       DateTime?
+  errorMessage String?
+  createdAt    DateTime            @default(now())
+
+  booking  Booking?  @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@index([bookingId])
+  @@index([customerId])
+  @@index([status, type])
+}
+
+model Settings {
+  id                          String           @id @default("default")
+  companyName                 String
+  supportPhone                String
+  supportEmail                String
+  supportWhatsApp             String
+  displayCurrencies           String[]
+  freeCancellationHours       Int              @default(24)
+  depositPercentage           Int              @default(30)
+  roundTripDiscountPercent    Int              @default(0)
+  /** Per-seat add-on prices (same currency as displayCurrencies[0]). */
+  infantCarrierPrice          Decimal          @default(0) @db.Decimal(10, 2)
+  childSeatPrice              Decimal          @default(0) @db.Decimal(10, 2)
+  boosterSeatPrice            Decimal          @default(0) @db.Decimal(10, 2)
+  stripeEnabled               Boolean          @default(true)
+  paypalEnabled               Boolean          @default(true)
+  cashOnArrivalEnabled        Boolean          @default(false)
+  /** Let customers pay just the deposit online. */
+  depositPaymentEnabled       Boolean          @default(true)
+  /** Let customers pay the full amount online. */
+  fullPaymentEnabled          Boolean          @default(true)
+  /** Stripe environment: "test" or "live". */
+  stripeMode                  String           @default("test")
+  stripeTestPublishableKey    String           @default("")
+  stripeTestSecretKey         String           @default("")
+  stripeTestWebhookSecret     String           @default("")
+  stripeLivePublishableKey    String           @default("")
+  stripeLiveSecretKey         String           @default("")
+  stripeLiveWebhookSecret     String           @default("")
+  /** PayPal environment: "test" (sandbox) or "live". */
+  paypalMode                  String           @default("test")
+  paypalSandboxClientId       String           @default("")
+  paypalSandboxSecret         String           @default("")
+  paypalLiveClientId          String           @default("")
+  paypalLiveSecret            String           @default("")
+  airports                    Json
+  notificationChannelsEnabled Json
+  flightDelayThresholdMinutes Int              @default(45)
+  createdAt                   DateTime         @default(now())
+  updatedAt                   DateTime         @updatedAt
+}
+
+enum AdminRole {
+  admin
+  operator
+}
+
+model AdminUser {
+  id                    String    @id @default(cuid())
+  name                  String
+  email                 String    @unique
+  passwordHash          String
+  role                  AdminRole @default(admin)
+  suspended             Boolean   @default(false)
+  requiresPasswordReset Boolean   @default(false)
+  lastLoginAt           DateTime?
+  createdAt             DateTime  @default(now())
+}
+
+/** Browser push subscriptions for admin / driver staff alerts. */
+model PushSubscription {
+  id        String   @id @default(cuid())
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  /** "admin" | "driver" */
+  audience  String
+  /** AdminUser.id or Driver.id when known. */
+  ownerId   String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([audience])
+  @@index([ownerId])
+}

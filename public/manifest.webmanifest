@@ -1,0 +1,17 @@
+{
+  "name": "Albania Transfers",
+  "short_name": "Transfers",
+  "description": "Airport transfers across Albania",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f8fa",
+  "theme_color": "#141a24",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

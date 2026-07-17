@@ -1,0 +1,18 @@
+{
+  "name": "Albania Transfers Admin",
+  "short_name": "Admin",
+  "description": "Admin console for Albania Transfers",
+  "start_url": "/admin",
+  "scope": "/admin",
+  "display": "standalone",
+  "background_color": "#f7f8fa",
+  "theme_color": "#141a24",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "Settings" ADD COLUMN "infantCarrierPrice" DECIMAL(10,2) NOT NULL DEFAULT 0;
+ALTER TABLE "Settings" ADD COLUMN "childSeatPrice" DECIMAL(10,2) NOT NULL DEFAULT 0;
+ALTER TABLE "Settings" ADD COLUMN "boosterSeatPrice" DECIMAL(10,2) NOT NULL DEFAULT 0;
