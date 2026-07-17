@@ -32,6 +32,8 @@ import {
 } from "@/lib/pickup-lead-time"
 import { autoSelectVehiclePatch } from "@/lib/vehicles"
 import { cn } from "@/lib/utils"
+import { useIsMobile } from "@/hooks/use-mobile"
+import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock"
 import {
   matchZoneId,
   type ServiceZonePlace,
@@ -50,6 +52,13 @@ import {
   ComboboxList,
   useComboboxAnchor,
 } from "@/components/ui/combobox"
+import { Input } from "@/components/ui/input"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
 
 type BookingConfig = {
   airports: AirportWithCoords[]
@@ -150,6 +159,9 @@ function FieldSelect({
   options,
   onChange,
   anchor,
+  mobileSheet = false,
+  sheetTitle,
+  onAfterSelect,
 }: {
   value: string | null
   placeholder: string
@@ -157,18 +169,134 @@ function FieldSelect({
   onChange: (value: string) => void
   /** Full-width row/card element — popup matches its width and sits under it. */
   anchor: React.RefObject<HTMLElement | null>
+  /** Mobile-only: open destinations in a full-screen sheet. */
+  mobileSheet?: boolean
+  sheetTitle?: string
+  onAfterSelect?: () => void
 }) {
+  const isMobile = useIsMobile()
+  const [sheetOpen, setSheetOpen] = React.useState(false)
+  const [query, setQuery] = React.useState("")
+  useBodyScrollLock(Boolean(mobileSheet && isMobile && sheetOpen))
+
   const selected =
     value != null
       ? (options.find((opt) => opt.value === value) ?? null)
       : null
+
+  const filtered = React.useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return options
+    return options.filter((opt) => opt.label.toLowerCase().includes(q))
+  }, [options, query])
+
+  React.useEffect(() => {
+    if (!sheetOpen) setQuery("")
+  }, [sheetOpen])
+
+  function pick(next: string) {
+    onChange(next)
+    // Open the next sheet first so scroll-lock ref-count never drops to 0.
+    onAfterSelect?.()
+    setSheetOpen(false)
+  }
+
+  if (mobileSheet && isMobile) {
+    return (
+      <>
+        <button
+          type="button"
+          className="flex w-full min-w-0 items-center justify-between gap-2 text-left touch-manipulation"
+          onClick={() => setSheetOpen(true)}
+        >
+          <span
+            className={cn(
+              "min-w-0 flex-1 truncate text-base font-bold",
+              selected
+                ? "text-[color:var(--brand-ink)]"
+                : "font-semibold text-muted-foreground",
+            )}
+          >
+            {selected?.label ?? placeholder}
+          </span>
+          <SearchIcon className="size-4 shrink-0 text-muted-foreground" />
+        </button>
+
+        <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+          <SheetContent
+            side="bottom"
+            showCloseButton
+            className="flex h-[100dvh] max-h-[100dvh] flex-col gap-0 rounded-none border-0 bg-brand-surface p-0 text-[color:var(--brand-ink)] data-[side=bottom]:h-[100dvh]"
+          >
+            <SheetHeader className="shrink-0 border-b border-border px-4 py-3 pr-14">
+              <SheetTitle className="text-base font-bold text-brand">
+                {sheetTitle ?? "Choose destination"}
+              </SheetTitle>
+            </SheetHeader>
+
+            <div className="shrink-0 border-b border-border px-4 py-3">
+              <div className="relative">
+                <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Type to search"
+                  autoFocus
+                  className="h-11 rounded-xl border-border bg-muted/40 pl-9 text-base font-semibold"
+                />
+              </div>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+              {filtered.length === 0 ? (
+                <div className="flex flex-col items-center gap-1.5 px-4 py-10 text-sm text-muted-foreground">
+                  <SearchIcon className="size-5 opacity-50" />
+                  No matching places
+                </div>
+              ) : (
+                <ul className="flex flex-col gap-0.5">
+                  {filtered.map((item) => {
+                    const isSelected = item.value === value
+                    return (
+                      <li key={item.value}>
+                        <button
+                          type="button"
+                          onClick={() => pick(item.value)}
+                          className={cn(
+                            "flex w-full items-center gap-3 rounded-xl px-3 py-3.5 text-left touch-manipulation transition-colors",
+                            isSelected
+                              ? "bg-[color-mix(in_srgb,var(--brand-accent)_14%,white)]"
+                              : "hover:bg-muted active:bg-muted",
+                          )}
+                        >
+                          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--brand-accent)_12%,white)] text-brand-accent">
+                            <MapPinIcon className="size-4" />
+                          </span>
+                          <span className="min-w-0 flex-1 text-base font-semibold whitespace-normal text-[color:var(--brand-ink)]">
+                            {item.label}
+                          </span>
+                        </button>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </div>
+          </SheetContent>
+        </Sheet>
+      </>
+    )
+  }
 
   return (
     <Combobox
       items={options}
       value={selected}
       onValueChange={(item: FieldOption | null) => {
-        if (item) onChange(item.value)
+        if (item) {
+          onChange(item.value)
+          onAfterSelect?.()
+        }
       }}
       itemToStringLabel={(item: FieldOption) => item.label}
       isItemEqualToValue={(a: FieldOption, b: FieldOption) =>
@@ -523,6 +651,12 @@ export function HeroBookingCard() {
   const busy = continuing || quoteStatus === "loading"
   const fromRowAnchor = useComboboxAnchor()
   const toRowAnchor = useComboboxAnchor()
+  const isMobile = useIsMobile()
+
+  function openCalendarAfterDestination() {
+    if (!isMobile) return
+    setCalendarOpen(true)
+  }
 
   return (
     <div className="relative z-20 w-full rounded-2xl bg-brand-surface text-brand shadow-[0_20px_50px_rgba(0,0,0,0.28)]">
@@ -605,6 +739,9 @@ export function HeroBookingCard() {
                   options={zoneOptions}
                   onChange={onZonePicked}
                   anchor={toRowAnchor}
+                  mobileSheet
+                  sheetTitle="Choose destination"
+                  onAfterSelect={openCalendarAfterDestination}
                 />
               ) : (
                 <FieldSelect
@@ -613,6 +750,9 @@ export function HeroBookingCard() {
                   options={airportOptions}
                   onChange={onAirportPicked}
                   anchor={toRowAnchor}
+                  mobileSheet
+                  sheetTitle="Choose destination"
+                  onAfterSelect={openCalendarAfterDestination}
                 />
               )}
             </div>
