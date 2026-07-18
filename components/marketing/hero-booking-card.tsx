@@ -1,11 +1,13 @@
 "use client"
 
 import * as React from "react"
+import { createPortal } from "react-dom"
 import useSWR from "swr"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import {
   ArrowDownIcon,
+  BriefcaseIcon,
   CalendarIcon,
   CircleIcon,
   Loader2Icon,
@@ -75,6 +77,37 @@ function airportLocation(airport: AirportWithCoords): BookingLocation {
 
 function emptyLocation(): BookingLocation {
   return { address: "", lat: null, lng: null }
+}
+
+/** Full-viewport white reloader — portaled above sheet open/close animations. */
+function HeroStepReloader() {
+  const [mounted, setMounted] = React.useState(false)
+  React.useEffect(() => setMounted(true), [])
+  if (!mounted) return null
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[9999] flex h-[100dvh] w-screen items-center justify-center bg-white"
+      style={{
+        top: 0,
+        right: 0,
+        bottom: 0,
+        left: 0,
+        width: "100vw",
+        height: "100dvh",
+      }}
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+      aria-label="Loading"
+    >
+      <Loader2Icon
+        className="size-10 animate-spin"
+        style={{ color: "var(--brand-accent)" }}
+      />
+    </div>,
+    document.body,
+  )
 }
 
 async function fetchVehicleQuote(body: {
@@ -382,7 +415,9 @@ export function HeroBookingCard() {
 
   const router = useRouter()
   const [calendarOpen, setCalendarOpen] = React.useState(false)
+  const [passengersOpen, setPassengersOpen] = React.useState(false)
   const [continuing, setContinuing] = React.useState(false)
+  const [stepReloading, setStepReloading] = React.useState(false)
 
   const { data: config } = useSWR<BookingConfig>("/api/booking/config", fetcher)
   const airports = config?.airports ?? []
@@ -570,7 +605,7 @@ export function HeroBookingCard() {
     applyEndpoints(direction ?? "airport_to_dest", airport, dest)
   }
 
-  async function onContinue() {
+  async function onContinue(opts?: { fromPassengersSheet?: boolean }) {
     if (continuing) return
 
     const state = useBookingStore.getState()
@@ -592,16 +627,19 @@ export function HeroBookingCard() {
     }
     if (!hasTime) {
       toast.error("Add a pickup date and time.")
+      if (opts?.fromPassengersSheet) setPassengersOpen(false)
       setCalendarOpen(true)
       return
     }
     if (isPickupTooSoon(state.pickupDateTime)) {
       toast.error(pickupLeadTimeMessage())
+      if (opts?.fromPassengersSheet) setPassengersOpen(false)
       setCalendarOpen(true)
       return
     }
 
     setContinuing(true)
+    if (opts?.fromPassengersSheet) setPassengersOpen(false)
     try {
       let latest = useBookingStore.getState()
       if (latest.quoteStatus !== "success") {
@@ -613,9 +651,10 @@ export function HeroBookingCard() {
           } else {
             toast.error(
               latest.quoteError ||
-              "Could not get prices for this route. Try again.",
+                "Could not get prices for this route. Try again.",
             )
           }
+          setContinuing(false)
           return
         }
         latest = useBookingStore.getState()
@@ -633,7 +672,8 @@ export function HeroBookingCard() {
       })
       setStep(1)
       router.push("/book")
-    } finally {
+      // Leave continuing on so the white reloader stays until unmount.
+    } catch {
       setContinuing(false)
     }
   }
@@ -649,17 +689,45 @@ export function HeroBookingCard() {
   }))
 
   const busy = continuing || quoteStatus === "loading"
+  const showReloader = continuing || stepReloading
   const fromRowAnchor = useComboboxAnchor()
   const toRowAnchor = useComboboxAnchor()
   const isMobile = useIsMobile()
+  useBodyScrollLock(
+    Boolean((isMobile && passengersOpen) || showReloader),
+  )
+
+  async function runSheetTransition(openNext: () => void) {
+    if (!isMobile) {
+      openNext()
+      return
+    }
+    setStepReloading(true)
+    // Cover previous sheet close animation completely.
+    await new Promise((resolve) => setTimeout(resolve, 320))
+    openNext()
+    // Keep covering until the next sheet has finished opening.
+    await new Promise((resolve) => setTimeout(resolve, 280))
+    setStepReloading(false)
+  }
 
   function openCalendarAfterDestination() {
-    if (!isMobile) return
-    setCalendarOpen(true)
+    void runSheetTransition(() => setCalendarOpen(true))
   }
+
+  function openPassengersAfterCalendar() {
+    void runSheetTransition(() => setPassengersOpen(true))
+  }
+
+  React.useEffect(() => {
+    router.prefetch("/book")
+  }, [router])
+
+  const passengersLabel = `${passengerCount} passenger${passengerCount === 1 ? "" : "s"} · ${luggageCount} luggage`
 
   return (
     <div className="relative z-20 w-full rounded-2xl bg-brand-surface text-brand shadow-[0_20px_50px_rgba(0,0,0,0.28)]">
+      {showReloader ? <HeroStepReloader /> : null}
       <div className="p-5 sm:p-6 pb-4 sm:pb-5">
         <div className="grid grid-cols-2 rounded-full bg-muted p-1">
           <button
@@ -763,6 +831,7 @@ export function HeroBookingCard() {
             open={calendarOpen}
             onOpenChange={setCalendarOpen}
             onChange={(iso) => patch({ pickupDateTime: iso })}
+            onAfterConfirm={openPassengersAfterCalendar}
             trigger={
               <button
                 type="button"
@@ -786,22 +855,104 @@ export function HeroBookingCard() {
           />
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-4">
-          <Stepper
-            label="Passengers"
-            value={passengerCount}
-            min={1}
-            max={8}
-            onChange={(n) => patch({ passengerCount: n })}
-          />
-          <Stepper
-            label="Luggage pieces"
-            value={luggageCount}
-            min={0}
-            max={10}
-            onChange={(n) => patch({ luggageCount: n })}
-          />
-        </div>
+        {isMobile ? (
+          <>
+            <button
+              type="button"
+              onClick={() => setPassengersOpen(true)}
+              className={cn(
+                "mt-4 flex w-full items-center gap-3 rounded-xl border border-border px-3 py-3.5 text-left touch-manipulation transition-colors hover:bg-muted",
+                passengersOpen && "ring-2 ring-inset ring-black",
+              )}
+            >
+              <UsersIcon className="size-4 shrink-0 text-brand" />
+              <span className="min-w-0 flex-1 text-base font-bold text-[color:var(--brand-ink)]">
+                {passengersLabel}
+              </span>
+              <BriefcaseIcon className="size-4 shrink-0 text-muted-foreground" />
+            </button>
+
+            <Sheet
+              open={passengersOpen}
+              onOpenChange={(open) => {
+                if (continuing) return
+                setPassengersOpen(open)
+              }}
+            >
+              <SheetContent
+                side="bottom"
+                showCloseButton={!continuing}
+                className="flex h-[100dvh] max-h-[100dvh] flex-col gap-0 rounded-none border-0 bg-brand-surface p-0 text-[color:var(--brand-ink)] data-[side=bottom]:h-[100dvh]"
+              >
+                <SheetHeader className="shrink-0 border-b border-border px-4 py-3 pr-14">
+                  <SheetTitle className="text-base font-bold text-brand">
+                    Passengers & luggage
+                  </SheetTitle>
+                </SheetHeader>
+
+                <div className="flex min-h-0 flex-1 flex-col">
+                  <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5">
+                    <div className="flex flex-col gap-5">
+                      <Stepper
+                        label="Passengers"
+                        value={passengerCount}
+                        min={1}
+                        max={8}
+                        onChange={(n) => patch({ passengerCount: n })}
+                      />
+                      <Stepper
+                        label="Luggage pieces"
+                        value={luggageCount}
+                        min={0}
+                        max={10}
+                        onChange={(n) => patch({ luggageCount: n })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="shrink-0 border-t border-border px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+                    <Button
+                      type="button"
+                      size="lg"
+                      className="h-12 w-full rounded-xl bg-brand-accent text-base font-extrabold text-white hover:bg-brand-accent-hover"
+                      disabled={busy}
+                      onClick={() => void onContinue({ fromPassengersSheet: true })}
+                    >
+                      {busy ? (
+                        <>
+                          <Loader2Icon
+                            className="animate-spin"
+                            data-icon="inline-start"
+                          />
+                          Continue…
+                        </>
+                      ) : (
+                        "Confirm"
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </SheetContent>
+            </Sheet>
+          </>
+        ) : (
+          <div className="mt-4 grid grid-cols-2 gap-4">
+            <Stepper
+              label="Passengers"
+              value={passengerCount}
+              min={1}
+              max={8}
+              onChange={(n) => patch({ passengerCount: n })}
+            />
+            <Stepper
+              label="Luggage pieces"
+              value={luggageCount}
+              min={0}
+              max={10}
+              onChange={(n) => patch({ luggageCount: n })}
+            />
+          </div>
+        )}
 
         {quoteStatus === "uncovered" && (
           <p className="mt-3 text-xs text-amber-700 text-center font-medium">

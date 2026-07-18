@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import useSWR from "swr"
+import { toast } from "sonner"
 import {
   ChevronRightIcon,
   ChevronUpIcon,
@@ -36,6 +37,9 @@ import {
 import { RouteStep } from "@/components/booking/steps/RouteStep"
 import { DetailsStep } from "@/components/booking/steps/DetailsStep"
 import { PaymentStep } from "@/components/booking/steps/PaymentStep"
+
+/** TripOptions listens for this to open the return date picker + show field error. */
+export const FOCUS_RETURN_DATE_EVENT = "booking:focus-return-date"
 
 const STEP_META: Record<
   BookingStep,
@@ -158,6 +162,47 @@ export function BookingShell({
   const stepTitle =
     currentStep === 1 && startedFromHero ? "Complete your booking" : meta.title
 
+  function handleContinue() {
+    const state = useBookingStore.getState()
+
+    if (state.isRoundTrip && !state.returnDateTime) {
+      const message = "Select a return date & time."
+      toast.error(message)
+      window.dispatchEvent(
+        new CustomEvent(FOCUS_RETURN_DATE_EVENT, { detail: { message } }),
+      )
+      return
+    }
+
+    if (
+      state.isRoundTrip &&
+      state.returnDateTime &&
+      state.pickupDateTime
+    ) {
+      const pickupMs = new Date(state.pickupDateTime).getTime()
+      const returnMs = new Date(state.returnDateTime).getTime()
+      if (
+        !Number.isNaN(pickupMs) &&
+        !Number.isNaN(returnMs) &&
+        returnMs <= pickupMs
+      ) {
+        const message = "Return date must be after your pickup."
+        toast.error(message)
+        window.dispatchEvent(
+          new CustomEvent(FOCUS_RETURN_DATE_EVENT, { detail: { message } }),
+        )
+        return
+      }
+    }
+
+    if (!canGoNext) {
+      toast.error("Please complete all required fields.")
+      return
+    }
+
+    goNext()
+  }
+
   if (!hydrated) {
     return (
       <div
@@ -234,19 +279,29 @@ export function BookingShell({
                   )}
                   <DetailsStep />
                 </div>
+                {!isHero && (
+                  <Button
+                    type="button"
+                    size="lg"
+                    className="h-12 w-full rounded-xl font-extrabold bg-brand-accent text-white hover:bg-brand-accent-hover"
+                    onClick={handleContinue}
+                  >
+                    Continue
+                    <ChevronRightIcon data-icon="inline-end" />
+                  </Button>
+                )}
               </div>
             ) : (
               <PaymentStep />
             )}
           </div>
 
-          {currentStep < 2 && (
+          {currentStep < 2 && isHero && (
             <div className="flex items-center justify-end gap-3">
               <Button
                 type="button"
                 className="rounded font-extrabold bg-brand-accent text-white hover:bg-brand-accent-hover"
-                onClick={() => goNext()}
-                disabled={!canGoNext}
+                onClick={handleContinue}
               >
                 Continue
                 <ChevronRightIcon data-icon="inline-end" />

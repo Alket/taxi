@@ -4,8 +4,6 @@ import * as React from "react"
 import useSWR from "swr"
 import {
   CalendarIcon,
-  CarFrontIcon,
-  InfoIcon,
   MinusIcon,
   PlusIcon,
 } from "lucide-react"
@@ -17,18 +15,12 @@ import {
 } from "@/components/marketing/hero-datetime-picker"
 import { formatMoney } from "@/lib/format"
 import { useBookingStore } from "@/lib/store/booking-store"
-import { getVehicleCatalog } from "@/lib/vehicles"
 import { cn } from "@/lib/utils"
 import { useAutoSelectVehicle } from "@/hooks/use-auto-select-vehicle"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
 
 type BookingConfig = {
   roundTripDiscountPercent?: number
@@ -103,10 +95,8 @@ export function TripOptions() {
   const luggageCount = useBookingStore((s) => s.luggageCount)
   const isRoundTrip = useBookingStore((s) => s.isRoundTrip)
   const returnDateTime = useBookingStore((s) => s.returnDateTime)
-  const meetAndGreet = useBookingStore((s) => s.meetAndGreet)
   const pickupDateTime = useBookingStore((s) => s.pickupDateTime)
   const quotedPrice = useBookingStore((s) => s.quotedPrice)
-  const quoteStatus = useBookingStore((s) => s.quoteStatus)
   const startedFromHero = useBookingStore((s) => s.startedFromHero)
   const patch = useBookingStore((s) => s.patch)
 
@@ -116,8 +106,28 @@ export function TripOptions() {
   useAutoSelectVehicle(discountPercent)
 
   const [calendarOpen, setCalendarOpen] = React.useState(false)
+  const [returnDateError, setReturnDateError] = React.useState<string | null>(
+    null,
+  )
+  const returnDateFieldRef = React.useRef<HTMLDivElement>(null)
 
-  const catalog = vehicleType ? getVehicleCatalog(vehicleType) : null
+  React.useEffect(() => {
+    function onFocusReturnDate(event: Event) {
+      const detail = (event as CustomEvent<{ message?: string }>).detail
+      setReturnDateError(
+        detail?.message ?? "Select a return date & time.",
+      )
+      setCalendarOpen(true)
+      returnDateFieldRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      })
+    }
+    window.addEventListener("booking:focus-return-date", onFocusReturnDate)
+    return () =>
+      window.removeEventListener("booking:focus-return-date", onFocusReturnDate)
+  }, [])
+
   const oneWayPrice =
     vehicleType && vehicleQuotes[vehicleType]
       ? vehicleQuotes[vehicleType]!.price
@@ -130,6 +140,7 @@ export function TripOptions() {
       isRoundTrip: enabled,
       returnDateTime: enabled ? returnDateTime : null,
     })
+    if (!enabled) setReturnDateError(null)
   }
 
   return (
@@ -155,25 +166,6 @@ export function TripOptions() {
         </div>
       )}
 
-      {quoteStatus === "success" && catalog && (
-        <div className="flex items-center gap-3 rounded-xl border border-brand-accent/30 bg-brand-accent/5 px-3.5 py-3">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-brand-accent/15 text-brand-accent">
-            <CarFrontIcon className="size-5" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-brand">
-              {catalog.label}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Auto-selected for {passengerCount} passenger
-              {passengerCount === 1 ? "" : "s"} and {luggageCount} bag
-              {luggageCount === 1 ? "" : "s"}
-              {quotedPrice != null ? ` · ${formatMoney(quotedPrice)}` : ""}
-            </p>
-          </div>
-        </div>
-      )}
-
       <div className="flex flex-col gap-3 rounded-xl border p-3.5">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -196,7 +188,11 @@ export function TripOptions() {
         </div>
 
         {isRoundTrip && (
-          <div className="flex flex-col gap-1.5 border-t pt-3">
+          <div
+            ref={returnDateFieldRef}
+            id="return-date-field"
+            className="flex flex-col gap-1.5 border-t pt-3"
+          >
             <Label htmlFor="returnDateTime" className="text-sm font-bold text-brand">
               Return date & time
             </Label>
@@ -205,7 +201,10 @@ export function TripOptions() {
                 value={returnDateTime}
                 open={calendarOpen}
                 onOpenChange={setCalendarOpen}
-                onChange={(iso) => patch({ returnDateTime: iso })}
+                onChange={(iso) => {
+                  patch({ returnDateTime: iso })
+                  setReturnDateError(null)
+                }}
                 minDate={
                   pickupDateTime ? new Date(pickupDateTime) : new Date()
                 }
@@ -213,11 +212,15 @@ export function TripOptions() {
                 trigger={
                   <button
                     type="button"
+                    id="returnDateTime"
                     onClick={() => setCalendarOpen(true)}
+                    aria-invalid={Boolean(returnDateError)}
                     className={cn(
                       "flex h-10 w-full items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm text-brand transition-colors hover:bg-muted/50",
                       calendarOpen &&
                         "border-brand-accent ring-2 ring-brand-accent ring-offset-2",
+                      returnDateError &&
+                        "border-red-500 ring-2 ring-red-500/30 ring-offset-2",
                     )}
                   >
                     <CalendarIcon className="size-4 text-muted-foreground" />
@@ -233,6 +236,9 @@ export function TripOptions() {
                 }
               />
             </div>
+            {returnDateError && (
+              <p className="text-xs text-red-500">{returnDateError}</p>
+            )}
             {discountPercent > 0 && combinedBeforeDiscount != null && (
               <p className="text-xs text-muted-foreground">
                 {discountPercent}% round-trip discount applied
@@ -256,45 +262,6 @@ export function TripOptions() {
             )}
           </div>
         )}
-      </div>
-
-      <div className="flex items-start gap-3 rounded-xl border px-3.5 py-3">
-        <input
-          id="meetAndGreet"
-          type="checkbox"
-          checked={meetAndGreet}
-          onChange={(e) => patch({ meetAndGreet: e.target.checked })}
-          className="mt-0.5 size-4 rounded border-input accent-brand-accent"
-        />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <Label
-              htmlFor="meetAndGreet"
-              className="text-sm font-bold text-brand"
-            >
-              Meet & greet
-            </Label>
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <button
-                    type="button"
-                    className="inline-flex text-muted-foreground hover:text-foreground"
-                    aria-label="About meet and greet"
-                  />
-                }
-              >
-                <InfoIcon className="size-3.5" />
-              </TooltipTrigger>
-              <TooltipContent>
-                Driver waits inside arrivals with a name sign
-              </TooltipContent>
-            </Tooltip>
-          </div>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Ideal for first-time arrivals and families.
-          </p>
-        </div>
       </div>
     </div>
   )

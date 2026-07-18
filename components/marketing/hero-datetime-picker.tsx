@@ -49,12 +49,15 @@ type HeroDateTimePickerProps = {
   trigger: React.ReactNode
   minDate?: Date
   variant?: "hero" | "compact"
+  /** Called after Confirm — open the next sheet first so scroll-lock stays engaged. */
+  onAfterConfirm?: () => void
 }
 
 function CalendarPanel({
   value,
   onChange,
   onOpenChange,
+  onAfterConfirm,
   earliest,
   open,
   layout,
@@ -62,6 +65,7 @@ function CalendarPanel({
   value: string | null
   onChange: (iso: string) => void
   onOpenChange: (open: boolean) => void
+  onAfterConfirm?: () => void
   earliest: Date
   open: boolean
   layout: "dropdown" | "sheet"
@@ -125,6 +129,8 @@ function CalendarPanel({
       }
     }
     onChange(next.toISOString())
+    // Open the next sheet first so scroll-lock ref-count never drops to 0.
+    onAfterConfirm?.()
     onOpenChange(false)
   }
 
@@ -264,6 +270,7 @@ export function HeroDateTimePicker({
   onOpenChange,
   trigger,
   minDate,
+  onAfterConfirm,
 }: HeroDateTimePickerProps) {
   const isMobile = useIsMobile()
   useBodyScrollLock(isMobile && open)
@@ -296,6 +303,7 @@ export function HeroDateTimePicker({
                 value={value}
                 onChange={onChange}
                 onOpenChange={onOpenChange}
+                onAfterConfirm={onAfterConfirm}
                 earliest={earliest}
                 open={open}
                 layout="sheet"
@@ -323,6 +331,7 @@ export function HeroDateTimePicker({
               value={value}
               onChange={onChange}
               onOpenChange={onOpenChange}
+              onAfterConfirm={onAfterConfirm}
               earliest={earliest}
               open={open}
               layout="dropdown"

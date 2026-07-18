@@ -97,7 +97,7 @@ export function BookingSummaryContent() {
       {/* Header Image Section */}
       <div className="relative h-28 w-full overflow-hidden rounded-t-xl bg-muted">
         <Image
-          src="/hero-pickup.png"
+          src="/hero_photo_desktop_2.jpg"
           alt="Summary"
           fill
           className="object-cover brightness-50"
@@ -105,7 +105,7 @@ export function BookingSummaryContent() {
         <div className="absolute inset-0 flex flex-col justify-between p-4 text-white">
           <h2 className="text-sm font-bold uppercase tracking-wider">Order Summary</h2>
           <div className="rounded bg-brand-surface/20 px-2 py-0.5 backdrop-blur-md w-fit text-xs font-bold uppercase">
-             {dropoff.address ? dropoff.address.split(',')[0] : "Your Destination"}
+            {dropoff.address ? dropoff.address.split(',')[0] : "Your Destination"}
           </div>
         </div>
       </div>
@@ -196,8 +196,8 @@ export function BookingSummaryContent() {
 
         {/* Small Note */}
         <p className="text-[10px] leading-tight text-muted-foreground">
-           Free cancellation until 24 hours before pickup.
-           No hidden fees.
+          Free cancellation until 24 hours before pickup.
+          No hidden fees.
         </p>
       </div>
 

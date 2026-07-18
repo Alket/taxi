@@ -83,6 +83,7 @@ export function DetailsStep() {
   const childSeatCount = useBookingStore((s) => s.childSeatCount)
   const boosterCount = useBookingStore((s) => s.boosterCount)
   const driverNotes = useBookingStore((s) => s.driverNotes)
+  const meetAndGreet = useBookingStore((s) => s.meetAndGreet)
   const patch = useBookingStore((s) => s.patch)
 
   const { data: config } = useSWR<ChildSeatPrices>(
@@ -301,6 +302,28 @@ export function DetailsStep() {
                 errors.phoneNational?.message}
             </p>
           )}
+        </div>
+
+        <div className="flex items-start gap-3 rounded-xl border border-border px-3.5 py-3">
+          <Checkbox
+            id="meetAndGreet"
+            checked={meetAndGreet}
+            onCheckedChange={(checked) =>
+              patch({ meetAndGreet: Boolean(checked) })
+            }
+            className="mt-1 border-border data-checked:border-brand-accent data-checked:bg-brand-accent"
+          />
+          <div className="min-w-0 flex-1">
+            <Label
+              htmlFor="meetAndGreet"
+              className="text-sm font-bold text-brand"
+            >
+              Meet & Greet
+            </Label>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Driver waits inside arrivals with a name sign
+            </p>
+          </div>
         </div>
       </div>
 
