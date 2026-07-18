@@ -90,6 +90,11 @@ export async function getStripe(): Promise<Stripe> {
   if (!config.secretKey) {
     throw new Error("Stripe secret key is not configured.")
   }
+  if (config.secretKey.startsWith("pk_")) {
+    throw new Error(
+      "Stripe secret key is misconfigured: a publishable key (pk_…) was saved in the secret field. Use sk_test_… or sk_live_… instead.",
+    )
+  }
 
   if (!stripeClient || stripeClientKey !== config.secretKey) {
     stripeClient = new Stripe(config.secretKey, {

@@ -172,53 +172,72 @@ export async function GET(request: Request) {
     "in_progress",
   ] as const
 
-  const [todayRows, upcomingRows, revenueRows] = await Promise.all([
-    // Today: active trips + completed ones still awaiting cash (deposit-only / unpaid)
-    prisma.booking.findMany({
-      where: {
-        driverId: session.driver.id,
-        pickupDateTime: { gte: todayStart, lte: todayEnd },
-        OR: [
-          { status: { in: [...activeStatuses] } },
-          {
-            status: "completed",
-            paymentStatus: { in: ["deposit_paid", "unpaid"] },
+  const [todayRows, upcomingRows, historyRows, revenueRows] =
+    await Promise.all([
+      // Today: active trips + completed ones still awaiting cash (deposit-only / unpaid)
+      prisma.booking.findMany({
+        where: {
+          driverId: session.driver.id,
+          pickupDateTime: { gte: todayStart, lte: todayEnd },
+          OR: [
+            { status: { in: [...activeStatuses] } },
+            {
+              status: "completed",
+              paymentStatus: { in: ["deposit_paid", "unpaid"] },
+            },
+          ],
+        },
+        orderBy: { pickupDateTime: "desc" },
+        select: tripSelect,
+      }),
+      prisma.booking.findMany({
+        where: {
+          driverId: session.driver.id,
+          status: { in: [...activeStatuses] },
+          pickupDateTime: { gt: todayEnd },
+        },
+        orderBy: { pickupDateTime: "asc" },
+        select: tripSelect,
+        take: 50,
+      }),
+      // Past trips only — completed/cancelled, excluding today's cash-pending completed
+      prisma.booking.findMany({
+        where: {
+          driverId: session.driver.id,
+          status: { in: ["completed", "cancelled"] },
+          NOT: {
+            AND: [
+              { pickupDateTime: { gte: todayStart, lte: todayEnd } },
+              { status: "completed" },
+              { paymentStatus: { in: ["deposit_paid", "unpaid"] } },
+            ],
           },
-        ],
-      },
-      orderBy: { pickupDateTime: "asc" },
-      select: tripSelect,
-    }),
-    prisma.booking.findMany({
-      where: {
-        driverId: session.driver.id,
-        status: { in: [...activeStatuses] },
-        pickupDateTime: { gt: todayEnd },
-      },
-      orderBy: { pickupDateTime: "asc" },
-      select: tripSelect,
-      take: 50,
-    }),
-    prisma.booking.findMany({
-      where: {
-        driverId: session.driver.id,
-        status: "completed",
-        pickupDateTime: { gte: monthStart, lte: monthEnd },
-      },
-      select: {
-        totalPrice: true,
-        currency: true,
-        balanceDue: true,
-        depositPaid: true,
-        paymentStatus: true,
-      },
-    }),
-  ])
+        },
+        orderBy: { pickupDateTime: "desc" },
+        select: tripSelect,
+        take: 50,
+      }),
+      prisma.booking.findMany({
+        where: {
+          driverId: session.driver.id,
+          status: "completed",
+          pickupDateTime: { gte: monthStart, lte: monthEnd },
+        },
+        select: {
+          totalPrice: true,
+          currency: true,
+          balanceDue: true,
+          depositPaid: true,
+          paymentStatus: true,
+        },
+      }),
+    ])
 
   const currency =
     revenueRows[0]?.currency ??
     todayRows[0]?.currency ??
     upcomingRows[0]?.currency ??
+    historyRows[0]?.currency ??
     "EUR"
 
   const revenueTotal = revenueRows.reduce(
@@ -242,6 +261,7 @@ export async function GET(request: Request) {
   return NextResponse.json({
     today: todayRows.map(serializeTrip),
     upcoming: upcomingRows.map(serializeTrip),
+    history: historyRows.map(serializeTrip),
     // Back-compat for any old clients
     bookings: [...todayRows, ...upcomingRows].map(serializeTrip),
     revenue: {

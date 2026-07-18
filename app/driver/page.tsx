@@ -66,6 +66,7 @@ type DriverTrip = {
 type DashboardPayload = {
   today: DriverTrip[]
   upcoming: DriverTrip[]
+  history: DriverTrip[]
   revenue: {
     year: number
     month: number
@@ -186,6 +187,7 @@ export default function DriverDashboardPage() {
 
   const today = data?.today ?? []
   const upcoming = data?.upcoming ?? []
+  const history = data?.history ?? []
   const revenue = data?.revenue
 
   return (
@@ -272,7 +274,10 @@ export default function DriverDashboardPage() {
         ) : null}
       </section>
 
-      {isLoading && today.length === 0 && upcoming.length === 0 ? (
+      {isLoading &&
+      today.length === 0 &&
+      upcoming.length === 0 &&
+      history.length === 0 ? (
         <div className="flex flex-col gap-3">
           <Skeleton className="h-10 w-full rounded-lg" />
           <Skeleton className="h-40 w-full rounded-xl" />
@@ -283,7 +288,7 @@ export default function DriverDashboardPage() {
         </div>
       ) : (
         <Tabs defaultValue="today" className="w-full gap-3">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="today">
               Today
               <span className="ml-1 tabular-nums text-muted-foreground">
@@ -294,6 +299,12 @@ export default function DriverDashboardPage() {
               Upcoming
               <span className="ml-1 tabular-nums text-muted-foreground">
                 ({upcoming.length})
+              </span>
+            </TabsTrigger>
+            <TabsTrigger value="history">
+              History
+              <span className="ml-1 tabular-nums text-muted-foreground">
+                ({history.length})
               </span>
             </TabsTrigger>
           </TabsList>
@@ -318,6 +329,17 @@ export default function DriverDashboardPage() {
               onRespond={respond}
             />
           </TabsContent>
+          <TabsContent value="history" className="mt-0">
+            <TripList
+              empty="No past trips yet."
+              trips={history}
+              pendingId={pendingId}
+              onAdvance={advance}
+              onCashPaid={markCashPaid}
+              onRespond={respond}
+              readOnly
+            />
+          </TabsContent>
         </Tabs>
       )}
     </div>
@@ -331,6 +353,7 @@ function TripList({
   onAdvance,
   onCashPaid,
   onRespond,
+  readOnly = false,
 }: {
   empty: string
   trips: DriverTrip[]
@@ -338,6 +361,7 @@ function TripList({
   onAdvance: (trip: DriverTrip) => void
   onCashPaid: (trip: DriverTrip) => void
   onRespond: (trip: DriverTrip, action: "accept" | "reject") => void
+  readOnly?: boolean
 }) {
   if (trips.length === 0) {
     return (
@@ -355,6 +379,7 @@ function TripList({
           key={trip.id}
           trip={trip}
           pending={pendingId === trip.id}
+          readOnly={readOnly}
           onAdvance={() => onAdvance(trip)}
           onCashPaid={() => onCashPaid(trip)}
           onAccept={() => onRespond(trip, "accept")}
@@ -368,6 +393,7 @@ function TripList({
 function TripCard({
   trip,
   pending,
+  readOnly = false,
   onAdvance,
   onCashPaid,
   onAccept,
@@ -375,6 +401,7 @@ function TripCard({
 }: {
   trip: DriverTrip
   pending: boolean
+  readOnly?: boolean
   onAdvance: () => void
   onCashPaid: () => void
   onAccept: () => void
@@ -467,91 +494,99 @@ function TripCard({
         </div>
       ) : null}
 
-      <div className="flex flex-col gap-2">
-        {trip.needsResponse ? (
-          <>
-            <p className="text-xs text-muted-foreground">
-              Ops assigned this trip — accept to continue, or reject to send it
-              back.
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                type="button"
-                size="lg"
-                className="w-full"
-                disabled={pending}
-                onClick={onAccept}
-              >
-                {pending ? (
-                  <>
-                    <Loader2Icon
-                      className="animate-spin"
-                      data-icon="inline-start"
-                    />
-                    Updating…
-                  </>
-                ) : (
-                  "Accept"
-                )}
-              </Button>
-              <Button
-                type="button"
-                size="lg"
-                variant="outline"
-                className="w-full"
-                disabled={pending}
-                onClick={onReject}
-              >
-                Reject
-              </Button>
-            </div>
-          </>
-        ) : null}
+      {!readOnly ? (
+        <div className="flex flex-col gap-2">
+          {trip.needsResponse ? (
+            <>
+              <p className="text-xs text-muted-foreground">
+                Ops assigned this trip — accept to continue, or reject to send it
+                back.
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  size="lg"
+                  className="w-full"
+                  disabled={pending}
+                  onClick={onAccept}
+                >
+                  {pending ? (
+                    <>
+                      <Loader2Icon
+                        className="animate-spin"
+                        data-icon="inline-start"
+                      />
+                      Updating…
+                    </>
+                  ) : (
+                    "Accept"
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  size="lg"
+                  variant="outline"
+                  className="w-full"
+                  disabled={pending}
+                  onClick={onReject}
+                >
+                  Reject
+                </Button>
+              </div>
+            </>
+          ) : null}
 
-        {!trip.needsResponse && trip.canMarkCashPaid ? (
-          <Button
-            type="button"
-            size="lg"
-            className="w-full"
-            disabled={pending}
-            onClick={onCashPaid}
-          >
-            {pending ? (
-              <>
-                <Loader2Icon className="animate-spin" data-icon="inline-start" />
-                Updating…
-              </>
-            ) : (
-              <>
-                <BanknoteIcon data-icon="inline-start" />
-                Cash Paid
-              </>
-            )}
-          </Button>
-        ) : null}
+          {!trip.needsResponse && trip.canMarkCashPaid ? (
+            <Button
+              type="button"
+              size="lg"
+              className="w-full"
+              disabled={pending}
+              onClick={onCashPaid}
+            >
+              {pending ? (
+                <>
+                  <Loader2Icon
+                    className="animate-spin"
+                    data-icon="inline-start"
+                  />
+                  Updating…
+                </>
+              ) : (
+                <>
+                  <BanknoteIcon data-icon="inline-start" />
+                  Cash Paid
+                </>
+              )}
+            </Button>
+          ) : null}
 
-        {!trip.needsResponse && trip.nextStatus ? (
-          <Button
-            type="button"
-            size="lg"
-            variant={trip.canMarkCashPaid ? "outline" : "default"}
-            className="w-full"
-            disabled={pending}
-            onClick={onAdvance}
-          >
-            {pending ? (
-              <>
-                <Loader2Icon className="animate-spin" data-icon="inline-start" />
-                Updating…
-              </>
-            ) : trip.nextStatus === "arrived" ? (
-              "Mark Arrived"
-            ) : (
-              "Mark Completed"
-            )}
-          </Button>
-        ) : null}
-      </div>
+          {!trip.needsResponse && trip.nextStatus ? (
+            <Button
+              type="button"
+              size="lg"
+              variant={trip.canMarkCashPaid ? "outline" : "default"}
+              className="w-full"
+              disabled={pending}
+              onClick={onAdvance}
+            >
+              {pending ? (
+                <>
+                  <Loader2Icon
+                    className="animate-spin"
+                    data-icon="inline-start"
+                  />
+                  Updating…
+                </>
+              ) : trip.nextStatus === "arrived" ? (
+                "Mark Arrived"
+              ) : (
+                "Mark Completed"
+              )}
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
     </li>
   )
 }

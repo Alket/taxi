@@ -172,6 +172,60 @@ export async function PATCH(request: Request) {
     ) {
       data.stripeLiveSecretKey = body.stripeLiveSecretKey.trim()
     }
+
+    const nextTestPk =
+      typeof data.stripeTestPublishableKey === "string"
+        ? data.stripeTestPublishableKey
+        : undefined
+    const nextTestSk =
+      typeof data.stripeTestSecretKey === "string"
+        ? data.stripeTestSecretKey
+        : undefined
+    const nextLivePk =
+      typeof data.stripeLivePublishableKey === "string"
+        ? data.stripeLivePublishableKey
+        : undefined
+    const nextLiveSk =
+      typeof data.stripeLiveSecretKey === "string"
+        ? data.stripeLiveSecretKey
+        : undefined
+
+    if (nextTestPk && nextTestPk.startsWith("sk_")) {
+      return NextResponse.json(
+        {
+          error:
+            "Test publishable key looks like a secret key (starts with sk_). Use the pk_test_… key instead.",
+        },
+        { status: 400 },
+      )
+    }
+    if (nextTestSk && nextTestSk.startsWith("pk_")) {
+      return NextResponse.json(
+        {
+          error:
+            "Test secret key looks like a publishable key (starts with pk_). Use the sk_test_… key instead.",
+        },
+        { status: 400 },
+      )
+    }
+    if (nextLivePk && nextLivePk.startsWith("sk_")) {
+      return NextResponse.json(
+        {
+          error:
+            "Live publishable key looks like a secret key (starts with sk_). Use the pk_live_… key instead.",
+        },
+        { status: 400 },
+      )
+    }
+    if (nextLiveSk && nextLiveSk.startsWith("pk_")) {
+      return NextResponse.json(
+        {
+          error:
+            "Live secret key looks like a publishable key (starts with pk_). Use the sk_live_… key instead.",
+        },
+        { status: 400 },
+      )
+    }
     if (
       typeof body.stripeTestWebhookSecret === "string" &&
       body.stripeTestWebhookSecret.trim().length > 0
