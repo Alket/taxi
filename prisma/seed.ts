@@ -62,14 +62,14 @@ function buildStatusEvents(
 }
 
 const zones = [
-  { name: "Tirana City", centroidLat: 41.3275, centroidLng: 19.8187, tier: 1 },
-  { name: "Durrës", centroidLat: 41.3231, centroidLng: 19.4414, tier: 2 },
-  { name: "Vlorë", centroidLat: 40.4661, centroidLng: 19.4914, tier: 3 },
-  { name: "Berat", centroidLat: 40.7058, centroidLng: 19.9522, tier: 3 },
-  { name: "Shkodër", centroidLat: 42.0693, centroidLng: 19.5036, tier: 4 },
-  { name: "Sarandë", centroidLat: 39.8756, centroidLng: 20.0053, tier: 5 },
-  { name: "Ksamil", centroidLat: 39.7681, centroidLng: 19.9996, tier: 5 },
-  { name: "Theth / Albanian Alps", centroidLat: 42.3942, centroidLng: 19.7736, tier: 6 },
+  { name: "Tirana City", tier: 1 },
+  { name: "Durrës", tier: 2 },
+  { name: "Vlorë", tier: 3 },
+  { name: "Berat", tier: 3 },
+  { name: "Shkodër", tier: 4 },
+  { name: "Sarandë", tier: 5 },
+  { name: "Ksamil", tier: 5 },
+  { name: "Theth / Albanian Alps", tier: 6 },
 ] as const
 
 function pricingForTier(tier: number, vehicleType: VehicleType) {
@@ -126,8 +126,6 @@ async function main() {
       prisma.zone.create({
         data: {
           name: zone.name,
-          centroidLat: zone.centroidLat,
-          centroidLng: zone.centroidLng,
         },
       }),
     ),

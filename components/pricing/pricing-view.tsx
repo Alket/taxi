@@ -242,13 +242,9 @@ function ZonesPanel({
   onChanged: () => void
 }) {
   const [name, setName] = React.useState("")
-  const [lat, setLat] = React.useState("")
-  const [lng, setLng] = React.useState("")
   const [pending, setPending] = React.useState(false)
   const [editing, setEditing] = React.useState<Zone | null>(null)
   const [editName, setEditName] = React.useState("")
-  const [editLat, setEditLat] = React.useState("")
-  const [editLng, setEditLng] = React.useState("")
   const [editPending, setEditPending] = React.useState(false)
   const [deleteZone, setDeleteZone] = React.useState<Zone | null>(null)
   const [deletePending, setDeletePending] = React.useState(false)
@@ -262,13 +258,11 @@ function ZonesPanel({
     try {
       await apiPost("/api/admin/zones", {
         name: name.trim(),
-        centroidLat: lat,
-        centroidLng: lng,
       })
-      toast.success(`Zone "${name.trim()}" added.`)
+      toast.success(
+        `Zone "${name.trim()}" added with prices for all vehicles. Edit them under pricing rules.`,
+      )
       setName("")
-      setLat("")
-      setLng("")
       onChanged()
     } catch (err) {
       toast.error((err as Error).message)
@@ -281,8 +275,6 @@ function ZonesPanel({
     event.stopPropagation()
     setEditing(zone)
     setEditName(zone.name)
-    setEditLat(String(zone.centroidLat))
-    setEditLng(String(zone.centroidLng))
   }
 
   async function saveEdit() {
@@ -295,8 +287,6 @@ function ZonesPanel({
     try {
       await apiPatch(`/api/admin/zones/${editing.id}`, {
         name: editName.trim(),
-        centroidLat: Number(editLat),
-        centroidLng: Number(editLng),
       })
       toast.success("Zone updated.")
       setEditing(null)
@@ -363,9 +353,6 @@ function ZonesPanel({
               </span>
               <div className="flex min-w-0 flex-1 flex-col">
                 <span className="truncate text-sm font-medium">{z.name}</span>
-                <span className="font-mono text-xs text-muted-foreground">
-                  {z.centroidLat.toFixed(4)}, {z.centroidLng.toFixed(4)}
-                </span>
               </div>
               <div className="flex shrink-0 items-center gap-0.5">
                 <Button
@@ -412,28 +399,6 @@ function ZonesPanel({
             placeholder="City Center"
           />
         </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-xs text-muted-foreground">Latitude</Label>
-            <Input
-              type="number"
-              step="0.0001"
-              value={lat}
-              onChange={(e) => setLat(e.target.value)}
-              placeholder="45.4642"
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-xs text-muted-foreground">Longitude</Label>
-            <Input
-              type="number"
-              step="0.0001"
-              value={lng}
-              onChange={(e) => setLng(e.target.value)}
-              placeholder="9.1900"
-            />
-          </div>
-        </div>
         <Button onClick={addZone} disabled={pending} size="sm">
           <PlusIcon data-icon="inline-start" />
           {pending ? "Adding…" : "Add zone"}
@@ -444,9 +409,7 @@ function ZonesPanel({
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Edit zone</DialogTitle>
-            <DialogDescription>
-              Update the zone name and map centroid.
-            </DialogDescription>
+            <DialogDescription>Update the zone name.</DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-1.5">
@@ -455,26 +418,6 @@ function ZonesPanel({
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
               />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="flex flex-col gap-1.5">
-                <Label className="text-xs text-muted-foreground">Latitude</Label>
-                <Input
-                  type="number"
-                  step="0.0001"
-                  value={editLat}
-                  onChange={(e) => setEditLat(e.target.value)}
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label className="text-xs text-muted-foreground">Longitude</Label>
-                <Input
-                  type="number"
-                  step="0.0001"
-                  value={editLng}
-                  onChange={(e) => setEditLng(e.target.value)}
-                />
-              </div>
             </div>
           </div>
           <DialogFooter>

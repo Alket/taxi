@@ -120,13 +120,11 @@ model Driver {
 }
 
 model Zone {
-  id          String   @id @default(cuid())
-  name        String   @unique
-  centroidLat Float
-  centroidLng Float
-  active      Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  name      String   @unique
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   pricingRules PricingRule[]
   bookings     Booking[]

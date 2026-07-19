@@ -15,14 +15,10 @@ import {
 export type ServiceZonePlace = {
   id: string
   name: string
-  lat: number
-  lng: number
 }
 
 export type ResolvedZonePlace = {
   address: string
-  lat: number
-  lng: number
   zoneId: string
 }
 
@@ -75,13 +71,14 @@ export function ZonePlaceSelect({
             }
             onResolved({
               address: zone.name,
-              lat: zone.lat,
-              lng: zone.lng,
               zoneId: zone.id,
             })
           }}
         >
-          <SelectTrigger id={id} className="w-full pl-8 focus:ring-brand-accent focus:border-brand-accent">
+          <SelectTrigger
+            id={id}
+            className="w-full pl-8 focus:ring-brand-accent focus:border-brand-accent"
+          >
             <SelectValue
               placeholder={
                 loading
@@ -113,23 +110,16 @@ export function ZonePlaceSelect({
 /** Match a stored booking location back to a zone id when possible. */
 export function matchZoneId(
   zones: ServiceZonePlace[],
-  location: { address: string; lat: number | null; lng: number | null },
+  location: { address: string },
+  selectedZoneId?: string | null,
 ): string | null {
+  if (selectedZoneId && zones.some((z) => z.id === selectedZoneId)) {
+    return selectedZoneId
+  }
   if (zones.length === 0) return null
 
   const byName = zones.find(
     (z) => z.name.toLowerCase() === location.address.trim().toLowerCase(),
   )
-  if (byName) return byName.id
-
-  if (location.lat != null && location.lng != null) {
-    const byCoords = zones.find(
-      (z) =>
-        Math.abs(z.lat - location.lat!) < 1e-5 &&
-        Math.abs(z.lng - location.lng!) < 1e-5,
-    )
-    if (byCoords) return byCoords.id
-  }
-
-  return null
+  return byName?.id ?? null
 }

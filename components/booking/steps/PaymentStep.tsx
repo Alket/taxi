@@ -9,7 +9,7 @@ import {
   useStripe,
 } from "@stripe/react-stripe-js"
 import { loadStripe, type Stripe } from "@stripe/stripe-js"
-import { Loader2Icon } from "lucide-react"
+import { Loader2Icon, CreditCardIcon, LockIcon, ShieldCheckIcon } from "lucide-react"
 import useSWR from "swr"
 
 import { apiPost, fetcher } from "@/lib/api"
@@ -31,7 +31,6 @@ import {
   STRIPE_BRAND_FONTS,
 } from "@/lib/stripe-appearance"
 import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 
@@ -200,7 +199,6 @@ function StripeCheckoutForm({
   referenceCode,
   paymentIntentId,
   termsAccepted,
-  paymentLayout,
 }: {
   depositAmount: number
   paymentOption: PaymentOption
@@ -209,16 +207,29 @@ function StripeCheckoutForm({
   referenceCode: string
   paymentIntentId: string
   termsAccepted: boolean
-  paymentLayout: "tabs" | "accordion"
 }) {
   const stripe = useStripe()
   const elements = useElements()
   const [submitting, setSubmitting] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
+  const [ready, setReady] = React.useState(false)
 
   async function onPay(e: React.FormEvent) {
     e.preventDefault()
-    if (!stripe || !elements || !termsAccepted) return
+    if (!stripe || !elements) return
+
+    if (!termsAccepted) {
+      setError("Please agree to the booking terms and cancellation policy to proceed.")
+      const container = document.getElementById("terms-label-container")
+      if (container) {
+        container.scrollIntoView({ behavior: "smooth", block: "center" })
+        container.classList.add("ring-2", "ring-destructive/40", "border-destructive", "bg-destructive/5")
+        setTimeout(() => {
+          container.classList.remove("ring-2", "ring-destructive/40", "border-destructive", "bg-destructive/5")
+        }, 2000)
+      }
+      return
+    }
 
     setSubmitting(true)
     setError(null)
@@ -267,51 +278,68 @@ function StripeCheckoutForm({
 
   return (
     <form onSubmit={onPay} className="flex min-w-0 flex-col gap-5">
-      <div className="min-w-0 overflow-x-auto [-webkit-overflow-scrolling:touch]">
-        <PaymentElement
-          key={paymentLayout}
-          className="stripe-booking-payment"
-          options={{
-            layout:
-              paymentLayout === "accordion"
-                ? {
-                    type: "accordion",
-                    defaultCollapsed: false,
-                    spacedAccordionItems: true,
-                  }
-                : {
-                    type: "tabs",
-                    defaultCollapsed: false,
-                  },
-            paymentMethodOrder: ["card"],
-            terms: {
-              card: "never",
-            },
-          }}
-        />
+      <div className="relative">
+        {!ready && (
+          <div className="absolute inset-x-0 top-0 z-10 flex flex-col gap-4 bg-brand-surface py-2">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                <Loader2Icon className="size-3.5 animate-spin text-brand-accent" />
+                <span>Loading secure checkout...</span>
+              </div>
+              <Skeleton className="h-12 w-full rounded-xl" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Skeleton className="h-12 w-full rounded-xl" />
+              <Skeleton className="h-12 w-full rounded-xl" />
+            </div>
+          </div>
+        )}
+        <div className={cn("transition-opacity duration-300", ready ? "opacity-100" : "opacity-0 pointer-events-none")}>
+          <PaymentElement
+            className="stripe-booking-payment"
+            onReady={() => setReady(true)}
+            options={{
+              layout: {
+                type: "accordion",
+                defaultCollapsed: false,
+                spacedAccordionItems: false,
+              },
+              paymentMethodOrder: ["card"],
+              terms: { card: "never" },
+              fields: { billingDetails: { address: "never" } },
+            }}
+          />
+        </div>
       </div>
       {error && (
-        <p className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm font-bold text-destructive">
-          {error}
-        </p>
+        <p className="text-sm font-semibold text-destructive animate-in fade-in-50 slide-in-from-top-1 duration-200">{error}</p>
       )}
       <Button
         type="submit"
         size="lg"
-        className="h-12 w-full rounded-lg text-base font-extrabold bg-brand-accent text-white hover:bg-brand-accent-hover"
-        disabled={!stripe || !elements || submitting || !termsAccepted}
+        className="h-12 w-full rounded-xl bg-brand-accent text-base font-extrabold text-white transition-all hover:bg-brand-accent-hover active:scale-[0.99] shadow-sm flex items-center justify-center gap-2"
+        disabled={!stripe || !elements || submitting || !ready}
       >
         {submitting ? (
           <>
             <Loader2Icon className="animate-spin" data-icon="inline-start" />
-            Processing…
+            Processing secure payment…
           </>
-        ) : paymentOption === "full" ? (
-          `Pay ${formatMoney(depositAmount, currency)} now`
         ) : (
-          `Pay deposit of ${formatMoney(depositAmount, currency)} now`
+          <>
+            <LockIcon className="size-4" />
+            {paymentOption === "full" ? (
+              `Pay ${formatMoney(depositAmount, currency)}`
+            ) : (
+              `Pay deposit ${formatMoney(depositAmount, currency)}`
+            )}
+          </>
         )}
       </Button>
+      <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+        <ShieldCheckIcon className="size-4 text-brand-accent" />
+        <span>PCI-compliant secure bank transfer</span>
+      </div>
     </form>
   )
 }
@@ -338,18 +366,6 @@ export function PaymentStep() {
   const [paypalError, setPaypalError] = React.useState<string | null>(null)
   const [cashPending, setCashPending] = React.useState(false)
   const [cashError, setCashError] = React.useState<string | null>(null)
-  const [paymentLayout, setPaymentLayout] = React.useState<"tabs" | "accordion">(
-    "tabs",
-  )
-
-  React.useEffect(() => {
-    const mq = window.matchMedia("(max-width: 767px)")
-    const apply = () =>
-      setPaymentLayout(mq.matches ? "accordion" : "tabs")
-    apply()
-    mq.addEventListener("change", apply)
-    return () => mq.removeEventListener("change", apply)
-  }, [])
 
   const freeCancellationHours =
     settings?.freeCancellationHours ?? 24
@@ -379,6 +395,7 @@ export function PaymentStep() {
             !store.direction ||
             !store.vehicleType ||
             !store.pickupDateTime ||
+            !store.selectedZoneId ||
             store.pickup.lat == null ||
             store.dropoff.lat == null
           ) {
@@ -411,6 +428,7 @@ export function PaymentStep() {
               boosterCount: store.boosterCount,
               driverNotes: store.driverNotes.trim() || null,
               vehicleType: store.vehicleType,
+              zoneId: store.selectedZoneId,
               isRoundTrip: store.isRoundTrip,
               meetAndGreet: store.meetAndGreet,
             }),
@@ -717,7 +735,7 @@ export function PaymentStep() {
         )}
       </div>
 
-      <label className="flex items-start gap-3 rounded-xl border px-3.5 py-3 text-sm">
+      <label id="terms-label-container" className="flex items-start gap-3 rounded-xl border px-3.5 py-3 text-sm transition-all duration-300">
         <input
           type="checkbox"
           className="mt-0.5 size-4 shrink-0 rounded border-input accent-brand-accent"
@@ -746,15 +764,13 @@ export function PaymentStep() {
       {showStripe && intent && publishableKey && (
         <div
           className={cn(
-            "flex min-w-0 flex-col gap-3 rounded-xl border border-border bg-brand-surface p-4",
+            "flex min-w-0 flex-col gap-3 rounded-xl border bg-brand-surface p-4",
             !termsAccepted && "opacity-70",
           )}
         >
-          <div className="flex flex-col gap-1">
-            <Label className="text-sm font-extrabold text-brand">
-              Card payment
-            </Label>
-            <p className="text-xs font-semibold text-muted-foreground">
+          <div>
+            <p className="text-sm font-extrabold text-brand">Card payment</p>
+            <p className="text-xs text-muted-foreground">
               Pay securely with your debit or credit card.
             </p>
           </div>
@@ -776,7 +792,6 @@ export function PaymentStep() {
               referenceCode={intent.referenceCode}
               paymentIntentId={intent.paymentIntentId}
               termsAccepted={termsAccepted && !switchingIntent}
-              paymentLayout={paymentLayout}
             />
           </Elements>
         </div>

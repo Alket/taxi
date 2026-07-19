@@ -113,10 +113,7 @@ function HeroStepReloader() {
 async function fetchVehicleQuote(body: {
   direction: Direction
   vehicleType: VehicleType
-  pickupLat: number
-  pickupLng: number
-  dropoffLat: number
-  dropoffLng: number
+  zoneId: string
 }) {
   const res = await fetch("/api/pricing/quote", {
     method: "POST",
@@ -401,6 +398,7 @@ function FieldSelect({
 export function HeroBookingCard() {
   const direction = useBookingStore((s) => s.direction)
   const selectedAirportIata = useBookingStore((s) => s.selectedAirportIata)
+  const selectedZoneIdFromStore = useBookingStore((s) => s.selectedZoneId)
   const pickup = useBookingStore((s) => s.pickup)
   const dropoff = useBookingStore((s) => s.dropoff)
   const pickupDateTime = useBookingStore((s) => s.pickupDateTime)
@@ -425,15 +423,20 @@ export function HeroBookingCard() {
 
   const destinationLocation =
     direction === "dest_to_airport"
-      ? { address: pickup.address, lat: pickup.lat, lng: pickup.lng }
-      : { address: dropoff.address, lat: dropoff.lat, lng: dropoff.lng }
-  const selectedZoneId = matchZoneId(zones, destinationLocation)
+      ? { address: pickup.address }
+      : { address: dropoff.address }
+  const selectedZoneId = matchZoneId(
+    zones,
+    destinationLocation,
+    selectedZoneIdFromStore,
+  )
 
   const applyEndpoints = React.useCallback(
     (
       nextDirection: Direction,
       airport: AirportWithCoords | null,
       destination: BookingLocation | null,
+      zoneId?: string | null,
     ) => {
       const airportLoc = airport ? airportLocation(airport) : emptyLocation()
       const destLoc = destination ?? emptyLocation()
@@ -441,6 +444,7 @@ export function HeroBookingCard() {
         patch({
           direction: nextDirection,
           selectedAirportIata: airport?.iataCode ?? null,
+          selectedZoneId: zoneId ?? null,
           pickup: airportLoc,
           dropoff: destLoc,
         })
@@ -448,6 +452,7 @@ export function HeroBookingCard() {
         patch({
           direction: nextDirection,
           selectedAirportIata: airport?.iataCode ?? null,
+          selectedZoneId: zoneId ?? null,
           pickup: destLoc,
           dropoff: airportLoc,
         })
@@ -471,14 +476,8 @@ export function HeroBookingCard() {
 
   const loadQuotes = React.useCallback(async () => {
     const state = useBookingStore.getState()
-    const { direction: dir, pickup: from, dropoff: to } = state
-    if (
-      !dir ||
-      from.lat == null ||
-      from.lng == null ||
-      to.lat == null ||
-      to.lng == null
-    ) {
+    const { direction: dir, selectedZoneId: zoneId } = state
+    if (!dir || !zoneId) {
       return false
     }
 
@@ -491,78 +490,75 @@ export function HeroBookingCard() {
       vehicleType: null,
     })
 
-    try {
-      const results = await Promise.all(
-        VEHICLE_TYPES.map((vehicleType) =>
-          fetchVehicleQuote({
-            direction: dir,
-            vehicleType,
-            pickupLat: from.lat!,
-            pickupLng: from.lng!,
-            dropoffLat: to.lat!,
-            dropoffLng: to.lng!,
-          }),
-        ),
-      )
-      const vehicleQuotes = {} as Record<VehicleType, VehicleQuote>
-      for (const result of results) {
-        vehicleQuotes[result.vehicleType] = {
-          price: result.price,
-          distanceKm: result.distanceKm,
-          durationMin: result.durationMin,
+    const settled = await Promise.allSettled(
+      VEHICLE_TYPES.map((vehicleType) =>
+        fetchVehicleQuote({
+          direction: dir,
+          vehicleType,
+          zoneId,
+        }),
+      ),
+    )
+
+    const vehicleQuotes = {} as Record<VehicleType, VehicleQuote>
+    let networkError: string | null = null
+    for (let i = 0; i < settled.length; i++) {
+      const result = settled[i]!
+      const vehicleType = VEHICLE_TYPES[i]!
+      if (result.status === "fulfilled") {
+        vehicleQuotes[vehicleType] = {
+          price: result.value.price,
+          distanceKm: result.value.distanceKm,
+          durationMin: result.value.durationMin,
         }
+        continue
       }
+      const err = result.reason as Error & { code?: string; status?: number }
+      if (err.status === 404 || err.code === "OUTSIDE_SERVICE_AREA") {
+        // Missing rule for this vehicle — skip; zone may still be covered.
+        continue
+      }
+      networkError = err.message || "Could not load prices."
+    }
+
+    const quoted = Object.values(vehicleQuotes)
+    if (quoted.length > 0) {
       patch({
         vehicleQuotes,
         quoteStatus: "success",
         quoteError: null,
-        quotedDistanceKm: results[0]?.distanceKm ?? null,
+        quotedDistanceKm: quoted[0]?.distanceKm ?? null,
       })
       return true
-    } catch (err) {
-      const error = err as Error & { code?: string; status?: number }
-      if (error.status === 404 || error.code === "OUTSIDE_SERVICE_AREA") {
-        patch({
-          vehicleQuotes: {},
-          quoteStatus: "uncovered",
-          quoteError: null,
-          quotedPrice: null,
-          vehicleType: null,
-        })
-        return false
-      }
+    }
+
+    if (networkError) {
       patch({
         vehicleQuotes: {},
         quoteStatus: "error",
-        quoteError: error.message || "Could not load prices.",
+        quoteError: networkError,
         quotedPrice: null,
         vehicleType: null,
       })
       return false
     }
+
+    patch({
+      vehicleQuotes: {},
+      quoteStatus: "uncovered",
+      quoteError: null,
+      quotedPrice: null,
+      vehicleType: null,
+    })
+    return false
   }, [patch])
 
   React.useEffect(() => {
-    if (
-      !direction ||
-      pickup.lat == null ||
-      dropoff.lat == null ||
-      !pickup.address ||
-      !dropoff.address
-    ) {
+    if (!direction || !selectedZoneId) {
       return
     }
     void loadQuotes()
-  }, [
-    direction,
-    pickup.lat,
-    pickup.lng,
-    pickup.address,
-    dropoff.lat,
-    dropoff.lng,
-    dropoff.address,
-    loadQuotes,
-  ])
+  }, [direction, selectedZoneId, loadQuotes])
 
   function setRoundTrip(enabled: boolean) {
     patch({
@@ -580,18 +576,24 @@ export function HeroBookingCard() {
         ? { address: pickup.address, lat: pickup.lat, lng: pickup.lng }
         : { address: dropoff.address, lat: dropoff.lat, lng: dropoff.lng }
     clearQuotes()
-    applyEndpoints(next, airport, dest)
+    applyEndpoints(next, airport, dest, selectedZoneId)
   }
 
   function onZonePicked(zoneId: string) {
     const zone = zones.find((z) => z.id === zoneId)
     if (!zone) return
     const airport = resolveAirportLocation(airports, selectedAirportIata)
-    applyEndpoints(direction ?? "airport_to_dest", airport, {
-      address: zone.name,
-      lat: zone.lat,
-      lng: zone.lng,
-    })
+    // Placeholder coords (airport) keep booking payload valid; price uses zoneId.
+    applyEndpoints(
+      direction ?? "airport_to_dest",
+      airport,
+      {
+        address: zone.name,
+        lat: airport?.lat ?? 0,
+        lng: airport?.lng ?? 0,
+      },
+      zoneId,
+    )
   }
 
   function onAirportPicked(iata: string) {
@@ -602,18 +604,14 @@ export function HeroBookingCard() {
         ? { address: pickup.address, lat: pickup.lat, lng: pickup.lng }
         : { address: dropoff.address, lat: dropoff.lat, lng: dropoff.lng }
     clearQuotes()
-    applyEndpoints(direction ?? "airport_to_dest", airport, dest)
+    applyEndpoints(direction ?? "airport_to_dest", airport, dest, selectedZoneId)
   }
 
   async function onContinue(opts?: { fromPassengersSheet?: boolean }) {
     if (continuing) return
 
     const state = useBookingStore.getState()
-    const hasZone = Boolean(
-      state.direction === "dest_to_airport"
-        ? state.pickup.lat != null && state.pickup.address
-        : state.dropoff.lat != null && state.dropoff.address,
-    )
+    const hasZone = Boolean(state.selectedZoneId)
     const hasAirport = Boolean(state.selectedAirportIata)
     const hasTime = Boolean(state.pickupDateTime)
 

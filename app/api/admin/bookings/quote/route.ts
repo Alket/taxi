@@ -1,29 +1,24 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 
-import type { VehicleType, Direction } from "@/lib/types"
-import { calculatePrice, type LatLng } from "@/lib/pricing"
+import type { VehicleType } from "@/lib/types"
+import {
+  calculatePriceForZone,
+  UncoveredDestinationError,
+} from "@/lib/pricing"
 import { getBookingPolicy } from "@/lib/settings"
 
 const querySchema = z.object({
-  direction: z.enum(["airport_to_dest", "dest_to_airport"]).default("airport_to_dest"),
   vehicleType: z.enum(["sedan", "comfort", "minivan", "premium"]),
-  pickupLat: z.coerce.number(),
-  pickupLng: z.coerce.number(),
-  dropoffLat: z.coerce.number(),
-  dropoffLng: z.coerce.number(),
+  zoneId: z.string().min(1),
 })
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
 
   const parsed = querySchema.safeParse({
-    direction: searchParams.get("direction"),
     vehicleType: searchParams.get("vehicleType"),
-    pickupLat: searchParams.get("pickupLat"),
-    pickupLng: searchParams.get("pickupLng"),
-    dropoffLat: searchParams.get("dropoffLat"),
-    dropoffLng: searchParams.get("dropoffLng"),
+    zoneId: searchParams.get("zoneId"),
   })
 
   if (!parsed.success) {
@@ -33,25 +28,26 @@ export async function GET(request: Request) {
     )
   }
 
-  const { direction, vehicleType, pickupLat, pickupLng, dropoffLat, dropoffLng } =
-    parsed.data
+  const { vehicleType, zoneId } = parsed.data
 
-  // `calculatePrice` expects `dropoffCoords` to be the non-airport end.
-  const pickupCoords: LatLng =
-    direction === "airport_to_dest"
-      ? { lat: pickupLat, lng: pickupLng }
-      : { lat: dropoffLat, lng: dropoffLng }
-
-  const dropoffCoords: LatLng =
-    direction === "airport_to_dest"
-      ? { lat: dropoffLat, lng: dropoffLng }
-      : { lat: pickupLat, lng: pickupLng }
-
-  const totalPrice = await calculatePrice(
-    pickupCoords,
-    dropoffCoords,
-    vehicleType as VehicleType,
-  )
+  let totalPrice: number
+  try {
+    totalPrice = await calculatePriceForZone(
+      zoneId,
+      vehicleType as VehicleType,
+    )
+  } catch (error) {
+    if (error instanceof UncoveredDestinationError) {
+      return NextResponse.json(
+        { error: error.message, code: error.code },
+        { status: 404 },
+      )
+    }
+    return NextResponse.json(
+      { error: (error as Error).message || "Failed to calculate quote." },
+      { status: 500 },
+    )
+  }
 
   let depositPercentage: number
   try {
@@ -63,7 +59,9 @@ export async function GET(request: Request) {
     )
   }
 
-  const depositAmount = Number(((totalPrice * depositPercentage) / 100).toFixed(2))
+  const depositAmount = Number(
+    ((totalPrice * depositPercentage) / 100).toFixed(2),
+  )
   const balanceDue = Number((totalPrice - depositAmount).toFixed(2))
 
   return NextResponse.json({
@@ -72,4 +70,3 @@ export async function GET(request: Request) {
     balanceDue,
   })
 }
-

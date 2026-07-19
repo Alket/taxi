@@ -47,6 +47,8 @@ export type QuoteStatus =
 export type BookingState = {
   direction: Direction | null
   selectedAirportIata: string | null
+  /** Active pricing zone selected as the non-airport destination. */
+  selectedZoneId: string | null
   pickup: BookingLocation
   dropoff: BookingLocation
   pickupDateTime: string | null
@@ -113,6 +115,7 @@ const initialCustomer = (): BookingCustomerDraft => ({
 export const initialBookingState: BookingState = {
   direction: "airport_to_dest",
   selectedAirportIata: null,
+  selectedZoneId: null,
   pickup: emptyLocation(),
   dropoff: emptyLocation(),
   pickupDateTime: null,
@@ -155,7 +158,8 @@ function hasLocation(location: BookingLocation) {
 
 function hasSuccessfulQuotes(state: BookingState) {
   if (state.quoteStatus !== "success") return false
-  return VEHICLE_TYPES.every((type) => {
+  // A zone may only have pricing for some vehicles — one valid quote is enough.
+  return VEHICLE_TYPES.some((type) => {
     const quote = state.vehicleQuotes[type]
     return quote != null && quote.price >= 0
   })
@@ -163,7 +167,13 @@ function hasSuccessfulQuotes(state: BookingState) {
 
 function isRouteComplete(state: BookingState) {
   if (!state.direction) return false
-  if (!hasLocation(state.pickup) || !hasLocation(state.dropoff)) return false
+  if (!state.selectedZoneId || !state.selectedAirportIata) return false
+  const airportEnd =
+    state.direction === "airport_to_dest" ? state.pickup : state.dropoff
+  const destinationEnd =
+    state.direction === "airport_to_dest" ? state.dropoff : state.pickup
+  if (!hasLocation(airportEnd)) return false
+  if (!destinationEnd.address.trim()) return false
   if (!state.pickupDateTime) return false
   if (isPickupTooSoon(state.pickupDateTime)) return false
   if (!hasSuccessfulQuotes(state)) return false
@@ -289,6 +299,7 @@ export const useBookingStore = create<BookingStore>()(
       partialize: (state) => ({
         direction: state.direction,
         selectedAirportIata: state.selectedAirportIata,
+        selectedZoneId: state.selectedZoneId,
         pickup: state.pickup,
         dropoff: state.dropoff,
         pickupDateTime: state.pickupDateTime,

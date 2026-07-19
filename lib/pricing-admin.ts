@@ -4,17 +4,10 @@ function toNumber(value: unknown): number {
   return typeof value === "number" ? value : Number(value)
 }
 
-export function serializeZone(zone: {
-  id: string
-  name: string
-  centroidLat: number
-  centroidLng: number
-}): Zone {
+export function serializeZone(zone: { id: string; name: string }): Zone {
   return {
     id: zone.id,
     name: zone.name,
-    centroidLat: zone.centroidLat,
-    centroidLng: zone.centroidLng,
   }
 }
 
@@ -39,4 +32,3 @@ export function serializePricingRule(rule: {
     currency: rule.currency,
   }
 }
-

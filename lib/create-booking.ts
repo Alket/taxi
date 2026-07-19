@@ -11,7 +11,11 @@ import {
   isPickupTooSoon,
   pickupLeadTimeMessage,
 } from "@/lib/pickup-lead-time"
-import { calculatePrice, resolveZone, type LatLng } from "@/lib/pricing"
+import {
+  calculatePriceForZone,
+  getActiveZone,
+  type LatLng,
+} from "@/lib/pricing"
 import { getBookingPolicy } from "@/lib/settings"
 import { computeTripTotal, round2 } from "@/lib/vehicles"
 
@@ -39,6 +43,8 @@ export const bookingCreateSchema = z.object({
   boosterCount: z.coerce.number().int().min(0).max(4).optional().default(0),
   driverNotes: z.string().trim().max(500).optional().nullable(),
   vehicleType: z.enum(["sedan", "comfort", "minivan", "premium"]),
+  /** Active pricing zone selected as the non-airport destination. */
+  zoneId: z.string().min(1),
   isRoundTrip: z.boolean().default(false),
   meetAndGreet: z.boolean().default(false),
   /** Admin manual bookings only — mark the full fare as already paid. */
@@ -143,6 +149,8 @@ export async function createBookingsFromInput(
     },
   })
 
+  const zone = await getActiveZone(input.zoneId)
+
   async function createLeg({
     direction,
     pickupAddress,
@@ -164,12 +172,8 @@ export async function createBookingsFromInput(
     roundTripId: string | null
     priceOverride?: number
   }): Promise<CreatedBookingSummary> {
-    const nonAirport = direction === "airport_to_dest" ? dropoff : pickup
-    const airportEnd = direction === "airport_to_dest" ? pickup : dropoff
-
-    const computedPrice = await calculatePrice(
-      airportEnd,
-      nonAirport,
+    const computedPrice = await calculatePriceForZone(
+      zone.id,
       input.vehicleType,
     )
     // Round-trip overrides already include the seat add-on (split across legs).
@@ -177,8 +181,6 @@ export async function createBookingsFromInput(
       priceOverride != null
         ? priceOverride
         : round2(computedPrice + seatAddon)
-
-    const zone = await resolveZone(nonAirport.lat, nonAirport.lng)
 
     const depositAmount = round2((totalPrice * depositPercentage) / 100)
     const balanceDue = round2(totalPrice - depositAmount)
@@ -301,11 +303,7 @@ export async function createBookingsFromInput(
   const createdBookings: CreatedBookingSummary[] = []
 
   if (isRoundTrip) {
-    const oneWay = await calculatePrice(
-      input.direction === "airport_to_dest" ? pickupCoords : dropoffCoords,
-      input.direction === "airport_to_dest" ? dropoffCoords : pickupCoords,
-      input.vehicleType,
-    )
+    const oneWay = await calculatePriceForZone(zone.id, input.vehicleType)
     const combined = round2(
       computeTripTotal(oneWay, true, roundTripDiscountPercent) + seatAddon,
     )

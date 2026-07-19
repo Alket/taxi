@@ -8,8 +8,6 @@ import { serializeZone } from "@/lib/pricing-admin"
 const updateZoneSchema = z
   .object({
     name: z.string().trim().min(1).max(200).optional(),
-    centroidLat: z.coerce.number().optional(),
-    centroidLng: z.coerce.number().optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: "No fields provided.",
@@ -40,8 +38,6 @@ export async function PATCH(request: Request, context: RouteContext) {
       select: {
         id: true,
         name: true,
-        centroidLat: true,
-        centroidLng: true,
       },
     })
     return NextResponse.json({ zone: serializeZone(zone) })

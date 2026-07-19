@@ -14,8 +14,6 @@ export async function POST(request: Request) {
   const zone: Zone = {
     id: nextId("zone"),
     name: body.name,
-    centroidLat: Number(body.centroidLat) || 0,
-    centroidLng: Number(body.centroidLng) || 0,
   }
   store.zones.push(zone)
   return NextResponse.json({ zone }, { status: 201 })

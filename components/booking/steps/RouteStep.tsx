@@ -63,10 +63,7 @@ function emptyLocation(): BookingLocation {
 async function fetchVehicleQuote(body: {
   direction: Direction
   vehicleType: VehicleType
-  pickupLat: number
-  pickupLng: number
-  dropoffLat: number
-  dropoffLng: number
+  zoneId: string
 }): Promise<QuoteResponse> {
   const res = await fetch("/api/pricing/quote", {
     method: "POST",
@@ -89,6 +86,7 @@ async function fetchVehicleQuote(body: {
 export function RouteStep() {
   const direction = useBookingStore((s) => s.direction)
   const selectedAirportIata = useBookingStore((s) => s.selectedAirportIata)
+  const selectedZoneIdFromStore = useBookingStore((s) => s.selectedZoneId)
   const pickup = useBookingStore((s) => s.pickup)
   const dropoff = useBookingStore((s) => s.dropoff)
   const pickupDateTime = useBookingStore((s) => s.pickupDateTime)
@@ -108,21 +106,23 @@ export function RouteStep() {
 
   const destinationLocation =
     direction === "dest_to_airport"
-      ? { address: pickup.address, lat: pickup.lat, lng: pickup.lng }
-      : { address: dropoff.address, lat: dropoff.lat, lng: dropoff.lng }
+      ? { address: pickup.address }
+      : { address: dropoff.address }
 
-  const selectedZoneId = matchZoneId(zones, destinationLocation)
+  const selectedZoneId = matchZoneId(
+    zones,
+    destinationLocation,
+    selectedZoneIdFromStore,
+  )
 
-  const destinationResolved =
-    direction === "dest_to_airport"
-      ? pickup.lat !== null && pickup.lng !== null
-      : dropoff.lat !== null && dropoff.lng !== null
+  const destinationResolved = Boolean(selectedZoneId)
 
   const applyEndpoints = React.useCallback(
     (
       nextDirection: Direction,
       airport: AirportWithCoords | null,
       destination: BookingLocation | null,
+      zoneId?: string | null,
     ) => {
       const airportLoc = airport ? airportLocation(airport) : emptyLocation()
       const destLoc = destination ?? emptyLocation()
@@ -131,6 +131,7 @@ export function RouteStep() {
         patch({
           direction: nextDirection,
           selectedAirportIata: airport?.iataCode ?? null,
+          selectedZoneId: zoneId ?? null,
           pickup: airportLoc,
           dropoff: destLoc,
         })
@@ -138,6 +139,7 @@ export function RouteStep() {
         patch({
           direction: nextDirection,
           selectedAirportIata: airport?.iataCode ?? null,
+          selectedZoneId: zoneId ?? null,
           pickup: destLoc,
           dropoff: airportLoc,
         })
@@ -165,14 +167,8 @@ export function RouteStep() {
 
   const loadQuotes = React.useCallback(async () => {
     const state = useBookingStore.getState()
-    const { direction: dir, pickup: from, dropoff: to } = state
-    if (
-      !dir ||
-      from.lat == null ||
-      from.lng == null ||
-      to.lat == null ||
-      to.lng == null
-    ) {
+    const { direction: dir, selectedZoneId: zoneId } = state
+    if (!dir || !zoneId) {
       return
     }
 
@@ -185,86 +181,77 @@ export function RouteStep() {
       vehicleType: null,
     })
 
-    try {
-      const results = await Promise.all(
-        VEHICLE_TYPES.map((vehicleType) =>
-          fetchVehicleQuote({
-            direction: dir,
-            vehicleType,
-            pickupLat: from.lat!,
-            pickupLng: from.lng!,
-            dropoffLat: to.lat!,
-            dropoffLng: to.lng!,
-          }),
-        ),
-      )
+    const settled = await Promise.allSettled(
+      VEHICLE_TYPES.map((vehicleType) =>
+        fetchVehicleQuote({
+          direction: dir,
+          vehicleType,
+          zoneId,
+        }),
+      ),
+    )
 
-      const vehicleQuotes = {} as Record<VehicleType, VehicleQuote>
-      for (const result of results) {
-        vehicleQuotes[result.vehicleType] = {
-          price: result.price,
-          distanceKm: result.distanceKm,
-          durationMin: result.durationMin,
+    const vehicleQuotes = {} as Record<VehicleType, VehicleQuote>
+    let networkError: string | null = null
+    for (let i = 0; i < settled.length; i++) {
+      const result = settled[i]!
+      const vehicleType = VEHICLE_TYPES[i]!
+      if (result.status === "fulfilled") {
+        vehicleQuotes[vehicleType] = {
+          price: result.value.price,
+          distanceKm: result.value.distanceKm,
+          durationMin: result.value.durationMin,
         }
+        continue
       }
+      const err = result.reason as Error & { code?: string; status?: number }
+      if (err.status === 404 || err.code === "OUTSIDE_SERVICE_AREA") {
+        continue
+      }
+      networkError = err.message || "Could not load prices."
+    }
 
-      const first = results[0]
+    const quoted = Object.values(vehicleQuotes)
+    if (quoted.length > 0) {
       patch({
         vehicleQuotes,
         quoteStatus: "success",
         quoteError: null,
-        quotedDistanceKm: first?.distanceKm ?? null,
+        quotedDistanceKm: quoted[0]?.distanceKm ?? null,
       })
-    } catch (err) {
-      const error = err as Error & { code?: string; status?: number }
-      if (error.status === 404 || error.code === "OUTSIDE_SERVICE_AREA") {
-        patch({
-          vehicleQuotes: {},
-          quoteStatus: "uncovered",
-          quoteError: null,
-          quotedDistanceKm: null,
-          quotedPrice: null,
-          vehicleType: null,
-        })
-        return
-      }
+      return
+    }
 
+    if (networkError) {
       patch({
         vehicleQuotes: {},
         quoteStatus: "error",
-        quoteError: error.message || "Could not load prices.",
+        quoteError: networkError,
         quotedDistanceKm: null,
         quotedPrice: null,
         vehicleType: null,
       })
+      return
     }
+
+    patch({
+      vehicleQuotes: {},
+      quoteStatus: "uncovered",
+      quoteError: null,
+      quotedDistanceKm: null,
+      quotedPrice: null,
+      vehicleType: null,
+    })
   }, [patch])
 
-  // Auto-quote once airport + destination coords are set.
+  // Auto-quote once a destination zone is selected.
   React.useEffect(() => {
-    if (
-      !direction ||
-      pickup.lat == null ||
-      pickup.lng == null ||
-      dropoff.lat == null ||
-      dropoff.lng == null ||
-      !pickup.address ||
-      !dropoff.address
-    ) {
+    if (!direction || !selectedZoneId) {
       return
     }
 
     void loadQuotes()
-  }, [
-    direction,
-    pickup.lat,
-    pickup.lng,
-    pickup.address,
-    dropoff.lat,
-    dropoff.lng,
-    dropoff.address,
-    loadQuotes,
-  ])
+  }, [direction, selectedZoneId, loadQuotes])
 
   function setDirection(next: Direction) {
     const airport = resolveAirportLocation(airports, selectedAirportIata)
@@ -274,7 +261,7 @@ export function RouteStep() {
         : { address: dropoff.address, lat: dropoff.lat, lng: dropoff.lng }
 
     clearQuotes()
-    applyEndpoints(next, airport, dest)
+    applyEndpoints(next, airport, dest, selectedZoneId)
   }
 
   function setAirport(iata: string) {
@@ -287,22 +274,27 @@ export function RouteStep() {
         : { address: dropoff.address, lat: dropoff.lat, lng: dropoff.lng }
 
     clearQuotes()
-    applyEndpoints(direction ?? "airport_to_dest", airport, dest)
+    applyEndpoints(direction ?? "airport_to_dest", airport, dest, selectedZoneId)
   }
 
   function onDestinationResolved(place: ResolvedZonePlace) {
     const airport = resolveAirportLocation(airports, selectedAirportIata)
-    applyEndpoints(direction ?? "airport_to_dest", airport, {
-      address: place.address,
-      lat: place.lat,
-      lng: place.lng,
-    })
+    applyEndpoints(
+      direction ?? "airport_to_dest",
+      airport,
+      {
+        address: place.address,
+        lat: airport?.lat ?? 0,
+        lng: airport?.lng ?? 0,
+      },
+      place.zoneId,
+    )
   }
 
   function onDestinationCleared() {
     const airport = resolveAirportLocation(airports, selectedAirportIata)
     clearQuotes()
-    applyEndpoints(direction ?? "airport_to_dest", airport, emptyLocation())
+    applyEndpoints(direction ?? "airport_to_dest", airport, emptyLocation(), null)
   }
 
   const startedFromHero = useBookingStore((s) => s.startedFromHero)

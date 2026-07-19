@@ -2,19 +2,15 @@ import { NextResponse } from "next/server"
 import { z } from "zod"
 
 import {
-  calculateQuote,
+  calculateQuoteForZone,
   UncoveredDestinationError,
-  type LatLng,
 } from "@/lib/pricing"
 import type { VehicleType } from "@/lib/types"
 
 const bodySchema = z.object({
-  direction: z.enum(["airport_to_dest", "dest_to_airport"]),
+  direction: z.enum(["airport_to_dest", "dest_to_airport"]).optional(),
   vehicleType: z.enum(["sedan", "comfort", "minivan", "premium"]),
-  pickupLat: z.number().finite(),
-  pickupLng: z.number().finite(),
-  dropoffLat: z.number().finite(),
-  dropoffLng: z.number().finite(),
+  zoneId: z.string().min(1),
 })
 
 export async function POST(request: Request) {
@@ -28,30 +24,11 @@ export async function POST(request: Request) {
     )
   }
 
-  const {
-    direction,
-    vehicleType,
-    pickupLat,
-    pickupLng,
-    dropoffLat,
-    dropoffLng,
-  } = parsed.data
-
-  // calculateQuote expects airport end as pickupCoords, destination as dropoffCoords.
-  const airportCoords: LatLng =
-    direction === "airport_to_dest"
-      ? { lat: pickupLat, lng: pickupLng }
-      : { lat: dropoffLat, lng: dropoffLng }
-
-  const destinationCoords: LatLng =
-    direction === "airport_to_dest"
-      ? { lat: dropoffLat, lng: dropoffLng }
-      : { lat: pickupLat, lng: pickupLng }
+  const { vehicleType, zoneId } = parsed.data
 
   try {
-    const quote = await calculateQuote(
-      airportCoords,
-      destinationCoords,
+    const quote = await calculateQuoteForZone(
+      zoneId,
       vehicleType as VehicleType,
     )
 
@@ -61,6 +38,7 @@ export async function POST(request: Request) {
       distanceKm: quote.distanceKm,
       durationMin: quote.durationMin,
       zoneName: quote.zoneName,
+      zoneId: quote.zoneId,
     })
   } catch (error) {
     if (error instanceof UncoveredDestinationError) {

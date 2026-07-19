@@ -15,8 +15,6 @@ export async function GET() {
         select: {
           id: true,
           name: true,
-          centroidLat: true,
-          centroidLng: true,
         },
       }),
     ])
@@ -36,8 +34,6 @@ export async function GET() {
       zones: zones.map((zone) => ({
         id: zone.id,
         name: zone.name,
-        lat: zone.centroidLat,
-        lng: zone.centroidLng,
       })),
     })
   } catch {

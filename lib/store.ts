@@ -117,10 +117,10 @@ const drivers: Driver[] = [
 ]
 
 const zones: Zone[] = [
-  { id: "zone_01", name: "City Center", centroidLat: 45.4642, centroidLng: 9.19 },
-  { id: "zone_02", name: "Airport District", centroidLat: 45.63, centroidLng: 8.7236 },
-  { id: "zone_03", name: "Northern Suburbs", centroidLat: 45.55, centroidLng: 9.25 },
-  { id: "zone_04", name: "Lakeside", centroidLat: 45.81, centroidLng: 9.08 },
+  { id: "zone_01", name: "City Center" },
+  { id: "zone_02", name: "Airport District" },
+  { id: "zone_03", name: "Northern Suburbs" },
+  { id: "zone_04", name: "Lakeside" },
 ]
 
 const pricingRules: PricingRule[] = [

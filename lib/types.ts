@@ -115,8 +115,6 @@ export interface Driver {
 export interface Zone {
   id: string
   name: string
-  centroidLat: number
-  centroidLng: number
 }
 
 export interface PricingRule {

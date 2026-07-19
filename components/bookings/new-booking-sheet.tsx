@@ -108,11 +108,15 @@ function airportEndpoint(airport: AirportWithCoords): Endpoint {
   }
 }
 
-function zoneEndpoint(zone: ServiceZonePlace): Endpoint {
+function zoneEndpoint(
+  zone: ServiceZonePlace,
+  airport: AirportWithCoords | null,
+): Endpoint {
   return {
     address: zone.name,
-    lat: zone.lat,
-    lng: zone.lng,
+    // Placeholder coords — pricing uses zoneId, not map distance.
+    lat: airport?.lat ?? 0,
+    lng: airport?.lng ?? 0,
   }
 }
 
@@ -192,40 +196,28 @@ export function NewBookingSheet({
         ? airportEndpoint(airport)
         : emptyEndpoint()
       : zone
-        ? zoneEndpoint(zone)
+        ? zoneEndpoint(zone, airport)
         : emptyEndpoint()
 
   const dropoff: Endpoint =
     direction === "airport_to_dest"
       ? zone
-        ? zoneEndpoint(zone)
+        ? zoneEndpoint(zone, airport)
         : emptyEndpoint()
       : airport
         ? airportEndpoint(airport)
         : emptyEndpoint()
 
   const debouncedVehicleType = useDebounced(vehicleType)
-  const debouncedDirection = useDebounced(direction)
-  const debouncedPickupLat = useDebounced(pickup.lat)
-  const debouncedPickupLng = useDebounced(pickup.lng)
-  const debouncedDropoffLat = useDebounced(dropoff.lat)
-  const debouncedDropoffLng = useDebounced(dropoff.lng)
+  const debouncedZoneId = useDebounced(selectedZoneId)
 
-  const quoteEnabled =
-    debouncedPickupLat !== null &&
-    debouncedPickupLng !== null &&
-    debouncedDropoffLat !== null &&
-    debouncedDropoffLng !== null &&
-    !!debouncedVehicleType &&
-    !!debouncedDirection
+  const quoteEnabled = Boolean(debouncedVehicleType && debouncedZoneId)
 
   const { data: quote, isLoading: quoteLoading } = useSWR<QuoteResponse>(
     quoteEnabled
-      ? `/api/admin/bookings/quote?direction=${encodeURIComponent(
-          debouncedDirection,
-        )}&vehicleType=${encodeURIComponent(
+      ? `/api/admin/bookings/quote?vehicleType=${encodeURIComponent(
           debouncedVehicleType,
-        )}&pickupLat=${debouncedPickupLat}&pickupLng=${debouncedPickupLng}&dropoffLat=${debouncedDropoffLat}&dropoffLng=${debouncedDropoffLng}`
+        )}&zoneId=${encodeURIComponent(debouncedZoneId!)}`
       : null,
     fetcher,
   )
@@ -304,6 +296,7 @@ export function NewBookingSheet({
       passengerCount: pCount,
       luggageCount: lCount,
       vehicleType,
+      zoneId: zone.id,
       isRoundTrip,
       meetAndGreet,
       markAsPaid,
