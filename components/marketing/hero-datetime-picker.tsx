@@ -46,9 +46,11 @@ type HeroDateTimePickerProps = {
   onChange: (iso: string) => void
   open: boolean
   onOpenChange: (open: boolean) => void
-  trigger: React.ReactNode
+  trigger?: React.ReactNode
   minDate?: Date
   variant?: "hero" | "compact"
+  /** Opens calendar in a sheet above dialogs (fixes scroll when nested in modals). */
+  inDialog?: boolean
   /** Called after Confirm — open the next sheet first so scroll-lock stays engaged. */
   onAfterConfirm?: () => void
 }
@@ -271,9 +273,10 @@ export function HeroDateTimePicker({
   trigger,
   minDate,
   onAfterConfirm,
+  inDialog = false,
 }: HeroDateTimePickerProps) {
   const isMobile = useIsMobile()
-  useBodyScrollLock(isMobile && open)
+  useBodyScrollLock(isMobile && open && !inDialog)
 
   const earliest = React.useMemo(() => {
     const lead = earliestPickupAt()
@@ -282,6 +285,31 @@ export function HeroDateTimePicker({
     // Recompute when the picker opens so the 1h window stays current.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [minDate, open])
+
+  const calendar = (
+    <CalendarPanel
+      value={value}
+      onChange={onChange}
+      onOpenChange={onOpenChange}
+      onAfterConfirm={onAfterConfirm}
+      earliest={earliest}
+      open={open}
+      layout="dropdown"
+    />
+  )
+
+  if (inDialog) {
+    return (
+      <div className="flex flex-col gap-3">
+        {trigger}
+        {open && (
+          <div className="rounded-xl border border-border bg-brand-surface p-4">
+            {calendar}
+          </div>
+        )}
+      </div>
+    )
+  }
 
   if (isMobile) {
     return (
@@ -298,7 +326,7 @@ export function HeroDateTimePicker({
                 Pickup date & time
               </SheetTitle>
             </SheetHeader>
-            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
               <CalendarPanel
                 value={value}
                 onChange={onChange}
@@ -327,15 +355,7 @@ export function HeroDateTimePicker({
             onClick={() => onOpenChange(false)}
           />
           <div className="absolute top-[calc(100%+0.5rem)] left-0 z-[210] w-full rounded-2xl border border-border bg-brand-surface p-4 shadow-[0_20px_60px_rgba(0,0,0,0.2)]">
-            <CalendarPanel
-              value={value}
-              onChange={onChange}
-              onOpenChange={onOpenChange}
-              onAfterConfirm={onAfterConfirm}
-              earliest={earliest}
-              open={open}
-              layout="dropdown"
-            />
+            {calendar}
           </div>
         </>
       )}

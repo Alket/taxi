@@ -9,8 +9,9 @@ import {
   useStripe,
 } from "@stripe/react-stripe-js"
 import { loadStripe, type Stripe } from "@stripe/stripe-js"
-import { Loader2Icon, CreditCardIcon, LockIcon, ShieldCheckIcon } from "lucide-react"
+import { Loader2Icon, CreditCardIcon, LockIcon, ShieldCheckIcon, ChevronDownIcon } from "lucide-react"
 import useSWR from "swr"
+import { toast } from "sonner"
 
 import { apiPost, fetcher } from "@/lib/api"
 import { navigateToBookingConfirmation } from "@/lib/navigate-to-confirmation"
@@ -23,6 +24,8 @@ import {
 } from "@/lib/pickup-lead-time"
 import { formatDateTime, formatMoney } from "@/lib/format"
 import { bypassBookingLeaveGuard } from "@/hooks/use-booking-leave-guard"
+import { useBookingFieldFocusListener } from "@/hooks/use-booking-field-focus"
+import { focusBookingTerms } from "@/lib/booking-field-focus"
 import { useBookingStore } from "@/lib/store/booking-store"
 import { getVehicleCatalog, round2 } from "@/lib/vehicles"
 import { cn } from "@/lib/utils"
@@ -30,6 +33,10 @@ import {
   buildBookingStripeAppearance,
   STRIPE_BRAND_FONTS,
 } from "@/lib/stripe-appearance"
+import {
+  resolvePhoneCountryOption,
+  splitPhone,
+} from "@/lib/booking-details"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -100,10 +107,42 @@ function Recap() {
     boosterCount > 0 ? `Booster ×${boosterCount}` : null,
   ].filter(Boolean)
 
+  const [open, setOpen] = React.useState(false)
+  const routePreview =
+    pickup.address && dropoff.address
+      ? `${pickup.address.split(",")[0]} → ${dropoff.address.split(",")[0]}`
+      : "View trip details"
+  const pickupPreview = pickupDateTime ? formatDateTime(pickupDateTime) : null
+
   return (
-    <div className="rounded-xl border bg-muted/20 p-4 text-sm">
-      <h3 className="text-sm font-bold text-brand">Trip recap</h3>
-      <dl className="mt-3 grid gap-2.5">
+    <div className="rounded-xl border bg-muted/20 text-sm">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+        className="flex w-full items-start justify-between gap-3 p-4 text-left md:pointer-events-none md:cursor-default"
+      >
+        <div className="min-w-0 flex-1">
+          <h3 className="text-sm font-bold text-brand">Trip recap</h3>
+          <p className="mt-1 truncate text-xs text-muted-foreground md:hidden">
+            {routePreview}
+            {pickupPreview ? ` · ${pickupPreview}` : ""}
+          </p>
+        </div>
+        <ChevronDownIcon
+          className={cn(
+            "mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform md:hidden",
+            open && "rotate-180",
+          )}
+          aria-hidden
+        />
+      </button>
+      <dl
+        className={cn(
+          "grid gap-2.5 border-t px-4 pb-4 pt-3 md:block",
+          open ? "block" : "hidden md:block",
+        )}
+      >
         <RecapRow
           label="Route"
           value={`${pickup.address} → ${dropoff.address}`}
@@ -191,6 +230,11 @@ function PaymentOptionCard({
   )
 }
 
+function stripeBillingCountryFromPhone(phone: string): string {
+  const { countryCode } = splitPhone(phone)
+  return resolvePhoneCountryOption(countryCode).iso
+}
+
 function StripeCheckoutForm({
   depositAmount,
   paymentOption,
@@ -199,6 +243,9 @@ function StripeCheckoutForm({
   referenceCode,
   paymentIntentId,
   termsAccepted,
+  customerName,
+  customerEmail,
+  customerPhone,
 }: {
   depositAmount: number
   paymentOption: PaymentOption
@@ -207,6 +254,9 @@ function StripeCheckoutForm({
   referenceCode: string
   paymentIntentId: string
   termsAccepted: boolean
+  customerName: string
+  customerEmail: string
+  customerPhone: string
 }) {
   const stripe = useStripe()
   const elements = useElements()
@@ -220,14 +270,7 @@ function StripeCheckoutForm({
 
     if (!termsAccepted) {
       setError("Please agree to the booking terms and cancellation policy to proceed.")
-      const container = document.getElementById("terms-label-container")
-      if (container) {
-        container.scrollIntoView({ behavior: "smooth", block: "center" })
-        container.classList.add("ring-2", "ring-destructive/40", "border-destructive", "bg-destructive/5")
-        setTimeout(() => {
-          container.classList.remove("ring-2", "ring-destructive/40", "border-destructive", "bg-destructive/5")
-        }, 2000)
-      }
+      focusBookingTerms()
       return
     }
 
@@ -240,6 +283,16 @@ function StripeCheckoutForm({
         redirect: "if_required",
         confirmParams: {
           return_url: `${window.location.origin}/book/confirmation/${referenceCode}`,
+          // Name/email/phone are opted out on the Element (already collected in booking).
+          // Address uses `if_required` so Stripe collects zip/country as needed — do not
+          // pass a partial address here or Stripe will demand every omitted field.
+          payment_method_data: {
+            billing_details: {
+              name: customerName || undefined,
+              email: customerEmail || undefined,
+              phone: customerPhone || undefined,
+            },
+          },
         },
       })
 
@@ -269,7 +322,7 @@ function StripeCheckoutForm({
     } catch (err) {
       setError(
         (err as Error).message ||
-          "Network error while processing payment. Check your connection and retry.",
+        "Network error while processing payment. Check your connection and retry.",
       )
     } finally {
       setSubmitting(false)
@@ -277,10 +330,10 @@ function StripeCheckoutForm({
   }
 
   return (
-    <form onSubmit={onPay} className="flex min-w-0 flex-col gap-5">
-      <div className="relative">
+    <form onSubmit={onPay} className="flex min-w-0 flex-col gap-4">
+      <div className="relative rounded-xl bg-brand-page p-4">
         {!ready && (
-          <div className="absolute inset-x-0 top-0 z-10 flex flex-col gap-4 bg-brand-surface py-2">
+          <div className="absolute inset-x-4 top-4 z-10 flex flex-col gap-4 bg-brand-page py-2">
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 <Loader2Icon className="size-3.5 animate-spin text-brand-accent" />
@@ -300,13 +353,31 @@ function StripeCheckoutForm({
             onReady={() => setReady(true)}
             options={{
               layout: {
-                type: "accordion",
+                type: "tabs",
                 defaultCollapsed: false,
-                spacedAccordionItems: false,
               },
               paymentMethodOrder: ["card"],
               terms: { card: "never" },
-              fields: { billingDetails: { address: "never" } },
+              defaultValues: {
+                billingDetails: {
+                  name: customerName || undefined,
+                  email: customerEmail || undefined,
+                  phone: customerPhone || undefined,
+                  address: {
+                    country: stripeBillingCountryFromPhone(customerPhone),
+                  },
+                },
+              },
+              fields: {
+                billingDetails: {
+                  name: "never",
+                  email: "never",
+                  phone: "never",
+                  // Collect only what the payment method needs (usually country + postal code).
+                  // Do not use "never" here — that forces inventing full address at confirm time.
+                  address: "if_required",
+                },
+              },
             }}
           />
         </div>
@@ -366,6 +437,8 @@ export function PaymentStep() {
   const [paypalError, setPaypalError] = React.useState<string | null>(null)
   const [cashPending, setCashPending] = React.useState(false)
   const [cashError, setCashError] = React.useState<string | null>(null)
+
+  useBookingFieldFocusListener("terms")
 
   const freeCancellationHours =
     settings?.freeCancellationHours ?? 24
@@ -560,7 +633,12 @@ export function PaymentStep() {
   }, [paymentOption, stripeEnabled, store.createdBookingId])
 
   async function payWithPaypal() {
-    if (!store.createdBookingId || !termsAccepted) return
+    if (!store.createdBookingId) return
+    if (!termsAccepted) {
+      toast.error("Please agree to the booking terms and cancellation policy to proceed.")
+      focusBookingTerms()
+      return
+    }
     setPaypalPending(true)
     setPaypalError(null)
     try {
@@ -584,7 +662,12 @@ export function PaymentStep() {
   }
 
   async function confirmCashOnArrival() {
-    if (!store.createdBookingId || !termsAccepted) return
+    if (!store.createdBookingId) return
+    if (!termsAccepted) {
+      toast.error("Please agree to the booking terms and cancellation policy to proceed.")
+      focusBookingTerms()
+      return
+    }
     setCashPending(true)
     setCashError(null)
     try {
@@ -735,7 +818,11 @@ export function PaymentStep() {
         )}
       </div>
 
-      <label id="terms-label-container" className="flex items-start gap-3 rounded-xl border px-3.5 py-3 text-sm transition-all duration-300">
+      <label
+        id="terms-label-container"
+        data-booking-field="terms"
+        className="flex items-start gap-3 rounded-xl border px-3.5 py-3 text-sm transition-all duration-300"
+      >
         <input
           type="checkbox"
           className="mt-0.5 size-4 shrink-0 rounded border-input accent-brand-accent"
@@ -751,11 +838,11 @@ export function PaymentStep() {
           before pickup
           {store.pickupDateTime
             ? ` (until ${formatDateTime(
-                new Date(
-                  new Date(store.pickupDateTime).getTime() -
-                    freeCancellationHours * 60 * 60 * 1000,
-                ).toISOString(),
-              )})`
+              new Date(
+                new Date(store.pickupDateTime).getTime() -
+                freeCancellationHours * 60 * 60 * 1000,
+              ).toISOString(),
+            )})`
             : ""}
           .
         </span>
@@ -764,16 +851,10 @@ export function PaymentStep() {
       {showStripe && intent && publishableKey && (
         <div
           className={cn(
-            "flex min-w-0 flex-col gap-3 rounded-xl border bg-brand-surface p-4",
+            "flex min-w-0 flex-col gap-3 rounded-xl bg-brand-surface",
             !termsAccepted && "opacity-70",
           )}
         >
-          <div>
-            <p className="text-sm font-extrabold text-brand">Card payment</p>
-            <p className="text-xs text-muted-foreground">
-              Pay securely with your debit or credit card.
-            </p>
-          </div>
           <Elements
             key={intent.clientSecret}
             stripe={getStripePromise(publishableKey)}
@@ -792,6 +873,9 @@ export function PaymentStep() {
               referenceCode={intent.referenceCode}
               paymentIntentId={intent.paymentIntentId}
               termsAccepted={termsAccepted && !switchingIntent}
+              customerName={store.customer.name}
+              customerEmail={store.customer.email}
+              customerPhone={store.customer.phone}
             />
           </Elements>
         </div>

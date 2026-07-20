@@ -65,9 +65,20 @@ export async function PATCH(
 
   const withinFreeWindow =
     booking.freeCancellationUntil.getTime() > Date.now()
-  const cancellationOutcome: CancellationOutcome = withinFreeWindow
-    ? "free_cancellation"
-    : "deposit_forfeited"
+
+  // Public cancel is only allowed until freeCancellationUntil
+  // (typically 24 hours before pickup).
+  if (!withinFreeWindow) {
+    return NextResponse.json(
+      {
+        error:
+          "Cancellation is only available until 24 hours before pickup. Please contact support if you need help.",
+      },
+      { status: 409 },
+    )
+  }
+
+  const cancellationOutcome: CancellationOutcome = "free_cancellation"
   const cancelledAt = new Date()
 
   await prisma.$transaction(async (tx) => {
@@ -78,9 +89,7 @@ export async function PATCH(
         cancelledAt,
         cancellationOutcome,
         paymentStatus:
-          withinFreeWindow && booking.depositPaid.gt(0)
-            ? "refunded"
-            : booking.paymentStatus,
+          booking.depositPaid.gt(0) ? "refunded" : booking.paymentStatus,
       },
     })
 
@@ -98,7 +107,7 @@ export async function PATCH(
   return NextResponse.json({
     booking: updated ? serializeManagedBooking(updated) : null,
     cancellationOutcome,
-    freeCancellation: withinFreeWindow,
-    depositForfeited: !withinFreeWindow,
+    freeCancellation: true,
+    depositForfeited: false,
   })
 }

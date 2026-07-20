@@ -7,6 +7,8 @@ import { PlaneTakeoffIcon, PlaneLandingIcon, CalendarIcon } from "lucide-react"
 import { fetcher } from "@/lib/api"
 import type { AirportWithCoords } from "@/lib/airports"
 import { resolveAirportLocation } from "@/lib/airports"
+import { isPickupTooSoon } from "@/lib/pickup-lead-time"
+import { useBookingFieldFocusListener } from "@/hooks/use-booking-field-focus"
 import {
   useBookingStore,
   VEHICLE_TYPES,
@@ -92,6 +94,7 @@ export function RouteStep() {
   const pickupDateTime = useBookingStore((s) => s.pickupDateTime)
   const quoteStatus = useBookingStore((s) => s.quoteStatus)
   const quoteError = useBookingStore((s) => s.quoteError)
+  const vehicleType = useBookingStore((s) => s.vehicleType)
   const patch = useBookingStore((s) => s.patch)
   const clearQuotes = useBookingStore((s) => s.clearQuotes)
 
@@ -300,9 +303,39 @@ export function RouteStep() {
   const startedFromHero = useBookingStore((s) => s.startedFromHero)
   const showAirportSelect = airports.length > 1
   const [calendarOpen, setCalendarOpen] = React.useState(false)
+  const [pickupDateError, setPickupDateError] = React.useState<string | null>(
+    null,
+  )
+
+  useBookingFieldFocusListener("destination")
+  useBookingFieldFocusListener("pickupDateTime", (message) => {
+    setPickupDateError(message ?? "Select pickup date & time.")
+    setCalendarOpen(true)
+  })
+  useBookingFieldFocusListener("quote")
 
   return (
     <div className="flex flex-col gap-6">
+      {startedFromHero && !selectedZoneId && (
+        <div
+          data-booking-field="destination"
+          className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-3 text-sm text-brand"
+        >
+          Destination missing — go back to the homepage to choose your route.
+        </div>
+      )}
+
+      {startedFromHero &&
+        selectedZoneId &&
+        (!pickupDateTime || isPickupTooSoon(pickupDateTime)) && (
+          <div
+            data-booking-field="pickupDateTime"
+            className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-3 text-sm text-brand"
+          >
+            Pickup time needs updating — go back to the homepage to change it.
+          </div>
+        )}
+
       {!startedFromHero && (
         <>
           <div className="flex flex-col gap-2">
@@ -361,21 +394,23 @@ export function RouteStep() {
             </div>
           )}
 
-          <ZonePlaceSelect
-            label={
-              direction === "dest_to_airport"
-                ? "Pickup address"
-                : "Destination address"
-            }
-            placeholder="Select a service area"
-            zones={zones}
-            value={selectedZoneId}
-            loading={!config}
-            onResolved={onDestinationResolved}
-            onCleared={onDestinationCleared}
-          />
+          <div className="flex flex-col gap-1.5" data-booking-field="destination">
+            <ZonePlaceSelect
+              label={
+                direction === "dest_to_airport"
+                  ? "Pickup address"
+                  : "Destination address"
+              }
+              placeholder="Select a service area"
+              zones={zones}
+              value={selectedZoneId}
+              loading={!config}
+              onResolved={onDestinationResolved}
+              onCleared={onDestinationCleared}
+            />
+          </div>
 
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1.5" data-booking-field="pickupDateTime">
             <Label
               htmlFor="pickupDateTime"
               className="text-sm font-bold text-brand"
@@ -386,16 +421,25 @@ export function RouteStep() {
               <HeroDateTimePicker
                 value={pickupDateTime}
                 open={calendarOpen}
-                onOpenChange={setCalendarOpen}
-                onChange={(iso) => patch({ pickupDateTime: iso })}
+                onOpenChange={(open) => {
+                  setCalendarOpen(open)
+                  if (open) setPickupDateError(null)
+                }}
+                onChange={(iso) => {
+                  patch({ pickupDateTime: iso })
+                  setPickupDateError(null)
+                }}
                 variant="compact"
                 trigger={
                   <button
                     type="button"
                     onClick={() => setCalendarOpen(true)}
+                    aria-invalid={pickupDateError ? true : undefined}
                     className={cn(
                       "flex h-10 w-full items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background transition-colors hover:bg-muted/50",
                       calendarOpen && "ring-2 ring-brand-accent ring-offset-2 border-brand-accent",
+                      pickupDateError &&
+                        "border-destructive ring-2 ring-destructive/30",
                     )}
                   >
                     <CalendarIcon className="size-4 text-muted-foreground" />
@@ -411,14 +455,38 @@ export function RouteStep() {
                 }
               />
             </div>
+            {pickupDateError && (
+              <p className="text-xs text-destructive">{pickupDateError}</p>
+            )}
           </div>
         </>
       )}
 
       <TripOptions />
 
+      {quoteStatus === "loading" && (
+        <div
+          data-booking-field="quote"
+          className="rounded-lg border bg-muted/20 px-3 py-3 text-sm text-muted-foreground"
+        >
+          Loading prices…
+        </div>
+      )}
+
+      {quoteStatus === "success" && !vehicleType && (
+        <div
+          data-booking-field="quote"
+          className="rounded-lg border bg-muted/20 px-3 py-3 text-sm text-muted-foreground"
+        >
+          Calculating your price…
+        </div>
+      )}
+
       {quoteStatus === "uncovered" && (
-        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-3 text-sm">
+        <div
+          data-booking-field="quote"
+          className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-3 text-sm"
+        >
           <p className="font-medium text-foreground">
             We don&apos;t currently cover this destination
           </p>
@@ -436,7 +504,10 @@ export function RouteStep() {
       )}
 
       {quoteStatus === "error" && (
-        <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-3 text-sm">
+        <div
+          data-booking-field="quote"
+          className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-3 text-sm"
+        >
           <p className="font-medium text-destructive">Couldn&apos;t load prices</p>
           <p className="mt-1 text-muted-foreground">
             {quoteError || "Something went wrong while quoting this route."}

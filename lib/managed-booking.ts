@@ -35,8 +35,12 @@ export type LookupBookingRecord = NonNullable<
 export function serializeManagedBooking(booking: LookupBookingRecord) {
   const withinFreeWindow =
     booking.freeCancellationUntil.getTime() > Date.now()
+  // Public self-service cancel is only allowed inside the free window
+  // (default: 24 hours before pickup).
   const cancellable =
-    booking.status !== "cancelled" && booking.status !== "completed"
+    booking.status !== "cancelled" &&
+    booking.status !== "completed" &&
+    withinFreeWindow
   const editable =
     booking.status === "pending" || booking.status === "confirmed"
 

@@ -4,25 +4,26 @@ import * as React from "react"
 import { useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 import {
+  CalendarIcon,
   CarIcon,
   Loader2Icon,
   MessageCircleIcon,
-  PencilIcon,
   SearchIcon,
+  XIcon,
 } from "lucide-react"
 
 import { apiPatch } from "@/lib/api"
-import { toLocalInputValue } from "@/lib/booking-details"
-import { DATETIME_LOCAL_CLASSNAME } from "@/lib/booking-progress"
 import {
   BOOKING_STATUS_LABELS,
   formatDateTime,
   formatMoney,
 } from "@/lib/format"
 import type { ManagedBooking } from "@/lib/managed-booking"
-import type { VehicleType } from "@/lib/types"
-import { VEHICLE_TYPES } from "@/lib/store/booking-store"
-import { VEHICLE_CATALOG } from "@/lib/vehicles"
+import { cn } from "@/lib/utils"
+import {
+  formatHeroDateLabel,
+  HeroDateTimePicker,
+} from "@/components/marketing/hero-datetime-picker"
 import { ManagedStatusTimeline } from "@/components/booking/managed-status-timeline"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -36,13 +37,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 
 const LOOKUP_ERROR = "We couldn't find a booking matching those details."
@@ -210,8 +204,8 @@ function BookingManagePanel({
                 variant="outline"
                 onClick={() => setEditOpen(true)}
               >
-                <PencilIcon data-icon="inline-start" />
-                Edit
+                <CalendarIcon data-icon="inline-start" />
+                Change date
               </Button>
             )}
             {booking.cancellable && (
@@ -221,11 +215,38 @@ function BookingManagePanel({
                 variant="destructive"
                 onClick={() => setCancelOpen(true)}
               >
+                <XIcon data-icon="inline-start" />
                 Cancel booking
               </Button>
             )}
           </div>
         </div>
+
+        {booking.status !== "cancelled" && booking.status !== "completed" ? (
+          <p className="mt-3 text-xs text-muted-foreground">
+            {booking.cancellable ? (
+              <>
+                Free cancellation until{" "}
+                <span className="font-medium text-foreground">
+                  {formatDateTime(booking.freeCancellationUntil)}
+                </span>{" "}
+                (24 hours before pickup).
+              </>
+            ) : (
+              <>
+                Online cancellation is only available until 24 hours before
+                pickup
+                {booking.freeCancellationUntil
+                  ? ` (ended ${formatDateTime(booking.freeCancellationUntil)})`
+                  : ""}
+                . Contact support if you need help.
+              </>
+            )}{" "}
+            {booking.editable
+              ? "You can change the pickup date until a driver is assigned."
+              : "Pickup date can no longer be changed online."}
+          </p>
+        ) : null}
 
         <Separator className="my-4" />
 
@@ -394,11 +415,7 @@ function CancelBookingDialog({
         email,
         reference: booking.referenceCode,
       })
-      toast.success(
-        res.freeCancellation
-          ? "Booking cancelled. Your deposit will be refunded."
-          : "Booking cancelled. The deposit is forfeited per the cancellation policy.",
-      )
+      toast.success("Booking cancelled. Your deposit will be refunded.")
       onCancelled(res.booking)
     } catch (err) {
       toast.error((err as Error).message)
@@ -413,19 +430,9 @@ function CancelBookingDialog({
         <DialogHeader>
           <DialogTitle>Cancel booking?</DialogTitle>
           <DialogDescription>
-            {booking.withinFreeWindow ? (
-              <>
-                You&apos;re still inside the free cancellation window (until{" "}
-                {formatDateTime(booking.freeCancellationUntil)}). Your deposit
-                will be refunded.
-              </>
-            ) : (
-              <>
-                The free cancellation window ended on{" "}
-                {formatDateTime(booking.freeCancellationUntil)}. Cancelling now
-                means your deposit will be forfeited.
-              </>
-            )}
+            Cancellation is free until{" "}
+            {formatDateTime(booking.freeCancellationUntil)} (24 hours before
+            pickup). Your deposit will be refunded.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
@@ -459,24 +466,23 @@ function EditBookingDialog({
   onSaved: (booking: ManagedBooking) => void
 }) {
   const [pending, setPending] = React.useState(false)
+  const [calendarOpen, setCalendarOpen] = React.useState(false)
   const [pickupDateTime, setPickupDateTime] = React.useState(
-    toLocalInputValue(booking.pickupDateTime),
-  )
-  const [passengerCount, setPassengerCount] = React.useState(
-    String(booking.passengerCount),
-  )
-  const [vehicleType, setVehicleType] = React.useState<VehicleType>(
-    booking.vehicleType,
+    booking.pickupDateTime,
   )
 
   React.useEffect(() => {
     if (!open) return
-    setPickupDateTime(toLocalInputValue(booking.pickupDateTime))
-    setPassengerCount(String(booking.passengerCount))
-    setVehicleType(booking.vehicleType)
+    setPickupDateTime(booking.pickupDateTime)
+    setCalendarOpen(false)
   }, [open, booking])
 
   async function save() {
+    if (!pickupDateTime) {
+      toast.error("Select a pickup date and time.")
+      return
+    }
+
     setPending(true)
     try {
       const res = await apiPatch<{ booking: ManagedBooking }>(
@@ -484,12 +490,10 @@ function EditBookingDialog({
         {
           email,
           pickupDateTime: new Date(pickupDateTime).toISOString(),
-          passengerCount: Number(passengerCount),
-          vehicleType,
         },
       )
       if (!res.booking) throw new Error("Update failed.")
-      toast.success("Booking updated.")
+      toast.success("Pickup date updated.")
       onSaved(res.booking)
     } catch (err) {
       toast.error((err as Error).message)
@@ -502,67 +506,52 @@ function EditBookingDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Edit booking</DialogTitle>
+          <DialogTitle>Change pickup date</DialogTitle>
           <DialogDescription>
-            You can change pickup time, passengers, and vehicle until a driver
-            is assigned. Changing vehicle may update the trip price.
+            Choose a new pickup date and time for your transfer.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="editPickup">Pickup date & time</Label>
-            <Input
-              id="editPickup"
-              type="datetime-local"
-              className={DATETIME_LOCAL_CLASSNAME}
-              min={toLocalInputValue(new Date().toISOString())}
-              value={pickupDateTime}
-              onChange={(e) => setPickupDateTime(e.target.value)}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="editPassengers">Passengers</Label>
-            <Input
-              id="editPassengers"
-              type="number"
-              min={1}
-              max={30}
-              value={passengerCount}
-              onChange={(e) => setPassengerCount(e.target.value)}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label>Vehicle</Label>
-            <Select
-              value={vehicleType}
-              onValueChange={(value) => {
-                if (value) setVehicleType(value as VehicleType)
-              }}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent variant="brand">
-                {VEHICLE_TYPES.map((type) => {
-                  const meta = VEHICLE_CATALOG.find((v) => v.type === type)
-                  return (
-                    <SelectItem key={type} value={type}>
-                      {meta?.label ?? type}
-                    </SelectItem>
-                  )
-                })}
-              </SelectContent>
-            </Select>
-          </div>
+        <div className="flex flex-col gap-1.5">
+          <Label className="text-sm font-bold text-brand">
+            Pickup date & time
+          </Label>
+          <HeroDateTimePicker
+            inDialog
+            value={pickupDateTime}
+            open={calendarOpen}
+            onOpenChange={setCalendarOpen}
+            onChange={setPickupDateTime}
+            trigger={
+              <button
+                type="button"
+                onClick={() => setCalendarOpen(true)}
+                className={cn(
+                  "flex h-12 w-full items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-left text-sm transition-colors hover:bg-muted/50",
+                  calendarOpen &&
+                    "border-brand-accent ring-2 ring-brand-accent ring-offset-2",
+                )}
+              >
+                <CalendarIcon className="size-4 shrink-0 text-muted-foreground" />
+                <span
+                  className={cn(
+                    "flex-1 font-semibold",
+                    pickupDateTime ? "text-brand" : "text-muted-foreground",
+                  )}
+                >
+                  {formatHeroDateLabel(pickupDateTime)}
+                </span>
+              </button>
+            }
+          />
         </div>
 
         <DialogFooter>
           <DialogClose render={<Button variant="outline" />}>
             Cancel
           </DialogClose>
-          <Button disabled={pending} onClick={() => void save()}>
-            {pending ? "Saving…" : "Save changes"}
+          <Button disabled={pending || !pickupDateTime} onClick={() => void save()}>
+            {pending ? "Saving…" : "Save date"}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -22,3 +22,15 @@ export function readBrandColor(
     .trim()
   return value || fallback
 }
+
+/** Resolve any CSS custom property at runtime (colors, radius, etc.). */
+export function readCssVar(
+  property: string,
+  fallback: string,
+  scope?: Element | null,
+): string {
+  if (typeof window === "undefined") return fallback
+  const target = scope ?? document.documentElement
+  const value = getComputedStyle(target).getPropertyValue(property).trim()
+  return value || fallback
+}

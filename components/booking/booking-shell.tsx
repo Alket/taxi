@@ -37,9 +37,11 @@ import {
 import { RouteStep } from "@/components/booking/steps/RouteStep"
 import { DetailsStep } from "@/components/booking/steps/DetailsStep"
 import { PaymentStep } from "@/components/booking/steps/PaymentStep"
+import { MARKETING_CONTAINER } from "@/components/marketing/marketing-container"
+import { cn } from "@/lib/utils"
 
-/** TripOptions listens for this to open the return date picker + show field error. */
-export const FOCUS_RETURN_DATE_EVENT = "booking:focus-return-date"
+import { getFirstInvalidBookingField } from "@/lib/booking-validation"
+import { dispatchBookingFieldFocus } from "@/lib/booking-field-focus"
 
 const STEP_META: Record<
   BookingStep,
@@ -97,7 +99,7 @@ function MobileSummaryBar({
           render={
             <button
               type="button"
-              className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 rounded-xl border bg-brand-surface px-3.5 py-2.5 text-left shadow-sm transition-colors hover:bg-muted/40"
+              className="mx-auto flex w-full max-w-[1280px] items-center justify-between gap-3 rounded-xl border bg-brand-surface px-3.5 py-2.5 text-left shadow-sm transition-colors hover:bg-muted/40"
               aria-expanded={open}
             />
           }
@@ -164,35 +166,15 @@ export function BookingShell({
 
   function handleContinue() {
     const state = useBookingStore.getState()
+    const invalid = getFirstInvalidBookingField(state)
 
-    if (state.isRoundTrip && !state.returnDateTime) {
-      const message = "Select a return date & time."
-      toast.error(message)
-      window.dispatchEvent(
-        new CustomEvent(FOCUS_RETURN_DATE_EVENT, { detail: { message } }),
-      )
+    if (invalid) {
+      toast.error(invalid.message)
+      dispatchBookingFieldFocus({
+        field: invalid.field,
+        message: invalid.message,
+      })
       return
-    }
-
-    if (
-      state.isRoundTrip &&
-      state.returnDateTime &&
-      state.pickupDateTime
-    ) {
-      const pickupMs = new Date(state.pickupDateTime).getTime()
-      const returnMs = new Date(state.returnDateTime).getTime()
-      if (
-        !Number.isNaN(pickupMs) &&
-        !Number.isNaN(returnMs) &&
-        returnMs <= pickupMs
-      ) {
-        const message = "Return date must be after your pickup."
-        toast.error(message)
-        window.dispatchEvent(
-          new CustomEvent(FOCUS_RETURN_DATE_EVENT, { detail: { message } }),
-        )
-        return
-      }
     }
 
     if (!canGoNext) {
@@ -209,7 +191,7 @@ export function BookingShell({
         className={
           isHero
             ? "flex w-full flex-col gap-4"
-            : "mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6 md:px-6 md:py-10 lg:px-8"
+            : cn(MARKETING_CONTAINER, "flex flex-col gap-6 py-6 md:py-10")
         }
       >
         <Skeleton className="h-10 w-48" />
@@ -224,24 +206,23 @@ export function BookingShell({
       className={
         isHero
           ? "flex w-full flex-col gap-4 pb-24 md:pb-0"
-          : "mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6 pb-28 md:px-6 md:pb-10 lg:px-8"
+          : cn(
+              MARKETING_CONTAINER,
+              "flex flex-col gap-6 py-6 pb-28 md:pb-10",
+            )
       }
     >
       {leaveDialog}
 
       <header className="flex flex-col gap-6">
         <div className="flex items-center justify-between border-b pb-4">
-          <div className="flex items-center gap-2">
-            <div className="size-8 rounded bg-brand flex items-center justify-center">
-               <span className="text-white font-bold text-lg">W</span>
-            </div>
-            <span className="text-lg font-bold tracking-tight text-brand">Welcome Pickups</span>
-          </div>
           <BookingStepIndicator />
-          <div className="hidden md:flex items-center gap-6 text-[13px] font-medium text-muted-foreground">
-             <span>EN</span>
-             <span>€</span>
-             <button className="hover:text-brand">Help</button>
+          <div className="hidden items-center gap-6 text-[13px] font-medium text-muted-foreground md:flex">
+            <span>EN</span>
+            <span>€</span>
+            <button type="button" className="hover:text-brand">
+              Help
+            </button>
           </div>
         </div>
         {!isHero && <BookingHeaderBenefits />}

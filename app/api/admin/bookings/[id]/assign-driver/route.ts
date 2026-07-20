@@ -4,7 +4,9 @@ import {
   bookingDetailInclude,
   serializeBookingDetail,
 } from "@/lib/bookings"
+import { findDriverPickupConflict } from "@/lib/driver-availability"
 import { prisma } from "@/lib/db"
+import { formatDateTime } from "@/lib/format"
 
 export async function PATCH(
   request: Request,
@@ -29,6 +31,30 @@ export async function PATCH(
   if (!driver) {
     return NextResponse.json({ error: "Driver not found" }, { status: 400 })
   }
+  if (!driver.active) {
+    return NextResponse.json(
+      { error: "That driver is not active." },
+      { status: 400 },
+    )
+  }
+
+  const conflict = await findDriverPickupConflict({
+    driverId: driver.id,
+    pickupDateTime: booking.pickupDateTime,
+    excludeBookingId: booking.id,
+  })
+
+  if (conflict) {
+    return NextResponse.json(
+      {
+        error: `${driver.name} is already assigned to ${conflict.referenceCode} at ${formatDateTime(conflict.pickupDateTime.toISOString())}.`,
+        code: "DRIVER_BUSY",
+        conflictBookingId: conflict.id,
+        conflictReference: conflict.referenceCode,
+      },
+      { status: 409 },
+    )
+  }
 
   const shouldAssignStatus =
     booking.status === "pending" || booking.status === "confirmed"
@@ -45,7 +71,7 @@ export async function PATCH(
     const existing = await tx.bookingStatusEvent.findFirst({
       where: { bookingId: id, status: "driver_assigned" },
     })
-      if (!existing || shouldAssignStatus) {
+    if (!existing || shouldAssignStatus) {
       await tx.bookingStatusEvent.create({
         data: {
           bookingId: id,
@@ -56,7 +82,6 @@ export async function PATCH(
   })
 
   const { notifyDriverAssigned } = await import("@/lib/push-notifications")
-  const { formatDateTime } = await import("@/lib/format")
   notifyDriverAssigned({
     driverId: driver.id,
     bookingId: booking.id,

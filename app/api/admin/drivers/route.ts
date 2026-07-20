@@ -2,6 +2,10 @@ import { NextResponse } from "next/server"
 import { z } from "zod"
 
 import { hashDriverPin } from "@/lib/driver-auth"
+import {
+  DRIVER_BUSY_STATUSES,
+  pickupMinuteRange,
+} from "@/lib/driver-availability"
 import { prisma } from "@/lib/db"
 import { DRIVER_PUBLIC_SELECT, serializeDriver } from "@/lib/drivers"
 
@@ -24,6 +28,7 @@ function parsePositiveInt(value: string | null, fallback: number): number {
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const activeOnly = searchParams.get("active") === "true"
+  const forBookingId = searchParams.get("forBookingId")
   const page = parsePositiveInt(searchParams.get("page"), 1)
   const pageSize = Math.min(
     100,
@@ -32,7 +37,7 @@ export async function GET(request: Request) {
 
   const where = activeOnly ? { active: true } : undefined
 
-  const [total, drivers] = await Promise.all([
+  const [total, drivers, booking] = await Promise.all([
     prisma.driver.count({ where }),
     prisma.driver.findMany({
       where,
@@ -41,10 +46,56 @@ export async function GET(request: Request) {
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),
+    forBookingId
+      ? prisma.booking.findUnique({
+          where: { id: forBookingId },
+          select: { id: true, pickupDateTime: true },
+        })
+      : Promise.resolve(null),
   ])
 
+  let busyByDriver = new Map<
+    string,
+    { referenceCode: string; pickupDateTime: Date }
+  >()
+
+  if (booking) {
+    const { start, end } = pickupMinuteRange(booking.pickupDateTime)
+    const conflicts = await prisma.booking.findMany({
+      where: {
+        id: { not: booking.id },
+        driverId: { in: drivers.map((d) => d.id) },
+        status: { in: DRIVER_BUSY_STATUSES },
+        pickupDateTime: { gte: start, lt: end },
+      },
+      select: {
+        driverId: true,
+        referenceCode: true,
+        pickupDateTime: true,
+      },
+    })
+    busyByDriver = new Map(
+      conflicts
+        .filter((c) => c.driverId)
+        .map((c) => [
+          c.driverId!,
+          {
+            referenceCode: c.referenceCode,
+            pickupDateTime: c.pickupDateTime,
+          },
+        ]),
+    )
+  }
+
   return NextResponse.json({
-    drivers: drivers.map(serializeDriver),
+    drivers: drivers.map((driver) => {
+      const conflict = busyByDriver.get(driver.id)
+      return {
+        ...serializeDriver(driver),
+        busy: Boolean(conflict),
+        conflictReference: conflict?.referenceCode ?? null,
+      }
+    }),
     total,
     page,
     pageSize,

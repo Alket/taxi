@@ -72,10 +72,18 @@ export async function POST(request: Request) {
     })
 
     return NextResponse.json({ zone: serializeZone(zone) }, { status: 201 })
-  } catch {
+  } catch (err) {
+    const code = (err as { code?: string }).code
+    if (code === "P2002") {
+      return NextResponse.json(
+        { error: "A zone with that name already exists." },
+        { status: 409 },
+      )
+    }
+    console.error("[admin/zones] create failed:", err)
     return NextResponse.json(
-      { error: "Could not create zone. Name may already be in use." },
-      { status: 409 },
+      { error: "Could not create zone." },
+      { status: 500 },
     )
   }
 }

@@ -69,8 +69,8 @@
   /* Brand tokens used only by homepage + /book components */
   --brand-ink: #2d3b4e;
   --brand-panel: #2d3343;
-  --brand-accent: #00cf95;
-  --brand-accent-hover: #00b381;
+  --brand-accent: #007956;
+  --brand-accent-hover: #007956;
   --brand-page: #f5f5f5;
   --brand-surface: #ffffff;
 
@@ -257,6 +257,24 @@
 .brand-frontend textarea::placeholder {
   font-weight: 700;
   opacity: 0.7;
+}
+
+.brand-frontend .stripe-booking-payment {
+  width: 100%;
+}
+
+.brand-frontend .destinations-slider .swiper-pagination-bullet {
+  width: 10px;
+  height: 10px;
+  background: var(--border);
+  opacity: 1;
+  transition: all 0.3s ease;
+}
+
+.brand-frontend .destinations-slider .swiper-pagination-bullet-active {
+  width: 28px;
+  border-radius: 9999px;
+  background: var(--primary);
 }
 
 /*

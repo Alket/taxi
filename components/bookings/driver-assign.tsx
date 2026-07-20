@@ -19,6 +19,11 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Spinner } from "@/components/ui/spinner"
 
+type AssignableDriver = Driver & {
+  busy?: boolean
+  conflictReference?: string | null
+}
+
 export function DriverAssign({
   booking,
   onAssigned,
@@ -26,14 +31,15 @@ export function DriverAssign({
   booking: Booking
   onAssigned: () => void
 }) {
-  const { data } = useSWR<{ drivers: Driver[] }>(
-    "/api/admin/drivers?active=true",
+  const { data } = useSWR<{ drivers: AssignableDriver[] }>(
+    `/api/admin/drivers?active=true&forBookingId=${booking.id}`,
     fetcher,
   )
   const drivers = data?.drivers ?? []
   const [pending, setPending] = React.useState(false)
   const [editing, setEditing] = React.useState(false)
-  const [selectedDriver, setSelectedDriver] = React.useState<Driver | null>(null)
+  const [selectedDriver, setSelectedDriver] =
+    React.useState<AssignableDriver | null>(null)
 
   const currentDriver = drivers.find((d) => d.id === booking.driverId) ?? null
 
@@ -44,6 +50,14 @@ export function DriverAssign({
 
   async function assign() {
     if (!selectedDriver || selectedDriver.id === booking.driverId) return
+    if (selectedDriver.busy) {
+      toast.error(
+        selectedDriver.conflictReference
+          ? `${selectedDriver.name} is busy on booking ${selectedDriver.conflictReference} at this pickup time.`
+          : `${selectedDriver.name} is already assigned at this pickup date and time.`,
+      )
+      return
+    }
     setPending(true)
     try {
       await apiPatch(`/api/admin/bookings/${booking.id}/assign-driver`, {
@@ -103,8 +117,26 @@ export function DriverAssign({
           <Combobox
             items={drivers}
             value={selectedDriver}
-            onValueChange={(value: Driver | null) => setSelectedDriver(value)}
-            itemToStringLabel={(item: Driver) => item.name}
+            onValueChange={(value: AssignableDriver | null) => {
+              if (value?.busy) {
+                toast.error(
+                  value.conflictReference
+                    ? `${value.name} is busy on booking ${value.conflictReference} at this pickup time.`
+                    : `${value.name} is already assigned at this pickup date and time.`,
+                )
+                setSelectedDriver(null)
+                return
+              }
+              setSelectedDriver(value)
+            }}
+            itemToStringLabel={(item: AssignableDriver) =>
+              item.busy
+                ? `${item.name} (busy${item.conflictReference ? ` · ${item.conflictReference}` : ""})`
+                : item.name
+            }
+            isItemEqualToValue={(a: AssignableDriver, b: AssignableDriver) =>
+              a.id === b.id
+            }
           >
             <ComboboxInput
               placeholder="Search active drivers..."
@@ -113,12 +145,23 @@ export function DriverAssign({
             <ComboboxContent>
               <ComboboxEmpty>No active drivers found.</ComboboxEmpty>
               <ComboboxList>
-                {(item: Driver) => (
-                  <ComboboxItem key={item.id} value={item}>
+                {(item: AssignableDriver) => (
+                  <ComboboxItem
+                    key={item.id}
+                    value={item}
+                    disabled={item.busy}
+                  >
                     <div className="flex flex-col">
-                      <span className="font-medium">{item.name}</span>
+                      <span className="font-medium">
+                        {item.name}
+                        {item.busy ? " · Busy" : ""}
+                      </span>
                       <span className="text-xs text-sidebar-foreground/65">
-                        {item.vehicleMake} {item.vehicleModel} · {item.plateNumber}
+                        {item.vehicleMake} {item.vehicleModel} ·{" "}
+                        {item.plateNumber}
+                        {item.busy && item.conflictReference
+                          ? ` · ${item.conflictReference}`
+                          : ""}
                       </span>
                     </div>
                   </ComboboxItem>
@@ -146,6 +189,7 @@ export function DriverAssign({
               disabled={
                 pending ||
                 !selectedDriver ||
+                selectedDriver.busy ||
                 selectedDriver.id === booking.driverId
               }
             >

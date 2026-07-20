@@ -22,6 +22,7 @@ import {
 } from "@/lib/child-seats"
 import { formatMoney } from "@/lib/format"
 import { useBookingStore } from "@/lib/store/booking-store"
+import { useBookingFieldFocusListener } from "@/hooks/use-booking-field-focus"
 import { CountryCodeSelect } from "@/components/booking/country-code-select"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -170,12 +171,25 @@ export function DetailsStep() {
     void trigger()
   }, [trigger])
 
+  useBookingFieldFocusListener("flightNumber", () => {
+    void trigger("flightNumber")
+  })
+  useBookingFieldFocusListener("name", () => {
+    void trigger("name")
+  })
+  useBookingFieldFocusListener("email", () => {
+    void trigger("email")
+  })
+  useBookingFieldFocusListener("phone", () => {
+    void trigger(["phoneCountryCode", "phoneNational"])
+  })
+
   return (
     <form
       className="flex max-w-xl flex-col gap-8"
       onSubmit={(e) => e.preventDefault()}
     >
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2" data-booking-field="flightNumber">
         <Label
           htmlFor="flightNumber"
           className="text-sm font-bold text-brand"
@@ -186,6 +200,7 @@ export function DetailsStep() {
           <Input
             id="flightNumber"
             placeholder="Find my flight"
+            aria-invalid={errors.flightNumber ? true : undefined}
             className="h-12 border-border pr-10 shadow-none transition-all focus:border-brand-accent focus:ring-0"
             {...register("flightNumber")}
           />
@@ -233,7 +248,7 @@ export function DetailsStep() {
       </RadioGroup>
 
       <div className="flex flex-col gap-5">
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2" data-booking-field="name">
           <Label
             htmlFor="name"
             className="text-sm font-bold text-brand"
@@ -243,6 +258,7 @@ export function DetailsStep() {
           <Input
             id="name"
             placeholder="Enter your full name"
+            aria-invalid={errors.name ? true : undefined}
             className="h-12 border-border shadow-none transition-all focus:border-brand-accent focus:ring-0"
             {...register("name")}
           />
@@ -251,7 +267,7 @@ export function DetailsStep() {
           )}
         </div>
 
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2" data-booking-field="email">
           <Label
             htmlFor="email"
             className="text-sm font-bold text-brand"
@@ -262,6 +278,7 @@ export function DetailsStep() {
             id="email"
             type="email"
             placeholder="Enter your email"
+            aria-invalid={errors.email ? true : undefined}
             className="h-12 border-border shadow-none transition-all focus:border-brand-accent focus:ring-0"
             {...register("email")}
           />
@@ -270,7 +287,7 @@ export function DetailsStep() {
           )}
         </div>
 
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2" data-booking-field="phone">
           <Label
             htmlFor="phone"
             className="text-sm font-bold text-brand"
@@ -292,6 +309,9 @@ export function DetailsStep() {
               id="phone"
               type="tel"
               placeholder="e.g. 66 123 4567"
+              aria-invalid={
+                errors.phoneCountryCode || errors.phoneNational ? true : undefined
+              }
               className="h-12 flex-1 border-border shadow-none transition-all focus:border-brand-accent focus:ring-0"
               {...register("phoneNational")}
             />

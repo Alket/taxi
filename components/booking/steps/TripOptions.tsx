@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
+import { useBookingFieldFocusListener } from "@/hooks/use-booking-field-focus"
 
 type BookingConfig = {
   roundTripDiscountPercent?: number
@@ -111,22 +112,10 @@ export function TripOptions() {
   )
   const returnDateFieldRef = React.useRef<HTMLDivElement>(null)
 
-  React.useEffect(() => {
-    function onFocusReturnDate(event: Event) {
-      const detail = (event as CustomEvent<{ message?: string }>).detail
-      setReturnDateError(
-        detail?.message ?? "Select a return date & time.",
-      )
-      setCalendarOpen(true)
-      returnDateFieldRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      })
-    }
-    window.addEventListener("booking:focus-return-date", onFocusReturnDate)
-    return () =>
-      window.removeEventListener("booking:focus-return-date", onFocusReturnDate)
-  }, [])
+  useBookingFieldFocusListener("returnDateTime", (message) => {
+    setReturnDateError(message ?? "Select a return date & time.")
+    setCalendarOpen(true)
+  })
 
   const oneWayPrice =
     vehicleType && vehicleQuotes[vehicleType]
@@ -191,6 +180,7 @@ export function TripOptions() {
           <div
             ref={returnDateFieldRef}
             id="return-date-field"
+            data-booking-field="returnDateTime"
             className="flex flex-col gap-1.5 border-t pt-3"
           >
             <Label htmlFor="returnDateTime" className="text-sm font-bold text-brand">
