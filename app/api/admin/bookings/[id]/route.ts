@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { z } from "zod"
 
 import { requireCanDelete } from "@/lib/auth"
+import { isBookingLockedForEdit } from "@/lib/booking-status"
 import {
   bookingDetailInclude,
   serializeBookingDetail,
@@ -64,9 +65,14 @@ export async function PATCH(request: Request, context: RouteContext) {
     return NextResponse.json({ error: "Booking not found" }, { status: 404 })
   }
 
-  if (existing.status === "cancelled") {
+  if (isBookingLockedForEdit(existing.status)) {
     return NextResponse.json(
-      { error: "Cancelled bookings cannot be edited." },
+      {
+        error:
+          existing.status === "cancelled"
+            ? "Cancelled bookings cannot be edited."
+            : "This booking can no longer be edited after the driver has arrived.",
+      },
       { status: 409 },
     )
   }

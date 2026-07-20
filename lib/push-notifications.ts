@@ -1,6 +1,7 @@
 import webpush from "web-push"
 
 import { prisma } from "@/lib/db"
+import { recordStaffNotification } from "@/lib/staff-notifications"
 
 export type PushAudience = "admin" | "driver"
 
@@ -130,10 +131,23 @@ export function notifyAdminsNewBooking(args: {
   bookingId: string
 }) {
   const customer = args.customerName ? ` · ${args.customerName}` : ""
+  const title = "New booking"
+  const body = `${args.referenceCode}${customer}\n${args.pickupAddress} → ${args.dropoffAddress}`
+  const url = `/admin/bookings?bookingId=${args.bookingId}`
+
+  recordStaffNotification({
+    audience: "admin",
+    type: "new_booking",
+    title,
+    body,
+    url,
+    bookingId: args.bookingId,
+  })
+
   void sendStaffPush("admin", {
-    title: "New booking",
-    body: `${args.referenceCode}${customer}\n${args.pickupAddress} → ${args.dropoffAddress}`,
-    url: `/admin/bookings?booking=${args.bookingId}`,
+    title,
+    body,
+    url,
     tag: `booking-${args.bookingId}`,
   }).catch(() => {})
 }
@@ -147,16 +161,59 @@ export function notifyDriverAssigned(args: {
   bookingId: string
 }) {
   const when = args.pickupLabel ? `\n${args.pickupLabel}` : ""
+  const title = "New trip — accept or reject"
+  const body = `${args.referenceCode}\n${args.pickupAddress} → ${args.dropoffAddress}${when}`
+  const url = `/driver`
+
+  recordStaffNotification({
+    audience: "driver",
+    ownerId: args.driverId,
+    type: "driver_assigned",
+    title,
+    body,
+    url,
+    bookingId: args.bookingId,
+  })
+
   void sendStaffPush(
     "driver",
     {
-      title: "New trip — accept or reject",
-      body: `${args.referenceCode}\n${args.pickupAddress} → ${args.dropoffAddress}${when}`,
-      url: `/driver`,
+      title,
+      body,
+      url,
       tag: `trip-${args.bookingId}`,
     },
     { ownerId: args.driverId },
   ).catch(() => {})
+}
+
+export function notifyAdminsDriverAccepted(args: {
+  bookingId: string
+  referenceCode: string
+  pickupAddress: string
+  dropoffAddress: string
+  driverName?: string
+}) {
+  const who = args.driverName ? args.driverName : "Driver"
+  const title = "Driver accepted trip"
+  const body = `${args.referenceCode} · ${who}\n${args.pickupAddress} → ${args.dropoffAddress}`
+  const url = `/admin/bookings?bookingId=${args.bookingId}`
+
+  recordStaffNotification({
+    audience: "admin",
+    type: "driver_accepted",
+    title,
+    body,
+    url,
+    bookingId: args.bookingId,
+  })
+
+  void sendStaffPush("admin", {
+    title,
+    body,
+    url,
+    tag: `accept-${args.bookingId}`,
+  }).catch(() => {})
 }
 
 export function notifyAdminsDriverRejected(args: {
@@ -167,10 +224,114 @@ export function notifyAdminsDriverRejected(args: {
   driverName?: string
 }) {
   const who = args.driverName ? `${args.driverName} rejected` : "Driver rejected"
+  const title = "Trip rejected — reassign driver"
+  const body = `${args.referenceCode} · ${who}\n${args.pickupAddress} → ${args.dropoffAddress}`
+  const url = `/admin/bookings?bookingId=${args.bookingId}`
+
+  recordStaffNotification({
+    audience: "admin",
+    type: "driver_rejected",
+    title,
+    body,
+    url,
+    bookingId: args.bookingId,
+  })
+
   void sendStaffPush("admin", {
-    title: "Trip rejected — reassign driver",
-    body: `${args.referenceCode} · ${who}\n${args.pickupAddress} → ${args.dropoffAddress}`,
-    url: `/admin/bookings?booking=${args.bookingId}`,
+    title,
+    body,
+    url,
     tag: `reject-${args.bookingId}`,
+  }).catch(() => {})
+}
+
+export function notifyAdminsDriverArrived(args: {
+  bookingId: string
+  referenceCode: string
+  pickupAddress: string
+  dropoffAddress: string
+  driverName?: string
+}) {
+  const who = args.driverName ?? "Driver"
+  const title = "Driver marked arrived"
+  const body = `${args.referenceCode} · ${who}\n${args.pickupAddress} → ${args.dropoffAddress}`
+  const url = `/admin/bookings?bookingId=${args.bookingId}`
+
+  recordStaffNotification({
+    audience: "admin",
+    type: "driver_arrived",
+    title,
+    body,
+    url,
+    bookingId: args.bookingId,
+  })
+
+  void sendStaffPush("admin", {
+    title,
+    body,
+    url,
+    tag: `arrived-${args.bookingId}`,
+  }).catch(() => {})
+}
+
+export function notifyAdminsCashPaid(args: {
+  bookingId: string
+  referenceCode: string
+  amount: number
+  currency?: string
+  driverName?: string
+}) {
+  const who = args.driverName ?? "Driver"
+  const amountLabel =
+    args.currency != null
+      ? `${args.amount.toFixed(2)} ${args.currency}`
+      : args.amount.toFixed(2)
+  const title = "Cash paid confirmed"
+  const body = `${args.referenceCode} · ${who} collected ${amountLabel}`
+  const url = `/admin/bookings?bookingId=${args.bookingId}`
+
+  recordStaffNotification({
+    audience: "admin",
+    type: "cash_paid",
+    title,
+    body,
+    url,
+    bookingId: args.bookingId,
+  })
+
+  void sendStaffPush("admin", {
+    title,
+    body,
+    url,
+    tag: `cash-${args.bookingId}`,
+  }).catch(() => {})
+}
+
+export function notifyAdminsTripCompleted(args: {
+  bookingId: string
+  referenceCode: string
+  pickupAddress: string
+  dropoffAddress: string
+  driverName?: string
+}) {
+  const who = args.driverName ?? "Driver"
+  const title = "Trip completed"
+  const body = `${args.referenceCode} · ${who}\n${args.pickupAddress} → ${args.dropoffAddress}`
+  const url = `/admin/bookings?bookingId=${args.bookingId}`
+
+  recordStaffNotification({
+    audience: "admin",
+    type: "trip_completed",
+    title,
+    body,
+    url,
+    bookingId: args.bookingId,
+  })
+
+  void sendStaffPush("admin", {
+    title,
+    body,
+    url,
+    tag: `completed-${args.bookingId}`,
   }).catch(() => {})
 }

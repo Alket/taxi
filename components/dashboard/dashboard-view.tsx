@@ -15,6 +15,12 @@ import {
 } from "lucide-react"
 
 import { fetcher } from "@/lib/api"
+import {
+  addDays,
+  startOfDay,
+  startOfWeek,
+  toDateInputValue,
+} from "@/lib/dashboard"
 import { formatMoney, formatTime, VEHICLE_LABELS } from "@/lib/format"
 import type { DashboardSummary } from "@/lib/types"
 import { cn } from "@/lib/utils"
@@ -111,6 +117,10 @@ export function DashboardView() {
     { refreshInterval: 60_000 },
   )
 
+  const today = toDateInputValue(startOfDay(new Date()))
+  const weekFrom = toDateInputValue(startOfWeek(new Date()))
+  const weekTo = toDateInputValue(addDays(startOfWeek(new Date()), 6))
+
   return (
     <>
       <PageHeader
@@ -148,12 +158,14 @@ export function DashboardView() {
                 label="Bookings today"
                 value={String(data.bookingsToday)}
                 icon={CalendarCheck}
+                href={`/admin/bookings?dateFrom=${today}&dateTo=${today}`}
                 hint="Pickups scheduled today"
               />
               <StatCard
                 label="Bookings this week"
                 value={String(data.bookingsThisWeek)}
                 icon={CalendarDays}
+                href={`/admin/bookings?dateFrom=${weekFrom}&dateTo=${weekTo}`}
                 hint="From Monday to Sunday"
               />
               <StatCard

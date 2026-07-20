@@ -17,6 +17,30 @@ export const DRIVER_SETTABLE_STATUSES: BookingStatus[] = [
   "completed",
 ]
 
+/** Once the driver has arrived (or the trip is finished/cancelled), admin cannot edit trip details. */
+export function isBookingLockedForEdit(status: BookingStatus): boolean {
+  return isTripInProgressOrDone(status)
+}
+
+/** Once the driver has arrived (or the trip is finished/cancelled), admin cannot assign/reassign. */
+export function isBookingLockedForDriverAssign(status: BookingStatus): boolean {
+  return isTripInProgressOrDone(status)
+}
+
+/** Once the driver has arrived (or the trip is finished/cancelled), the booking cannot be cancelled. */
+export function isBookingLockedForCancel(status: BookingStatus): boolean {
+  return isTripInProgressOrDone(status)
+}
+
+function isTripInProgressOrDone(status: BookingStatus): boolean {
+  return (
+    status === "arrived" ||
+    status === "completed" ||
+    status === "cancelled" ||
+    status === "in_progress"
+  )
+}
+
 export function getNextFlowStatus(
   status: BookingStatus,
 ): BookingStatus | null {

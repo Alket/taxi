@@ -4,6 +4,7 @@ import {
   PAYMENT_STATUS_LABELS,
   VEHICLE_LABELS,
 } from "@/lib/format"
+import { isBookingLockedForCancel } from "@/lib/booking-status"
 import type { Direction, VehicleType } from "@/lib/types"
 
 export async function findBookingForLookup(reference: string, email: string) {
@@ -38,9 +39,7 @@ export function serializeManagedBooking(booking: LookupBookingRecord) {
   // Public self-service cancel is only allowed inside the free window
   // (default: 24 hours before pickup).
   const cancellable =
-    booking.status !== "cancelled" &&
-    booking.status !== "completed" &&
-    withinFreeWindow
+    !isBookingLockedForCancel(booking.status) && withinFreeWindow
   const editable =
     booking.status === "pending" || booking.status === "confirmed"
 

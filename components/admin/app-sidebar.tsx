@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
+  Bell,
   CalendarClock,
   LayoutDashboard,
   LogOut,
@@ -33,6 +34,7 @@ const navItems = [
   { title: "Bookings", url: "/admin/bookings", icon: CalendarClock },
   { title: "Drivers", url: "/admin/drivers", icon: Users },
   { title: "Pricing", url: "/admin/pricing", icon: MapPinned },
+  { title: "Notifications", url: "/admin/notifications", icon: Bell },
   { title: "Settings", url: "/admin/settings", icon: Settings },
 ]
 

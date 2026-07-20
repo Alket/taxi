@@ -6,6 +6,7 @@ import { toast } from "sonner"
 import { StarIcon, UserPlusIcon } from "lucide-react"
 
 import { apiPatch, fetcher } from "@/lib/api"
+import { isBookingLockedForDriverAssign } from "@/lib/booking-status"
 import type { Booking, Driver } from "@/lib/types"
 import {
   Combobox,
@@ -42,6 +43,7 @@ export function DriverAssign({
     React.useState<AssignableDriver | null>(null)
 
   const currentDriver = drivers.find((d) => d.id === booking.driverId) ?? null
+  const locked = isBookingLockedForDriverAssign(booking.status)
 
   React.useEffect(() => {
     setEditing(false)
@@ -49,6 +51,7 @@ export function DriverAssign({
   }, [booking.id, booking.driverId])
 
   async function assign() {
+    if (locked) return
     if (!selectedDriver || selectedDriver.id === booking.driverId) return
     if (selectedDriver.busy) {
       toast.error(
@@ -85,7 +88,28 @@ export function DriverAssign({
         Assigned driver
         {pending && <Spinner className="size-3" />}
       </Label>
-      {currentDriver && !editing ? (
+      {locked ? (
+        <div className="rounded-lg border bg-muted/30 p-3">
+          {currentDriver ? (
+            <div className="flex flex-col">
+              <span className="font-medium">{currentDriver.name}</span>
+              <span className="text-xs text-muted-foreground">
+                {currentDriver.vehicleMake} {currentDriver.vehicleModel} ·{" "}
+                {currentDriver.plateNumber}
+              </span>
+              <span className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
+                <StarIcon className="size-3" />
+                {currentDriver.avgRating.toFixed(1)} average rating
+              </span>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">No driver assigned.</p>
+          )}
+          <p className="mt-2 text-xs text-muted-foreground">
+            Driver assignment is locked after the driver has arrived.
+          </p>
+        </div>
+      ) : currentDriver && !editing ? (
         <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/30 p-3">
           <div className="flex flex-col">
             <span className="font-medium">{currentDriver.name}</span>

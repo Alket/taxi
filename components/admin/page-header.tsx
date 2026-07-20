@@ -5,6 +5,7 @@ import type { ReactNode } from "react"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
 import { AdminThemeToggle } from "@/components/admin/theme-toggle"
+import { NotificationInboxLink } from "@/components/admin/notification-inbox-link"
 import { StaffNotificationManager } from "@/components/admin/staff-notifications"
 
 export function PageHeader({
@@ -34,6 +35,7 @@ export function PageHeader({
             </p>
           ) : null}
         </div>
+        <NotificationInboxLink />
         <StaffNotificationManager audience="admin" />
         <AdminThemeToggle className="shrink-0" />
         {actions ? (

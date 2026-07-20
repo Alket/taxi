@@ -59,6 +59,17 @@ export async function POST(
       })
     })
 
+    const { notifyAdminsDriverAccepted } = await import(
+      "@/lib/push-notifications"
+    )
+    notifyAdminsDriverAccepted({
+      bookingId: booking.id,
+      referenceCode: booking.referenceCode,
+      pickupAddress: booking.pickupAddress,
+      dropoffAddress: booking.dropoffAddress,
+      driverName: session.driver.name,
+    })
+
     return NextResponse.json({
       ok: true,
       action: "accept",

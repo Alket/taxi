@@ -512,7 +512,7 @@ async function main() {
     },
   ]
 
-  for (const spec of bookingSpecs) {
+  for (const [bookingIndex, spec] of bookingSpecs.entries()) {
     const customer = await prisma.customer.create({ data: spec.customer })
     const zone = zoneByName[spec.zoneName]
     const driver =
@@ -524,13 +524,16 @@ async function main() {
     const booking = await prisma.booking.create({
       data: {
         referenceCode: spec.referenceCode,
+        // Deterministic unique PIN per seed booking (hash alone can collide).
         pickupPin: String(
-          Math.abs(
+          (Math.abs(
             [...spec.referenceCode].reduce(
               (acc, ch) => acc + ch.charCodeAt(0),
               0,
             ) * 7919,
-          ) % 1_000_000,
+          ) +
+            bookingIndex) %
+            1_000_000,
         ).padStart(6, "0"),
         direction: spec.direction,
         pickupAddress: spec.pickupAddress,

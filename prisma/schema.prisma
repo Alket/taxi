@@ -369,3 +369,25 @@ model PushSubscription {
   @@index([audience])
   @@index([ownerId])
 }
+
+/** In-app notification center items for admin (and optionally driver) staff. */
+model StaffNotification {
+  id        String    @id @default(cuid())
+  /** "admin" | "driver" */
+  audience  String
+  /** Driver.id when audience is driver; null = all admins. */
+  ownerId   String?
+  /** new_booking | payment | driver_rejected | driver_assigned */
+  type      String
+  title     String
+  body      String
+  url       String
+  bookingId String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([audience, createdAt])
+  @@index([audience, readAt])
+  @@index([ownerId, createdAt])
+  @@index([bookingId])
+}

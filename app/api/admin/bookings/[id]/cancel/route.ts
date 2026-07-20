@@ -5,6 +5,7 @@ import {
   bookingDetailInclude,
   serializeBookingDetail,
 } from "@/lib/bookings"
+import { isBookingLockedForCancel } from "@/lib/booking-status"
 import { prisma } from "@/lib/db"
 
 export async function PATCH(
@@ -23,9 +24,14 @@ export async function PATCH(
       { status: 409 },
     )
   }
-  if (booking.status === "completed") {
+  if (isBookingLockedForCancel(booking.status)) {
     return NextResponse.json(
-      { error: "Completed bookings cannot be cancelled." },
+      {
+        error:
+          booking.status === "completed"
+            ? "Completed bookings cannot be cancelled."
+            : "This booking cannot be cancelled after the driver has arrived.",
+      },
       { status: 409 },
     )
   }

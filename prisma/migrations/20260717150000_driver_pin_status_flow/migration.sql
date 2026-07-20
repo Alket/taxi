@@ -1,8 +1,8 @@
 -- AlterTable
-ALTER TABLE "Driver" ADD COLUMN "pinHash" TEXT;
+ALTER TABLE "Driver" ADD COLUMN IF NOT EXISTS "pinHash" TEXT;
 
 -- CreateIndex
-CREATE INDEX "Driver_phone_idx" ON "Driver"("phone");
+CREATE INDEX IF NOT EXISTS "Driver_phone_idx" ON "Driver"("phone");
 
 -- Map legacy operational statuses onto the simplified flow.
 UPDATE "Booking" SET "status" = 'arrived' WHERE "status" = 'en_route';

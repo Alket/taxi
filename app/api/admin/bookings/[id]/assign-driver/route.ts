@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 
+import { isBookingLockedForDriverAssign } from "@/lib/booking-status"
 import {
   bookingDetailInclude,
   serializeBookingDetail,
@@ -27,6 +28,15 @@ export async function PATCH(
 
   if (!booking) {
     return NextResponse.json({ error: "Booking not found" }, { status: 404 })
+  }
+  if (isBookingLockedForDriverAssign(booking.status)) {
+    return NextResponse.json(
+      {
+        error:
+          "Driver assignment is not allowed after the driver has arrived.",
+      },
+      { status: 409 },
+    )
   }
   if (!driver) {
     return NextResponse.json({ error: "Driver not found" }, { status: 400 })

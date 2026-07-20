@@ -6,6 +6,7 @@ import {
   findBookingForLookup,
   serializeManagedBooking,
 } from "@/lib/managed-booking"
+import { isBookingLockedForCancel } from "@/lib/booking-status"
 import { prisma } from "@/lib/db"
 
 const bodySchema = z.object({
@@ -56,9 +57,14 @@ export async function PATCH(
       { status: 409 },
     )
   }
-  if (booking.status === "completed") {
+  if (isBookingLockedForCancel(booking.status)) {
     return NextResponse.json(
-      { error: "Completed bookings cannot be cancelled." },
+      {
+        error:
+          booking.status === "completed"
+            ? "Completed bookings cannot be cancelled."
+            : "This booking cannot be cancelled after the driver has arrived. Please contact support if you need help.",
+      },
       { status: 409 },
     )
   }

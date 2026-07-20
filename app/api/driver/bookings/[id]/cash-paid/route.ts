@@ -86,7 +86,7 @@ export async function POST(
         balanceDue: 0,
         isBalanceCharged: true,
         balanceChargedAt: now,
-        balanceChargedBy: `driver:${session.driver.id}`,
+        balanceChargedBy: session.driver.name,
         paymentStatus: "fully_paid",
       },
     })
@@ -103,6 +103,15 @@ export async function POST(
         paidAt: now,
       },
     })
+  })
+
+  const { notifyAdminsCashPaid } = await import("@/lib/push-notifications")
+  notifyAdminsCashPaid({
+    bookingId: booking.id,
+    referenceCode: booking.referenceCode,
+    amount,
+    currency: booking.currency,
+    driverName: session.driver.name,
   })
 
   return NextResponse.json({

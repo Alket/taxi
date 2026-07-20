@@ -32,7 +32,7 @@ import {
   formatDateTime,
   formatMoney,
 } from "@/lib/format"
-import { getNextFlowStatus } from "@/lib/booking-status"
+import { getNextFlowStatus, isBookingLockedForCancel, isBookingLockedForEdit } from "@/lib/booking-status"
 import type { Booking, BookingDetail, BookingStatus, VehicleType } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { useAdminSession } from "@/hooks/use-admin-session"
@@ -227,21 +227,25 @@ function TripFacts({ booking }: { booking: Booking }) {
       icon: CalendarClockIcon,
       label: "Pickup time",
       value: formatDateTime(booking.pickupDateTime),
+      fullRow: true,
     },
     {
       icon: PlaneIcon,
       label: "Flight",
       value: booking.flightNumber,
+      fullRow: true,
     },
     {
       icon: UsersIcon,
       label: "Passengers",
       value: String(booking.passengerCount),
+      fullRow: false,
     },
     {
       icon: LuggageIcon,
       label: "Luggage",
       value: String(booking.luggageCount),
+      fullRow: false,
     },
   ]
   return (
@@ -249,7 +253,10 @@ function TripFacts({ booking }: { booking: Booking }) {
       {facts.map((f) => (
         <div
           key={f.label}
-          className="flex items-center gap-2.5 rounded-lg border bg-muted/30 p-2.5"
+          className={cn(
+            "flex items-center gap-2.5 rounded-lg border bg-muted/30 p-2.5",
+            f.fullRow && "col-span-2",
+          )}
         >
           <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-background text-muted-foreground">
             <f.icon className="size-4" />
@@ -351,6 +358,22 @@ function CustomerBlock({ booking }: { booking: Booking }) {
   )
 }
 
+function formatBalanceChargedBy(
+  chargedBy: string | null,
+  driver: BookingDetail["driver"],
+): string | null {
+  if (!chargedBy) return null
+  if (chargedBy === "admin" || chargedBy.startsWith("admin:")) return "Admin"
+  if (chargedBy === "customer") return "Customer"
+  if (chargedBy.startsWith("driver:")) {
+    const driverId = chargedBy.slice("driver:".length)
+    if (driver?.id === driverId && driver.name) return driver.name
+    if (driver?.name) return driver.name
+    return "Driver"
+  }
+  return chargedBy
+}
+
 function PaymentSection({
   booking,
   onMutated,
@@ -360,6 +383,10 @@ function PaymentSection({
 }) {
   const canCharge = booking.status === "completed" && !booking.isBalanceCharged
   const depositOutstanding = booking.depositPaid < booking.depositAmount
+  const chargedByLabel = formatBalanceChargedBy(
+    booking.balanceChargedBy,
+    booking.driver,
+  )
 
   return (
     <section className="flex flex-col gap-3">
@@ -447,7 +474,7 @@ function PaymentSection({
       {booking.isBalanceCharged && booking.balanceChargedAt && (
         <p className="text-xs text-muted-foreground">
           Balance charged on {formatDateTime(booking.balanceChargedAt)}
-          {booking.balanceChargedBy ? ` by ${booking.balanceChargedBy}` : ""}.
+          {chargedByLabel ? ` by ${chargedByLabel}` : ""}.
         </p>
       )}
       {booking.isBalanceCharged && (
@@ -792,7 +819,7 @@ function EditBookingSection({
     })
   }, [open, booking])
 
-  if (booking.status === "cancelled") return null
+  if (isBookingLockedForEdit(booking.status)) return null
 
   async function save() {
     setPending(true)
@@ -1065,12 +1092,12 @@ function CancelSection({
   const [open, setOpen] = React.useState(false)
   const [pending, setPending] = React.useState(false)
 
-  const terminal =
-    booking.status === "cancelled" || booking.status === "completed"
+  const terminal = isBookingLockedForCancel(booking.status)
   const withinFreeWindow =
     new Date(booking.freeCancellationUntil).getTime() > Date.now()
 
   async function cancel() {
+    if (terminal) return
     setPending(true)
     try {
       const res = await apiPatch<{
@@ -1100,12 +1127,19 @@ function CancelSection({
     )
   }
 
+  if (terminal) {
+    return (
+      <p className="text-center text-sm text-muted-foreground">
+        Cancellation is locked after the driver has arrived.
+      </p>
+    )
+  }
+
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       <Button
         variant="destructive"
         className="w-full"
-        disabled={terminal}
         onClick={() => setOpen(true)}
       >
         Cancel booking

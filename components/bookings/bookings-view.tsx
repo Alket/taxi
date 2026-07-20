@@ -116,8 +116,12 @@ export function BookingsView() {
       searchParams.get("driverId") ?? searchParams.get("driver"),
     ),
   )
-  const [dateFrom, setDateFrom] = React.useState("")
-  const [dateTo, setDateTo] = React.useState("")
+  const [dateFrom, setDateFrom] = React.useState(
+    () => searchParams.get("dateFrom") ?? "",
+  )
+  const [dateTo, setDateTo] = React.useState(
+    () => searchParams.get("dateTo") ?? "",
+  )
   const [searchInput, setSearchInput] = React.useState(
     searchParams.get("ref") ?? "",
   )
@@ -128,9 +132,20 @@ export function BookingsView() {
   const [selectedId, setSelectedId] = React.useState<string | null>(null)
 
   React.useEffect(() => {
-    const bookingId = searchParams.get("bookingId")
+    const bookingId =
+      searchParams.get("bookingId") ?? searchParams.get("booking")
     if (bookingId) {
       setSelectedId(bookingId)
+    }
+    setDateFrom(searchParams.get("dateFrom") ?? "")
+    setDateTo(searchParams.get("dateTo") ?? "")
+    const nextStatus = searchParams.get("status")
+    if (nextStatus) setStatus(nextStatus)
+    const nextDriver = normalizeDriverFilter(
+      searchParams.get("driverId") ?? searchParams.get("driver"),
+    )
+    if (searchParams.has("driverId") || searchParams.has("driver")) {
+      setDriverId(nextDriver)
     }
   }, [searchParams])
 

@@ -56,7 +56,7 @@ export function HomeLanding() {
 
       <SiteHeader />
 
-      <section className="relative isolate -mt-24">
+      <section className="relative isolate -mt-24 md:h-[100vh]">
         {/* Hero image: ~58svh on mobile, full section on desktop */}
         <div className="home-hero-bg relative h-[58svh] md:absolute md:inset-0 md:h-auto">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -83,7 +83,7 @@ export function HomeLanding() {
         </div>
 
         {/* Content: overlapping form on mobile; side-by-side on desktop */}
-        <MarketingContainer className="relative z-20 -mt-16 pb-8 md:mt-0 md:flex md:h-[80vh] md:items-center md:pb-8 md:pt-28">
+        <MarketingContainer className="relative z-20 -mt-16 pb-8 md:mt-0 md:flex md:h-full md:items-center md:pb-8 md:pt-28">
           <div className="grid w-full gap-0 md:grid-cols-[minmax(0,1fr)_minmax(20rem,24rem)] md:items-center md:gap-12 lg:grid-cols-[minmax(0,1.1fr)_minmax(22rem,26rem)]">
             <div className="home-fade-up hidden max-w-xl text-white md:block">
               <h1 className="text-[clamp(2.6rem,7vw,4.25rem)] font-bold leading-[1.05] tracking-tight text-balance">

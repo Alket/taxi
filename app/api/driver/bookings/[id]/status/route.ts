@@ -44,6 +44,8 @@ export async function PATCH(
       driverId: true,
       status: true,
       referenceCode: true,
+      pickupAddress: true,
+      dropoffAddress: true,
       totalPrice: true,
       depositPaid: true,
       balanceDue: true,
@@ -87,6 +89,30 @@ export async function PATCH(
       data: { bookingId: id, status: nextStatus },
     })
   })
+
+  if (nextStatus === "arrived") {
+    const { notifyAdminsDriverArrived } = await import(
+      "@/lib/push-notifications"
+    )
+    notifyAdminsDriverArrived({
+      bookingId: booking.id,
+      referenceCode: booking.referenceCode,
+      pickupAddress: booking.pickupAddress,
+      dropoffAddress: booking.dropoffAddress,
+      driverName: session.driver.name,
+    })
+  } else if (nextStatus === "completed") {
+    const { notifyAdminsTripCompleted } = await import(
+      "@/lib/push-notifications"
+    )
+    notifyAdminsTripCompleted({
+      bookingId: booking.id,
+      referenceCode: booking.referenceCode,
+      pickupAddress: booking.pickupAddress,
+      dropoffAddress: booking.dropoffAddress,
+      driverName: session.driver.name,
+    })
+  }
 
   const refreshed = await prisma.booking.findUnique({
     where: { id },
