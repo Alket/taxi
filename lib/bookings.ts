@@ -124,3 +124,40 @@ export function serializeBookingDetail(
 }
 
 export { bookingListInclude, bookingDetailInclude }
+
+/** Driver-recorded cash collection (manual payment with cash external id). */
+export function getDriverCashPaidEvent(
+  booking: Pick<
+    BookingDetail,
+    "payments" | "balanceChargedAt" | "balanceChargedBy" | "isBalanceCharged"
+  >,
+): { timestamp: string; recordedBy: string | null } | null {
+  const cashPayment = booking.payments.find(
+    (payment) =>
+      payment.provider === "manual" &&
+      payment.externalId?.startsWith("cash:"),
+  )
+
+  if (cashPayment?.paidAt) {
+    return {
+      timestamp: cashPayment.paidAt,
+      recordedBy: booking.balanceChargedBy,
+    }
+  }
+
+  if (
+    booking.isBalanceCharged &&
+    booking.balanceChargedAt &&
+    booking.balanceChargedBy &&
+    booking.balanceChargedBy !== "admin" &&
+    booking.balanceChargedBy !== "customer" &&
+    !booking.balanceChargedBy.startsWith("admin:")
+  ) {
+    return {
+      timestamp: booking.balanceChargedAt,
+      recordedBy: booking.balanceChargedBy,
+    }
+  }
+
+  return null
+}

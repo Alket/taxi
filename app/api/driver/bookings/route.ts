@@ -258,12 +258,41 @@ export async function GET(request: Request) {
     return sum + Number(row.totalPrice)
   }, 0)
 
+  const activeRows = [...todayRows, ...upcomingRows]
+  let cashToCollectNow = 0
+  let unpaidBalances = 0
+  let unpaidTripCount = 0
+
+  for (const row of activeRows) {
+    const cashAmount = cashToCollect({
+      totalPrice: Number(row.totalPrice),
+      balanceDue: Number(row.balanceDue),
+      depositPaid: Number(row.depositPaid),
+      paymentStatus: row.paymentStatus,
+    })
+    if (cashAmount <= 0) continue
+
+    unpaidBalances += cashAmount
+    unpaidTripCount += 1
+
+    if (row.status === "arrived" || row.status === "completed") {
+      cashToCollectNow += cashAmount
+    }
+  }
+
   return NextResponse.json({
     today: todayRows.map(serializeTrip),
     upcoming: upcomingRows.map(serializeTrip),
     history: historyRows.map(serializeTrip),
     // Back-compat for any old clients
     bookings: [...todayRows, ...upcomingRows].map(serializeTrip),
+    outstanding: {
+      cashToCollect: Number(cashToCollectNow.toFixed(2)),
+      cashToCollectLabel: formatMoney(cashToCollectNow, currency),
+      unpaidBalances: Number(unpaidBalances.toFixed(2)),
+      unpaidBalancesLabel: formatMoney(unpaidBalances, currency),
+      unpaidTripCount,
+    },
     revenue: {
       year,
       month,

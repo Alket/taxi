@@ -1,11 +1,13 @@
 "use client"
 
 import * as React from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import useSWR from "swr"
 import {
   ArmchairIcon,
   BanknoteIcon,
+  BarChart3Icon,
   CheckCircle2Icon,
   Loader2Icon,
   LogOutIcon,
@@ -67,6 +69,13 @@ type DashboardPayload = {
   today: DriverTrip[]
   upcoming: DriverTrip[]
   history: DriverTrip[]
+  outstanding: {
+    cashToCollect: number
+    cashToCollectLabel: string
+    unpaidBalances: number
+    unpaidBalancesLabel: string
+    unpaidTripCount: number
+  }
   revenue: {
     year: number
     month: number
@@ -188,6 +197,7 @@ export default function DriverDashboardPage() {
   const today = data?.today ?? []
   const upcoming = data?.upcoming ?? []
   const history = data?.history ?? []
+  const outstanding = data?.outstanding
   const revenue = data?.revenue
 
   return (
@@ -207,6 +217,17 @@ export default function DriverDashboardPage() {
           ) : null}
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-10 touch-manipulation sm:h-8"
+            nativeButton={false}
+            render={<Link href="/driver/analytics" />}
+          >
+            <BarChart3Icon data-icon="inline-start" />
+            Analytics
+          </Button>
           <StaffNotificationManager audience="driver" />
           <AdminThemeToggle />
           <Button
@@ -223,25 +244,70 @@ export default function DriverDashboardPage() {
       </header>
 
       <section className="rounded-xl border bg-card p-4 shadow-sm">
+        <h2 className="text-sm font-semibold">Cash & balances</h2>
+        {isLoading && !outstanding ? (
+          <Skeleton className="mt-3 h-14 w-full" />
+        ) : outstanding ? (
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <div>
+              <p className="text-[11px] tracking-wide text-muted-foreground uppercase">
+                Cash to collect
+              </p>
+              <p className="text-xl font-semibold tabular-nums">
+                {outstanding.cashToCollectLabel}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Ready on arrived trips
+              </p>
+            </div>
+            <div>
+              <p className="text-[11px] tracking-wide text-muted-foreground uppercase">
+                Balances / unpaid fares
+              </p>
+              <p className="text-xl font-semibold tabular-nums">
+                {outstanding.unpaidBalancesLabel}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {outstanding.unpaidTripCount} active trip
+                {outstanding.unpaidTripCount === 1 ? "" : "s"} with cash due
+              </p>
+            </div>
+          </div>
+        ) : null}
+      </section>
+
+      <section className="rounded-xl border bg-card p-4 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-sm font-semibold">Revenue this month</h2>
-          <Select
-            value={monthKey}
-            onValueChange={(value) => {
-              if (value) setMonthKey(value)
-            }}
-          >
-            <SelectTrigger size="sm" className="w-[11.5rem]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {months.map((m) => (
-                <SelectItem key={m.value} value={m.value}>
-                  {m.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2">
+            <Select
+              value={monthKey}
+              onValueChange={(value) => {
+                if (value) setMonthKey(value)
+              }}
+            >
+              <SelectTrigger size="sm" className="w-[11.5rem]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {months.map((m) => (
+                  <SelectItem key={m.value} value={m.value}>
+                    {m.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-8 px-2 text-xs text-muted-foreground"
+              nativeButton={false}
+              render={<Link href="/driver/analytics" />}
+            >
+              Details
+            </Button>
+          </div>
         </div>
         {isLoading && !revenue ? (
           <Skeleton className="mt-3 h-14 w-full" />
@@ -261,13 +327,13 @@ export default function DriverDashboardPage() {
             </div>
             <div>
               <p className="text-[11px] tracking-wide text-muted-foreground uppercase">
-                Cash to collect
+                Cash collected
               </p>
               <p className="text-xl font-semibold tabular-nums">
                 {revenue.cashCollectedLabel}
               </p>
               <p className="text-xs text-muted-foreground">
-                Balances / unpaid fares
+                From completed trips
               </p>
             </div>
           </div>

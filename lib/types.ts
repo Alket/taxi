@@ -137,6 +137,129 @@ export interface DashboardSummary {
   upcomingUrgent: Booking[]
 }
 
+export interface AnalyticsProviderRow {
+  provider: string
+  providerLabel: string
+  amount: number
+  amountLabel: string
+  count: number
+}
+
+export interface AnalyticsDriverRevenueRow {
+  driverId: string | null
+  driverName: string
+  cashCollected: number
+  cashCollectedLabel: string
+  onlineCollected: number
+  onlineCollectedLabel: string
+  totalCollected: number
+  totalCollectedLabel: string
+  tripCount: number
+  shareOfCash: number
+}
+
+/** @deprecated Use AnalyticsDriverRevenueRow */
+export type AnalyticsDriverCashRow = AnalyticsDriverRevenueRow
+
+export interface AnalyticsDriverRouteRow {
+  driverId: string | null
+  driverName: string
+  zoneId: string | null
+  routeLabel: string
+  cashCollected: number
+  cashCollectedLabel: string
+  onlineCollected: number
+  onlineCollectedLabel: string
+  totalCollected: number
+  totalCollectedLabel: string
+  tripCount: number
+}
+
+export interface AnalyticsDailyPoint {
+  date: string
+  total: number
+  cash: number
+  online: number
+}
+
+export interface AnalyticsBreakdownRow {
+  key: string
+  label: string
+  amount: number
+  amountLabel: string
+  count: number
+}
+
+export interface AnalyticsReport {
+  dateFrom: string
+  dateTo: string
+  currency: string
+  driverFilter: {
+    driverId: string | null
+    driverName: string
+  } | null
+  summary: {
+    totalCollected: number
+    totalCollectedLabel: string
+    cashCollected: number
+    cashCollectedLabel: string
+    onlineCollected: number
+    onlineCollectedLabel: string
+    paymentCount: number
+    completedTripCount: number
+    forfeitedDeposits: number
+    forfeitedDepositsLabel: string
+  }
+  outstanding: {
+    unpaidBalances: number
+    unpaidBalancesLabel: string
+    unpaidTripCount: number
+  }
+  byProvider: AnalyticsProviderRow[]
+  /** Driver totals: cash + online */
+  revenueByDriver: AnalyticsDriverRevenueRow[]
+  /** Per driver and destination route */
+  revenueByDriverRoute: AnalyticsDriverRouteRow[]
+  /** @deprecated Use revenueByDriver */
+  cashByDriver: AnalyticsDriverRevenueRow[]
+  dailySeries: AnalyticsDailyPoint[]
+  byZone: AnalyticsBreakdownRow[]
+  byVehicle: AnalyticsBreakdownRow[]
+}
+
+/** Driver-portal analytics (scoped to the logged-in driver). */
+export interface DriverAnalyticsReport {
+  dateFrom: string
+  dateTo: string
+  currency: string
+  driver: {
+    id: string
+    name: string
+  }
+  summary: {
+    totalCollected: number
+    totalCollectedLabel: string
+    cashCollected: number
+    cashCollectedLabel: string
+    onlineCollected: number
+    onlineCollectedLabel: string
+    paymentCount: number
+    tripCount: number
+  }
+  byRoute: Array<{
+    zoneId: string | null
+    routeLabel: string
+    cashCollected: number
+    cashCollectedLabel: string
+    onlineCollected: number
+    onlineCollectedLabel: string
+    totalCollected: number
+    totalCollectedLabel: string
+    tripCount: number
+  }>
+  dailySeries: AnalyticsDailyPoint[]
+}
+
 export type DisplayCurrency = "EUR" | "USD" | "GBP"
 
 export type PaymentMode = "test" | "live"
