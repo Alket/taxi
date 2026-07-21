@@ -325,6 +325,11 @@ html.admin:not(.dark) {
   line-height: 1.5;
 }
 
+.driver-app {
+  font-size: var(--text-base);
+  line-height: 1.5;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

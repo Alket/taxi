@@ -1,18 +1,23 @@
 "use client"
 
 import * as React from "react"
-import Link from "next/link"
 import useSWR from "swr"
 import {
-  ArrowLeftIcon,
   BanknoteIcon,
   TrendingUpIcon,
   WalletIcon,
 } from "lucide-react"
 
 import { AdminDateField } from "@/components/admin/date-field"
-import { AdminThemeToggle } from "@/components/admin/theme-toggle"
+import { DriverPageHeader } from "@/components/driver/driver-page-header"
 import { Button } from "@/components/ui/button"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { fetcher } from "@/lib/api"
 import {
@@ -110,180 +115,168 @@ export function DriverAnalyticsView() {
   const { data, isLoading, error } = useSWR<DriverAnalyticsReport>(query, fetcher)
 
   return (
-    <div className="mx-auto flex w-full max-w-lg flex-col gap-5 px-4 py-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-      <header className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="-ml-2 mb-1 h-8 px-2 text-muted-foreground"
-            nativeButton={false}
-            render={<Link href="/driver" />}
-          >
-            <ArrowLeftIcon data-icon="inline-start" />
-            Trips
-          </Button>
-          <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            Your earnings
-          </p>
-          <h1 className="text-xl font-semibold tracking-tight">Analytics</h1>
-          <p className="text-xs text-muted-foreground">
-            Based on when payment was received
-          </p>
-        </div>
-        <AdminThemeToggle />
-      </header>
+    <div className="flex min-h-dvh flex-col">
+      <DriverPageHeader
+        title="Analytics"
+        description="Your earnings based on when payment was received"
+      />
 
-      <section className="rounded-xl border bg-card p-4 shadow-sm">
-        <h2 className="text-sm font-semibold">Date range</h2>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {presets.map((preset) => (
-            <Button
-              key={preset.id}
-              type="button"
-              size="sm"
-              variant={
-                dateFrom === preset.from && dateTo === preset.to
-                  ? "default"
-                  : "outline"
-              }
-              className="h-9 touch-manipulation"
-              onClick={() => {
-                setDateFrom(preset.from)
-                setDateTo(preset.to)
-              }}
-            >
-              {preset.label}
-            </Button>
-          ))}
-        </div>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <AdminDateField label="From" value={dateFrom} onChange={setDateFrom} />
-          <AdminDateField label="To" value={dateTo} onChange={setDateTo} />
-        </div>
-      </section>
-
-      {error ? (
-        <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
-          {(error as Error).message || "Could not load analytics."}
-        </div>
-      ) : null}
-
-      <section className="rounded-xl border bg-card p-4 shadow-sm">
-        <h2 className="text-sm font-semibold">Summary</h2>
-        {isLoading && !data ? (
-          <Skeleton className="mt-3 h-24 w-full" />
-        ) : data ? (
-          <div className="mt-3 grid grid-cols-1 gap-3">
-            <div className="rounded-lg border bg-muted/30 p-3">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-[11px] tracking-wide text-muted-foreground uppercase">
-                  Total collected
-                </p>
-                <TrendingUpIcon className="size-4 text-primary" />
-              </div>
-              <p className="mt-1 text-2xl font-semibold tabular-nums">
-                {data.summary.totalCollectedLabel}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {data.summary.tripCount} trip
-                {data.summary.tripCount === 1 ? "" : "s"} ·{" "}
-                {data.summary.paymentCount} payment
-                {data.summary.paymentCount === 1 ? "" : "s"}
-              </p>
+      <div className="flex flex-1 flex-col gap-5 p-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:gap-6 sm:p-4 md:p-6">
+        <Card>
+          <CardHeader className="gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <CardTitle className="text-base">Date range</CardTitle>
+              <CardDescription>Filter by payment received date</CardDescription>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-lg border p-3">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-[11px] tracking-wide text-muted-foreground uppercase">
-                    Cash
-                  </p>
-                  <BanknoteIcon className="size-3.5 text-muted-foreground" />
-                </div>
-                <p className="mt-1 text-lg font-semibold tabular-nums">
-                  {data.summary.cashCollectedLabel}
-                </p>
-              </div>
-              <div className="rounded-lg border p-3">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-[11px] tracking-wide text-muted-foreground uppercase">
-                    Online
-                  </p>
-                  <WalletIcon className="size-3.5 text-muted-foreground" />
-                </div>
-                <p className="mt-1 text-lg font-semibold tabular-nums">
-                  {data.summary.onlineCollectedLabel}
-                </p>
-              </div>
+            <div className="flex flex-wrap gap-2">
+              {presets.map((preset) => (
+                <Button
+                  key={preset.id}
+                  type="button"
+                  size="sm"
+                  variant={
+                    dateFrom === preset.from && dateTo === preset.to
+                      ? "default"
+                      : "outline"
+                  }
+                  className="h-9 touch-manipulation"
+                  onClick={() => {
+                    setDateFrom(preset.from)
+                    setDateTo(preset.to)
+                  }}
+                >
+                  {preset.label}
+                </Button>
+              ))}
             </div>
-          </div>
+          </CardHeader>
+          <CardContent className="grid gap-3 sm:grid-cols-2">
+            <AdminDateField label="From" value={dateFrom} onChange={setDateFrom} />
+            <AdminDateField label="To" value={dateTo} onChange={setDateTo} />
+          </CardContent>
+        </Card>
+
+        {error ? (
+          <Card className="border-destructive/30 bg-destructive/5">
+            <CardContent className="pt-6 text-sm text-destructive">
+              {(error as Error).message || "Could not load analytics."}
+            </CardContent>
+          </Card>
         ) : null}
-      </section>
 
-      {data ? (
-        <>
-          <section className="rounded-xl border bg-card p-4 shadow-sm">
-            <h2 className="text-sm font-semibold">Daily revenue</h2>
-            <p className="text-xs text-muted-foreground">
-              Total collected per day
-            </p>
-            <div className="mt-3">
-              <DailyChart series={data.dailySeries} currency={data.currency} />
-            </div>
-          </section>
+        <div className="grid gap-4 lg:grid-cols-3">
+          {isLoading && !data ? (
+            Array.from({ length: 3 }).map((_, index) => (
+              <Skeleton key={index} className="h-28 rounded-xl" />
+            ))
+          ) : data ? (
+            <>
+              <Card>
+                <CardHeader>
+                  <CardDescription>Total collected</CardDescription>
+                  <CardTitle className="text-2xl tabular-nums">
+                    {data.summary.totalCollectedLabel}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-xs text-muted-foreground">
+                    {data.summary.tripCount} trip
+                    {data.summary.tripCount === 1 ? "" : "s"} ·{" "}
+                    {data.summary.paymentCount} payment
+                    {data.summary.paymentCount === 1 ? "" : "s"}
+                  </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardDescription>Cash</CardDescription>
+                    <BanknoteIcon className="size-4 text-muted-foreground" />
+                  </div>
+                  <CardTitle className="text-2xl tabular-nums">
+                    {data.summary.cashCollectedLabel}
+                  </CardTitle>
+                </CardHeader>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardDescription>Online</CardDescription>
+                    <WalletIcon className="size-4 text-muted-foreground" />
+                  </div>
+                  <CardTitle className="text-2xl tabular-nums">
+                    {data.summary.onlineCollectedLabel}
+                  </CardTitle>
+                </CardHeader>
+              </Card>
+            </>
+          ) : null}
+        </div>
 
-          <section className="rounded-xl border bg-card p-4 shadow-sm">
-            <h2 className="text-sm font-semibold">By route</h2>
-            <p className="text-xs text-muted-foreground">
-              Cash and online per destination
-            </p>
-            <div className="mt-3 space-y-2">
-              {data.byRoute.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No payments in this period.
-                </p>
-              ) : (
-                data.byRoute.map((row) => (
-                  <div
-                    key={row.zoneId ?? row.routeLabel}
-                    className="rounded-lg border px-3 py-2.5"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">
-                          {row.routeLabel}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {row.tripCount} trip
-                          {row.tripCount === 1 ? "" : "s"}
+        {data ? (
+          <>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Daily revenue</CardTitle>
+                <CardDescription>Total collected per day</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <DailyChart series={data.dailySeries} currency={data.currency} />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">By route</CardTitle>
+                <CardDescription>Cash and online per destination</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {data.byRoute.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No payments in this period.
+                  </p>
+                ) : (
+                  data.byRoute.map((row) => (
+                    <div
+                      key={row.zoneId ?? row.routeLabel}
+                      className="rounded-lg border px-3 py-2.5"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium">
+                            {row.routeLabel}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {row.tripCount} trip
+                            {row.tripCount === 1 ? "" : "s"}
+                          </p>
+                        </div>
+                        <p className="shrink-0 text-sm font-semibold tabular-nums">
+                          {row.totalCollectedLabel}
                         </p>
                       </div>
-                      <p className="shrink-0 text-sm font-semibold tabular-nums">
-                        {row.totalCollectedLabel}
-                      </p>
-                    </div>
-                    <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                      <span>
-                        Cash:{" "}
-                        <span className="font-medium tabular-nums text-foreground">
-                          {row.cashCollectedLabel}
+                      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                        <span>
+                          Cash:{" "}
+                          <span className="font-medium tabular-nums text-foreground">
+                            {row.cashCollectedLabel}
+                          </span>
                         </span>
-                      </span>
-                      <span>
-                        Online:{" "}
-                        <span className="font-medium tabular-nums text-foreground">
-                          {row.onlineCollectedLabel}
+                        <span>
+                          Online:{" "}
+                          <span className="font-medium tabular-nums text-foreground">
+                            {row.onlineCollectedLabel}
+                          </span>
                         </span>
-                      </span>
+                      </div>
                     </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </section>
-        </>
-      ) : null}
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          </>
+        ) : null}
+      </div>
     </div>
   )
 }
