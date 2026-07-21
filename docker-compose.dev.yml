@@ -48,7 +48,6 @@ services:
       sh -c "apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates >/dev/null
       && npm ci
       && npx prisma migrate deploy
-      && npx prisma db seed || true
       && npx prisma generate
       && npm run dev -- -H 0.0.0.0 -p 3000"
 
