@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Image from "next/image"
 import Link from "next/link"
 import { GlobeIcon, MenuIcon, XIcon } from "lucide-react"
 
@@ -15,7 +16,6 @@ const LEFT_NAV = [
 
 const RIGHT_NAV = [
   { href: "/#safety", label: "Safety" },
-  { href: "/my-booking", label: "My booking" },
 ] as const
 
 export function SiteHeader({ className }: { className?: string }) {
@@ -28,9 +28,16 @@ export function SiteHeader({ className }: { className?: string }) {
           <div className="flex items-center gap-10">
             <Link
               href="/"
-              className="flex items-center gap-2 font-brand text-xl font-extrabold tracking-tight text-brand sm:text-2xl"
+              className="flex items-center gap-2.5 font-brand text-xl font-extrabold tracking-tight text-brand sm:gap-3 sm:text-2xl"
             >
-              Albania Transfers
+              <Image
+                src="/marketing/logo.svg"
+                alt=""
+                width={207}
+                height={150}
+                className="h-9 w-auto shrink-0 sm:h-10"
+                priority
+              />
             </Link>
 
             <nav className="hidden items-center gap-8 text-sm font-semibold text-muted-foreground md:flex">
@@ -66,19 +73,19 @@ export function SiteHeader({ className }: { className?: string }) {
             </button>
 
             <Link
-              href="/book"
+              href="/my-booking"
               className="rounded-full bg-primary px-6 py-2.5 text-sm font-extrabold tracking-wide text-primary-foreground shadow-md shadow-primary/20 transition-colors hover:bg-brand-accent-hover"
             >
-              Book a transfer
+              My booking
             </Link>
           </div>
 
           <div className="flex items-center gap-3 md:hidden">
             <Link
-              href="/book"
+              href="/my-booking"
               className="rounded-full bg-primary px-4 py-2 text-xs font-extrabold tracking-wide text-primary-foreground"
             >
-              Book
+              My booking
             </Link>
             <button
               type="button"
@@ -109,11 +116,11 @@ export function SiteHeader({ className }: { className?: string }) {
                   </Link>
                 ))}
                 <Link
-                  href="/book"
+                  href="/my-booking"
                   className="mt-2 rounded-full bg-primary px-4 py-3 text-center text-sm font-extrabold text-primary-foreground"
                   onClick={() => setMenuOpen(false)}
                 >
-                  Book a transfer
+                  My booking
                 </Link>
               </nav>
             </div>
