@@ -681,6 +681,10 @@ export function HeroBookingCard() {
     value: a.iataCode,
     label: `${a.name} (${a.iataCode})`,
   }))
+  const selectedAirportLabel =
+    airportOptions.find((o) => o.value === selectedAirportIata)?.label ??
+    (airports[0] ? `${airports[0].name} (${airports[0].iataCode})` : null)
+  const singleAirportOnly = airports.length <= 1
   const zoneOptions = zones.map((z) => ({
     value: z.id,
     label: z.name,
@@ -762,13 +766,19 @@ export function HeroBookingCard() {
             <CircleIcon className="size-4 shrink-0 fill-none stroke-muted-foreground stroke-[2.5]" />
             <div className="min-w-0 flex-1">
               {fromIsAirport ? (
-                <FieldSelect
-                  value={selectedAirportIata}
-                  placeholder="From (airport, port, address)"
-                  options={airportOptions}
-                  onChange={onAirportPicked}
-                  anchor={fromRowAnchor}
-                />
+                singleAirportOnly ? (
+                  <p className="truncate text-sm font-bold text-brand">
+                    {selectedAirportLabel ?? "Tirana International (TIA)"}
+                  </p>
+                ) : (
+                  <FieldSelect
+                    value={selectedAirportIata}
+                    placeholder="From (airport, port, address)"
+                    options={airportOptions}
+                    onChange={onAirportPicked}
+                    anchor={fromRowAnchor}
+                  />
+                )
               ) : (
                 <FieldSelect
                   value={selectedZoneId}
@@ -776,6 +786,9 @@ export function HeroBookingCard() {
                   options={zoneOptions}
                   onChange={onZonePicked}
                   anchor={fromRowAnchor}
+                  mobileSheet
+                  sheetTitle="Choose destination"
+                  onAfterSelect={openCalendarAfterDestination}
                 />
               )}
             </div>
@@ -809,6 +822,10 @@ export function HeroBookingCard() {
                   sheetTitle="Choose destination"
                   onAfterSelect={openCalendarAfterDestination}
                 />
+              ) : singleAirportOnly ? (
+                <p className="truncate text-sm font-bold text-brand">
+                  {selectedAirportLabel ?? "Tirana International (TIA)"}
+                </p>
               ) : (
                 <FieldSelect
                   value={selectedAirportIata}

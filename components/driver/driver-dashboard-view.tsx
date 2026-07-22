@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import useSWR from "swr"
 import {
   ArmchairIcon,
@@ -115,12 +116,18 @@ function monthOptions(from: Date, count = 12) {
 }
 
 export function DriverDashboardView() {
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const now = React.useMemo(() => new Date(), [])
   const months = React.useMemo(() => monthOptions(now), [now])
   const [monthKey, setMonthKey] = React.useState(
     `${now.getFullYear()}-${now.getMonth() + 1}`,
   )
   const selected = months.find((m) => m.value === monthKey) ?? months[0]!
+
+  const focusBookingId =
+    searchParams.get("bookingId") ?? searchParams.get("booking")
 
   const { data: me } = useSWR<{ driver: Driver }>("/api/driver/me", fetcher)
   const { data, isLoading, mutate, error } = useSWR<DashboardPayload>(
@@ -132,6 +139,44 @@ export function DriverDashboardView() {
   const [pendingId, setPendingId] = React.useState<string | null>(null)
   const [cashOpen, setCashOpen] = React.useState(false)
   const [revenueOpen, setRevenueOpen] = React.useState(false)
+  const [tab, setTab] = React.useState("today")
+  const [focusedTripId, setFocusedTripId] = React.useState<string | null>(
+    focusBookingId,
+  )
+
+  React.useEffect(() => {
+    if (focusBookingId) setFocusedTripId(focusBookingId)
+  }, [focusBookingId])
+
+  // When a push notification is clicked while the PWA is already open.
+  // Handled globally by PushNotificationClickHandler in the driver layout.
+
+  const today = data?.today ?? []
+  const upcoming = data?.upcoming ?? []
+  const history = data?.history ?? []
+  const outstanding = data?.outstanding
+  const revenue = data?.revenue
+
+  React.useEffect(() => {
+    if (!focusedTripId || !data) return
+
+    if (today.some((trip) => trip.id === focusedTripId)) {
+      setTab("today")
+    } else if (upcoming.some((trip) => trip.id === focusedTripId)) {
+      setTab("upcoming")
+    } else if (history.some((trip) => trip.id === focusedTripId)) {
+      setTab("history")
+    }
+  }, [focusedTripId, data, today, upcoming, history])
+
+  function clearFocusFromUrl() {
+    if (!focusBookingId) return
+    const params = new URLSearchParams(searchParams.toString())
+    params.delete("bookingId")
+    params.delete("booking")
+    const query = params.toString()
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
+  }
 
   async function advance(trip: DriverTrip) {
     if (!trip.nextStatus) return
@@ -193,12 +238,6 @@ export function DriverDashboardView() {
       setPendingId(null)
     }
   }
-
-  const today = data?.today ?? []
-  const upcoming = data?.upcoming ?? []
-  const history = data?.history ?? []
-  const outstanding = data?.outstanding
-  const revenue = data?.revenue
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -393,7 +432,11 @@ export function DriverDashboardView() {
             </CardContent>
           </Card>
         ) : (
-          <Tabs defaultValue="today" className="w-full gap-3">
+          <Tabs
+            value={tab}
+            onValueChange={setTab}
+            className="w-full gap-3"
+          >
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="today">
                 Today
@@ -420,9 +463,11 @@ export function DriverDashboardView() {
                 empty="No trips scheduled for today."
                 trips={today}
                 pendingId={pendingId}
+                focusedTripId={focusedTripId}
                 onAdvance={advance}
                 onCashPaid={markCashPaid}
                 onRespond={respond}
+                onFocused={() => clearFocusFromUrl()}
               />
             </TabsContent>
             <TabsContent value="upcoming" className="mt-0">
@@ -430,9 +475,11 @@ export function DriverDashboardView() {
                 empty="No upcoming trips after today."
                 trips={upcoming}
                 pendingId={pendingId}
+                focusedTripId={focusedTripId}
                 onAdvance={advance}
                 onCashPaid={markCashPaid}
                 onRespond={respond}
+                onFocused={() => clearFocusFromUrl()}
               />
             </TabsContent>
             <TabsContent value="history" className="mt-0">
@@ -440,9 +487,11 @@ export function DriverDashboardView() {
                 empty="No past trips yet."
                 trips={history}
                 pendingId={pendingId}
+                focusedTripId={focusedTripId}
                 onAdvance={advance}
                 onCashPaid={markCashPaid}
                 onRespond={respond}
+                onFocused={() => clearFocusFromUrl()}
                 readOnly
               />
             </TabsContent>
@@ -457,17 +506,21 @@ function TripList({
   empty,
   trips,
   pendingId,
+  focusedTripId = null,
   onAdvance,
   onCashPaid,
   onRespond,
+  onFocused,
   readOnly = false,
 }: {
   empty: string
   trips: DriverTrip[]
   pendingId: string | null
+  focusedTripId?: string | null
   onAdvance: (trip: DriverTrip) => void
   onCashPaid: (trip: DriverTrip) => void
   onRespond: (trip: DriverTrip, action: "accept" | "reject") => void
+  onFocused?: () => void
   readOnly?: boolean
 }) {
   if (trips.length === 0) {
@@ -486,11 +539,13 @@ function TripList({
           key={trip.id}
           trip={trip}
           pending={pendingId === trip.id}
+          focused={focusedTripId === trip.id}
           readOnly={readOnly}
           onAdvance={() => onAdvance(trip)}
           onCashPaid={() => onCashPaid(trip)}
           onAccept={() => onRespond(trip, "accept")}
           onReject={() => onRespond(trip, "reject")}
+          onFocused={onFocused}
         />
       ))}
     </ul>
@@ -500,25 +555,47 @@ function TripList({
 function TripCard({
   trip,
   pending,
+  focused = false,
   readOnly = false,
   onAdvance,
   onCashPaid,
   onAccept,
   onReject,
+  onFocused,
 }: {
   trip: DriverTrip
   pending: boolean
+  focused?: boolean
   readOnly?: boolean
   onAdvance: () => void
   onCashPaid: () => void
   onAccept: () => void
   onReject: () => void
+  onFocused?: () => void
 }) {
-  const [detailsOpen, setDetailsOpen] = React.useState(false)
-  const showDetails = !readOnly || detailsOpen
+  const cardRef = React.useRef<HTMLLIElement>(null)
+  const [detailsOpen, setDetailsOpen] = React.useState(focused)
+  const showDetails = !readOnly || detailsOpen || focused
+
+  React.useEffect(() => {
+    if (!focused) return
+    if (readOnly) setDetailsOpen(true)
+    const timer = window.setTimeout(() => {
+      cardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })
+      onFocused?.()
+    }, 120)
+    return () => window.clearTimeout(timer)
+  }, [focused, readOnly, onFocused])
 
   return (
-    <li className="flex flex-col gap-0 overflow-hidden rounded-xl border bg-card shadow-sm">
+    <li
+      ref={cardRef}
+      id={`trip-${trip.id}`}
+      className={cn(
+        "flex flex-col gap-0 overflow-hidden rounded-xl border bg-card shadow-sm transition-shadow",
+        focused && "ring-2 ring-primary shadow-md",
+      )}
+    >
       {readOnly ? (
         <button
           type="button"

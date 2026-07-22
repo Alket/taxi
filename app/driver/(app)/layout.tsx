@@ -1,4 +1,5 @@
 import { DriverSidebar } from "@/components/driver/driver-sidebar"
+import { PushNotificationClickHandler } from "@/components/staff/push-notification-click-handler"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 
 export default function DriverAppLayout({
@@ -8,6 +9,7 @@ export default function DriverAppLayout({
 }) {
   return (
     <SidebarProvider className="driver-app">
+      <PushNotificationClickHandler />
       <DriverSidebar />
       <SidebarInset className="bg-background">{children}</SidebarInset>
     </SidebarProvider>

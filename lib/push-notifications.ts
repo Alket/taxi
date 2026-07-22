@@ -163,7 +163,7 @@ export function notifyDriverAssigned(args: {
   const when = args.pickupLabel ? `\n${args.pickupLabel}` : ""
   const title = "New trip — accept or reject"
   const body = `${args.referenceCode}\n${args.pickupAddress} → ${args.dropoffAddress}${when}`
-  const url = `/driver`
+  const url = `/driver?bookingId=${encodeURIComponent(args.bookingId)}`
 
   recordStaffNotification({
     audience: "driver",

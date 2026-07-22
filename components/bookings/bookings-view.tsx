@@ -552,7 +552,22 @@ export function BookingsView() {
         bookingId={selectedId}
         open={!!selectedId}
         onOpenChange={(open) => {
-          if (!open) setSelectedId(null)
+          if (!open) {
+            setSelectedId(null)
+            if (
+              searchParams.has("bookingId") ||
+              searchParams.has("booking")
+            ) {
+              const params = new URLSearchParams(searchParams.toString())
+              params.delete("bookingId")
+              params.delete("booking")
+              const query = params.toString()
+              router.replace(
+                query ? `/admin/bookings?${query}` : "/admin/bookings",
+                { scroll: false },
+              )
+            }
+          }
         }}
         onMutated={() => mutate()}
       />

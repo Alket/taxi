@@ -264,6 +264,10 @@ function StripeCheckoutForm({
   const [error, setError] = React.useState<string | null>(null)
   const [ready, setReady] = React.useState(false)
 
+  React.useEffect(() => {
+    if (termsAccepted) setError(null)
+  }, [termsAccepted])
+
   async function onPay(e: React.FormEvent) {
     e.preventDefault()
     if (!stripe || !elements) return
@@ -347,7 +351,12 @@ function StripeCheckoutForm({
             </div>
           </div>
         )}
-        <div className={cn("transition-opacity duration-300", ready ? "opacity-100" : "opacity-0 pointer-events-none")}>
+        <div
+          className={cn(
+            "relative transition-opacity duration-300",
+            ready ? "opacity-100" : "opacity-0 pointer-events-none",
+          )}
+        >
           <PaymentElement
             className="stripe-booking-payment"
             onReady={() => setReady(true)}
@@ -358,6 +367,7 @@ function StripeCheckoutForm({
               },
               paymentMethodOrder: ["card"],
               terms: { card: "never" },
+              readOnly: !termsAccepted,
               defaultValues: {
                 billingDetails: {
                   name: customerName || undefined,
@@ -380,6 +390,19 @@ function StripeCheckoutForm({
               },
             }}
           />
+          {!termsAccepted ? (
+            <button
+              type="button"
+              className="absolute inset-0 z-20 cursor-not-allowed rounded-xl bg-transparent"
+              aria-label="Accept booking terms before entering card details"
+              onClick={() => {
+                setError(
+                  "Please agree to the booking terms and cancellation policy to proceed.",
+                )
+                focusBookingTerms()
+              }}
+            />
+          ) : null}
         </div>
       </div>
       {error && (
@@ -389,7 +412,7 @@ function StripeCheckoutForm({
         type="submit"
         size="lg"
         className="h-12 w-full rounded-xl bg-brand-accent text-base font-extrabold text-white transition-all hover:bg-brand-accent-hover active:scale-[0.99] shadow-sm flex items-center justify-center gap-2"
-        disabled={!stripe || !elements || submitting || !ready}
+        disabled={!stripe || !elements || submitting || !ready || !termsAccepted}
       >
         {submitting ? (
           <>

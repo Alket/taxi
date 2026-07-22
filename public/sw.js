@@ -27,22 +27,51 @@ self.addEventListener("push", (event) => {
   )
 })
 
+function toAbsoluteUrl(pathOrUrl) {
+  try {
+    return new URL(pathOrUrl || "/", self.location.origin).href
+  } catch {
+    return new URL("/", self.location.origin).href
+  }
+}
+
 self.addEventListener("notificationclick", (event) => {
   event.notification.close()
-  const url = event.notification.data?.url || "/"
+  const targetUrl = toAbsoluteUrl(event.notification.data?.url || "/")
+
   event.waitUntil(
-    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(
-      (clients) => {
-        for (const client of clients) {
-          if ("focus" in client) {
-            client.navigate?.(url)
-            return client.focus()
+    (async () => {
+      const clientList = await self.clients.matchAll({
+        type: "window",
+        includeUncontrolled: true,
+      })
+
+      for (const client of clientList) {
+        if (!client.url.startsWith(self.location.origin)) continue
+        if (!("focus" in client)) continue
+
+        await client.focus()
+
+        // Prefer navigate when available (Chromium / some PWAs).
+        if (typeof client.navigate === "function") {
+          try {
+            await client.navigate(targetUrl)
+            return
+          } catch {
+            // fall through to postMessage
           }
         }
-        if (self.clients.openWindow) {
-          return self.clients.openWindow(url)
-        }
-      },
-    ),
+
+        client.postMessage({
+          type: "NOTIFICATION_CLICK",
+          url: targetUrl,
+        })
+        return
+      }
+
+      if (self.clients.openWindow) {
+        await self.clients.openWindow(targetUrl)
+      }
+    })(),
   )
 })
