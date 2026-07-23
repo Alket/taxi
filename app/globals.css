@@ -70,7 +70,7 @@
   --brand-ink: #2d3b4e;
   --brand-panel: #2d3343;
   --brand-accent: #1D9E75;
-  --brand-accent-hover: #F0A93E;
+  --brand-accent-hover: #1D9E75;
   --brand-page: #f5f5f5;
   --brand-surface: #ffffff;
 
@@ -334,8 +334,21 @@ html.admin:not(.dark) {
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    scroll-behavior: smooth;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+  }
   body {
     @apply bg-background text-foreground;
+  }
+
+  /* Clear sticky marketing header (top-4 + h-20) when jumping to #anchors */
+  .brand-frontend [id] {
+    scroll-margin-top: 7rem;
   }
 
   /*

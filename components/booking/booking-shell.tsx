@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useRouter } from "next/navigation"
 import useSWR from "swr"
 import { toast } from "sonner"
 import {
@@ -143,9 +144,11 @@ export function BookingShell({
   /** `hero` hides the page title and tightens chrome for the homepage. */
   variant?: "page" | "hero"
 }) {
+  const router = useRouter()
   const [hydrated, setHydrated] = React.useState(false)
   const [summaryOpen, setSummaryOpen] = React.useState(false)
   const isHero = variant === "hero"
+  const startedFromHero = useBookingStore((s) => s.startedFromHero)
 
   React.useEffect(() => {
     const result = useBookingStore.persist.rehydrate()
@@ -155,12 +158,18 @@ export function BookingShell({
     })
   }, [])
 
+  // /book is only for customers who continued from the homepage form.
+  React.useEffect(() => {
+    if (!hydrated || isHero) return
+    if (startedFromHero) return
+    router.replace("/#book")
+  }, [hydrated, isHero, startedFromHero, router])
+
   useBookingStepSync(hydrated)
   const { dialog: leaveDialog } = useBookingLeaveGuard(hydrated)
   const { currentStep, canGoNext, goNext } = useBookingWizardNav()
 
   const meta = STEP_META[currentStep]
-  const startedFromHero = useBookingStore((s) => s.startedFromHero)
   const stepTitle =
     currentStep === 1 && startedFromHero ? "Complete your booking" : meta.title
 
@@ -185,7 +194,7 @@ export function BookingShell({
     goNext()
   }
 
-  if (!hydrated) {
+  if (!hydrated || (!isHero && !startedFromHero)) {
     return (
       <div
         className={

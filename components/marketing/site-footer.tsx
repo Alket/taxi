@@ -1,9 +1,12 @@
+"use client"
+
 import Link from "next/link"
 
+import { HashLink } from "@/components/marketing/hash-link"
 import { MarketingContainer } from "@/components/marketing/marketing-container"
 
 const NAV_LINKS = [
-  { href: "/book", label: "Book a transfer" },
+  { href: "/#book", label: "Book a transfer" },
   { href: "/my-booking", label: "My booking" },
   { href: "#", label: "About" },
   { href: "#", label: "Support" },
@@ -28,7 +31,15 @@ export function SiteFooter() {
 
           <nav className="flex flex-wrap gap-x-8 gap-y-3 text-sm font-medium text-muted-foreground">
             {NAV_LINKS.map(({ href, label }) =>
-              href.startsWith("/") ? (
+              href.startsWith("/#") ? (
+                <HashLink
+                  key={label}
+                  href={href}
+                  className="transition-colors hover:text-primary"
+                >
+                  {label}
+                </HashLink>
+              ) : href.startsWith("/") ? (
                 <Link
                   key={label}
                   href={href}
@@ -44,7 +55,7 @@ export function SiteFooter() {
                 >
                   {label}
                 </a>
-              ),
+              )
             )}
           </nav>
         </div>

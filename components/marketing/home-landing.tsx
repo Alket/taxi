@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense } from "react"
+import { Suspense, useEffect } from "react"
 
 import { DestinationsSection } from "@/components/marketing/destinations-section"
 import { HeroBookingCard } from "@/components/marketing/hero-booking-card"
@@ -11,6 +11,7 @@ import { SiteFooter } from "@/components/marketing/site-footer"
 import { SiteHeader } from "@/components/marketing/site-header"
 import { WhyBookSection } from "@/components/marketing/why-book-section"
 import { Skeleton } from "@/components/ui/skeleton"
+import { scrollToHashId } from "@/lib/smooth-hash-scroll"
 
 function HeroBookingFallback() {
   return (
@@ -21,6 +22,16 @@ function HeroBookingFallback() {
 }
 
 export function HomeLanding() {
+  useEffect(() => {
+    const id = window.location.hash.replace(/^#/, "")
+    if (!id) return
+    // Wait a frame so sticky header / section layout settle before scrolling
+    const frame = window.requestAnimationFrame(() => {
+      scrollToHashId(id, { updateUrl: false })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [])
+
   return (
     <div className="brand-frontend min-h-svh bg-white font-brand text-brand antialiased">
       <style>{`
