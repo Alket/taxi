@@ -110,6 +110,15 @@ export async function PATCH(
 
   const updated = await findBookingForLookup(booking.referenceCode, email)
 
+  try {
+    const { notifyBookingCancelled } = await import(
+      "@/lib/emails/booking-events"
+    )
+    await notifyBookingCancelled(id)
+  } catch {
+    // never block cancel
+  }
+
   return NextResponse.json({
     booking: updated ? serializeManagedBooking(updated) : null,
     cancellationOutcome,

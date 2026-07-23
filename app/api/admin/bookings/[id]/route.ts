@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 
-import { requireCanDelete } from "@/lib/auth"
+import { requireAdmin, requireCanDelete } from "@/lib/auth"
 import { isBookingLockedForEdit } from "@/lib/booking-status"
 import {
   bookingDetailInclude,
@@ -49,6 +49,11 @@ export async function GET(_request: Request, context: RouteContext) {
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
+  const denied = await requireAdmin(
+    "Your account cannot edit bookings. Ask an admin.",
+  )
+  if (denied) return denied
+
   const { id } = await context.params
   const body = await request.json().catch(() => ({}))
   const parsed = updateBookingSchema.safeParse(body)
@@ -77,6 +82,9 @@ export async function PATCH(request: Request, context: RouteContext) {
     )
   }
 
+  const previousPickup = existing.pickupDateTime
+  let pickupChanged = false
+
   const data: Record<string, unknown> = { ...parsed.data }
 
   if (parsed.data.pickupDateTime) {
@@ -88,6 +96,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       )
     }
     data.pickupDateTime = pickupDateTime
+    pickupChanged = pickupDateTime.getTime() !== previousPickup.getTime()
   }
 
   const nextTotal =
@@ -112,6 +121,17 @@ export async function PATCH(request: Request, context: RouteContext) {
     data,
     include: bookingDetailInclude,
   })
+
+  if (pickupChanged) {
+    try {
+      const { notifyBookingDateChanged } = await import(
+        "@/lib/emails/booking-events"
+      )
+      await notifyBookingDateChanged(id, previousPickup)
+    } catch {
+      // never block edit
+    }
+  }
 
   return NextResponse.json({ booking: serializeBookingDetail(updated) })
 }

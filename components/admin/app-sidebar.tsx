@@ -14,6 +14,7 @@ import {
   Users,
 } from "lucide-react"
 
+import { AdminThemeToggle } from "@/components/admin/theme-toggle"
 import {
   Sidebar,
   SidebarContent,
@@ -27,8 +28,13 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
+import { useAdminSession } from "@/hooks/use-admin-session"
 import { apiPost } from "@/lib/api"
-import { AdminThemeToggle } from "@/components/admin/theme-toggle"
+import {
+  ADMIN_ROLE_LABELS,
+  initialsFromName,
+} from "@/lib/auth-client"
+import { Skeleton } from "@/components/ui/skeleton"
 
 const navItems = [
   { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
@@ -37,13 +43,14 @@ const navItems = [
   { title: "Drivers", url: "/admin/drivers", icon: Users },
   { title: "Pricing", url: "/admin/pricing", icon: MapPinned },
   { title: "Notifications", url: "/admin/notifications", icon: Bell },
-  { title: "Settings", url: "/admin/settings", icon: Settings },
-]
+  { title: "Settings", url: "/admin/settings", icon: Settings, adminOnly: true },
+] as const
 
 export function AppSidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const { isMobile, setOpenMobile } = useSidebar()
+  const { user, isLoading, isAdmin } = useAdminSession()
 
   async function handleLogout() {
     await apiPost("/api/admin/logout")
@@ -55,6 +62,15 @@ export function AppSidebar() {
     if (isMobile) setOpenMobile(false)
   }
 
+  const visibleNav = navItems.filter(
+    (item) => !("adminOnly" in item && item.adminOnly) || isAdmin,
+  )
+
+  const displayName = user?.name?.trim() || "Account"
+  const displayEmail = user?.email ?? ""
+  const roleLabel = user ? ADMIN_ROLE_LABELS[user.role] : null
+  const initials = initialsFromName(displayName)
+
   return (
     <Sidebar>
       <SidebarHeader className="p-3">
@@ -65,7 +81,7 @@ export function AppSidebar() {
           <div className="flex flex-col leading-tight">
             <span className="text-sm font-semibold">Transfer Ops</span>
             <span className="text-xs text-sidebar-foreground/60">
-              Admin Console
+              {roleLabel ? `${roleLabel} console` : "Admin Console"}
             </span>
           </div>
         </div>
@@ -75,7 +91,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Operations</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="gap-1">
-              {navItems.map((item) => {
+              {visibleNav.map((item) => {
                 const isActive =
                   item.url === "/admin"
                     ? pathname === "/admin"
@@ -104,13 +120,24 @@ export function AppSidebar() {
         <div className="flex flex-col gap-2 rounded-xl bg-sidebar-accent/50 p-2.5">
           <div className="flex items-center gap-2.5 px-0.5">
             <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-sidebar-primary/20 text-xs font-semibold text-sidebar-foreground">
-              OP
+              {isLoading ? "…" : initials}
             </div>
             <div className="flex min-w-0 flex-1 flex-col leading-tight">
-              <span className="truncate text-sm font-medium">Ops Team</span>
-              <span className="truncate text-xs text-sidebar-foreground/60">
-                ops@transfers.co
-              </span>
+              {isLoading ? (
+                <>
+                  <Skeleton className="mb-1 h-3.5 w-24" />
+                  <Skeleton className="h-3 w-32" />
+                </>
+              ) : (
+                <>
+                  <span className="truncate text-sm font-medium">
+                    {displayName}
+                  </span>
+                  <span className="truncate text-xs text-sidebar-foreground/60">
+                    {displayEmail || roleLabel || "Signed in"}
+                  </span>
+                </>
+              )}
             </div>
           </div>
           <AdminThemeToggle showLabel variant="ghost" className="hover:bg-sidebar-accent" />

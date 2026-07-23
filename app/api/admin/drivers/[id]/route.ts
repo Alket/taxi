@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 
-import { requireCanDelete } from "@/lib/auth"
+import { requireAdmin, requireCanDelete } from "@/lib/auth"
 import { hashDriverPin } from "@/lib/driver-auth"
 import { prisma } from "@/lib/db"
 import { DRIVER_PUBLIC_SELECT, serializeDriver } from "@/lib/drivers"
@@ -23,6 +23,11 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const denied = await requireAdmin(
+    "Your account cannot edit drivers. Ask an admin.",
+  )
+  if (denied) return denied
+
   const { id } = await params
   const body = await request.json().catch(() => ({}))
   const parsed = updateDriverSchema.safeParse(body)

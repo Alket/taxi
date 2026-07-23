@@ -159,6 +159,15 @@ export async function POST(request: Request) {
     // ignore
   }
 
+  try {
+    const { sendBookingConfirmationEmail } = await import(
+      "@/lib/emails/booking-events"
+    )
+    await sendBookingConfirmationEmail(booking.id)
+  } catch {
+    // ignore
+  }
+
   return NextResponse.json({
     bookingId: booking.id,
     referenceCode: booking.referenceCode,

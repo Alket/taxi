@@ -1,11 +1,17 @@
 import { NextResponse } from "next/server"
 
+import { requireAdmin } from "@/lib/auth"
 import {
   computeWhatsappConnectionStatus,
   getSettings,
 } from "@/lib/settings"
 
 export async function POST() {
+  const denied = await requireAdmin(
+    "Your account cannot access settings. Ask an admin.",
+  )
+  if (denied) return denied
+
   try {
     const settings = await getSettings()
 

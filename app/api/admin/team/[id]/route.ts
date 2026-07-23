@@ -1,36 +1,21 @@
 import { NextResponse } from "next/server"
 
 import { serializeAdminUser } from "@/lib/admin-users"
-import { canDelete, getSession } from "@/lib/auth"
+import { getSession, requireAdmin } from "@/lib/auth"
 import { prisma } from "@/lib/db"
 
 type RouteContext = {
   params: Promise<{ id: string }>
 }
 
-async function requireAdmin() {
+export async function PATCH(request: Request, context: RouteContext) {
+  const denied = await requireAdmin("Only admins can manage team members.")
+  if (denied) return denied
+
   const session = await getSession()
   if (!session) {
-    return {
-      error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
-      session: null,
-    }
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
-  if (!canDelete(session)) {
-    return {
-      error: NextResponse.json(
-        { error: "Only admins can manage team members." },
-        { status: 403 },
-      ),
-      session: null,
-    }
-  }
-  return { error: null, session }
-}
-
-export async function PATCH(request: Request, context: RouteContext) {
-  const { error, session } = await requireAdmin()
-  if (error) return error
 
   const { id } = await context.params
   const body = await request.json().catch(() => ({}))
@@ -68,8 +53,13 @@ export async function PATCH(request: Request, context: RouteContext) {
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {
-  const { error, session } = await requireAdmin()
-  if (error) return error
+  const denied = await requireAdmin("Only admins can manage team members.")
+  if (denied) return denied
+
+  const session = await getSession()
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
 
   const { id } = await context.params
 

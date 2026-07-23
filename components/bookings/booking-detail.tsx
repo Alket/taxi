@@ -90,7 +90,7 @@ export function BookingDetail({
   onOpenChange: (open: boolean) => void
   onMutated: () => void
 }) {
-  const { canDelete } = useAdminSession()
+  const { canDelete, isAdmin } = useAdminSession()
   const { data, isLoading, mutate } = useSWR<{ booking: BookingDetail }>(
     bookingId && open ? `/api/admin/bookings/${bookingId}` : null,
     fetcher,
@@ -152,19 +152,24 @@ export function BookingDetail({
                 </section>
               </div>
             </ScrollArea>
-            <div className="flex flex-col gap-2 border-t bg-background/95 p-3 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur sm:p-4">
-              <EditBookingSection booking={booking} onMutated={handleMutated} />
-              <CancelSection booking={booking} onMutated={handleMutated} />
-              {canDelete ? (
-                <DeleteBookingSection
+            {isAdmin ? (
+              <div className="flex flex-col gap-2 border-t bg-background/95 p-3 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur sm:p-4">
+                <EditBookingSection
                   booking={booking}
-                  onDeleted={() => {
-                    onOpenChange(false)
-                    onMutated()
-                  }}
+                  onMutated={handleMutated}
                 />
-              ) : null}
-            </div>
+                <CancelSection booking={booking} onMutated={handleMutated} />
+                {canDelete ? (
+                  <DeleteBookingSection
+                    booking={booking}
+                    onDeleted={() => {
+                      onOpenChange(false)
+                      onMutated()
+                    }}
+                  />
+                ) : null}
+              </div>
+            ) : null}
           </>
         ) : null}
       </SheetContent>

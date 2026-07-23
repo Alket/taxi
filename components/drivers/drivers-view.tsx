@@ -45,7 +45,7 @@ import {
 } from "@/components/ui/alert-dialog"
 
 export function DriversView() {
-  const { canDelete } = useAdminSession()
+  const { canDelete, isAdmin } = useAdminSession()
   const { data, isLoading, mutate } = useSWR<{ drivers: Driver[] }>(
     "/api/admin/drivers",
     fetcher,
@@ -60,6 +60,7 @@ export function DriversView() {
     field: "active" | "vetted",
     value: boolean,
   ) {
+    if (!isAdmin) return
     mutate(
       {
         drivers: drivers.map((d) =>
@@ -99,8 +100,16 @@ export function DriversView() {
     <>
       <PageHeader
         title="Drivers"
-        description="Manage your fleet and driver availability"
-        actions={<DriverFormDialog mode="create" onSaved={() => mutate()} />}
+        description={
+          isAdmin
+            ? "Manage your fleet and driver availability"
+            : "View your fleet and driver availability"
+        }
+        actions={
+          isAdmin ? (
+            <DriverFormDialog mode="create" onSaved={() => mutate()} />
+          ) : null
+        }
       />
       <div className="flex flex-col gap-4 p-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-4 md:p-6">
         {/* Mobile cards */}
@@ -148,44 +157,65 @@ export function DriversView() {
                 ) : null}
 
                 <div className="grid grid-cols-2 gap-3 rounded-lg bg-muted/40 px-3 py-2.5">
-                  <label className="flex items-center justify-between gap-2 text-sm">
-                    <span className="text-muted-foreground">Vetted</span>
-                    <Switch
-                      checked={d.vetted}
-                      onCheckedChange={(v) => toggle(d, "vetted", v)}
-                      aria-label={`Toggle vetted for ${d.name}`}
-                    />
-                  </label>
-                  <label className="flex items-center justify-between gap-2 text-sm">
-                    <span className="text-muted-foreground">Active</span>
-                    <Switch
-                      checked={d.active}
-                      onCheckedChange={(v) => toggle(d, "active", v)}
-                      aria-label={`Toggle active for ${d.name}`}
-                    />
-                  </label>
+                  {isAdmin ? (
+                    <>
+                      <label className="flex items-center justify-between gap-2 text-sm">
+                        <span className="text-muted-foreground">Vetted</span>
+                        <Switch
+                          checked={d.vetted}
+                          onCheckedChange={(v) => toggle(d, "vetted", v)}
+                          aria-label={`Toggle vetted for ${d.name}`}
+                        />
+                      </label>
+                      <label className="flex items-center justify-between gap-2 text-sm">
+                        <span className="text-muted-foreground">Active</span>
+                        <Switch
+                          checked={d.active}
+                          onCheckedChange={(v) => toggle(d, "active", v)}
+                          aria-label={`Toggle active for ${d.name}`}
+                        />
+                      </label>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between gap-2 text-sm">
+                        <span className="text-muted-foreground">Vetted</span>
+                        <Badge variant={d.vetted ? "secondary" : "outline"}>
+                          {d.vetted ? "Yes" : "No"}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center justify-between gap-2 text-sm">
+                        <span className="text-muted-foreground">Active</span>
+                        <Badge variant={d.active ? "secondary" : "outline"}>
+                          {d.active ? "Yes" : "No"}
+                        </Badge>
+                      </div>
+                    </>
+                  )}
                 </div>
 
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    className="h-10 flex-1 touch-manipulation"
-                    onClick={() => setEditing(d)}
-                  >
-                    <PencilIcon data-icon="inline-start" />
-                    Edit
-                  </Button>
-                  {canDelete ? (
+                {isAdmin ? (
+                  <div className="flex gap-2">
                     <Button
                       variant="outline"
-                      className="h-10 touch-manipulation text-destructive hover:text-destructive"
-                      onClick={() => setDeleting(d)}
-                      aria-label={`Delete ${d.name}`}
+                      className="h-10 flex-1 touch-manipulation"
+                      onClick={() => setEditing(d)}
                     >
-                      <Trash2Icon />
+                      <PencilIcon data-icon="inline-start" />
+                      Edit
                     </Button>
-                  ) : null}
-                </div>
+                    {canDelete ? (
+                      <Button
+                        variant="outline"
+                        className="h-10 touch-manipulation text-destructive hover:text-destructive"
+                        onClick={() => setDeleting(d)}
+                        aria-label={`Delete ${d.name}`}
+                      >
+                        <Trash2Icon />
+                      </Button>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
             ))
           ) : (
@@ -193,7 +223,9 @@ export function DriversView() {
               <Empty>
                 <EmptyTitle>No drivers yet</EmptyTitle>
                 <EmptyDescription>
-                  Add your first driver to start assigning trips.
+                  {isAdmin
+                    ? "Add your first driver to start assigning trips."
+                    : "No drivers are registered yet."}
                 </EmptyDescription>
               </Empty>
             </div>
@@ -211,14 +243,16 @@ export function DriversView() {
                 <TableHead>Rating</TableHead>
                 <TableHead className="text-center">Vetted</TableHead>
                 <TableHead className="text-center">Active</TableHead>
-                <TableHead className="pr-4 text-right">Actions</TableHead>
+                {isAdmin ? (
+                  <TableHead className="pr-4 text-right">Actions</TableHead>
+                ) : null}
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i}>
-                    <TableCell colSpan={7} className="pl-4">
+                    <TableCell colSpan={isAdmin ? 7 : 6} className="pl-4">
                       <Skeleton className="h-9 w-full" />
                     </TableCell>
                   </TableRow>
@@ -270,51 +304,67 @@ export function DriversView() {
                       </span>
                     </TableCell>
                     <TableCell className="text-center">
-                      <Switch
-                        checked={d.vetted}
-                        onCheckedChange={(v) => toggle(d, "vetted", v)}
-                        aria-label={`Toggle vetted for ${d.name}`}
-                      />
+                      {isAdmin ? (
+                        <Switch
+                          checked={d.vetted}
+                          onCheckedChange={(v) => toggle(d, "vetted", v)}
+                          aria-label={`Toggle vetted for ${d.name}`}
+                        />
+                      ) : (
+                        <Badge variant={d.vetted ? "secondary" : "outline"}>
+                          {d.vetted ? "Yes" : "No"}
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell className="text-center">
-                      <Switch
-                        checked={d.active}
-                        onCheckedChange={(v) => toggle(d, "active", v)}
-                        aria-label={`Toggle active for ${d.name}`}
-                      />
+                      {isAdmin ? (
+                        <Switch
+                          checked={d.active}
+                          onCheckedChange={(v) => toggle(d, "active", v)}
+                          aria-label={`Toggle active for ${d.name}`}
+                        />
+                      ) : (
+                        <Badge variant={d.active ? "secondary" : "outline"}>
+                          {d.active ? "Yes" : "No"}
+                        </Badge>
+                      )}
                     </TableCell>
-                    <TableCell className="pr-4 text-right">
-                      <div className="flex items-center justify-end gap-0.5">
-                        <Button
-                          size="icon-sm"
-                          variant="ghost"
-                          onClick={() => setEditing(d)}
-                          aria-label={`Edit ${d.name}`}
-                        >
-                          <PencilIcon />
-                        </Button>
-                        {canDelete ? (
+                    {isAdmin ? (
+                      <TableCell className="pr-4 text-right">
+                        <div className="flex items-center justify-end gap-0.5">
                           <Button
                             size="icon-sm"
                             variant="ghost"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => setDeleting(d)}
-                            aria-label={`Delete ${d.name}`}
+                            onClick={() => setEditing(d)}
+                            aria-label={`Edit ${d.name}`}
                           >
-                            <Trash2Icon />
+                            <PencilIcon />
                           </Button>
-                        ) : null}
-                      </div>
-                    </TableCell>
+                          {canDelete ? (
+                            <Button
+                              size="icon-sm"
+                              variant="ghost"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => setDeleting(d)}
+                              aria-label={`Delete ${d.name}`}
+                            >
+                              <Trash2Icon />
+                            </Button>
+                          ) : null}
+                        </div>
+                      </TableCell>
+                    ) : null}
                   </TableRow>
                 ))
               ) : (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={7}>
+                  <TableCell colSpan={isAdmin ? 7 : 6}>
                     <Empty className="py-12">
                       <EmptyTitle>No drivers yet</EmptyTitle>
                       <EmptyDescription>
-                        Add your first driver to start assigning trips.
+                        {isAdmin
+                          ? "Add your first driver to start assigning trips."
+                          : "No drivers are registered yet."}
                       </EmptyDescription>
                     </Empty>
                   </TableCell>
@@ -325,16 +375,18 @@ export function DriversView() {
         </div>
       </div>
 
-      <DriverFormDialog
-        mode="edit"
-        driver={editing}
-        open={editing != null}
-        onOpenChange={(o) => !o && setEditing(null)}
-        onSaved={() => {
-          setEditing(null)
-          mutate()
-        }}
-      />
+      {isAdmin ? (
+        <DriverFormDialog
+          mode="edit"
+          driver={editing}
+          open={editing != null}
+          onOpenChange={(o) => !o && setEditing(null)}
+          onSaved={() => {
+            setEditing(null)
+            mutate()
+          }}
+        />
+      ) : null}
 
       <AlertDialog
         open={deleting != null}

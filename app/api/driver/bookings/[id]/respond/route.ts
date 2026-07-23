@@ -70,6 +70,15 @@ export async function POST(
       driverName: session.driver.name,
     })
 
+    try {
+      const { sendCustomerDriverAssigned } = await import(
+        "@/lib/emails/booking-events"
+      )
+      await sendCustomerDriverAssigned(booking.id)
+    } catch {
+      // never block accept
+    }
+
     return NextResponse.json({
       ok: true,
       action: "accept",

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 
+import { requireAdmin } from "@/lib/auth"
 import { prisma } from "@/lib/db"
 import { serializeZone } from "@/lib/pricing-admin"
 import type { VehicleType } from "@/lib/types"
@@ -34,6 +35,11 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const denied = await requireAdmin(
+    "Your account cannot create zones. Ask an admin.",
+  )
+  if (denied) return denied
+
   const body = await request.json().catch(() => ({}))
   const parsed = createZoneSchema.safeParse(body)
 

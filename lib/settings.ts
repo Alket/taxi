@@ -60,6 +60,8 @@ export function parseNotificationChannels(value: unknown): NotificationChannels 
     flightDelay: true,
     reminder: true,
     cancellation: true,
+    dateChange: true,
+    completedReceipt: true,
   }
 
   if (!value || typeof value !== "object") return defaults
@@ -84,6 +86,14 @@ export function parseNotificationChannels(value: unknown): NotificationChannels 
       typeof record.cancellation === "boolean"
         ? record.cancellation
         : defaults.cancellation,
+    dateChange:
+      typeof record.dateChange === "boolean"
+        ? record.dateChange
+        : defaults.dateChange,
+    completedReceipt:
+      typeof record.completedReceipt === "boolean"
+        ? record.completedReceipt
+        : defaults.completedReceipt,
   }
 }
 
@@ -95,6 +105,7 @@ export function serializeSettings(
     supportPhone: row.supportPhone,
     supportEmail: row.supportEmail,
     supportWhatsApp: row.supportWhatsApp,
+    adminNotificationEmail: row.adminNotificationEmail ?? "",
     displayCurrencies: row.displayCurrencies.filter((currency): currency is DisplayCurrency =>
       VALID_CURRENCIES.includes(currency as DisplayCurrency),
     ),
@@ -128,6 +139,14 @@ export function serializeSettings(
     paypalSandboxSecretSet: Boolean(row.paypalSandboxSecret),
     paypalLiveSecretSet: Boolean(row.paypalLiveSecret),
   }
+}
+
+/** Prefer dedicated ops inbox; fall back to support email. */
+export function resolveAdminNotificationEmail(settings: Settings): string | null {
+  const dedicated = settings.adminNotificationEmail?.trim()
+  if (dedicated) return dedicated
+  const support = settings.supportEmail?.trim()
+  return support || null
 }
 
 export async function getSettingsRow() {

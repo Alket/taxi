@@ -34,9 +34,14 @@ export function LoginForm() {
     setPending(true)
     setError(null)
     try {
-      await apiPost("/api/admin/login", { email, password })
+      const result = await apiPost<{
+        success: boolean
+        requiresPasswordReset?: boolean
+      }>("/api/admin/login", { email, password })
       toast.success("Signed in successfully.")
-      router.push("/admin")
+      router.push(
+        result.requiresPasswordReset ? "/admin/set-password" : "/admin",
+      )
       router.refresh()
     } catch (err) {
       const message = (err as Error).message

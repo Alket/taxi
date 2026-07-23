@@ -1,6 +1,7 @@
 import { CancellationOutcome } from "@prisma/client"
 import { NextResponse } from "next/server"
 
+import { requireAdmin } from "@/lib/auth"
 import {
   bookingDetailInclude,
   serializeBookingDetail,
@@ -12,6 +13,11 @@ export async function PATCH(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const denied = await requireAdmin(
+    "Your account cannot cancel bookings. Ask an admin.",
+  )
+  if (denied) return denied
+
   const { id } = await params
 
   const booking = await prisma.booking.findUnique({ where: { id } })
@@ -70,6 +76,15 @@ export async function PATCH(
     where: { id },
     include: bookingDetailInclude,
   })
+
+  try {
+    const { notifyBookingCancelled } = await import(
+      "@/lib/emails/booking-events"
+    )
+    await notifyBookingCancelled(id)
+  } catch {
+    // never block cancel
+  }
 
   return NextResponse.json({
     booking: serializeBookingDetail(updated!),

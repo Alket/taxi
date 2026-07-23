@@ -42,5 +42,8 @@ export async function POST(request: Request) {
 
   await createSession(user.id)
 
-  return NextResponse.json({ success: true })
+  return NextResponse.json({
+    success: true,
+    requiresPasswordReset: user.requiresPasswordReset,
+  })
 }

@@ -65,9 +65,31 @@ export async function getSession(): Promise<AdminUser | null> {
   }
 }
 
-/** Operators can manage resources but cannot permanently delete them. */
-export function canDelete(user: Pick<AdminUser, "role"> | null | undefined) {
+/** Full admin role (not operator). */
+export function isAdmin(user: Pick<AdminUser, "role"> | null | undefined) {
   return user?.role === "admin"
+}
+
+/** Operators can manage day-to-day ops but cannot permanently delete. */
+export function canDelete(user: Pick<AdminUser, "role"> | null | undefined) {
+  return isAdmin(user)
+}
+
+/**
+ * Returns a 401/403 response when the current session is not an admin,
+ * or null when access is allowed.
+ */
+export async function requireAdmin(
+  message = "Only admins can perform this action.",
+): Promise<NextResponse | null> {
+  const user = await getSession()
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+  if (!isAdmin(user)) {
+    return NextResponse.json({ error: message }, { status: 403 })
+  }
+  return null
 }
 
 /**
@@ -75,20 +97,9 @@ export function canDelete(user: Pick<AdminUser, "role"> | null | undefined) {
  * or null when delete is allowed.
  */
 export async function requireCanDelete(): Promise<NextResponse | null> {
-  const user = await getSession()
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
-  if (!canDelete(user)) {
-    return NextResponse.json(
-      {
-        error:
-          "Your account cannot delete bookings, drivers, or pricing. Ask an admin.",
-      },
-      { status: 403 },
-    )
-  }
-  return null
+  return requireAdmin(
+    "Your account cannot delete bookings, drivers, or pricing. Ask an admin.",
+  )
 }
 
 export async function destroySession(): Promise<void> {

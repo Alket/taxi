@@ -4,9 +4,12 @@ import { NextResponse } from "next/server"
 import type { AdminRole } from "@prisma/client"
 
 import { serializeAdminUser } from "@/lib/admin-users"
-import { canDelete, getSession, hashPassword } from "@/lib/auth"
+import { hashPassword, requireAdmin } from "@/lib/auth"
 import { isAdminRole } from "@/lib/auth-client"
 import { prisma } from "@/lib/db"
+import { sendTeamInviteEmail } from "@/lib/emails/team-invite"
+import { isMailConfigured } from "@/lib/mail"
+import { getSettings } from "@/lib/settings"
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -23,10 +26,8 @@ function deriveInviteName(email: string) {
 }
 
 export async function POST(request: Request) {
-  const session = await getSession()
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const denied = await requireAdmin("Only admins can invite team members.")
+  if (denied) return denied
 
   const body = await request.json().catch(() => ({}))
   const email =
@@ -39,13 +40,6 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: "Please enter a valid email address." },
       { status: 400 },
-    )
-  }
-
-  if (requestedRole === "admin" && !canDelete(session)) {
-    return NextResponse.json(
-      { error: "Only admins can invite other admins." },
-      { status: 403 },
     )
   }
 
@@ -73,13 +67,40 @@ export async function POST(request: Request) {
     },
   })
 
-  // TODO: Send invite email with a password-set link instead of returning the
-  // temporary password in the API response.
+  let emailSent = false
+  let emailError: string | undefined
+
+  if (isMailConfigured()) {
+    try {
+      let companyName = "Transfer Ops"
+      try {
+        const settings = await getSettings()
+        companyName = settings.companyName || companyName
+      } catch {
+        // settings optional for invite copy
+      }
+
+      await sendTeamInviteEmail({
+        to: email,
+        role: requestedRole,
+        temporaryPassword,
+        companyName,
+      })
+      emailSent = true
+    } catch (error) {
+      emailError = (error as Error).message || "Failed to send invite email."
+      console.error("[mail] team invite failed:", error)
+    }
+  } else {
+    emailError = "SMTP is not configured."
+  }
 
   return NextResponse.json(
     {
       user: serializeAdminUser(user),
       temporaryPassword,
+      emailSent,
+      emailError: emailSent ? undefined : emailError,
     },
     { status: 201 },
   )

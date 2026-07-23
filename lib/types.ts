@@ -279,6 +279,8 @@ export interface NotificationChannels {
   flightDelay: boolean
   reminder: boolean
   cancellation: boolean
+  dateChange: boolean
+  completedReceipt: boolean
 }
 
 export interface Settings {
@@ -286,6 +288,8 @@ export interface Settings {
   supportPhone: string
   supportEmail: string
   supportWhatsApp: string
+  /** Ops inbox for new/cancel/date-change emails. Empty → supportEmail. */
+  adminNotificationEmail: string
   displayCurrencies: DisplayCurrency[]
   freeCancellationHours: number
   depositPercentage: number

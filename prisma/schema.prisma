@@ -71,6 +71,8 @@ enum NotificationType {
   flight_delay
   reminder
   cancellation
+  date_change
+  completed_receipt
 }
 
 enum NotificationStatus {
@@ -299,6 +301,8 @@ model Settings {
   supportPhone                String
   supportEmail                String
   supportWhatsApp             String
+  /** Inbox for ops alerts (new/cancel/date-change). Falls back to supportEmail. */
+  adminNotificationEmail      String           @default("")
   displayCurrencies           String[]
   freeCancellationHours       Int              @default(24)
   depositPercentage           Int              @default(30)

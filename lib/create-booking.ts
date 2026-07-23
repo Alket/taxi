@@ -377,6 +377,14 @@ export async function createBookingsFromInput(
       dropoffAddress: input.dropoffAddress,
       customerName: input.customer.name,
     })
+    try {
+      const { sendBookingConfirmationEmail } = await import(
+        "@/lib/emails/booking-events"
+      )
+      await sendBookingConfirmationEmail(first.id)
+    } catch {
+      // never block create
+    }
   }
 
   return { bookings: createdBookings }

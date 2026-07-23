@@ -218,7 +218,9 @@ function TeamMemberCard({
             </Badge>
           ) : null}
           {member.requiresPasswordReset ? (
-            <span className="text-xs text-muted-foreground">(pending setup)</span>
+            <span className="text-xs text-muted-foreground">
+              (pending setup — must set password on first login)
+            </span>
           ) : null}
         </div>
         <p className="mt-0.5 truncate text-sm text-muted-foreground">
@@ -436,6 +438,8 @@ function TeamMemberRow({
 type InviteResult = {
   user: AdminUser
   temporaryPassword: string
+  emailSent?: boolean
+  emailError?: string
 }
 
 function InviteAdminDialog({
@@ -482,7 +486,11 @@ function InviteAdminDialog({
         role,
       })
       setInviteResult(result)
-      toast.success(`Account created for ${result.user.email}.`)
+      toast.success(
+        result.emailSent
+          ? `Invite email sent to ${result.user.email}.`
+          : `Account created for ${result.user.email}.`,
+      )
       onInvited()
     } catch (err) {
       toast.error((err as Error).message)
@@ -521,10 +529,15 @@ function InviteAdminDialog({
         {inviteResult ? (
           <>
             <DialogHeader>
-              <DialogTitle>Share login details</DialogTitle>
+              <DialogTitle>
+                {inviteResult.emailSent
+                  ? "Invite email sent"
+                  : "Share login details"}
+              </DialogTitle>
               <DialogDescription>
-                Email delivery is not wired yet. Copy the temporary password
-                below and share it with {inviteResult.user.email} manually.
+                {inviteResult.emailSent
+                  ? `We emailed login details to ${inviteResult.user.email}. You can still copy the temporary password below as a backup.`
+                  : `Could not send email${inviteResult.emailError ? ` (${inviteResult.emailError})` : ""}. Copy the temporary password below and share it with ${inviteResult.user.email} manually.`}
               </DialogDescription>
             </DialogHeader>
             <Field

@@ -6,6 +6,7 @@ import {
   DRIVER_BUSY_STATUSES,
   pickupMinuteRange,
 } from "@/lib/driver-availability"
+import { requireAdmin } from "@/lib/auth"
 import { prisma } from "@/lib/db"
 import { DRIVER_PUBLIC_SELECT, serializeDriver } from "@/lib/drivers"
 
@@ -103,6 +104,11 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const denied = await requireAdmin(
+    "Your account cannot add drivers. Ask an admin.",
+  )
+  if (denied) return denied
+
   const body = await request.json().catch(() => ({}))
   const parsed = createDriverSchema.safeParse(body)
 

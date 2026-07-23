@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 
-import { requireCanDelete } from "@/lib/auth"
+import { requireAdmin, requireCanDelete } from "@/lib/auth"
 import { prisma } from "@/lib/db"
 import { serializeZone } from "@/lib/pricing-admin"
 
@@ -18,6 +18,11 @@ type RouteContext = {
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
+  const denied = await requireAdmin(
+    "Your account cannot edit zones. Ask an admin.",
+  )
+  if (denied) return denied
+
   const { id } = await context.params
   const body = await request.json().catch(() => ({}))
   const parsed = updateZoneSchema.safeParse(body)

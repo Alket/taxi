@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 
+import { requireAdmin } from "@/lib/auth"
 import { prisma } from "@/lib/db"
 import {
   clampNumber,
@@ -14,6 +15,11 @@ import {
 import type { DisplayCurrency, NotificationChannels } from "@/lib/types"
 
 export async function GET() {
+  const denied = await requireAdmin(
+    "Your account cannot access settings. Ask an admin.",
+  )
+  if (denied) return denied
+
   try {
     const settings = await getSettings()
     return NextResponse.json({ settings })
@@ -26,6 +32,11 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
+  const denied = await requireAdmin(
+    "Your account cannot change settings. Ask an admin.",
+  )
+  if (denied) return denied
+
   const body = await request.json().catch(() => ({}))
 
   try {
@@ -43,6 +54,9 @@ export async function PATCH(request: Request) {
     }
     if (typeof body.supportWhatsApp === "string") {
       data.supportWhatsApp = body.supportWhatsApp.trim()
+    }
+    if (typeof body.adminNotificationEmail === "string") {
+      data.adminNotificationEmail = body.adminNotificationEmail.trim()
     }
 
     if (Array.isArray(body.displayCurrencies)) {
@@ -254,6 +268,8 @@ export async function PATCH(request: Request) {
         "flightDelay",
         "reminder",
         "cancellation",
+        "dateChange",
+        "completedReceipt",
       ]
       const next = parseNotificationChannels(current.notificationChannelsEnabled)
       for (const key of keys) {

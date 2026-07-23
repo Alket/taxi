@@ -112,6 +112,14 @@ export async function PATCH(
       dropoffAddress: booking.dropoffAddress,
       driverName: session.driver.name,
     })
+    try {
+      const { sendCustomerCompletedReceipt } = await import(
+        "@/lib/emails/booking-events"
+      )
+      await sendCustomerCompletedReceipt(booking.id)
+    } catch {
+      // never block status update
+    }
   }
 
   const refreshed = await prisma.booking.findUnique({

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 
-import { requireCanDelete } from "@/lib/auth"
+import { requireAdmin, requireCanDelete } from "@/lib/auth"
 import { prisma } from "@/lib/db"
 import { serializePricingRule } from "@/lib/pricing-admin"
 
@@ -42,6 +42,11 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const denied = await requireAdmin(
+    "Your account cannot create pricing rules. Ask an admin.",
+  )
+  if (denied) return denied
+
   const body = await request.json().catch(() => ({}))
   const parsed = createRuleSchema.safeParse(body)
 
@@ -68,6 +73,11 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  const denied = await requireAdmin(
+    "Your account cannot edit pricing rules. Ask an admin.",
+  )
+  if (denied) return denied
+
   const body = await request.json().catch(() => ({}))
   const parsed = updateRuleSchema.safeParse(body)
 

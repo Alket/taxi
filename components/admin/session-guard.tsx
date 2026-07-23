@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useRouter } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 
 import { apiPost } from "@/lib/api"
 import { useAdminSession } from "@/hooks/use-admin-session"
@@ -11,10 +11,13 @@ import { useAdminSession } from "@/hooks/use-admin-session"
  * signature) while its user no longer resolves in the database, which makes
  * every admin API return 401. When that happens we clear the cookie and send
  * the user back to login instead of leaving them stuck.
+ *
+ * Also forces invited users through /admin/set-password until they finish setup.
  */
 export function SessionGuard() {
-  const { error } = useAdminSession()
+  const { user, isLoading, error } = useAdminSession()
   const router = useRouter()
+  const pathname = usePathname()
   const handledRef = React.useRef(false)
 
   React.useEffect(() => {
@@ -34,6 +37,16 @@ export function SessionGuard() {
         router.refresh()
       })
   }, [error, router])
+
+  React.useEffect(() => {
+    if (isLoading || !user) return
+    if (
+      user.requiresPasswordReset &&
+      pathname !== "/admin/set-password"
+    ) {
+      router.replace("/admin/set-password")
+    }
+  }, [isLoading, user, pathname, router])
 
   return null
 }

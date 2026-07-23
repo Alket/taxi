@@ -71,7 +71,7 @@ const VEHICLE_ITEMS = Object.fromEntries(
 )
 
 export function PricingView() {
-  const { canDelete } = useAdminSession()
+  const { canDelete, isAdmin } = useAdminSession()
   const { data: zoneData, mutate: mutateZones } = useSWR<{ zones: Zone[] }>(
     "/api/admin/zones",
     fetcher,
@@ -100,13 +100,18 @@ export function PricingView() {
     <>
       <PageHeader
         title="Pricing"
-        description="Configure service zones and fare rules"
+        description={
+          isAdmin
+            ? "Configure service zones and fare rules"
+            : "View service zones and fare rules"
+        }
       />
       <div className="grid grid-cols-1 gap-4 p-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-4 md:p-6 lg:grid-cols-[340px_1fr]">
         <ZonesPanel
           zones={zones}
           selectedZoneId={zoneFilter}
           onSelectZone={setZoneFilter}
+          canManage={isAdmin}
           canDelete={canDelete}
           onChanged={() => {
             void mutateZones()
@@ -145,7 +150,9 @@ export function PricingView() {
                   ))}
                 </SelectContent>
               </Select>
-              <AddRuleDialog zones={zones} onCreated={() => mutateRules()} />
+              {isAdmin ? (
+                <AddRuleDialog zones={zones} onCreated={() => mutateRules()} />
+              ) : null}
             </div>
           </CardHeader>
           <CardContent className="p-0">
@@ -162,6 +169,7 @@ export function PricingView() {
                   <RuleMobileCard
                     key={rule.id}
                     rule={rule}
+                    canManage={isAdmin}
                     canDelete={canDelete}
                     onSaved={() => mutateRules()}
                   />
@@ -170,7 +178,9 @@ export function PricingView() {
                 <Empty className="py-10">
                   <EmptyTitle>No pricing rules</EmptyTitle>
                   <EmptyDescription>
-                    Add a rule to define fares for this zone.
+                    {isAdmin
+                      ? "Add a rule to define fares for this zone."
+                      : "No fare rules are configured yet."}
                   </EmptyDescription>
                 </Empty>
               )}
@@ -185,14 +195,16 @@ export function PricingView() {
                     <TableHead className="text-right">Base fare</TableHead>
                     <TableHead className="text-right">Per km</TableHead>
                     <TableHead className="text-right">Min fare</TableHead>
-                    <TableHead className="pr-4 text-right">Actions</TableHead>
+                    {isAdmin ? (
+                      <TableHead className="pr-4 text-right">Actions</TableHead>
+                    ) : null}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {rulesLoading ? (
                     Array.from({ length: 4 }).map((_, i) => (
                       <TableRow key={i}>
-                        <TableCell colSpan={6} className="pl-4">
+                        <TableCell colSpan={isAdmin ? 6 : 5} className="pl-4">
                           <Skeleton className="h-8 w-full" />
                         </TableCell>
                       </TableRow>
@@ -202,17 +214,20 @@ export function PricingView() {
                       <RuleRow
                         key={rule.id}
                         rule={rule}
+                        canManage={isAdmin}
                         canDelete={canDelete}
                         onSaved={() => mutateRules()}
                       />
                     ))
                   ) : (
                     <TableRow className="hover:bg-transparent">
-                      <TableCell colSpan={6}>
+                      <TableCell colSpan={isAdmin ? 6 : 5}>
                         <Empty className="py-10">
                           <EmptyTitle>No pricing rules</EmptyTitle>
                           <EmptyDescription>
-                            Add a rule to define fares for this zone.
+                            {isAdmin
+                              ? "Add a rule to define fares for this zone."
+                              : "No fare rules are configured yet."}
                           </EmptyDescription>
                         </Empty>
                       </TableCell>
@@ -232,12 +247,14 @@ function ZonesPanel({
   zones,
   selectedZoneId,
   onSelectZone,
+  canManage,
   canDelete,
   onChanged,
 }: {
   zones: Zone[]
   selectedZoneId: string
   onSelectZone: (zoneId: string) => void
+  canManage: boolean
   canDelete: boolean
   onChanged: () => void
 }) {
@@ -355,14 +372,16 @@ function ZonesPanel({
                 <span className="truncate text-sm font-medium">{z.name}</span>
               </div>
               <div className="flex shrink-0 items-center gap-0.5">
-                <Button
-                  size="icon-sm"
-                  variant="ghost"
-                  onClick={(e) => startEdit(z, e)}
-                  aria-label={`Edit ${z.name}`}
-                >
-                  <PencilIcon />
-                </Button>
+                {canManage ? (
+                  <Button
+                    size="icon-sm"
+                    variant="ghost"
+                    onClick={(e) => startEdit(z, e)}
+                    aria-label={`Edit ${z.name}`}
+                  >
+                    <PencilIcon />
+                  </Button>
+                ) : null}
                 {canDelete ? (
                   <Button
                     size="icon-sm"
@@ -387,23 +406,25 @@ function ZonesPanel({
           )}
         </ul>
       </CardContent>
-      <div className="flex flex-col gap-3 border-t bg-muted/30 p-4">
-        <span className="text-xs font-medium text-muted-foreground">
-          Add zone
-        </span>
-        <div className="flex flex-col gap-1.5">
-          <Label className="text-xs text-muted-foreground">Zone name</Label>
-          <Input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="City Center"
-          />
+      {canManage ? (
+        <div className="flex flex-col gap-3 border-t bg-muted/30 p-4">
+          <span className="text-xs font-medium text-muted-foreground">
+            Add zone
+          </span>
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs text-muted-foreground">Zone name</Label>
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="City Center"
+            />
+          </div>
+          <Button onClick={addZone} disabled={pending} size="sm">
+            <PlusIcon data-icon="inline-start" />
+            {pending ? "Adding…" : "Add zone"}
+          </Button>
         </div>
-        <Button onClick={addZone} disabled={pending} size="sm">
-          <PlusIcon data-icon="inline-start" />
-          {pending ? "Adding…" : "Add zone"}
-        </Button>
-      </div>
+      ) : null}
 
       <Dialog open={editing != null} onOpenChange={(o) => !o && setEditing(null)}>
         <DialogContent className="sm:max-w-md">
@@ -463,10 +484,12 @@ function ZonesPanel({
 
 function RuleMobileCard({
   rule,
+  canManage,
   canDelete,
   onSaved,
 }: {
   rule: PricingRule
+  canManage: boolean
   canDelete: boolean
   onSaved: () => void
 }) {
@@ -594,47 +617,51 @@ function RuleMobileCard({
         </div>
       )}
 
-      <div className="flex gap-2">
-        {editing ? (
-          <>
-            <Button
-              variant="outline"
-              className="h-10 flex-1 touch-manipulation"
-              onClick={() => setEditing(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              className="h-10 flex-1 touch-manipulation"
-              onClick={() => void save()}
-              disabled={pending}
-            >
-              {pending ? "Saving…" : "Save"}
-            </Button>
-          </>
-        ) : (
-          <>
-            <Button
-              variant="outline"
-              className="h-10 flex-1 touch-manipulation"
-              onClick={startEdit}
-            >
-              <PencilIcon data-icon="inline-start" />
-              Edit
-            </Button>
-            {canDelete ? (
+      {canManage || canDelete ? (
+        <div className="flex gap-2">
+          {editing ? (
+            <>
               <Button
                 variant="outline"
-                className="h-10 touch-manipulation text-destructive hover:text-destructive"
-                onClick={() => setDeleteOpen(true)}
-                aria-label="Delete rule"
+                className="h-10 flex-1 touch-manipulation"
+                onClick={() => setEditing(false)}
               >
-                <Trash2Icon />
+                Cancel
               </Button>
-            ) : null}
-          </>
-        )}
-      </div>
+              <Button
+                className="h-10 flex-1 touch-manipulation"
+                onClick={() => void save()}
+                disabled={pending}
+              >
+                {pending ? "Saving…" : "Save"}
+              </Button>
+            </>
+          ) : (
+            <>
+              {canManage ? (
+                <Button
+                  variant="outline"
+                  className="h-10 flex-1 touch-manipulation"
+                  onClick={startEdit}
+                >
+                  <PencilIcon data-icon="inline-start" />
+                  Edit
+                </Button>
+              ) : null}
+              {canDelete ? (
+                <Button
+                  variant="outline"
+                  className="h-10 touch-manipulation text-destructive hover:text-destructive"
+                  onClick={() => setDeleteOpen(true)}
+                  aria-label="Delete rule"
+                >
+                  <Trash2Icon />
+                </Button>
+              ) : null}
+            </>
+          )}
+        </div>
+      ) : null}
 
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
@@ -666,10 +693,12 @@ function RuleMobileCard({
 
 function RuleRow({
   rule,
+  canManage,
   canDelete,
   onSaved,
 }: {
   rule: PricingRule
+  canManage: boolean
   canDelete: boolean
   onSaved: () => void
 }) {
@@ -808,29 +837,33 @@ function RuleRow({
         <TableCell className="text-right tabular-nums">
           {formatMoney(rule.minFare, rule.currency)}
         </TableCell>
-        <TableCell className="pr-4 text-right">
-          <div className="flex items-center justify-end gap-0.5">
-            <Button
-              size="icon-sm"
-              variant="ghost"
-              onClick={startEdit}
-              aria-label={`Edit ${rule.zoneName} ${rule.vehicleType} rule`}
-            >
-              <PencilIcon />
-            </Button>
-            {canDelete ? (
-              <Button
-                size="icon-sm"
-                variant="ghost"
-                className="text-destructive hover:text-destructive"
-                onClick={() => setDeleteOpen(true)}
-                aria-label={`Delete ${rule.zoneName} ${rule.vehicleType} rule`}
-              >
-                <Trash2Icon />
-              </Button>
-            ) : null}
-          </div>
-        </TableCell>
+        {canManage || canDelete ? (
+          <TableCell className="pr-4 text-right">
+            <div className="flex items-center justify-end gap-0.5">
+              {canManage ? (
+                <Button
+                  size="icon-sm"
+                  variant="ghost"
+                  onClick={startEdit}
+                  aria-label={`Edit ${rule.zoneName} ${rule.vehicleType} rule`}
+                >
+                  <PencilIcon />
+                </Button>
+              ) : null}
+              {canDelete ? (
+                <Button
+                  size="icon-sm"
+                  variant="ghost"
+                  className="text-destructive hover:text-destructive"
+                  onClick={() => setDeleteOpen(true)}
+                  aria-label={`Delete ${rule.zoneName} ${rule.vehicleType} rule`}
+                >
+                  <Trash2Icon />
+                </Button>
+              ) : null}
+            </div>
+          </TableCell>
+        ) : null}
       </TableRow>
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>

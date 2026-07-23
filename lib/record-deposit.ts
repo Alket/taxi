@@ -123,6 +123,15 @@ export async function recordBookingPayment({
     // never block payment confirmation
   }
 
+  try {
+    const { sendBookingConfirmationEmail } = await import(
+      "@/lib/emails/booking-events"
+    )
+    await sendBookingConfirmationEmail(bookingId)
+  } catch {
+    // never block payment confirmation
+  }
+
   return { alreadyRecorded: false }
 }
 
