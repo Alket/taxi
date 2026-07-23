@@ -9,6 +9,10 @@ import {
 import { isBookingLockedForCancel } from "@/lib/booking-status"
 import { prisma } from "@/lib/db"
 
+/**
+ * Admin cancel — customer-initiated style outcome: deposit forfeited, no refund.
+ * Driver no-show / undelivered service refunds are handled separately outside this flow.
+ */
 export async function PATCH(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -42,11 +46,7 @@ export async function PATCH(
     )
   }
 
-  const withinFreeWindow =
-    booking.freeCancellationUntil.getTime() > Date.now()
-  const cancellationOutcome: CancellationOutcome = withinFreeWindow
-    ? "free_cancellation"
-    : "deposit_forfeited"
+  const cancellationOutcome: CancellationOutcome = "deposit_forfeited"
   const cancelledAt = new Date()
 
   await prisma.$transaction(async (tx) => {
@@ -56,10 +56,7 @@ export async function PATCH(
         status: "cancelled",
         cancelledAt,
         cancellationOutcome,
-        paymentStatus:
-          withinFreeWindow && booking.depositPaid.gt(0)
-            ? "refunded"
-            : booking.paymentStatus,
+        // Keep payment status as-is — deposit is forfeited, not refunded.
       },
     })
 
@@ -89,7 +86,6 @@ export async function PATCH(
   return NextResponse.json({
     booking: serializeBookingDetail(updated!),
     cancellationOutcome,
-    freeCancellation: cancellationOutcome === "free_cancellation",
-    depositForfeited: cancellationOutcome === "deposit_forfeited",
+    depositForfeited: true,
   })
 }

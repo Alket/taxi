@@ -8,6 +8,7 @@ import { MarketingContainer } from "@/components/marketing/marketing-container"
 const NAV_LINKS = [
   { href: "/#book", label: "Book a transfer" },
   { href: "/my-booking", label: "My booking" },
+  { href: "/cancellation-policy", label: "Cancellation Policy" },
   { href: "#", label: "About" },
   { href: "#", label: "Support" },
   { href: "#", label: "Privacy Policy" },

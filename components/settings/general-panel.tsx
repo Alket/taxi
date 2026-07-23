@@ -19,7 +19,6 @@ function extract(s: Settings) {
     supportEmail: s.supportEmail,
     supportWhatsApp: s.supportWhatsApp,
     displayCurrencies: s.displayCurrencies,
-    freeCancellationHours: String(s.freeCancellationHours),
     depositPercentage: String(s.depositPercentage),
     infantCarrierPrice: String(s.infantCarrierPrice),
     childSeatPrice: String(s.childSeatPrice),
@@ -78,7 +77,6 @@ export function GeneralPanel({
         supportEmail: form.supportEmail.trim(),
         supportWhatsApp: form.supportWhatsApp.trim(),
         displayCurrencies: form.displayCurrencies,
-        freeCancellationHours: Number(form.freeCancellationHours),
         depositPercentage: Number(form.depositPercentage),
         infantCarrierPrice: Number(form.infantCarrierPrice),
         childSeatPrice: Number(form.childSeatPrice),
@@ -167,23 +165,9 @@ export function GeneralPanel({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field
-          label="Free cancellation window (hours)"
-          htmlFor="freeCancellationHours"
-          hint="Hours before pickup a customer can cancel for free."
-        >
-          <Input
-            id="freeCancellationHours"
-            type="number"
-            min={0}
-            max={336}
-            value={form.freeCancellationHours}
-            onChange={(e) => set("freeCancellationHours", e.target.value)}
-          />
-        </Field>
-        <Field
           label="Deposit percentage"
           htmlFor="depositPercentage"
-          hint="Share of the total charged upfront (0–100)."
+          hint="Share of the total charged upfront (0–100). Cancelling forfeits this deposit — no refund."
         >
           <Input
             id="depositPercentage"

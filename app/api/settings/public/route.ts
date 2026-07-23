@@ -21,7 +21,6 @@ export async function GET() {
       infantCarrierPrice: Number(row.infantCarrierPrice ?? 0),
       childSeatPrice: Number(row.childSeatPrice ?? 0),
       boosterSeatPrice: Number(row.boosterSeatPrice ?? 0),
-      freeCancellationHours: row.freeCancellationHours,
       stripeEnabled: row.stripeEnabled ?? true,
       paypalEnabled: row.paypalEnabled ?? true,
       cashOnArrivalEnabled: row.cashOnArrivalEnabled ?? false,

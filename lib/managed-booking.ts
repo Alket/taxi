@@ -34,12 +34,8 @@ export type LookupBookingRecord = NonNullable<
 >
 
 export function serializeManagedBooking(booking: LookupBookingRecord) {
-  const withinFreeWindow =
-    booking.freeCancellationUntil.getTime() > Date.now()
-  // Public self-service cancel is only allowed inside the free window
-  // (default: 24 hours before pickup).
-  const cancellable =
-    !isBookingLockedForCancel(booking.status) && withinFreeWindow
+  // Self-service cancel until the driver has arrived; deposit is always forfeited.
+  const cancellable = !isBookingLockedForCancel(booking.status)
   const editable =
     booking.status === "pending" || booking.status === "confirmed"
 
@@ -68,10 +64,8 @@ export function serializeManagedBooking(booking: LookupBookingRecord) {
     status: booking.status,
     paymentStatus: booking.paymentStatus,
     paymentStatusLabel: PAYMENT_STATUS_LABELS[booking.paymentStatus],
-    freeCancellationUntil: booking.freeCancellationUntil.toISOString(),
     cancelledAt: booking.cancelledAt?.toISOString() ?? null,
     cancellationOutcome: booking.cancellationOutcome,
-    withinFreeWindow,
     cancellable,
     editable,
     customer: {

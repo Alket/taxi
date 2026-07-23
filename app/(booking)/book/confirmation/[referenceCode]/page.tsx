@@ -6,6 +6,7 @@ import {
   CheckCircle2Icon,
   ClockIcon,
   PlaneIcon,
+  ShieldAlertIcon,
 } from "lucide-react"
 
 import { prisma } from "@/lib/db"
@@ -44,7 +45,6 @@ type ConfirmationView = {
   paymentStatus: string
   paymentSucceeded: boolean
   cashOnArrival: boolean
-  freeCancellationUntil: string
 }
 
 async function loadConfirmation(
@@ -73,7 +73,6 @@ async function loadConfirmation(
       status: true,
       paymentStatus: true,
       notes: true,
-      freeCancellationUntil: true,
     },
   })
 
@@ -111,7 +110,6 @@ async function loadConfirmation(
     paymentStatus: booking.paymentStatus,
     paymentSucceeded,
     cashOnArrival,
-    freeCancellationUntil: booking.freeCancellationUntil.toISOString(),
   }
 }
 
@@ -298,7 +296,7 @@ function WhatHappensNext({ hasFlight }: { hasFlight: boolean }) {
     {
       icon: BellIcon,
       title: "Confirmation on the way",
-      body: "You'll get an email (and WhatsApp if you opted in) with your PIN, reference code, and trip details.",
+      body: "You'll get an email with your PIN, reference code, and trip details.",
     },
     {
       icon: CarIcon,
@@ -307,17 +305,17 @@ function WhatHappensNext({ hasFlight }: { hasFlight: boolean }) {
     },
     ...(hasFlight
       ? [
-          {
-            icon: PlaneIcon,
-            title: "Flight tracking",
-            body: "We monitor your flight and adjust pickup if it lands early or late.",
-          },
-        ]
+        {
+          icon: PlaneIcon,
+          title: "Flight tracking",
+          body: "We monitor your flight and adjust pickup if it lands early or late.",
+        },
+      ]
       : []),
     {
-      icon: ClockIcon,
-      title: "Free cancellation window",
-      body: "You can cancel free of charge until the free-cancellation deadline shown in your confirmation.",
+      icon: ShieldAlertIcon,
+      title: "Cancellation policy",
+      body: "Cancelling forfeits the deposit paid — it is not refunded. The remaining balance is never charged.",
     },
   ]
 
@@ -385,7 +383,14 @@ export default async function BookingConfirmationPage({ params }: PageProps) {
       <WhatHappensNext hasFlight={Boolean(booking.flightNumber)} />
 
       <p className="text-center text-xs text-muted-foreground">
-        Free cancellation until {formatDateTime(booking.freeCancellationUntil)}.
+        Cancelling forfeits your deposit.{" "}
+        <Link
+          href="/cancellation-policy"
+          className="underline underline-offset-2 hover:text-foreground"
+        >
+          Read the cancellation policy
+        </Link>
+        .
       </p>
 
       <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-center">

@@ -18,6 +18,16 @@ import {
 import { toast } from "sonner"
 
 import { DriverPageHeader } from "@/components/driver/driver-page-header"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -140,6 +150,7 @@ export function DriverDashboardView() {
   const [cashOpen, setCashOpen] = React.useState(false)
   const [revenueOpen, setRevenueOpen] = React.useState(false)
   const [tab, setTab] = React.useState("today")
+  const [rejectTrip, setRejectTrip] = React.useState<DriverTrip | null>(null)
   const [focusedTripId, setFocusedTripId] = React.useState<string | null>(
     focusBookingId,
   )
@@ -216,16 +227,10 @@ export function DriverDashboardView() {
   }
 
   async function respond(trip: DriverTrip, action: "accept" | "reject") {
-    if (action === "reject") {
-      const ok = window.confirm(
-        `Reject trip ${trip.referenceCode}? It will go back to ops for reassignment.`,
-      )
-      if (!ok) return
-    }
-
     setPendingId(trip.id)
     try {
       await apiPost(`/api/driver/bookings/${trip.id}/respond`, { action })
+      if (action === "reject") setRejectTrip(null)
       toast.success(
         action === "accept"
           ? "Trip accepted. You can mark Arrived when you are there."
@@ -237,6 +242,10 @@ export function DriverDashboardView() {
     } finally {
       setPendingId(null)
     }
+  }
+
+  function requestReject(trip: DriverTrip) {
+    setRejectTrip(trip)
   }
 
   return (
@@ -467,6 +476,7 @@ export function DriverDashboardView() {
                 onAdvance={advance}
                 onCashPaid={markCashPaid}
                 onRespond={respond}
+                onRejectRequest={requestReject}
                 onFocused={() => clearFocusFromUrl()}
               />
             </TabsContent>
@@ -479,6 +489,7 @@ export function DriverDashboardView() {
                 onAdvance={advance}
                 onCashPaid={markCashPaid}
                 onRespond={respond}
+                onRejectRequest={requestReject}
                 onFocused={() => clearFocusFromUrl()}
               />
             </TabsContent>
@@ -491,6 +502,7 @@ export function DriverDashboardView() {
                 onAdvance={advance}
                 onCashPaid={markCashPaid}
                 onRespond={respond}
+                onRejectRequest={requestReject}
                 onFocused={() => clearFocusFromUrl()}
                 readOnly
               />
@@ -498,6 +510,51 @@ export function DriverDashboardView() {
           </Tabs>
         )}
       </div>
+
+      <AlertDialog
+        open={rejectTrip !== null}
+        onOpenChange={(open) => {
+          if (!open && pendingId === null) setRejectTrip(null)
+        }}
+      >
+        <AlertDialogContent className="max-w-[calc(100%-2rem)] sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Reject trip {rejectTrip?.referenceCode}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              It will go back to ops for reassignment. You will no longer see
+              this trip on your list.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={pendingId === rejectTrip?.id}>
+              Keep trip
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={!rejectTrip || pendingId === rejectTrip.id}
+              onClick={(e) => {
+                e.preventDefault()
+                if (!rejectTrip) return
+                void respond(rejectTrip, "reject")
+              }}
+            >
+              {pendingId === rejectTrip?.id ? (
+                <>
+                  <Loader2Icon
+                    className="animate-spin"
+                    data-icon="inline-start"
+                  />
+                  Rejecting…
+                </>
+              ) : (
+                "Reject trip"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
@@ -510,6 +567,7 @@ function TripList({
   onAdvance,
   onCashPaid,
   onRespond,
+  onRejectRequest,
   onFocused,
   readOnly = false,
 }: {
@@ -520,6 +578,7 @@ function TripList({
   onAdvance: (trip: DriverTrip) => void
   onCashPaid: (trip: DriverTrip) => void
   onRespond: (trip: DriverTrip, action: "accept" | "reject") => void
+  onRejectRequest: (trip: DriverTrip) => void
   onFocused?: () => void
   readOnly?: boolean
 }) {
@@ -544,7 +603,7 @@ function TripList({
           onAdvance={() => onAdvance(trip)}
           onCashPaid={() => onCashPaid(trip)}
           onAccept={() => onRespond(trip, "accept")}
-          onReject={() => onRespond(trip, "reject")}
+          onReject={() => onRejectRequest(trip)}
           onFocused={onFocused}
         />
       ))}

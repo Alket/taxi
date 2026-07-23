@@ -20,6 +20,8 @@ export type DriverFilterValue = "all" | "unassigned" | string
 type DriverOption = {
   value: DriverFilterValue
   label: string
+  description?: string | null
+  disabled?: boolean
 }
 
 function DesktopPanel({
@@ -94,12 +96,36 @@ function DesktopPanel({
   )
 }
 
-function buildDriverOptions(drivers: Driver[]): DriverOption[] {
-  return [
-    { value: "all", label: "All drivers" },
-    { value: "unassigned", label: "Unassigned" },
-    ...drivers.map((driver) => ({ value: driver.id, label: driver.name })),
-  ]
+function buildDriverOptions(
+  drivers: Driver[],
+  {
+    includeAll,
+    includeUnassigned,
+    getOptionLabel,
+    getOptionDescription,
+    isOptionDisabled,
+  }: {
+    includeAll: boolean
+    includeUnassigned: boolean
+    getOptionLabel?: (driver: Driver) => string
+    getOptionDescription?: (driver: Driver) => string | null | undefined
+    isOptionDisabled?: (driver: Driver) => boolean
+  },
+): DriverOption[] {
+  const options: DriverOption[] = []
+  if (includeAll) options.push({ value: "all", label: "All drivers" })
+  if (includeUnassigned) {
+    options.push({ value: "unassigned", label: "Unassigned" })
+  }
+  for (const driver of drivers) {
+    options.push({
+      value: driver.id,
+      label: getOptionLabel?.(driver) ?? driver.name,
+      description: getOptionDescription?.(driver) ?? null,
+      disabled: isOptionDisabled?.(driver) ?? false,
+    })
+  }
+  return options
 }
 
 export function resolveDriverFilterLabel(
@@ -125,6 +151,16 @@ type AdminDriverFieldProps = {
   fallbackLabel?: string | null
   className?: string
   allowClear?: boolean
+  /** Include the “All drivers” option (default true for filters). */
+  includeAll?: boolean
+  /** Include the “Unassigned” option (default true for filters). */
+  includeUnassigned?: boolean
+  getOptionLabel?: (driver: Driver) => string
+  getOptionDescription?: (driver: Driver) => string | null | undefined
+  isOptionDisabled?: (driver: Driver) => boolean
+  onDisabledSelect?: (driver: Driver) => void
+  emptyMessage?: string
+  disabled?: boolean
 }
 
 /**
@@ -139,65 +175,117 @@ export function AdminDriverField({
   fallbackLabel,
   className,
   allowClear = true,
+  includeAll = true,
+  includeUnassigned = true,
+  getOptionLabel,
+  getOptionDescription,
+  isOptionDisabled,
+  onDisabledSelect,
+  emptyMessage = "No drivers found.",
+  disabled = false,
 }: AdminDriverFieldProps) {
   const isMobile = useIsMobile()
   const [open, setOpen] = React.useState(false)
   const triggerRef = React.useRef<HTMLDivElement>(null)
 
-  const options = React.useMemo(() => buildDriverOptions(drivers), [drivers])
+  const options = React.useMemo(
+    () =>
+      buildDriverOptions(drivers, {
+        includeAll,
+        includeUnassigned,
+        getOptionLabel,
+        getOptionDescription,
+        isOptionDisabled,
+      }),
+    [
+      drivers,
+      includeAll,
+      includeUnassigned,
+      getOptionLabel,
+      getOptionDescription,
+      isOptionDisabled,
+    ],
+  )
   const display = resolveDriverFilterLabel(
     value,
     drivers,
     fallbackLabel,
     placeholder,
   )
+  const clearValue: DriverFilterValue = includeAll ? "all" : ""
+  const showClear =
+    allowClear && value !== "all" && value !== "" && Boolean(value)
 
   const list = (
     <div className="flex max-h-64 flex-col gap-0.5 overflow-y-auto overscroll-contain">
-      {options.map((option) => (
-        <Button
-          key={option.value}
-          type="button"
-          variant={value === option.value ? "secondary" : "ghost"}
-          className={cn(
-            "h-10 w-full touch-manipulation justify-start px-3 text-left font-normal md:h-9 md:text-sm",
-            value === option.value && "font-medium",
-          )}
-          onClick={() => {
-            onChange(option.value)
-            setOpen(false)
-          }}
-        >
-          {option.label}
-        </Button>
-      ))}
+      {options.length === 0 ? (
+        <p className="px-3 py-6 text-center text-sm text-muted-foreground">
+          {emptyMessage}
+        </p>
+      ) : (
+        options.map((option) => (
+          <Button
+            key={option.value}
+            type="button"
+            variant={value === option.value ? "secondary" : "ghost"}
+            disabled={option.disabled}
+            className={cn(
+              "h-auto min-h-10 w-full touch-manipulation justify-start px-3 py-2 text-left font-normal md:min-h-9 md:text-sm",
+              value === option.value && "font-medium",
+              option.disabled && "opacity-60",
+            )}
+            onClick={() => {
+              if (option.disabled) {
+                const driver = drivers.find((d) => d.id === option.value)
+                if (driver) onDisabledSelect?.(driver)
+                return
+              }
+              onChange(option.value)
+              setOpen(false)
+            }}
+          >
+            <span className="flex min-w-0 flex-col items-start gap-0.5">
+              <span className="truncate">{option.label}</span>
+              {option.description ? (
+                <span className="truncate text-xs text-muted-foreground">
+                  {option.description}
+                </span>
+              ) : null}
+            </span>
+          </Button>
+        ))
+      )}
     </div>
   )
 
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
-      <span className="text-xs text-muted-foreground">{label}</span>
+      {label ? (
+        <span className="text-xs text-muted-foreground">{label}</span>
+      ) : null}
       <div ref={triggerRef} className="flex gap-1.5">
         <Button
           type="button"
           variant="outline"
+          disabled={disabled}
           className={cn(
             "h-11 min-w-0 flex-1 touch-manipulation justify-start gap-2 px-3 text-left font-normal md:h-10",
-            value === "all" && "text-muted-foreground",
+            (value === "all" || !value) && "text-muted-foreground",
           )}
           onClick={() => setOpen((current) => !current)}
         >
           <UserIcon className="size-4 shrink-0 text-muted-foreground" />
           <span className="truncate text-base md:text-sm">{display}</span>
         </Button>
-        {allowClear && value !== "all" ? (
+        {showClear ? (
           <Button
             type="button"
             variant="outline"
             size="icon"
             className="size-11 shrink-0 touch-manipulation md:size-10"
             aria-label={`Clear ${label}`}
-            onClick={() => onChange("all")}
+            disabled={disabled}
+            onClick={() => onChange(clearValue)}
           >
             <XIcon className="size-4" />
           </Button>
@@ -219,7 +307,9 @@ export function AdminDriverField({
             className="max-h-[min(92dvh,40rem)] gap-0 rounded-t-2xl p-0"
           >
             <SheetHeader className="border-b p-4 pr-12 text-left">
-              <SheetTitle className="text-base">{label}</SheetTitle>
+              <SheetTitle className="text-base">
+                {label || "Select driver"}
+              </SheetTitle>
             </SheetHeader>
             <div className="overflow-y-auto overscroll-contain p-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
               {list}

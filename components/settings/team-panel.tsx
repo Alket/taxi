@@ -7,6 +7,7 @@ import {
   BanIcon,
   CircleCheckIcon,
   CopyIcon,
+  KeyRoundIcon,
   PlusIcon,
   Trash2Icon,
 } from "lucide-react"
@@ -159,6 +160,169 @@ export function TeamPanel() {
   )
 }
 
+function ResetPasswordControl({
+  member,
+  onChanged,
+  variant = "button",
+}: {
+  member: AdminUser
+  onChanged: () => void
+  variant?: "button" | "icon"
+}) {
+  const [confirmOpen, setConfirmOpen] = React.useState(false)
+  const [resultOpen, setResultOpen] = React.useState(false)
+  const [pending, setPending] = React.useState(false)
+  const [result, setResult] = React.useState<{
+    temporaryPassword: string
+    emailSent?: boolean
+    emailError?: string
+  } | null>(null)
+
+  if (member.role !== "operator") return null
+
+  async function resetPassword() {
+    setPending(true)
+    try {
+      const res = await apiPost<{
+        temporaryPassword: string
+        emailSent?: boolean
+        emailError?: string
+      }>(`/api/admin/team/${member.id}/reset-password`)
+      setResult(res)
+      setConfirmOpen(false)
+      setResultOpen(true)
+      toast.success(
+        res.emailSent
+          ? `Password reset email sent to ${member.email}.`
+          : `Password reset for ${member.email}.`,
+      )
+      onChanged()
+    } catch (err) {
+      toast.error((err as Error).message)
+    } finally {
+      setPending(false)
+    }
+  }
+
+  async function copyPassword() {
+    if (!result?.temporaryPassword) return
+    try {
+      await navigator.clipboard.writeText(result.temporaryPassword)
+      toast.success("Temporary password copied.")
+    } catch {
+      toast.error("Failed to copy password.")
+    }
+  }
+
+  return (
+    <>
+      {variant === "icon" ? (
+        <Button
+          size="icon-sm"
+          variant="ghost"
+          onClick={() => setConfirmOpen(true)}
+          disabled={member.suspended}
+          aria-label={`Reset password for ${member.email}`}
+          title="Reset password"
+        >
+          <KeyRoundIcon />
+        </Button>
+      ) : (
+        <Button
+          variant="outline"
+          className="h-10 flex-1 touch-manipulation"
+          onClick={() => setConfirmOpen(true)}
+          disabled={member.suspended}
+        >
+          <KeyRoundIcon data-icon="inline-start" />
+          Reset password
+        </Button>
+      )}
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset operator password?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This generates a temporary password for{" "}
+              <span className="font-medium text-foreground">{member.email}</span>{" "}
+              and requires them to set a new password on next login.
+              {member.suspended
+                ? " Reactivate the account first."
+                : " We will email them if SMTP is configured."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={pending || member.suspended}
+              onClick={(e) => {
+                e.preventDefault()
+                void resetPassword()
+              }}
+            >
+              {pending ? "Resetting…" : "Reset password"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog
+        open={resultOpen}
+        onOpenChange={(open) => {
+          setResultOpen(open)
+          if (!open) setResult(null)
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {result?.emailSent ? "Reset email sent" : "Share temporary password"}
+            </DialogTitle>
+            <DialogDescription>
+              {result?.emailSent
+                ? `We emailed login details to ${member.email}. You can still copy the password below as a backup.`
+                : `Could not send email${result?.emailError ? ` (${result.emailError})` : ""}. Copy the temporary password and share it with ${member.email} manually.`}
+            </DialogDescription>
+          </DialogHeader>
+          <Field
+            label="Temporary password"
+            hint="They must sign in and set a new password."
+          >
+            <div className="flex gap-2">
+              <Input
+                readOnly
+                value={result?.temporaryPassword ?? ""}
+                className="font-mono"
+                aria-label="Temporary password"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => void copyPassword()}
+                aria-label="Copy temporary password"
+              >
+                <CopyIcon />
+              </Button>
+            </div>
+          </Field>
+          <DialogFooter>
+            <Button
+              onClick={() => {
+                setResultOpen(false)
+                setResult(null)
+              }}
+            >
+              Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
+
 function TeamMemberCard({
   member,
   isAdmin,
@@ -239,7 +403,8 @@ function TeamMemberCard({
         isSelf ? (
           <p className="text-xs text-muted-foreground">This is you</p>
         ) : (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <ResetPasswordControl member={member} onChanged={onChanged} />
             <Button
               variant="outline"
               className="h-10 flex-1 touch-manipulation"
@@ -375,6 +540,11 @@ function TeamMemberRow({
             <span className="text-xs text-muted-foreground">You</span>
           ) : (
             <div className="flex items-center justify-end gap-0.5">
+              <ResetPasswordControl
+                member={member}
+                onChanged={onChanged}
+                variant="icon"
+              />
               <Button
                 size="icon-sm"
                 variant="ghost"

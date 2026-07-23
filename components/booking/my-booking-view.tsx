@@ -226,20 +226,13 @@ function BookingManagePanel({
           <p className="mt-3 text-xs text-muted-foreground">
             {booking.cancellable ? (
               <>
-                Free cancellation until{" "}
-                <span className="font-medium text-foreground">
-                  {formatDateTime(booking.freeCancellationUntil)}
-                </span>{" "}
-                (24 hours before pickup).
+                Cancelling forfeits the deposit paid — it is not refunded. The
+                remaining balance is never charged.
               </>
             ) : (
               <>
-                Online cancellation is only available until 24 hours before
-                pickup
-                {booking.freeCancellationUntil
-                  ? ` (ended ${formatDateTime(booking.freeCancellationUntil)})`
-                  : ""}
-                . Contact support if you need help.
+                This booking can no longer be cancelled online after the driver
+                has arrived. Contact support if you need help.
               </>
             )}{" "}
             {booking.editable
@@ -410,12 +403,14 @@ function CancelBookingDialog({
     try {
       const res = await apiPatch<{
         booking: ManagedBooking
-        freeCancellation: boolean
+        depositForfeited: boolean
       }>(`/api/bookings/${booking.id}/cancel`, {
         email,
         reference: booking.referenceCode,
       })
-      toast.success("Booking cancelled. Your deposit will be refunded.")
+      toast.success(
+        "Booking cancelled. Your deposit has been forfeited and will not be refunded.",
+      )
       onCancelled(res.booking)
     } catch (err) {
       toast.error((err as Error).message)
@@ -430,9 +425,8 @@ function CancelBookingDialog({
         <DialogHeader>
           <DialogTitle>Cancel booking?</DialogTitle>
           <DialogDescription>
-            Cancellation is free until{" "}
-            {formatDateTime(booking.freeCancellationUntil)} (24 hours before
-            pickup). Your deposit will be refunded.
+            Cancelling forfeits your deposit and cannot be undone. The remaining
+            balance will not be charged.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>

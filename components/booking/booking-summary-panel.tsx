@@ -196,8 +196,8 @@ export function BookingSummaryContent() {
 
         {/* Small Note */}
         <p className="text-[10px] leading-tight text-muted-foreground">
-          Free cancellation until 24 hours before pickup.
-          No hidden fees.
+          Cancelling forfeits the deposit — no refund. Remaining balance is
+          never charged. No hidden fees.
         </p>
       </div>
 

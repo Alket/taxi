@@ -43,7 +43,6 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 type PublicSettings = {
   depositPercentage?: number
-  freeCancellationHours?: number
   stripeEnabled?: boolean
   paypalEnabled?: boolean
   cashOnArrivalEnabled?: boolean
@@ -58,8 +57,6 @@ type CreateBookingResponse = {
   totalPrice: number
   balanceDue: number
   currency: string
-  freeCancellationUntil: string
-  freeCancellationHours: number
 }
 
 type CreateIntentResponse = {
@@ -463,8 +460,6 @@ export function PaymentStep() {
 
   useBookingFieldFocusListener("terms")
 
-  const freeCancellationHours =
-    settings?.freeCancellationHours ?? 24
   const depositPercentage = settings?.depositPercentage ?? 30
   const stripeEnabled = settings?.stripeEnabled ?? true
   const paypalEnabled = settings?.paypalEnabled ?? true
@@ -853,21 +848,17 @@ export function PaymentStep() {
           onChange={(e) => setTermsAccepted(e.target.checked)}
         />
         <span className="min-w-0">
-          I agree to the booking terms and cancellation policy. Free
-          cancellation until{" "}
-          <span className="font-medium text-brand">
-            {freeCancellationHours} hours
-          </span>{" "}
-          before pickup
-          {store.pickupDateTime
-            ? ` (until ${formatDateTime(
-              new Date(
-                new Date(store.pickupDateTime).getTime() -
-                freeCancellationHours * 60 * 60 * 1000,
-              ).toISOString(),
-            )})`
-            : ""}
-          .
+          I agree to the{" "}
+          <a
+            href="/cancellation-policy"
+            target="_blank"
+            rel="noreferrer"
+            className="font-medium text-brand underline underline-offset-2"
+          >
+            booking terms and cancellation policy
+          </a>
+          . Cancelling forfeits the deposit paid — it is not refunded. The
+          remaining balance is never charged.
         </span>
       </label>
 

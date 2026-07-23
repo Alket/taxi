@@ -25,6 +25,10 @@ import type { Booking, Driver, PaymentStatus } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { PageHeader } from "@/components/admin/page-header"
 import { AdminDateField } from "@/components/admin/date-field"
+import {
+  AdminDriverField,
+  type DriverFilterValue,
+} from "@/components/admin/driver-field"
 import { DirectionIndicator } from "@/components/admin/direction-indicator"
 import {
   BookingStatusBadge,
@@ -97,7 +101,7 @@ function useDebounced<T>(value: T, delay = 250): T {
   return debounced
 }
 
-function normalizeDriverFilter(value: string | null): string {
+function normalizeDriverFilter(value: string | null): DriverFilterValue {
   if (!value || value === "all") return "all"
   if (value === "null") return "unassigned"
   return value
@@ -157,15 +161,6 @@ export function BookingsView() {
     fetcher,
   )
   const drivers = driverData?.drivers ?? []
-
-  const driverItems = React.useMemo(() => {
-    const map: Record<string, React.ReactNode> = {
-      all: "All drivers",
-      unassigned: "Unassigned",
-    }
-    for (const d of drivers) map[d.id] = d.name
-    return map
-  }, [drivers])
 
   React.useEffect(() => {
     setPage(1)
@@ -329,28 +324,12 @@ export function BookingsView() {
                 </SelectContent>
               </Select>
             </FilterField>
-            <FilterField label="Driver">
-              <Select
-                value={driverId}
-                onValueChange={(value) => {
-                  if (value) setDriverId(value)
-                }}
-                items={driverItems}
-              >
-                <SelectTrigger className="h-10 w-full md:h-8" size="default">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All drivers</SelectItem>
-                  <SelectItem value="unassigned">Unassigned</SelectItem>
-                  {drivers.map((d) => (
-                    <SelectItem key={d.id} value={d.id}>
-                      {d.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </FilterField>
+            <AdminDriverField
+              label="Driver"
+              value={driverId}
+              onChange={setDriverId}
+              drivers={drivers}
+            />
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <AdminDateField
                 label="From"

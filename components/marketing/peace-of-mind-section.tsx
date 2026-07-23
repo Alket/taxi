@@ -48,7 +48,7 @@ const FEATURES: Feature[] = [
     iconClassName: "bg-accent text-primary",
   },
   {
-    title: "Flexible Cancellation",
+    title: "Clear Cancellation Terms",
     icon: ClockIcon,
     iconClassName: "bg-[oklch(0.94_0.04_250)] text-[oklch(0.45_0.14_250)]",
   },

@@ -1098,21 +1098,16 @@ function CancelSection({
   const [pending, setPending] = React.useState(false)
 
   const terminal = isBookingLockedForCancel(booking.status)
-  const withinFreeWindow =
-    new Date(booking.freeCancellationUntil).getTime() > Date.now()
 
   async function cancel() {
     if (terminal) return
     setPending(true)
     try {
-      const res = await apiPatch<{
-        freeCancellation: boolean
+      await apiPatch<{
         depositForfeited: boolean
       }>(`/api/admin/bookings/${booking.id}/cancel`)
       toast.success(
-        res.freeCancellation
-          ? "Booking cancelled. Deposit refunded (free cancellation)."
-          : "Booking cancelled. Deposit forfeited (outside free window).",
+        "Booking cancelled. Deposit forfeited — no refund issued.",
       )
       setOpen(false)
       onMutated()
@@ -1153,23 +1148,8 @@ function CancelSection({
         <AlertDialogHeader>
           <AlertDialogTitle>Cancel this booking?</AlertDialogTitle>
           <AlertDialogDescription>
-            {withinFreeWindow ? (
-              <>
-                This booking is{" "}
-                <span className="font-medium text-success">
-                  within the free-cancellation window
-                </span>
-                . The deposit will be refunded to the customer.
-              </>
-            ) : (
-              <>
-                This booking is{" "}
-                <span className="font-medium text-destructive">
-                  outside the free-cancellation window
-                </span>
-                . The deposit will not be refunded.
-              </>
-            )}
+            Cancelling forfeits the deposit and cannot be undone. The remaining
+            balance will not be charged.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

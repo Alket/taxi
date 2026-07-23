@@ -227,6 +227,8 @@ export async function sendCustomerBookingConfirmation(
       `Paid: ${money(Number(booking.depositPaid), booking.currency)}`,
       `Balance due: ${money(Number(booking.balanceDue), booking.currency)}`,
       "",
+      "Cancellation: Cancelling forfeits the deposit paid — it is not refunded. The remaining balance is never charged. If a driver fails to show or the service is not delivered, contact support for a full refund.",
+      "",
       `Manage: ${manageUrl}`,
       supportLine(settings),
     ].join("\n")
@@ -238,7 +240,13 @@ export async function sendCustomerBookingConfirmation(
       preheader: `Booking ${booking.referenceCode} is confirmed`,
       title: "Your transfer is booked",
       introHtml: `Hi ${escapeHtml(booking.customer.name)}, thanks for choosing <strong>${escapeHtml(company)}</strong>. Your ride details are below.`,
-      rowsHtml: baseCustomerRows(booking) + priceRows(booking),
+      rowsHtml:
+        baseCustomerRows(booking) +
+        priceRows(booking) +
+        detailRow(
+          "Cancellation",
+          "Cancelling forfeits the deposit (no refund). Unpaid balance is never charged.",
+        ),
       cta: { href: manageUrl, label: "Manage booking" },
       footer: supportLine(settings),
     })
@@ -327,9 +335,7 @@ export async function sendCustomerCancellation(
     if (!booking?.customer.email) return { sent: false }
 
     const outcome =
-      booking.cancellationOutcome === "deposit_forfeited"
-        ? "The deposit was forfeited (outside the free cancellation window)."
-        : "Any eligible deposit will be refunded under the free cancellation policy."
+      "The deposit paid has been forfeited and will not be refunded. Any unpaid balance will not be charged."
 
     const subject = `Booking cancelled — ${booking.referenceCode}`
     const text = [
@@ -385,10 +391,15 @@ export async function sendAdminCancellation(
     if (!booking) return { sent: false }
 
     const link = adminBookingUrl(booking.id)
-    const outcome = booking.cancellationOutcome ?? "cancelled"
+    const outcomeLabel =
+      booking.cancellationOutcome === "deposit_forfeited"
+        ? "Deposit forfeited (no refund)"
+        : booking.cancellationOutcome === "free_cancellation"
+          ? "Legacy free cancellation"
+          : "Cancelled"
     const subject = `Booking cancelled — ${booking.referenceCode}`
     const text = [
-      `Booking ${booking.referenceCode} was cancelled (${outcome}).`,
+      `Booking ${booking.referenceCode} was cancelled (${outcomeLabel}).`,
       `Customer: ${booking.customer.name} · ${booking.customer.email}`,
       `When: ${formatWhen(booking.pickupDateTime)}`,
       `Open: ${link}`,
@@ -400,7 +411,7 @@ export async function sendAdminCancellation(
       tone: "danger",
       preheader: `Cancelled ${booking.referenceCode}`,
       title: "Booking cancelled",
-      introHtml: `Outcome: <strong>${escapeHtml(String(outcome))}</strong>`,
+      introHtml: `Outcome: <strong>${escapeHtml(outcomeLabel)}</strong>`,
       rowsHtml: adminCustomerRows(booking) + baseCustomerRows(booking),
       cta: { href: link, label: "Open in admin" },
       footer: "Ops inbox",

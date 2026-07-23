@@ -5,7 +5,7 @@ import { HomeLanding } from "@/components/marketing/home-landing"
 export const metadata: Metadata = {
   title: "Albania Transfers · Airport transfers",
   description:
-    "Book reliable airport transfers across Albania. Fixed prices, vetted drivers, free cancellation window.",
+    "Book reliable airport transfers across Albania. Fixed prices, vetted drivers, clear cancellation terms.",
 }
 
 export default function HomePage() {
