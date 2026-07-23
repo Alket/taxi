@@ -1,9 +1,8 @@
 # Dev stack: Postgres + Next.js with hot reload (bind-mounted source).
-# Uses the same Postgres volume as docker-compose.yml (taxi_pg_data) so
-# bookings/settings survive switching between prod and dev. Does NOT seed.
+# Uses volume taxi_pg_data_dev (NOT Dropflow :5433, NOT prod taxi_pg_data).
+# Does NOT seed on start.
 # Usage:
-#   cp .env.docker.example .env
-#   docker compose -f docker-compose.dev.yml up --build
+#   docker compose -f docker-compose.dev.yml up --build -d
 services:
   db:
     image: postgres:16-alpine
@@ -13,7 +12,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: ${POSTGRES_DB:-taxi}
     volumes:
-      - taxi_pg_data:/var/lib/postgresql/data
+      - taxi_pg_data_dev:/var/lib/postgresql/data
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     healthcheck:
@@ -54,5 +53,5 @@ services:
       && npm run dev -- -H 0.0.0.0 -p 3000"
 
 volumes:
-  taxi_pg_data:
+  taxi_pg_data_dev:
   taxi_node_modules:
