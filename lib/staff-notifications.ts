@@ -9,6 +9,7 @@ export type StaffNotificationType =
   | "driver_arrived"
   | "cash_paid"
   | "trip_completed"
+  | "new_review"
 
 export type CreateStaffNotificationInput = {
   audience: "admin" | "driver"

@@ -13,6 +13,7 @@ import {
 import type { NotificationChannels, Settings } from "@/lib/types"
 import {
   adminBookingUrl,
+  adminReviewsUrl,
   companyName,
   detailRow,
   escapeHtml,
@@ -31,6 +32,7 @@ type SendResult = { sent: boolean }
 const bookingSelect = {
   id: true,
   referenceCode: true,
+  status: true,
   pickupPin: true,
   pickupAddress: true,
   dropoffAddress: true,
@@ -47,6 +49,7 @@ const bookingSelect = {
   paymentStatus: true,
   cancellationOutcome: true,
   customerId: true,
+  driverId: true,
   customer: {
     select: { id: true, name: true, email: true, phone: true },
   },
@@ -65,6 +68,7 @@ const bookingSelect = {
 type BookingEmailRow = {
   id: string
   referenceCode: string
+  status: string
   pickupPin: string
   pickupAddress: string
   dropoffAddress: string
@@ -81,6 +85,7 @@ type BookingEmailRow = {
   paymentStatus: string
   cancellationOutcome: string | null
   customerId: string
+  driverId: string | null
   customer: {
     id: string
     name: string
@@ -838,6 +843,117 @@ export async function notifyBookingCompleted(bookingId: string): Promise<void> {
   }
   try {
     await sendCustomerReviewRequest(bookingId)
+  } catch {
+    // never block
+  }
+}
+
+/** Ops alert when a customer submits a post-trip review (pending moderation). */
+export async function sendAdminReviewSubmitted(
+  reviewId: string,
+): Promise<SendResult> {
+  try {
+    if (!isMailConfigured()) return { sent: false }
+    const settings = await getSettings()
+    const to = resolveAdminNotificationEmail(settings)
+    if (!to) return { sent: false }
+
+    const review = await prisma.review.findUnique({
+      where: { id: reviewId },
+      select: {
+        id: true,
+        driverRating: true,
+        platformRating: true,
+        driverComment: true,
+        platformComment: true,
+        status: true,
+        booking: {
+          select: {
+            id: true,
+            referenceCode: true,
+            customerId: true,
+            customer: {
+              select: { name: true, email: true },
+            },
+          },
+        },
+        driver: {
+          select: { name: true },
+        },
+      },
+    })
+    if (!review) return { sent: false }
+
+    const { booking } = review
+    const link = adminReviewsUrl("pending")
+    const bookingLink = adminBookingUrl(booking.id)
+    const subject = `New review — ${booking.referenceCode}`
+    const text = [
+      `New review for ${booking.referenceCode}`,
+      "",
+      `Customer: ${booking.customer.name} (${booking.customer.email})`,
+      `Driver: ${review.driver.name}`,
+      `Driver rating: ${review.driverRating}/5`,
+      `Platform rating: ${review.platformRating}/5`,
+      review.driverComment ? `Driver comment: ${review.driverComment}` : null,
+      review.platformComment
+        ? `Platform comment: ${review.platformComment}`
+        : null,
+      "",
+      `Status: ${review.status} (awaiting moderation)`,
+      `Moderate: ${link}`,
+      `Booking: ${bookingLink}`,
+    ]
+      .filter(Boolean)
+      .join("\n")
+
+    const commentRows =
+      (review.driverComment
+        ? detailRow("Driver comment", review.driverComment)
+        : "") +
+      (review.platformComment
+        ? detailRow("Platform comment", review.platformComment)
+        : "")
+
+    const html = wrapEmail({
+      company: companyName(settings),
+      eyebrow: "Ops alert",
+      tone: "default",
+      preheader: `New review ${booking.referenceCode}`,
+      title: "New customer review",
+      introHtml: `A customer left feedback for trip <strong>${escapeHtml(booking.referenceCode)}</strong>. Moderate it before it appears on the public site.`,
+      rowsHtml:
+        detailRow("Reference", booking.referenceCode) +
+        detailRow(
+          "Customer",
+          `${booking.customer.name} · ${booking.customer.email}`,
+        ) +
+        detailRow("Driver", review.driver.name) +
+        detailRow("Driver rating", `${review.driverRating} / 5`) +
+        detailRow("Platform rating", `${review.platformRating} / 5`) +
+        commentRows,
+      cta: { href: link, label: "Moderate reviews" },
+      footer: `Ops inbox · ${getAppBaseUrl()}`,
+    })
+
+    return logAndSend({
+      to,
+      subject,
+      text,
+      html,
+      type: "review_submitted",
+      bookingId: booking.id,
+      customerId: booking.customerId,
+    })
+  } catch (error) {
+    console.error("[mail] admin review submitted setup failed:", error)
+    return { sent: false }
+  }
+}
+
+export async function notifyReviewSubmitted(reviewId: string): Promise<void> {
+  try {
+    await sendAdminReviewSubmitted(reviewId)
   } catch {
     // never block
   }

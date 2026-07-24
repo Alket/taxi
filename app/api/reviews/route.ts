@@ -78,8 +78,38 @@ export async function POST(request: Request) {
       platformComment: platformComment?.trim() || null,
       status: "pending",
     },
-    select: { id: true, status: true },
+    select: {
+      id: true,
+      status: true,
+      driverRating: true,
+      platformRating: true,
+      driver: { select: { name: true } },
+    },
   })
 
-  return NextResponse.json({ review }, { status: 201 })
+  try {
+    const { notifyAdminsNewReview } = await import("@/lib/push-notifications")
+    notifyAdminsNewReview({
+      referenceCode: booking.referenceCode,
+      customerName: booking.customer.name,
+      driverName: review.driver.name,
+      driverRating: review.driverRating,
+      platformRating: review.platformRating,
+      bookingId: booking.id,
+    })
+  } catch {
+    // never block review submit
+  }
+
+  try {
+    const { notifyReviewSubmitted } = await import("@/lib/emails/booking-events")
+    void notifyReviewSubmitted(review.id)
+  } catch {
+    // never block review submit
+  }
+
+  return NextResponse.json(
+    { review: { id: review.id, status: review.status } },
+    { status: 201 },
+  )
 }

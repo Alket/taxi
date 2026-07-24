@@ -1,5 +1,11 @@
+import { Suspense } from "react"
+
 import { ReviewsView } from "@/components/admin/reviews-view"
 
 export default function ReviewsPage() {
-  return <ReviewsView />
+  return (
+    <Suspense>
+      <ReviewsView />
+    </Suspense>
+  )
 }

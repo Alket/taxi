@@ -152,6 +152,37 @@ export function notifyAdminsNewBooking(args: {
   }).catch(() => {})
 }
 
+export function notifyAdminsNewReview(args: {
+  referenceCode: string
+  customerName?: string
+  driverName?: string
+  driverRating: number
+  platformRating: number
+  bookingId: string
+}) {
+  const customer = args.customerName ? ` · ${args.customerName}` : ""
+  const driver = args.driverName ? ` · ${args.driverName}` : ""
+  const title = "New review"
+  const body = `${args.referenceCode}${customer}${driver}\nDriver ${args.driverRating}/5 · Platform ${args.platformRating}/5`
+  const url = `/admin/reviews?status=pending`
+
+  recordStaffNotification({
+    audience: "admin",
+    type: "new_review",
+    title,
+    body,
+    url,
+    bookingId: args.bookingId,
+  })
+
+  void sendStaffPush("admin", {
+    title,
+    body,
+    url,
+    tag: `review-${args.bookingId}`,
+  }).catch(() => {})
+}
+
 export function notifyDriverAssigned(args: {
   driverId: string
   referenceCode: string

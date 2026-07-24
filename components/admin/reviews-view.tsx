@@ -3,6 +3,7 @@
 import * as React from "react"
 import useSWR from "swr"
 import { toast } from "sonner"
+import { useSearchParams } from "next/navigation"
 import {
   CheckIcon,
   ClockIcon,
@@ -335,13 +336,22 @@ function ReviewList({ status }: { status: ReviewStatus | "all" }) {
 
 export function ReviewsView() {
   const isMobile = useIsMobile()
+  const searchParams = useSearchParams()
+  const statusParam = searchParams.get("status")
+  const initialTab =
+    statusParam === "pending" ||
+    statusParam === "approved" ||
+    statusParam === "rejected" ||
+    statusParam === "all"
+      ? statusParam
+      : "pending"
 
   return (
     <>
       <PageHeader title="Reviews" description="Customer feedback moderation" />
       <div className="p-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-4 md:p-6">
         <Tabs
-          defaultValue="pending"
+          defaultValue={initialTab}
           orientation={isMobile ? "horizontal" : "vertical"}
           className={cn(
             "gap-4 md:gap-6",

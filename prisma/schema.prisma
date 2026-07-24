@@ -74,6 +74,7 @@ enum NotificationType {
   date_change
   completed_receipt
   review_request
+  review_submitted
 }
 
 enum ReviewStatus {

@@ -95,6 +95,10 @@ export function adminBookingUrl(bookingId: string): string {
   return `${getAppBaseUrl()}/admin/bookings?bookingId=${bookingId}`
 }
 
+export function adminReviewsUrl(status: "pending" | "approved" | "rejected" = "pending"): string {
+  return `${getAppBaseUrl()}/admin/reviews?status=${status}`
+}
+
 export function companyName(settings: Settings): string {
   return settings.companyName?.trim() || "Albania Transfers"
 }
