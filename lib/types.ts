@@ -281,6 +281,7 @@ export interface NotificationChannels {
   cancellation: boolean
   dateChange: boolean
   completedReceipt: boolean
+  reviewRequest: boolean
 }
 
 export interface Settings {

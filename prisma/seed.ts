@@ -623,8 +623,12 @@ async function main() {
         data: {
           bookingId: booking.id,
           driverId: driver.id,
-          rating: spec.reviewRating,
-          comment: spec.reviewComment,
+          driverRating: spec.reviewRating,
+          driverComment: spec.reviewComment,
+          platformRating: spec.reviewRating,
+          platformComment: spec.reviewComment,
+          status: "approved",
+          moderatedAt: daysFromNow(-1, 12, 0),
         },
       })
     }

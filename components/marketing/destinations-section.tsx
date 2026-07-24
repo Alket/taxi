@@ -1,6 +1,7 @@
 "use client"
 
 import { useRef } from "react"
+import Link from "next/link"
 import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react"
 import { Navigation, Pagination } from "swiper/modules"
 import { Swiper, SwiperSlide } from "swiper/react"
@@ -11,117 +12,17 @@ import {
   MARKETING_SECTION,
   MARKETING_SECTION_TITLE,
 } from "@/components/marketing/marketing-container"
+import { DESTINATIONS, type Destination } from "@/lib/destinations"
 import { cn } from "@/lib/utils"
 
 import "swiper/css"
 import "swiper/css/navigation"
 import "swiper/css/pagination"
 
-type Destination = {
-  id: string
-  name: string
-  region: string
-  description: string
-  badge: string
-  priceFrom: string
-  image: string
-}
-
-const DESTINATIONS: Destination[] = [
-  {
-    id: "tirana",
-    name: "Tirana City Escape",
-    region: "Central Albania",
-    description:
-      "Vibrant capital streets, cafés, and quick airport links for city stays.",
-    badge: "Popular",
-    priceFrom: "€25",
-    image:
-      "https://images.unsplash.com/photo-1600093463592-8e77ffe2476e?auto=format&fit=crop&q=80&w=800",
-  },
-  {
-    id: "durres",
-    name: "Durrës Coast",
-    region: "Adriatic Coast",
-    description:
-      "Historic port city with sandy beaches and Roman ruins minutes from the shore.",
-    badge: "Trending",
-    priceFrom: "€30",
-    image:
-      "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&q=80&w=800",
-  },
-  {
-    id: "vlore",
-    name: "Vlorë Riviera",
-    region: "Albanian Riviera",
-    description:
-      "Gateway to the south — turquoise bays, promenades, and sunset views.",
-    badge: "Coastal",
-    priceFrom: "€45",
-    image:
-      "https://images.unsplash.com/photo-1519046909924-d93b0f86d5b3?auto=format&fit=crop&q=80&w=800",
-  },
-  {
-    id: "sarande",
-    name: "Sarandë Seaside",
-    region: "Southern Coast",
-    description:
-      "Lively seaside town facing Corfu, with crystal waters and nightlife.",
-    badge: "Best Value",
-    priceFrom: "€55",
-    image:
-      "https://images.unsplash.com/photo-1506953823976-52e1fdc0149a?auto=format&fit=crop&q=80&w=800",
-  },
-  {
-    id: "ksamil",
-    name: "Ksamil Islands",
-    region: "Butrint National Park",
-    description:
-      "Iconic turquoise islands and white-sand coves on the Ionian Sea.",
-    badge: "Must See",
-    priceFrom: "€60",
-    image:
-      "https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&q=80&w=800",
-  },
-  {
-    id: "berat",
-    name: "Berat Heritage",
-    region: "UNESCO Heritage",
-    description:
-      "The city of a thousand windows — Ottoman architecture and hilltop castles.",
-    badge: "Culture",
-    priceFrom: "€40",
-    image:
-      "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&q=80&w=800",
-  },
-  {
-    id: "shkoder",
-    name: "Shkodër Lakeside",
-    region: "Northern Albania",
-    description:
-      "Lake-side charm, cycling routes, and the gateway to the Accursed Mountains.",
-    badge: "Adventure",
-    priceFrom: "€35",
-    image:
-      "https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&q=80&w=800",
-  },
-  {
-    id: "theth",
-    name: "Theth Wilderness",
-    region: "Albanian Alps",
-    description:
-      "Remote mountain valleys, traditional stone towers, and alpine hiking trails.",
-    badge: "Mountains",
-    priceFrom: "€70",
-    image:
-      "https://images.unsplash.com/photo-1464822759844-d150baec0137?auto=format&fit=crop&q=80&w=800",
-  },
-]
-
 function DestinationCard({ destination }: { destination: Destination }) {
   return (
-    <a
-      href="#book"
+    <Link
+      href={`/destinations/${destination.id}`}
       className="group relative flex h-[420px] flex-col overflow-hidden rounded-3xl border border-border bg-muted shadow-sm transition-all duration-300 hover:shadow-xl"
     >
       <div className="absolute inset-0 bg-muted transition-transform duration-500 group-hover:scale-105">
@@ -153,7 +54,7 @@ function DestinationCard({ destination }: { destination: Destination }) {
           {destination.description}
         </p>
       </div>
-    </a>
+    </Link>
   )
 }
 
@@ -177,28 +78,27 @@ export function DestinationsSection() {
           <div className="mt-6 flex items-center gap-6 md:mt-0">
             <a
               href="#book"
-              className="hidden items-center gap-2 font-extrabold text-primary transition-colors hover:text-brand-accent-hover sm:inline-flex"
+              className="hidden items-center gap-2 text-sm font-extrabold text-primary transition-colors hover:text-primary/80 md:inline-flex"
             >
-              View all destinations
-              <ArrowRight className="size-5" strokeWidth={2} />
+              View all
+              <ArrowRight className="size-4" />
             </a>
-
-            <div className="flex items-center gap-2">
+            <div className="flex gap-2">
               <button
                 type="button"
+                aria-label="Previous destinations"
+                className="flex size-10 items-center justify-center rounded-full border border-border bg-card text-brand transition-colors hover:bg-muted"
                 onClick={() => swiperRef.current?.slidePrev()}
-                aria-label="Previous slide"
-                className="flex size-11 cursor-pointer items-center justify-center rounded-full border border-border bg-card text-brand shadow-sm transition-all hover:border-border hover:bg-muted"
               >
-                <ChevronLeft className="size-5" strokeWidth={2} />
+                <ChevronLeft className="size-5" />
               </button>
               <button
                 type="button"
+                aria-label="Next destinations"
+                className="flex size-10 items-center justify-center rounded-full border border-border bg-card text-brand transition-colors hover:bg-muted"
                 onClick={() => swiperRef.current?.slideNext()}
-                aria-label="Next slide"
-                className="flex size-11 cursor-pointer items-center justify-center rounded-full border border-border bg-card text-brand shadow-sm transition-all hover:border-border hover:bg-muted"
               >
-                <ChevronRight className="size-5" strokeWidth={2} />
+                <ChevronRight className="size-5" />
               </button>
             </div>
           </div>
@@ -206,20 +106,17 @@ export function DestinationsSection() {
 
         <Swiper
           modules={[Navigation, Pagination]}
+          spaceBetween={20}
+          slidesPerView={1.15}
+          breakpoints={{
+            640: { slidesPerView: 1.5 },
+            768: { slidesPerView: 2.2 },
+            1024: { slidesPerView: 3 },
+          }}
           onSwiper={(swiper) => {
             swiperRef.current = swiper
           }}
-          slidesPerView={1}
-          spaceBetween={24}
-          loop
-          grabCursor
-          speed={600}
-          pagination={{ clickable: true }}
-          breakpoints={{
-            640: { slidesPerView: 2 },
-            1024: { slidesPerView: 3 },
-          }}
-          className="destinations-slider !pb-14"
+          className="!overflow-visible"
         >
           {DESTINATIONS.map((destination) => (
             <SwiperSlide key={destination.id}>

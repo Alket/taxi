@@ -11,6 +11,7 @@ import {
   MapPinned,
   Plane,
   Settings,
+  Star,
   Users,
 } from "lucide-react"
 
@@ -41,6 +42,7 @@ const navItems = [
   { title: "Analytics", url: "/admin/analytics", icon: BarChart3 },
   { title: "Bookings", url: "/admin/bookings", icon: CalendarClock },
   { title: "Drivers", url: "/admin/drivers", icon: Users },
+  { title: "Reviews", url: "/admin/reviews", icon: Star },
   { title: "Pricing", url: "/admin/pricing", icon: MapPinned },
   { title: "Notifications", url: "/admin/notifications", icon: Bell },
   { title: "Settings", url: "/admin/settings", icon: Settings, adminOnly: true },

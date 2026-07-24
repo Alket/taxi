@@ -20,6 +20,7 @@ import {
   manageBookingUrl,
   money,
   paymentStatusLabel,
+  reviewBookingUrl,
   supportLine,
   vehicleLabel,
   wrapEmail,
@@ -755,6 +756,90 @@ export async function sendCustomerCompletedReceipt(
   } catch (error) {
     console.error("[mail] completed receipt setup failed:", error)
     return { sent: false }
+  }
+}
+
+export async function sendCustomerReviewRequest(
+  bookingId: string,
+): Promise<SendResult> {
+  try {
+    if (!isMailConfigured()) return { sent: false }
+    const settings = await getSettings()
+    if (!channelEnabled(settings, "reviewRequest")) return { sent: false }
+
+    const booking = await loadBooking(bookingId)
+    if (!booking?.customer.email) return { sent: false }
+    if (booking.status !== "completed") return { sent: false }
+    if (!booking.driverId) return { sent: false }
+
+    const existing = await prisma.review.findUnique({
+      where: { bookingId: booking.id },
+      select: { id: true },
+    })
+    if (existing) return { sent: false }
+
+    const reviewUrl = reviewBookingUrl(
+      booking.referenceCode,
+      booking.customer.email,
+    )
+    const subject = `How was your trip? — ${booking.referenceCode}`
+    const text = [
+      `Hi ${booking.customer.name},`,
+      "",
+      `Thanks for riding with ${companyName(settings)}.`,
+      `We'd love your feedback on trip ${booking.referenceCode}.`,
+      "",
+      `Rate your driver and overall experience (about 1 minute):`,
+      reviewUrl,
+      "",
+      `Reference: ${booking.referenceCode}`,
+      `Email: ${booking.customer.email}`,
+      "",
+      supportLine(settings),
+    ].join("\n")
+
+    const html = wrapEmail({
+      company: companyName(settings),
+      eyebrow: "Review",
+      tone: "default",
+      preheader: `Rate trip ${booking.referenceCode}`,
+      title: "How was your trip?",
+      introHtml: `Hi ${escapeHtml(booking.customer.name)}, thanks for riding with <strong>${escapeHtml(companyName(settings))}</strong>. Please rate your driver and overall experience — it only takes a minute.`,
+      rowsHtml:
+        detailRow("Reference", booking.referenceCode) +
+        detailRow("Route", `${booking.pickupAddress} → ${booking.dropoffAddress}`) +
+        detailRow("When", formatWhen(booking.pickupDateTime)),
+      cta: { href: reviewUrl, label: "Leave a review" },
+      footer: supportLine(settings),
+    })
+
+    return logAndSend({
+      to: booking.customer.email,
+      subject,
+      text,
+      html,
+      type: "review_request",
+      bookingId: booking.id,
+      customerId: booking.customerId,
+      replyTo: settings.supportEmail || undefined,
+    })
+  } catch (error) {
+    console.error("[mail] review request setup failed:", error)
+    return { sent: false }
+  }
+}
+
+/** Receipt + review request after a trip is marked completed. Never throws. */
+export async function notifyBookingCompleted(bookingId: string): Promise<void> {
+  try {
+    await sendCustomerCompletedReceipt(bookingId)
+  } catch {
+    // never block
+  }
+  try {
+    await sendCustomerReviewRequest(bookingId)
+  } catch {
+    // never block
   }
 }
 

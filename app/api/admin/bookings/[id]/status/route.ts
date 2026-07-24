@@ -53,6 +53,17 @@ export async function PATCH(
     })
   })
 
+  if (nextStatus === "completed") {
+    try {
+      const { notifyBookingCompleted } = await import(
+        "@/lib/emails/booking-events"
+      )
+      await notifyBookingCompleted(id)
+    } catch {
+      // never block status update
+    }
+  }
+
   const updated = await prisma.booking.findUnique({
     where: { id },
     include: bookingDetailInclude,

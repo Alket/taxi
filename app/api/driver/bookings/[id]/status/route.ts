@@ -113,10 +113,10 @@ export async function PATCH(
       driverName: session.driver.name,
     })
     try {
-      const { sendCustomerCompletedReceipt } = await import(
+      const { notifyBookingCompleted } = await import(
         "@/lib/emails/booking-events"
       )
-      await sendCustomerCompletedReceipt(booking.id)
+      await notifyBookingCompleted(booking.id)
     } catch {
       // never block status update
     }

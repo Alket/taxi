@@ -62,6 +62,7 @@ export function parseNotificationChannels(value: unknown): NotificationChannels 
     cancellation: true,
     dateChange: true,
     completedReceipt: true,
+    reviewRequest: true,
   }
 
   if (!value || typeof value !== "object") return defaults
@@ -94,6 +95,10 @@ export function parseNotificationChannels(value: unknown): NotificationChannels 
       typeof record.completedReceipt === "boolean"
         ? record.completedReceipt
         : defaults.completedReceipt,
+    reviewRequest:
+      typeof record.reviewRequest === "boolean"
+        ? record.reviewRequest
+        : defaults.reviewRequest,
   }
 }
 

@@ -9,6 +9,7 @@ import { PeaceOfMindSection } from "@/components/marketing/peace-of-mind-section
 import { SafetyPrioritySection } from "@/components/marketing/safety-priority-section"
 import { SiteFooter } from "@/components/marketing/site-footer"
 import { SiteHeader } from "@/components/marketing/site-header"
+import { TestimonialsSection } from "@/components/marketing/testimonials-section"
 import { WhyBookSection } from "@/components/marketing/why-book-section"
 import { Skeleton } from "@/components/ui/skeleton"
 import { scrollToHashId } from "@/lib/smooth-hash-scroll"
@@ -122,6 +123,8 @@ export function HomeLanding() {
       <WhyBookSection />
 
       <DestinationsSection />
+
+      <TestimonialsSection />
 
       <PeaceOfMindSection />
 

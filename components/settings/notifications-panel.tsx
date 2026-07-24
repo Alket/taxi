@@ -47,6 +47,12 @@ const CHANNELS: {
     description: "Customer email when the trip is marked completed.",
   },
   {
+    key: "reviewRequest",
+    label: "Post-trip review request",
+    description:
+      "Customer email after a completed trip asking for driver and platform ratings.",
+  },
+  {
     key: "flightDelay",
     label: "Flight delay alert",
     description: "Customer email when a tracked flight is delayed.",

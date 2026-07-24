@@ -83,6 +83,14 @@ export function manageBookingUrl(): string {
   return `${getAppBaseUrl()}/my-booking`
 }
 
+export function reviewBookingUrl(referenceCode: string, email: string): string {
+  const params = new URLSearchParams({
+    reference: referenceCode,
+    email,
+  })
+  return `${getAppBaseUrl()}/review?${params.toString()}`
+}
+
 export function adminBookingUrl(bookingId: string): string {
   return `${getAppBaseUrl()}/admin/bookings?bookingId=${bookingId}`
 }

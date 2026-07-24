@@ -73,6 +73,13 @@ enum NotificationType {
   cancellation
   date_change
   completed_receipt
+  review_request
+}
+
+enum ReviewStatus {
+  pending
+  approved
+  rejected
 }
 
 enum NotificationStatus {
@@ -243,17 +250,22 @@ model Payment {
 }
 
 model Review {
-  id        String   @id @default(cuid())
-  bookingId String   @unique
-  driverId  String
-  rating    Int
-  comment   String?
-  createdAt DateTime @default(now())
+  id              String       @id @default(cuid())
+  bookingId       String       @unique
+  driverId        String
+  driverRating    Int
+  driverComment   String?
+  platformRating  Int
+  platformComment String?
+  status          ReviewStatus @default(pending)
+  moderatedAt     DateTime?
+  createdAt       DateTime     @default(now())
 
   booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   driver  Driver  @relation(fields: [driverId], references: [id], onDelete: Cascade)
 
   @@index([driverId])
+  @@index([status])
 }
 
 model FlightStatusEvent {
