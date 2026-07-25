@@ -61,7 +61,7 @@ export function SiteHeader({ className }: { className?: string }) {
                   >
                     {label}
                   </Link>
-                )
+                ),
               )}
             </nav>
 
@@ -76,28 +76,61 @@ export function SiteHeader({ className }: { className?: string }) {
 
             <button
               type="button"
-              className="p-2 text-brand md:hidden"
+              className="relative size-10 touch-manipulation p-2 text-brand md:hidden"
               aria-label={menuOpen ? "Close menu" : "Open menu"}
               aria-expanded={menuOpen}
               onClick={() => setMenuOpen((open) => !open)}
             >
-              {menuOpen ? (
-                <XIcon className="size-6" strokeWidth={2} />
-              ) : (
-                <MenuIcon className="size-6" strokeWidth={2} />
-              )}
+              <MenuIcon
+                className={cn(
+                  "absolute inset-0 m-auto size-6 transition-all duration-300 ease-out",
+                  menuOpen
+                    ? "scale-75 rotate-90 opacity-0"
+                    : "scale-100 rotate-0 opacity-100",
+                )}
+                strokeWidth={2}
+              />
+              <XIcon
+                className={cn(
+                  "absolute inset-0 m-auto size-6 transition-all duration-300 ease-out",
+                  menuOpen
+                    ? "scale-100 rotate-0 opacity-100"
+                    : "scale-75 -rotate-90 opacity-0",
+                )}
+                strokeWidth={2}
+              />
             </button>
           </div>
 
-          {menuOpen ? (
-            <div className="absolute top-[calc(100%+0.75rem)] right-0 left-0 rounded-3xl border border-border bg-white p-4 shadow-lg md:hidden">
+          <div
+            className={cn(
+              "absolute top-[calc(100%+0.75rem)] right-0 left-0 origin-top md:hidden",
+              "transition-[opacity,transform] duration-300 ease-out",
+              menuOpen
+                ? "pointer-events-auto translate-y-0 scale-100 opacity-100"
+                : "pointer-events-none -translate-y-2 scale-[0.98] opacity-0",
+            )}
+            aria-hidden={!menuOpen}
+          >
+            <div className="rounded-3xl border border-border bg-white p-4 shadow-lg">
               <nav className="flex flex-col gap-1">
-                {NAV.map(({ href, label }) =>
-                  href.includes("#") ? (
+                {NAV.map(({ href, label }, index) => {
+                  const linkClass = cn(
+                    "rounded-xl px-4 py-3 text-sm font-bold text-brand transition-all duration-300 ease-out hover:bg-accent hover:text-primary",
+                    menuOpen
+                      ? "translate-y-0 opacity-100"
+                      : "translate-y-1 opacity-0",
+                  )
+                  const style = {
+                    transitionDelay: menuOpen ? `${80 + index * 40}ms` : "0ms",
+                  } as const
+
+                  return href.includes("#") ? (
                     <HashLink
                       key={label}
                       href={href}
-                      className="rounded-xl px-4 py-3 text-sm font-bold text-brand transition-colors hover:bg-accent hover:text-primary"
+                      className={linkClass}
+                      style={style}
                       onClick={() => setMenuOpen(false)}
                     >
                       {label}
@@ -106,14 +139,25 @@ export function SiteHeader({ className }: { className?: string }) {
                     <Link
                       key={label}
                       href={href}
-                      className="rounded-xl px-4 py-3 text-sm font-bold text-brand transition-colors hover:bg-accent hover:text-primary"
+                      className={linkClass}
+                      style={style}
                       onClick={() => setMenuOpen(false)}
                     >
                       {label}
                     </Link>
                   )
-                )}
-                <div className="mt-2 border-t border-border px-2 pt-3">
+                })}
+                <div
+                  className={cn(
+                    "mt-2 border-t border-border px-2 pt-3 transition-all duration-300 ease-out",
+                    menuOpen
+                      ? "translate-y-0 opacity-100"
+                      : "translate-y-1 opacity-0",
+                  )}
+                  style={{
+                    transitionDelay: menuOpen ? "240ms" : "0ms",
+                  }}
+                >
                   <p className="mb-2 px-2 text-[10px] font-bold tracking-[0.14em] text-muted-foreground uppercase">
                     Language
                   </p>
@@ -121,7 +165,7 @@ export function SiteHeader({ className }: { className?: string }) {
                 </div>
               </nav>
             </div>
-          ) : null}
+          </div>
         </div>
       </MarketingContainer>
     </header>

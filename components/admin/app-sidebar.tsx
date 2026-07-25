@@ -6,6 +6,7 @@ import {
   BarChart3,
   Bell,
   CalendarClock,
+  FileText,
   LayoutDashboard,
   LogOut,
   MapPinned,
@@ -45,6 +46,7 @@ const navItems = [
   { title: "Reviews", url: "/admin/reviews", icon: Star },
   { title: "Pricing", url: "/admin/pricing", icon: MapPinned },
   { title: "Notifications", url: "/admin/notifications", icon: Bell },
+  { title: "Pages", url: "/admin/pages", icon: FileText, adminOnly: true },
   { title: "Settings", url: "/admin/settings", icon: Settings, adminOnly: true },
 ] as const
 

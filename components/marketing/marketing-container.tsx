@@ -6,12 +6,9 @@ import { cn } from "@/lib/utils"
 export const MARKETING_CONTAINER =
   "mx-auto w-full max-w-[1280px] px-4 md:px-6 lg:px-8"
 
-/** Shared vertical rhythm + white canvas for homepage content sections. */
-export const MARKETING_SECTION = "bg-white py-16 md:py-24"
-
-/** Shared homepage section heading. */
+/** Shared homepage section heading. Mobile keeps solid size; desktop matches original. */
 export const MARKETING_SECTION_TITLE =
-  "font-brand text-3xl font-extrabold tracking-tight text-brand sm:text-4xl"
+  "font-brand text-3xl font-extrabold tracking-tight text-brand md:text-4xl"
 
 type MarketingContainerProps = HTMLAttributes<HTMLElement> & {
   children: ReactNode

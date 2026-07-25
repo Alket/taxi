@@ -1,40 +1,33 @@
 import {
   MarketingContainer,
-  MARKETING_SECTION,
   MARKETING_SECTION_TITLE,
 } from "@/components/marketing/marketing-container"
 
-const FEATURES = [
-  {
-    title: "1000s of experienced drivers",
-    description:
-      "With thousands of drivers in one app, you can book a transfer wherever you are, even in times of high demand.",
-    image: "/marketing/safety-drivers.png",
-    alt: "Using the booking app to find nearby drivers",
-  },
-  {
-    title: "Know your driver",
-    description:
-      "When you hop on an Albania Transfers ride, you'll know your driver's details, rating, and driving experience to make sure you're in safe hands.",
-    image: "/marketing/safety-know-driver.png",
-    alt: "Friendly professional driver ready for pickup",
-  },
-] as const
+type SafetyCopy = {
+  heading: string
+  items: {
+    title: string
+    description: string
+    image: string
+    alt: string
+  }[]
+}
 
-export function SafetyPrioritySection() {
+export function SafetyPrioritySection({ copy }: { copy: SafetyCopy }) {
   return (
-    <section id="safety" className={`${MARKETING_SECTION} overflow-hidden`}>
+    <section
+      id="safety"
+      className="overflow-hidden bg-white py-10 md:py-24"
+    >
       <MarketingContainer>
-        <div className="mb-12 md:mb-16">
-          <h2 className={MARKETING_SECTION_TITLE}>
-            Safety is our #1 priority
-          </h2>
+        <div className="mb-6 md:mb-12 lg:mb-16">
+          <h2 className={MARKETING_SECTION_TITLE}>{copy.heading}</h2>
         </div>
 
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:gap-12">
-          {FEATURES.map(({ title, description, image, alt }) => (
+        <div className="grid grid-cols-1 gap-8 md:grid-cols-2 md:gap-10 lg:gap-12">
+          {copy.items.map(({ title, description, image, alt }) => (
             <article key={title} className="group flex flex-col">
-              <div className="relative mb-6 aspect-[16/10] w-full overflow-hidden rounded-3xl bg-muted shadow-md">
+              <div className="relative mb-4 aspect-[16/10] w-full overflow-hidden rounded-2xl bg-muted shadow-md sm:mb-6 sm:rounded-3xl">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={image}
@@ -43,10 +36,10 @@ export function SafetyPrioritySection() {
                   loading="lazy"
                 />
               </div>
-              <h3 className="mb-3 text-2xl font-extrabold text-brand">
+              <h3 className="mb-2 text-xl font-extrabold text-brand md:mb-3 md:text-2xl">
                 {title}
               </h3>
-              <p className="text-base leading-relaxed text-muted-foreground">
+              <p className="text-sm leading-relaxed text-muted-foreground md:text-base">
                 {description}
               </p>
             </article>

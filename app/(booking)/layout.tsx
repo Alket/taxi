@@ -8,9 +8,7 @@ export default function BookingLayout({
 }) {
   return (
     <div className="brand-frontend flex min-h-svh flex-col bg-brand-page font-brand text-brand">
-      <div className="pt-4">
-        <SiteHeader />
-      </div>
+      <SiteHeader className="pt-4" />
       <div className="flex-1">{children}</div>
       <SiteFooter />
     </div>

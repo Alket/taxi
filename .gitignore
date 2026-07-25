@@ -25,3 +25,7 @@ pnpm-debug.log*
 
 # Vercel
 .vercel/
+
+# User-uploaded CMS images (keep folder via .gitkeep)
+public/uploads/pages/*
+!public/uploads/pages/.gitkeep

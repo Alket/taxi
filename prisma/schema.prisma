@@ -352,6 +352,25 @@ model Settings {
   updatedAt                   DateTime         @updatedAt
 }
 
+/** Editable marketing / content pages (homepage, policies, etc.). */
+model PageContent {
+  id          String   @id @default(cuid())
+  /** Unique page key, e.g. "home", "cancellation-policy". */
+  slug        String   @unique
+  /** Human label shown in the admin list. */
+  label       String   @default("")
+  /** SEO document title. */
+  title       String   @default("")
+  /** SEO meta description. */
+  description String   @default("") @db.Text
+  /** Open Graph image URL (path or absolute). */
+  ogImage     String   @default("")
+  /** Ordered list of sections: heading | text | image | faq_item. */
+  sections    Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 enum AdminRole {
   admin
   operator
