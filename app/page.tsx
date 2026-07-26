@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 
 import { HomeLanding } from "@/components/marketing/home-landing"
+import { SiteFooter } from "@/components/marketing/site-footer"
 import {
   pageMetadataFields,
   resolveDestinationCards,
@@ -29,5 +30,11 @@ export default async function HomePage() {
     resolveDestinationCards(),
   ])
   const copy = await resolveHomeMarketingCopy(page?.sections ?? [])
-  return <HomeLanding copy={copy} destinations={destinations} />
+  return (
+    <HomeLanding
+      copy={copy}
+      destinations={destinations}
+      footer={<SiteFooter />}
+    />
+  )
 }

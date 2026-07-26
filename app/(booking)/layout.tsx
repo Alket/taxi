@@ -1,7 +1,7 @@
 import { SiteFooter } from "@/components/marketing/site-footer"
 import { SiteHeader } from "@/components/marketing/site-header"
 
-export default function BookingLayout({
+export default async function BookingLayout({
   children,
 }: {
   children: React.ReactNode

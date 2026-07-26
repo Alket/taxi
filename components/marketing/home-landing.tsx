@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, useEffect } from "react"
+import { Suspense, useEffect, type ReactNode } from "react"
 
 import { DestinationsSection } from "@/components/marketing/destinations-section"
 import { FaqSection } from "@/components/marketing/faq-section"
@@ -8,7 +8,6 @@ import { HeroBookingCard } from "@/components/marketing/hero-booking-card"
 import { MarketingContainer } from "@/components/marketing/marketing-container"
 import { PeaceOfMindSection } from "@/components/marketing/peace-of-mind-section"
 import { SafetyPrioritySection } from "@/components/marketing/safety-priority-section"
-import { SiteFooter } from "@/components/marketing/site-footer"
 import { SiteHeader } from "@/components/marketing/site-header"
 import { TestimonialsSection } from "@/components/marketing/testimonials-section"
 import { WhyBookSection } from "@/components/marketing/why-book-section"
@@ -37,9 +36,11 @@ function headingLines(text: string) {
 export function HomeLanding({
   copy,
   destinations,
+  footer,
 }: {
   copy: HomeMarketingCopy
   destinations: Destination[]
+  footer?: ReactNode
 }) {
   useEffect(() => {
     const id = window.location.hash.replace(/^#/, "")
@@ -150,7 +151,7 @@ export function HomeLanding({
 
       <FaqSection items={copy.faq} />
 
-      <SiteFooter />
+      {footer}
     </div>
   )
 }
