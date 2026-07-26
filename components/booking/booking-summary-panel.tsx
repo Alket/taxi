@@ -1,34 +1,638 @@
 "use client"
 
 import * as React from "react"
-import Image from "next/image"
 import useSWR from "swr"
 import {
-  CalendarIcon,
-  MapPinIcon,
-  UsersIcon,
   BriefcaseIcon,
+  CalendarIcon,
   CarIcon,
   CheckIcon,
+  Loader2Icon,
+  MapPinIcon,
+  MinusIcon,
+  PencilIcon,
+  PlaneIcon,
+  PlusIcon,
+  UsersIcon,
 } from "lucide-react"
 
 import { fetcher } from "@/lib/api"
+import type { AirportWithCoords } from "@/lib/airports"
+import { resolveAirportLocation } from "@/lib/airports"
 import {
   CHILD_SEAT_OPTIONS,
   computeChildSeatTotal,
   type ChildSeatPrices,
 } from "@/lib/child-seats"
 import { formatDateTime, formatMoney } from "@/lib/format"
-import { useBookingStore } from "@/lib/store/booking-store"
+import {
+  useBookingStore,
+  VEHICLE_TYPES,
+  type BookingLocation,
+  type VehicleQuote,
+} from "@/lib/store/booking-store"
+import type { Direction, VehicleType } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { round2 } from "@/lib/vehicles"
+import {
+  formatHeroDateLabel,
+  HeroDateTimePicker,
+} from "@/components/marketing/hero-datetime-picker"
+import { HeroFieldSelect } from "@/components/marketing/hero-field-select"
+import type { ServiceZonePlace } from "@/components/booking/zone-place-select"
+import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+
+const SUMMARY_IMAGE_FALLBACK =
+  "https://images.unsplash.com/photo-1600093463592-8e77ffe2476e?auto=format&fit=crop&q=80&w=800"
 
 const VEHICLE_LABELS: Record<string, string> = {
   sedan: "Sedan",
   comfort: "Comfort",
   minivan: "Minivan",
   premium: "Premium",
+}
+
+type SummaryConfig = ChildSeatPrices & {
+  airports?: AirportWithCoords[]
+  zones?: ServiceZonePlace[]
+}
+
+type QuoteResponse = {
+  vehicleType: VehicleType
+  price: number
+  distanceKm: number
+  durationMin: number
+}
+
+function airportLocation(airport: AirportWithCoords): BookingLocation {
+  return {
+    address: `${airport.name} (${airport.iataCode})`,
+    lat: airport.lat,
+    lng: airport.lng,
+  }
+}
+
+async function fetchVehicleQuote(body: {
+  direction: Direction
+  vehicleType: VehicleType
+  zoneId: string
+}): Promise<QuoteResponse> {
+  const res = await fetch("/api/pricing/quote", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    const error = new Error(data.error || "Quote failed") as Error & {
+      code?: string
+      status?: number
+    }
+    error.code = data.code
+    error.status = res.status
+    throw error
+  }
+  return data as QuoteResponse
+}
+
+/** Matches homepage hero steppers for Passengers / Luggage. */
+function HeroStyleStepper({
+  label,
+  value,
+  min,
+  max,
+  onChange,
+}: {
+  label: string
+  value: number
+  min: number
+  max: number
+  onChange: (n: number) => void
+}) {
+  return (
+    <div className="flex flex-1 flex-col gap-2">
+      <span className="text-sm font-bold text-brand">{label}</span>
+      <div className="flex h-11 items-center justify-between rounded-xl border border-border px-1">
+        <button
+          type="button"
+          className="flex size-9 items-center justify-center rounded-lg text-brand hover:bg-muted disabled:opacity-40"
+          disabled={value <= min}
+          onClick={() => onChange(Math.max(min, value - 1))}
+          aria-label={`Decrease ${label}`}
+        >
+          <MinusIcon className="size-4" />
+        </button>
+        <span className="min-w-6 text-center text-sm font-bold tabular-nums">
+          {value}
+        </span>
+        <button
+          type="button"
+          className="flex size-9 items-center justify-center rounded-lg text-brand hover:bg-muted disabled:opacity-40"
+          disabled={value >= max}
+          onClick={() => onChange(Math.min(max, value + 1))}
+          aria-label={`Increase ${label}`}
+        >
+          <PlusIcon className="size-4" />
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function EditSection({
+  icon: Icon,
+  title,
+  children,
+}: {
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>
+  title: string
+  children: React.ReactNode
+}) {
+  return (
+    <section className="rounded-2xl border border-border bg-brand-surface p-4 shadow-sm">
+      <div className="mb-3 flex items-center gap-2.5">
+        <span className="flex size-8 items-center justify-center rounded-xl bg-brand-accent/10 text-brand-accent">
+          <Icon className="size-3.5" strokeWidth={2} />
+        </span>
+        <h3 className="text-sm font-extrabold tracking-tight text-brand">
+          {title}
+        </h3>
+      </div>
+      <div className="flex flex-col gap-3">{children}</div>
+    </section>
+  )
+}
+
+function SummaryEditDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
+  const direction = useBookingStore((s) => s.direction)
+  const isRoundTrip = useBookingStore((s) => s.isRoundTrip)
+  const selectedAirportIata = useBookingStore((s) => s.selectedAirportIata)
+  const selectedZoneId = useBookingStore((s) => s.selectedZoneId)
+  const pickupDateTime = useBookingStore((s) => s.pickupDateTime)
+  const returnDateTime = useBookingStore((s) => s.returnDateTime)
+  const passengerCount = useBookingStore((s) => s.passengerCount)
+  const luggageCount = useBookingStore((s) => s.luggageCount)
+  const patch = useBookingStore((s) => s.patch)
+
+  const { data: config } = useSWR<SummaryConfig>("/api/booking/config", fetcher)
+  const airports = config?.airports ?? []
+  const zones = config?.zones ?? []
+
+  const [draftAirport, setDraftAirport] = React.useState<string | null>(null)
+  const [draftZoneId, setDraftZoneId] = React.useState<string | null>(null)
+  const [draftDateTime, setDraftDateTime] = React.useState<string | null>(null)
+  const [draftReturnDateTime, setDraftReturnDateTime] = React.useState<
+    string | null
+  >(null)
+  const [draftPassengers, setDraftPassengers] = React.useState(1)
+  const [draftLuggage, setDraftLuggage] = React.useState(0)
+  const [calendarOpen, setCalendarOpen] = React.useState(false)
+  const [returnCalendarOpen, setReturnCalendarOpen] = React.useState(false)
+  const [saving, setSaving] = React.useState(false)
+  const [error, setError] = React.useState<string | null>(null)
+
+  React.useEffect(() => {
+    if (!open) return
+    setDraftAirport(selectedAirportIata)
+    setDraftZoneId(selectedZoneId)
+    setDraftDateTime(pickupDateTime)
+    setDraftReturnDateTime(returnDateTime)
+    setDraftPassengers(passengerCount)
+    setDraftLuggage(luggageCount)
+    setCalendarOpen(false)
+    setReturnCalendarOpen(false)
+    setError(null)
+  }, [
+    open,
+    selectedAirportIata,
+    selectedZoneId,
+    pickupDateTime,
+    returnDateTime,
+    passengerCount,
+    luggageCount,
+  ])
+
+  function onDraftPickupChange(iso: string) {
+    const returnTooSoon =
+      draftReturnDateTime != null &&
+      new Date(draftReturnDateTime).getTime() <= new Date(iso).getTime()
+    setDraftDateTime(iso)
+    if (returnTooSoon) setDraftReturnDateTime(null)
+  }
+
+  async function save() {
+    if (!draftZoneId) {
+      setError("Select a destination.")
+      return
+    }
+    if (!draftDateTime) {
+      setError("Select pickup date & time.")
+      return
+    }
+    if (isRoundTrip) {
+      if (!draftReturnDateTime) {
+        setError("Select return date & time.")
+        return
+      }
+      const pickupMs = new Date(draftDateTime).getTime()
+      const returnMs = new Date(draftReturnDateTime).getTime()
+      if (Number.isNaN(returnMs) || returnMs <= pickupMs) {
+        setError("Return must be after pickup.")
+        return
+      }
+    }
+
+    const airport = resolveAirportLocation(airports, draftAirport)
+    const zone = zones.find((z) => z.id === draftZoneId)
+    if (!airport || !zone) {
+      setError("Could not update trip details.")
+      return
+    }
+
+    setSaving(true)
+    setError(null)
+
+    const dir = direction ?? "airport_to_dest"
+    const airportLoc = airportLocation(airport)
+    const destLoc: BookingLocation = {
+      address: zone.name,
+      lat: airport.lat,
+      lng: airport.lng,
+    }
+    const datePatch = {
+      pickupDateTime: draftDateTime,
+      passengerCount: draftPassengers,
+      luggageCount: draftLuggage,
+      returnDateTime: isRoundTrip ? draftReturnDateTime : null,
+    }
+
+    if (dir === "airport_to_dest") {
+      patch({
+        direction: dir,
+        selectedAirportIata: airport.iataCode,
+        selectedZoneId: zone.id,
+        pickup: airportLoc,
+        dropoff: destLoc,
+        ...datePatch,
+      })
+    } else {
+      patch({
+        direction: dir,
+        selectedAirportIata: airport.iataCode,
+        selectedZoneId: zone.id,
+        pickup: destLoc,
+        dropoff: airportLoc,
+        ...datePatch,
+      })
+    }
+
+    const zoneChanged = zone.id !== selectedZoneId
+    if (zoneChanged || !useBookingStore.getState().quotedPrice) {
+      patch({
+        quoteStatus: "loading",
+        quoteError: null,
+        vehicleQuotes: {},
+        quotedPrice: null,
+        quotedDistanceKm: null,
+        vehicleType: null,
+      })
+
+      try {
+        const settled = await Promise.allSettled(
+          VEHICLE_TYPES.map((vehicleType) =>
+            fetchVehicleQuote({
+              direction: dir,
+              vehicleType,
+              zoneId: zone.id,
+            }),
+          ),
+        )
+
+        const vehicleQuotes = {} as Record<VehicleType, VehicleQuote>
+        for (let i = 0; i < settled.length; i++) {
+          const result = settled[i]!
+          const vehicleType = VEHICLE_TYPES[i]!
+          if (result.status === "fulfilled") {
+            vehicleQuotes[vehicleType] = {
+              price: result.value.price,
+              distanceKm: result.value.distanceKm,
+              durationMin: result.value.durationMin,
+            }
+          }
+        }
+
+        const quoted = Object.values(vehicleQuotes)
+        if (quoted.length > 0) {
+          const preferred =
+            vehicleQuotes.sedan ??
+            vehicleQuotes.comfort ??
+            vehicleQuotes.minivan ??
+            vehicleQuotes.premium
+          const selectedType = (
+            Object.entries(vehicleQuotes).find(
+              ([, quote]) => quote === preferred,
+            )?.[0] ?? "sedan"
+          ) as VehicleType
+
+          patch({
+            vehicleQuotes,
+            quoteStatus: "success",
+            quoteError: null,
+            quotedDistanceKm: quoted[0]?.distanceKm ?? null,
+            vehicleType: selectedType,
+            quotedPrice: preferred?.price ?? null,
+          })
+        } else {
+          patch({
+            vehicleQuotes: {},
+            quoteStatus: "uncovered",
+            quoteError: null,
+            quotedDistanceKm: null,
+            quotedPrice: null,
+            vehicleType: null,
+          })
+        }
+      } catch {
+        patch({
+          quoteStatus: "error",
+          quoteError: "Could not update price.",
+        })
+      }
+    }
+
+    setSaving(false)
+    onOpenChange(false)
+  }
+
+  const destinationLabel =
+    direction === "dest_to_airport" ? "Pickup destination" : "Dropoff destination"
+  const selectedAirportName = airports.find(
+    (a) => a.iataCode === draftAirport,
+  )
+  const zoneOptions = zones.map((z) => ({
+    value: z.id,
+    label: z.name,
+  }))
+  const destinationRowRef = React.useRef<HTMLDivElement>(null)
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="gap-0 overflow-hidden rounded-3xl border-0 bg-brand-page p-0 ring-1 ring-black/5 sm:max-w-lg">
+        <div className="px-4 pt-5 sm:px-5 sm:pt-6">
+          <DialogTitle className="font-brand text-xl font-extrabold tracking-tight text-brand">
+            Edit your trip
+          </DialogTitle>
+          <DialogDescription className="mt-1 text-sm text-muted-foreground">
+            Adjust route, pickup time, and party size. Price updates when your
+            destination changes.
+          </DialogDescription>
+        </div>
+
+        <div className="flex max-h-[min(60dvh,28rem)] flex-col gap-3 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
+          <EditSection icon={MapPinIcon} title="Route">
+            {airports.length > 1 ? (
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs font-bold text-muted-foreground">
+                  Airport
+                </Label>
+                <Select
+                  value={draftAirport}
+                  onValueChange={(value) => {
+                    if (value) setDraftAirport(value)
+                  }}
+                >
+                  <SelectTrigger className="h-11 w-full rounded-xl border-border bg-brand-page">
+                    <SelectValue placeholder="Select airport">
+                      {selectedAirportName
+                        ? `${selectedAirportName.name} (${selectedAirportName.iataCode})`
+                        : undefined}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {airports.map((airport) => (
+                      <SelectItem key={airport.iataCode} value={airport.iataCode}>
+                        {airport.name} ({airport.iataCode})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : selectedAirportName ? (
+              <div className="flex items-center gap-3 rounded-xl bg-brand-page px-3.5 py-3">
+                <span className="flex size-9 items-center justify-center rounded-full bg-brand-surface text-brand-accent">
+                  <PlaneIcon className="size-4" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+                    Airport
+                  </p>
+                  <p className="truncate text-sm font-bold text-brand">
+                    {selectedAirportName.name} ({selectedAirportName.iataCode})
+                  </p>
+                </div>
+              </div>
+            ) : null}
+
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-xs font-bold text-muted-foreground">
+                {destinationLabel}
+              </Label>
+              <div
+                ref={destinationRowRef}
+                className="flex items-center gap-3 rounded-xl border border-border bg-brand-page px-3 py-3.5"
+              >
+                <MapPinIcon className="size-4 shrink-0 text-brand" />
+                <div className="min-w-0 flex-1">
+                  <HeroFieldSelect
+                    value={draftZoneId}
+                    placeholder="To (airport, port, address)"
+                    options={zoneOptions}
+                    onChange={setDraftZoneId}
+                    anchor={destinationRowRef}
+                    mobileSheet
+                    sheetTitle="Choose destination"
+                  />
+                </div>
+              </div>
+            </div>
+          </EditSection>
+
+          <EditSection
+            icon={CalendarIcon}
+            title={isRoundTrip ? "Dates" : "Pickup time"}
+          >
+            <div className="flex flex-col gap-1.5">
+              {isRoundTrip ? (
+                <Label className="text-xs font-bold text-muted-foreground">
+                  Pickup
+                </Label>
+              ) : null}
+              <HeroDateTimePicker
+                inDialog
+                value={draftDateTime}
+                open={calendarOpen}
+                onOpenChange={(next) => {
+                  setCalendarOpen(next)
+                  if (next) setReturnCalendarOpen(false)
+                }}
+                onChange={onDraftPickupChange}
+                variant="compact"
+                trigger={
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReturnCalendarOpen(false)
+                      setCalendarOpen(true)
+                    }}
+                    className={cn(
+                      "flex w-full items-center gap-3 rounded-xl border border-border bg-brand-page px-3 py-3.5 text-left transition-colors hover:bg-muted",
+                      calendarOpen && "ring-2 ring-inset ring-black",
+                    )}
+                  >
+                    <CalendarIcon className="size-4 shrink-0 text-brand" />
+                    <span
+                      className={cn(
+                        "text-sm font-bold",
+                        draftDateTime ? "text-brand" : "text-muted-foreground",
+                      )}
+                    >
+                      {draftDateTime
+                        ? formatHeroDateLabel(draftDateTime)
+                        : "Add pickup date & time"}
+                    </span>
+                  </button>
+                }
+              />
+            </div>
+
+            {isRoundTrip ? (
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs font-bold text-muted-foreground">
+                  Return
+                </Label>
+                <HeroDateTimePicker
+                  inDialog
+                  value={draftReturnDateTime}
+                  open={returnCalendarOpen}
+                  onOpenChange={(next) => {
+                    setReturnCalendarOpen(next)
+                    if (next) setCalendarOpen(false)
+                  }}
+                  onChange={setDraftReturnDateTime}
+                  minDate={
+                    draftDateTime ? new Date(draftDateTime) : new Date()
+                  }
+                  variant="compact"
+                  trigger={
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCalendarOpen(false)
+                        setReturnCalendarOpen(true)
+                      }}
+                      className={cn(
+                        "flex w-full items-center gap-3 rounded-xl border border-border bg-brand-page px-3 py-3.5 text-left transition-colors hover:bg-muted",
+                        returnCalendarOpen && "ring-2 ring-inset ring-black",
+                      )}
+                    >
+                      <CalendarIcon className="size-4 shrink-0 text-brand" />
+                      <span
+                        className={cn(
+                          "text-sm font-bold",
+                          draftReturnDateTime
+                            ? "text-brand"
+                            : "text-muted-foreground",
+                        )}
+                      >
+                        {draftReturnDateTime
+                          ? formatHeroDateLabel(draftReturnDateTime)
+                          : "Add return date & time"}
+                      </span>
+                    </button>
+                  }
+                />
+              </div>
+            ) : null}
+          </EditSection>
+
+          <EditSection icon={UsersIcon} title="Party">
+            <div className="grid grid-cols-2 gap-4">
+              <HeroStyleStepper
+                label="Passengers"
+                value={draftPassengers}
+                min={1}
+                max={8}
+                onChange={setDraftPassengers}
+              />
+              <HeroStyleStepper
+                label="Luggage pieces"
+                value={draftLuggage}
+                min={0}
+                max={10}
+                onChange={setDraftLuggage}
+              />
+            </div>
+          </EditSection>
+
+          {error ? (
+            <p className="rounded-xl border border-destructive/30 bg-destructive/5 px-3.5 py-2.5 text-sm font-medium text-destructive">
+              {error}
+            </p>
+          ) : null}
+        </div>
+
+        <DialogFooter className="mx-0 mb-0 gap-2 rounded-none border-border bg-brand-surface p-4 sm:justify-stretch sm:px-5">
+          <DialogClose
+            render={
+              <Button
+                variant="outline"
+                className="h-11 flex-1 rounded-xl font-bold"
+              />
+            }
+          >
+            Cancel
+          </DialogClose>
+          <Button
+            disabled={saving}
+            className="h-11 flex-1 rounded-xl bg-brand-accent text-base font-extrabold text-white hover:bg-brand-accent-hover"
+            onClick={() => void save()}
+          >
+            {saving ? (
+              <>
+                <Loader2Icon className="animate-spin" data-icon="inline-start" />
+                Updating…
+              </>
+            ) : (
+              "Save changes"
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
 }
 
 function SummaryTimelineItem({
@@ -59,9 +663,12 @@ function SummaryTimelineItem({
 }
 
 export function BookingSummaryContent() {
+  const [editOpen, setEditOpen] = React.useState(false)
   const pickup = useBookingStore((s) => s.pickup)
   const dropoff = useBookingStore((s) => s.dropoff)
   const pickupDateTime = useBookingStore((s) => s.pickupDateTime)
+  const isRoundTrip = useBookingStore((s) => s.isRoundTrip)
+  const returnDateTime = useBookingStore((s) => s.returnDateTime)
   const vehicleType = useBookingStore((s) => s.vehicleType)
   const passengerCount = useBookingStore((s) => s.passengerCount)
   const luggageCount = useBookingStore((s) => s.luggageCount)
@@ -70,9 +677,9 @@ export function BookingSummaryContent() {
   const childSeatCount = useBookingStore((s) => s.childSeatCount)
   const boosterCount = useBookingStore((s) => s.boosterCount)
   const createdBookingId = useBookingStore((s) => s.createdBookingId)
-  const setStep = useBookingStore((s) => s.setStep)
+  const selectedZoneId = useBookingStore((s) => s.selectedZoneId)
 
-  const { data: config } = useSWR<ChildSeatPrices>("/api/booking/config", fetcher)
+  const { data: config } = useSWR<SummaryConfig>("/api/booking/config", fetcher)
   const seatPrices: ChildSeatPrices = {
     infantCarrierPrice: config?.infantCarrierPrice ?? 0,
     childSeatPrice: config?.childSeatPrice ?? 0,
@@ -84,7 +691,6 @@ export function BookingSummaryContent() {
     booster: boosterCount,
   }
   const seatAddon = computeChildSeatTotal(seatCounts, seatPrices)
-  // After checkout create, quotedPrice is already the full charged total.
   const displayTotal =
     quotedPrice == null
       ? null
@@ -92,42 +698,65 @@ export function BookingSummaryContent() {
         ? quotedPrice
         : round2(quotedPrice + seatAddon)
 
+  const selectedZone = config?.zones?.find((zone) => zone.id === selectedZoneId)
+  const summaryImage = selectedZone?.image || SUMMARY_IMAGE_FALLBACK
+  const destinationLabel =
+    selectedZone?.name ||
+    (dropoff.address ? dropoff.address.split(",")[0] : "Your Destination")
+
   return (
     <div className="flex flex-col">
-      {/* Header Image Section */}
       <div className="relative h-28 w-full overflow-hidden rounded-t-xl bg-muted">
-        <Image
-          src="/hero_photo_desktop_2.jpg"
-          alt="Summary"
-          fill
-          className="object-cover brightness-50"
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={summaryImage}
+          alt={destinationLabel}
+          className="absolute inset-0 size-full object-cover brightness-50"
         />
         <div className="absolute inset-0 flex flex-col justify-between p-4 text-white">
-          <h2 className="text-sm font-bold uppercase tracking-wider">Order Summary</h2>
-          <div className="rounded bg-brand-surface/20 px-2 py-0.5 backdrop-blur-md w-fit text-xs font-bold uppercase">
-            {dropoff.address ? dropoff.address.split(',')[0] : "Your Destination"}
+          <div className="flex items-start justify-between gap-2">
+            <h2 className="text-sm font-bold tracking-wider uppercase">
+              Order Summary
+            </h2>
+            <button
+              type="button"
+              onClick={() => setEditOpen(true)}
+              className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-bold text-white backdrop-blur-md transition-colors hover:bg-white/25"
+            >
+              <PencilIcon className="size-3" strokeWidth={2.5} />
+              Edit
+            </button>
+          </div>
+          <div className="w-fit rounded bg-brand-surface/20 px-2 py-0.5 text-xs font-bold uppercase backdrop-blur-md">
+            {destinationLabel}
           </div>
         </div>
       </div>
 
-      <div className="flex flex-col gap-5 border-x border-b rounded-b-xl bg-brand-surface p-5">
-        {/* Date & Time */}
-        <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-5 rounded-b-xl border-x border-b bg-brand-surface p-5">
+        <div className="flex flex-col gap-2">
           <div className="flex items-center gap-2">
-            <CalendarIcon className="size-4 text-muted-foreground" />
+            <CalendarIcon className="size-4 shrink-0 text-muted-foreground" />
             <span className="text-xs font-semibold text-brand">
-              {pickupDateTime ? formatDateTime(pickupDateTime) : "Set date & time"}
+              {pickupDateTime
+                ? formatDateTime(pickupDateTime)
+                : "Set date & time"}
             </span>
           </div>
-          <button
-            onClick={() => setStep(1)}
-            className="text-[11px] font-bold text-muted-foreground uppercase hover:text-brand"
-          >
-            Edit
-          </button>
+          {isRoundTrip ? (
+            <div className="flex items-center gap-2 pl-6">
+              <span className="text-[10px] font-bold tracking-wide text-muted-foreground uppercase">
+                Return
+              </span>
+              <span className="text-xs font-semibold text-brand">
+                {returnDateTime
+                  ? formatDateTime(returnDateTime)
+                  : "Set return date"}
+              </span>
+            </div>
+          ) : null}
         </div>
 
-        {/* Timeline */}
         <div className="flex flex-col">
           <SummaryTimelineItem
             label="Pickup"
@@ -140,8 +769,7 @@ export function BookingSummaryContent() {
           />
         </div>
 
-        {/* Vehicle Specs */}
-        <div className="flex items-center gap-4 text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-4 text-muted-foreground">
           <div className="flex items-center gap-1.5">
             <CarIcon className="size-4" />
             <span className="text-xs font-medium">
@@ -183,25 +811,24 @@ export function BookingSummaryContent() {
           </div>
         )}
 
-        {/* Price Section */}
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-bold text-brand">Total price</p>
-            <p className="text-[10px] text-muted-foreground">Taxes & fees included</p>
+            <p className="text-[10px] text-muted-foreground">
+              Taxes & fees included
+            </p>
           </div>
           <div className="text-2xl font-bold text-brand-accent">
             {displayTotal != null ? formatMoney(displayTotal) : "—"}
           </div>
         </div>
 
-        {/* Small Note */}
         <p className="text-[10px] leading-tight text-muted-foreground">
           Cancelling forfeits the deposit — no refund. Remaining balance is
           never charged. No hidden fees.
         </p>
       </div>
 
-      {/* Flexible Card */}
       <div className="mt-4 rounded-xl border bg-brand-surface p-5 shadow-sm">
         <h3 className="text-sm font-bold text-brand">Book now and be flexible</h3>
         <ul className="mt-4 space-y-3">
@@ -219,6 +846,8 @@ export function BookingSummaryContent() {
           ))}
         </ul>
       </div>
+
+      <SummaryEditDialog open={editOpen} onOpenChange={setEditOpen} />
     </div>
   )
 }

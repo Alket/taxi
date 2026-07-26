@@ -15,6 +15,8 @@ import {
 export type ServiceZonePlace = {
   id: string
   name: string
+  /** Destination card/hero image from admin CMS when zone maps to a destination. */
+  image?: string
 }
 
 export type ResolvedZonePlace = {

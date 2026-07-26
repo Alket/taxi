@@ -9,7 +9,16 @@ import {
   useStripe,
 } from "@stripe/react-stripe-js"
 import { loadStripe, type Stripe } from "@stripe/stripe-js"
-import { Loader2Icon, CreditCardIcon, LockIcon, ShieldCheckIcon, ChevronDownIcon } from "lucide-react"
+import {
+  Loader2Icon,
+  CreditCardIcon,
+  LockIcon,
+  ShieldCheckIcon,
+  ChevronDownIcon,
+  BanknoteIcon,
+  CheckIcon,
+  type LucideIcon,
+} from "lucide-react"
 import useSWR from "swr"
 import { toast } from "sonner"
 
@@ -38,7 +47,6 @@ import {
   splitPhone,
 } from "@/lib/booking-details"
 import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 
 type PublicSettings = {
@@ -224,6 +232,131 @@ function PaymentOptionCard({
       <span className="text-lg font-semibold tabular-nums">{amount}</span>
       <span className="text-xs text-muted-foreground">{hint}</span>
     </button>
+  )
+}
+
+type CheckoutMethod = "card" | "paypal" | "cash"
+
+type CheckoutMethodOption = {
+  id: CheckoutMethod
+  label: string
+  description: string
+  icon: LucideIcon
+  badge?: string
+}
+
+function PaypalMark({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      aria-hidden
+      fill="currentColor"
+    >
+      <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944 3.72A.77.77 0 0 1 5.705 3h6.826c2.162 0 3.873.51 5.086 1.518 1.16.964 1.747 2.39 1.747 4.24 0 .29-.02.59-.06.9-.41 3.23-2.66 5.17-6.2 5.17h-1.87a.77.77 0 0 0-.76.65l-.78 4.94a.64.64 0 0 1-.63.55l-.988.01z" />
+      <path
+        d="M18.98 7.15c-.05.32-.11.65-.2.99-.86 4.07-3.7 5.48-7.36 5.48H9.51a.77.77 0 0 0-.76.65l-.94 5.95a.64.64 0 0 1-.63.55H4.15a.32.32 0 0 1-.316-.37l.14-.89"
+        opacity="0.7"
+      />
+    </svg>
+  )
+}
+
+function PaymentMethodChooser({
+  methods,
+  value,
+  onChange,
+  disabled,
+}: {
+  methods: CheckoutMethodOption[]
+  value: CheckoutMethod
+  onChange: (method: CheckoutMethod) => void
+  disabled?: boolean
+}) {
+  return (
+    <fieldset className="flex flex-col gap-3" disabled={disabled}>
+      <legend className="mb-1 text-sm font-bold text-brand">
+        Choose payment method
+      </legend>
+      <div
+        className="grid gap-2.5"
+        role="radiogroup"
+        aria-label="Payment method"
+      >
+        {methods.map((method) => {
+          const active = value === method.id
+          const Icon = method.icon
+          return (
+            <button
+              key={method.id}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              disabled={disabled}
+              onClick={() => onChange(method.id)}
+              className={cn(
+                "group relative flex w-full items-center gap-3.5 rounded-2xl border px-4 py-3.5 text-left transition-all duration-200",
+                active
+                  ? "border-brand-accent bg-gradient-to-r from-brand-accent/[0.08] to-transparent shadow-[0_0_0_1px_var(--brand-accent)]"
+                  : "border-border bg-brand-surface hover:border-brand-accent/40 hover:bg-muted/40",
+                disabled && "cursor-not-allowed opacity-60",
+              )}
+            >
+              <span
+                className={cn(
+                  "flex size-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
+                  active
+                    ? "border-brand-accent bg-brand-accent text-white"
+                    : "border-muted-foreground/35 bg-brand-surface",
+                )}
+                aria-hidden
+              >
+                {active ? <CheckIcon className="size-3" strokeWidth={3} /> : null}
+              </span>
+
+              <span
+                className={cn(
+                  "flex size-11 shrink-0 items-center justify-center rounded-xl transition-colors",
+                  active
+                    ? "bg-brand-accent text-white"
+                    : "bg-brand-page text-brand group-hover:bg-brand-accent/10 group-hover:text-brand-accent",
+                )}
+                aria-hidden
+              >
+                {method.id === "paypal" ? (
+                  <PaypalMark className="size-5" />
+                ) : (
+                  <Icon className="size-5" strokeWidth={1.75} />
+                )}
+              </span>
+
+              <span className="min-w-0 flex-1">
+                <span className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-bold text-brand">
+                    {method.label}
+                  </span>
+                  {method.badge ? (
+                    <span
+                      className={cn(
+                        "rounded-full px-2 py-0.5 text-[10px] font-extrabold tracking-wide uppercase",
+                        active
+                          ? "bg-brand-accent/15 text-brand-accent"
+                          : "bg-muted text-muted-foreground",
+                      )}
+                    >
+                      {method.badge}
+                    </span>
+                  ) : null}
+                </span>
+                <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">
+                  {method.description}
+                </span>
+              </span>
+            </button>
+          )
+        })}
+      </div>
+    </fieldset>
   )
 }
 
@@ -453,6 +586,8 @@ export function PaymentStep() {
   const [switchingIntent, setSwitchingIntent] = React.useState(false)
   const intentOptionRef = React.useRef<PaymentOption | null>(null)
   const [termsAccepted, setTermsAccepted] = React.useState(false)
+  const [checkoutMethod, setCheckoutMethod] =
+    React.useState<CheckoutMethod | null>(null)
   const [paypalPending, setPaypalPending] = React.useState(false)
   const [paypalError, setPaypalError] = React.useState<string | null>(null)
   const [cashPending, setCashPending] = React.useState(false)
@@ -466,6 +601,54 @@ export function PaymentStep() {
   const cashOnArrivalEnabled = settings?.cashOnArrivalEnabled ?? false
   const depositPaymentEnabled = settings?.depositPaymentEnabled ?? true
   const fullPaymentEnabled = settings?.fullPaymentEnabled ?? true
+
+  const publishableKey =
+    intent?.publishableKey || process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+  const showStripe = stripeEnabled && Boolean(intent && publishableKey)
+  const showPaypal = paypalEnabled
+  const showCash = cashOnArrivalEnabled
+
+  const availableMethods = React.useMemo(() => {
+    const methods: CheckoutMethodOption[] = []
+    if (showStripe) {
+      methods.push({
+        id: "card",
+        label: "Card",
+        description: "Visa, Mastercard, Amex — secure checkout",
+        icon: CreditCardIcon,
+        badge: "Recommended",
+      })
+    }
+    if (showPaypal) {
+      methods.push({
+        id: "paypal",
+        label: "PayPal",
+        description: "Pay with your PayPal balance or linked card",
+        icon: CreditCardIcon,
+      })
+    }
+    if (showCash) {
+      methods.push({
+        id: "cash",
+        label: "Cash on arrival",
+        description: "Reserve now, pay the driver at pickup",
+        icon: BanknoteIcon,
+      })
+    }
+    return methods
+  }, [showStripe, showPaypal, showCash])
+
+  const selectedMethod =
+    checkoutMethod && availableMethods.some((m) => m.id === checkoutMethod)
+      ? checkoutMethod
+      : (availableMethods[0]?.id ?? null)
+
+  React.useEffect(() => {
+    if (!selectedMethod) return
+    if (checkoutMethod !== selectedMethod) {
+      setCheckoutMethod(selectedMethod)
+    }
+  }, [checkoutMethod, selectedMethod])
 
   // Create pending booking, then Stripe intent only if card payments are on.
   React.useEffect(() => {
@@ -739,13 +922,6 @@ export function PaymentStep() {
     )
   }
 
-  const publishableKey =
-    intent?.publishableKey || process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
-  const showStripe = stripeEnabled && Boolean(intent && publishableKey)
-  const showPaypal = paypalEnabled
-  const showCash = cashOnArrivalEnabled
-  const anyOnlineMethod = showStripe || showPaypal
-
   if (stripeEnabled && !intent && !showPaypal && !showCash) {
     return (
       <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm">
@@ -769,12 +945,14 @@ export function PaymentStep() {
   const currency = intent?.currency ?? store.createdCurrency ?? "EUR"
   const depositValue = store.createdDepositAmount ?? 0
   const tripTotal = store.quotedPrice ?? depositValue
+  const payingOnline = selectedMethod === "card" || selectedMethod === "paypal"
   const chargeNow = paymentOption === "full" ? tripTotal : depositValue
   const balanceDue = round2(Math.max(0, tripTotal - chargeNow))
   const referenceCode =
     intent?.referenceCode ?? store.createdReferenceCode ?? ""
   const showPaymentOptionSelector =
-    anyOnlineMethod && depositPaymentEnabled && fullPaymentEnabled
+    payingOnline && depositPaymentEnabled && fullPaymentEnabled
+  const showMethodChooser = availableMethods.length > 1
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
@@ -784,23 +962,26 @@ export function PaymentStep() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
-              {anyOnlineMethod
+              {payingOnline
                 ? paymentOption === "full"
                   ? "Full amount due now"
                   : "Deposit due now"
                 : "Amount due on arrival"}
             </p>
             <p className="text-2xl font-semibold tabular-nums">
-              {formatMoney(anyOnlineMethod ? chargeNow : tripTotal, currency)}
+              {formatMoney(payingOnline ? chargeNow : tripTotal, currency)}
             </p>
           </div>
           <div className="text-xs text-muted-foreground sm:text-right">
             <p>Trip total {formatMoney(tripTotal, currency)}</p>
-            {anyOnlineMethod && balanceDue > 0 && (
+            {payingOnline && balanceDue > 0 && (
               <p>Balance later {formatMoney(balanceDue, currency)}</p>
             )}
-            {anyOnlineMethod && balanceDue <= 0 && (
+            {payingOnline && balanceDue <= 0 && (
               <p>Nothing left to pay after checkout</p>
+            )}
+            {!payingOnline && (
+              <p>No online payment required</p>
             )}
           </div>
         </div>
@@ -862,111 +1043,141 @@ export function PaymentStep() {
         </span>
       </label>
 
-      {showStripe && intent && publishableKey && (
-        <div
-          className={cn(
-            "flex min-w-0 flex-col gap-3 rounded-xl bg-brand-surface",
-            !termsAccepted && "opacity-70",
-          )}
-        >
-          <Elements
-            key={intent.clientSecret}
-            stripe={getStripePromise(publishableKey)}
-            options={{
-              clientSecret: intent.clientSecret,
-              appearance: buildBookingStripeAppearance(),
-              fonts: [...STRIPE_BRAND_FONTS],
-              loader: "auto",
-            }}
-          >
-            <StripeCheckoutForm
-              depositAmount={chargeNow}
-              paymentOption={paymentOption}
-              currency={currency}
-              bookingId={intent.bookingId}
-              referenceCode={intent.referenceCode}
-              paymentIntentId={intent.paymentIntentId}
-              termsAccepted={termsAccepted && !switchingIntent}
-              customerName={store.customer.name}
-              customerEmail={store.customer.email}
-              customerPhone={store.customer.phone}
-            />
-          </Elements>
-        </div>
-      )}
+      {showMethodChooser && selectedMethod ? (
+        <PaymentMethodChooser
+          methods={availableMethods}
+          value={selectedMethod}
+          onChange={setCheckoutMethod}
+          disabled={paypalPending || cashPending || switchingIntent}
+        />
+      ) : null}
 
-      {showStripe && showPaypal && (
-        <div className="relative flex items-center gap-3">
-          <Separator className="flex-1" />
-          <span className="text-xs text-muted-foreground">or</span>
-          <Separator className="flex-1" />
-        </div>
-      )}
-
-      {showPaypal && (
-        <div className="flex flex-col gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="lg"
-            className="w-full rounded font-bold border-brand-accent text-brand-accent hover:bg-brand-accent/10 hover:text-brand-accent"
-            disabled={!termsAccepted || paypalPending || switchingIntent}
-            onClick={() => void payWithPaypal()}
-          >
-            {paypalPending ? (
-              <>
-                <Loader2Icon className="animate-spin" data-icon="inline-start" />
-                Redirecting to PayPal…
-              </>
-            ) : (
-              `Pay with PayPal · ${formatMoney(chargeNow, currency)}`
+      <div
+        key={selectedMethod ?? "none"}
+        className="animate-in fade-in-50 slide-in-from-bottom-1 duration-200"
+      >
+        {selectedMethod === "card" && showStripe && intent && publishableKey ? (
+          <div
+            className={cn(
+              "flex min-w-0 flex-col gap-3 rounded-2xl border border-border/80 bg-brand-surface p-1",
+              !termsAccepted && "opacity-70",
             )}
-          </Button>
-          {paypalError && (
-            <p className="text-sm text-destructive">{paypalError}</p>
-          )}
-          <p className="text-xs text-muted-foreground">
-            You&apos;ll return here after approving the payment on PayPal.
-          </p>
-        </div>
-      )}
-
-      {(showStripe || showPaypal) && showCash && (
-        <div className="relative flex items-center gap-3">
-          <Separator className="flex-1" />
-          <span className="text-xs text-muted-foreground">or</span>
-          <Separator className="flex-1" />
-        </div>
-      )}
-
-      {showCash && (
-        <div className="flex flex-col gap-2">
-          <Button
-            type="button"
-            variant={anyOnlineMethod ? "outline" : "default"}
-            size="lg"
-            className={cn("w-full rounded font-bold", !anyOnlineMethod && "bg-brand-accent text-white hover:bg-brand-accent-hover")}
-            disabled={!termsAccepted || cashPending}
-            onClick={() => void confirmCashOnArrival()}
           >
-            {cashPending ? (
-              <>
-                <Loader2Icon className="animate-spin" data-icon="inline-start" />
-                Confirming…
-              </>
+            {!showMethodChooser ? (
+              <div className="flex items-center gap-2 px-3 pt-3">
+                <CreditCardIcon className="size-4 text-brand-accent" />
+                <p className="text-sm font-bold text-brand">Pay by card</p>
+              </div>
+            ) : null}
+            <Elements
+              key={intent.clientSecret}
+              stripe={getStripePromise(publishableKey)}
+              options={{
+                clientSecret: intent.clientSecret,
+                appearance: buildBookingStripeAppearance(),
+                fonts: [...STRIPE_BRAND_FONTS],
+                loader: "auto",
+              }}
+            >
+              <StripeCheckoutForm
+                depositAmount={chargeNow}
+                paymentOption={paymentOption}
+                currency={currency}
+                bookingId={intent.bookingId}
+                referenceCode={intent.referenceCode}
+                paymentIntentId={intent.paymentIntentId}
+                termsAccepted={termsAccepted && !switchingIntent}
+                customerName={store.customer.name}
+                customerEmail={store.customer.email}
+                customerPhone={store.customer.phone}
+              />
+            </Elements>
+          </div>
+        ) : null}
+
+        {selectedMethod === "paypal" && showPaypal ? (
+          <div className="flex flex-col gap-3 rounded-2xl border border-border/80 bg-brand-surface p-4">
+            {!showMethodChooser ? (
+              <div className="flex items-center gap-2">
+                <PaypalMark className="size-4 text-[#003087]" />
+                <p className="text-sm font-bold text-brand">Pay with PayPal</p>
+              </div>
             ) : (
-              `Cash on arrival · ${formatMoney(tripTotal, currency)}`
+              <p className="text-sm text-muted-foreground">
+                You&apos;ll be redirected to PayPal to approve{" "}
+                <span className="font-semibold text-brand">
+                  {formatMoney(chargeNow, currency)}
+                </span>
+                , then return here automatically.
+              </p>
             )}
-          </Button>
-          {cashError && (
-            <p className="text-sm text-destructive">{cashError}</p>
-          )}
-          <p className="text-xs text-muted-foreground">
-            Your trip is reserved now. Pay the full amount to your driver at
-            pickup{referenceCode ? ` (ref ${referenceCode})` : ""}.
-          </p>
-        </div>
-      )}
+            <Button
+              type="button"
+              size="lg"
+              className="h-12 w-full rounded-xl bg-[#003087] text-base font-extrabold text-white hover:bg-[#002b73] active:scale-[0.99]"
+              disabled={!termsAccepted || paypalPending || switchingIntent}
+              onClick={() => void payWithPaypal()}
+            >
+              {paypalPending ? (
+                <>
+                  <Loader2Icon className="animate-spin" data-icon="inline-start" />
+                  Redirecting to PayPal…
+                </>
+              ) : (
+                <>
+                  <PaypalMark className="size-4" />
+                  Continue with PayPal · {formatMoney(chargeNow, currency)}
+                </>
+              )}
+            </Button>
+            {paypalError && (
+              <p className="text-sm text-destructive">{paypalError}</p>
+            )}
+            {!showMethodChooser && (
+              <p className="text-xs text-muted-foreground">
+                You&apos;ll return here after approving the payment on PayPal.
+              </p>
+            )}
+          </div>
+        ) : null}
+
+        {selectedMethod === "cash" && showCash ? (
+          <div className="flex flex-col gap-3 rounded-2xl border border-border/80 bg-brand-surface p-4">
+            <div className="rounded-xl bg-brand-page px-3.5 py-3">
+              <p className="text-sm font-bold text-brand">
+                Pay {formatMoney(tripTotal, currency)} to your driver
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                Your trip is reserved now. No card charge today — settle the
+                full amount in cash at pickup
+                {referenceCode ? ` (ref ${referenceCode})` : ""}.
+              </p>
+            </div>
+            <Button
+              type="button"
+              size="lg"
+              className="h-12 w-full rounded-xl bg-brand-accent text-base font-extrabold text-white hover:bg-brand-accent-hover active:scale-[0.99]"
+              disabled={!termsAccepted || cashPending}
+              onClick={() => void confirmCashOnArrival()}
+            >
+              {cashPending ? (
+                <>
+                  <Loader2Icon className="animate-spin" data-icon="inline-start" />
+                  Confirming…
+                </>
+              ) : (
+                <>
+                  <BanknoteIcon className="size-4" />
+                  Confirm cash booking
+                </>
+              )}
+            </Button>
+            {cashError && (
+              <p className="text-sm text-destructive">{cashError}</p>
+            )}
+          </div>
+        ) : null}
+      </div>
     </div>
   )
 }

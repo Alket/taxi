@@ -274,6 +274,7 @@ export function HeroDateTimePicker({
   minDate,
   onAfterConfirm,
   inDialog = false,
+  variant = "hero",
 }: HeroDateTimePickerProps) {
   const isMobile = useIsMobile()
   useBodyScrollLock(isMobile && open && !inDialog)
@@ -354,7 +355,14 @@ export function HeroDateTimePicker({
             aria-label="Close date picker"
             onClick={() => onOpenChange(false)}
           />
-          <div className="absolute top-[calc(100%+0.5rem)] left-0 z-[210] w-full rounded-2xl border border-border bg-brand-surface p-4 shadow-[0_20px_60px_rgba(0,0,0,0.2)]">
+          <div
+            className={cn(
+              "absolute top-[calc(100%+0.5rem)] left-0 z-[210] rounded-2xl border border-border bg-brand-surface p-4 shadow-[0_20px_60px_rgba(0,0,0,0.2)]",
+              variant === "compact"
+                ? "w-[min(100%,18.5rem)]"
+                : "w-full",
+            )}
+          >
             {calendar}
           </div>
         </>

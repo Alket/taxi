@@ -1,0 +1,238 @@
+"use client"
+
+import * as React from "react"
+import { MapPinIcon, SearchIcon } from "lucide-react"
+
+import { cn } from "@/lib/utils"
+import { useIsMobile } from "@/hooks/use-mobile"
+import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock"
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from "@/components/ui/combobox"
+import { Input } from "@/components/ui/input"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
+
+export type HeroFieldOption = { value: string; label: string }
+
+/** Searchable place select matching the homepage booking form. */
+export function HeroFieldSelect({
+  value,
+  placeholder,
+  options,
+  onChange,
+  anchor,
+  mobileSheet = false,
+  sheetTitle,
+  onAfterSelect,
+}: {
+  value: string | null
+  placeholder: string
+  options: HeroFieldOption[]
+  onChange: (value: string) => void
+  /** Full-width row/card element — popup matches its width and sits under it. */
+  anchor: React.RefObject<HTMLElement | null>
+  /** Mobile-only: open destinations in a full-screen sheet. */
+  mobileSheet?: boolean
+  sheetTitle?: string
+  onAfterSelect?: () => void
+}) {
+  const isMobile = useIsMobile()
+  const [sheetOpen, setSheetOpen] = React.useState(false)
+  const [query, setQuery] = React.useState("")
+  useBodyScrollLock(Boolean(mobileSheet && isMobile && sheetOpen))
+
+  const selected =
+    value != null
+      ? (options.find((opt) => opt.value === value) ?? null)
+      : null
+
+  const filtered = React.useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return options
+    return options.filter((opt) => opt.label.toLowerCase().includes(q))
+  }, [options, query])
+
+  React.useEffect(() => {
+    if (!sheetOpen) setQuery("")
+  }, [sheetOpen])
+
+  function pick(next: string) {
+    onChange(next)
+    // Open the next sheet first so scroll-lock ref-count never drops to 0.
+    onAfterSelect?.()
+    setSheetOpen(false)
+  }
+
+  if (mobileSheet && isMobile) {
+    return (
+      <>
+        <button
+          type="button"
+          className="flex w-full min-w-0 items-center justify-between gap-2 text-left touch-manipulation"
+          onClick={() => setSheetOpen(true)}
+        >
+          <span
+            className={cn(
+              "min-w-0 flex-1 truncate text-base font-bold",
+              selected
+                ? "text-[color:var(--brand-ink)]"
+                : "font-semibold text-muted-foreground",
+            )}
+          >
+            {selected?.label ?? placeholder}
+          </span>
+          <SearchIcon className="size-4 shrink-0 text-muted-foreground" />
+        </button>
+
+        <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+          <SheetContent
+            side="bottom"
+            showCloseButton
+            className="flex h-[100dvh] max-h-[100dvh] flex-col gap-0 rounded-none border-0 bg-brand-surface p-0 text-[color:var(--brand-ink)] data-[side=bottom]:h-[100dvh]"
+          >
+            <SheetHeader className="shrink-0 border-b border-border px-4 py-3 pr-14">
+              <SheetTitle className="text-base font-bold text-brand">
+                {sheetTitle ?? "Choose destination"}
+              </SheetTitle>
+            </SheetHeader>
+
+            <div className="shrink-0 border-b border-border px-4 py-3">
+              <div className="relative">
+                <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Type to search"
+                  autoFocus
+                  className="h-11 rounded-xl border-border bg-muted/40 pl-9 text-base font-semibold"
+                />
+              </div>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+              {filtered.length === 0 ? (
+                <div className="flex flex-col items-center gap-1.5 px-4 py-10 text-sm text-muted-foreground">
+                  <SearchIcon className="size-5 opacity-50" />
+                  No matching places
+                </div>
+              ) : (
+                <ul className="flex flex-col gap-0.5">
+                  {filtered.map((item) => {
+                    const isSelected = item.value === value
+                    return (
+                      <li key={item.value}>
+                        <button
+                          type="button"
+                          onClick={() => pick(item.value)}
+                          className={cn(
+                            "flex w-full items-center gap-3 rounded-xl px-3 py-3.5 text-left touch-manipulation transition-colors",
+                            isSelected
+                              ? "bg-[color-mix(in_srgb,var(--brand-accent)_14%,white)]"
+                              : "hover:bg-muted active:bg-muted",
+                          )}
+                        >
+                          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--brand-accent)_12%,white)] text-brand-accent">
+                            <MapPinIcon className="size-4" />
+                          </span>
+                          <span className="min-w-0 flex-1 text-base font-semibold whitespace-normal text-[color:var(--brand-ink)]">
+                            {item.label}
+                          </span>
+                        </button>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </div>
+          </SheetContent>
+        </Sheet>
+      </>
+    )
+  }
+
+  return (
+    <Combobox
+      items={options}
+      value={selected}
+      onValueChange={(item: HeroFieldOption | null) => {
+        if (item) {
+          onChange(item.value)
+          onAfterSelect?.()
+        }
+      }}
+      itemToStringLabel={(item: HeroFieldOption) => item.label}
+      isItemEqualToValue={(a: HeroFieldOption, b: HeroFieldOption) =>
+        a.value === b.value
+      }
+      autoHighlight
+    >
+      <ComboboxInput
+        placeholder={placeholder}
+        showTrigger
+        className={cn(
+          "h-auto w-full min-w-0 border-0 bg-transparent shadow-none",
+          "has-[[data-slot=input-group-control]:focus-visible]:border-transparent",
+          "has-[[data-slot=input-group-control]:focus-visible]:ring-0",
+          "[&_[data-slot=input-group-control]]:h-auto",
+          "[&_[data-slot=input-group-control]]:border-0",
+          "[&_[data-slot=input-group-control]]:bg-transparent",
+          "[&_[data-slot=input-group-control]]:px-0",
+          "[&_[data-slot=input-group-control]]:py-0",
+          "[&_[data-slot=input-group-control]]:text-base md:[&_[data-slot=input-group-control]]:text-sm",
+          "[&_[data-slot=input-group-control]]:font-bold",
+          "[&_[data-slot=input-group-control]]:text-[color:var(--brand-ink)]",
+          "[&_[data-slot=input-group-control]]:shadow-none",
+          "[&_[data-slot=input-group-control]]:placeholder:font-semibold",
+          "[&_[data-slot=input-group-control]]:placeholder:text-muted-foreground",
+          "[&_[data-slot=input-group-control]]:focus-visible:ring-0",
+          "[&_[data-slot=input-group-addon]]:pr-0",
+          "[&_[data-slot=combobox-trigger]_svg]:text-muted-foreground",
+        )}
+      />
+      <ComboboxContent
+        side="bottom"
+        align="start"
+        sideOffset={6}
+        anchor={anchor}
+        className="w-(--anchor-width) min-w-(--anchor-width) max-w-none rounded-xl bg-white p-0 text-[color:var(--brand-ink)] shadow-[0_16px_40px_rgba(15,23,42,0.16)] ring-1 ring-black/8 *:data-[slot=input-group]:hidden"
+      >
+        <div className="border-b border-border/70 px-3 py-2.5">
+          <p className="flex items-center gap-2 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+            <SearchIcon className="size-3.5" />
+            Type to search
+          </p>
+        </div>
+        <ComboboxEmpty className="flex-col items-center gap-1.5 px-4 py-6">
+          <SearchIcon className="size-5 opacity-50" />
+          No matching places
+        </ComboboxEmpty>
+        <ComboboxList className="max-h-64 p-1.5">
+          {(item: HeroFieldOption) => (
+            <ComboboxItem
+              key={item.value}
+              value={item}
+              className="gap-2.5 rounded-lg px-2.5 py-2.5 text-sm font-semibold text-[color:var(--brand-ink)] data-highlighted:bg-[color-mix(in_srgb,var(--brand-accent)_14%,white)] data-highlighted:text-[color:var(--brand-ink)] not-data-[variant=destructive]:data-highlighted:**:text-[color:var(--brand-ink)]"
+            >
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--brand-accent)_12%,white)] text-brand-accent">
+                <MapPinIcon className="size-3.5" />
+              </span>
+              <span className="min-w-0 flex-1 whitespace-normal">
+                {item.label}
+              </span>
+            </ComboboxItem>
+          )}
+        </ComboboxList>
+      </ComboboxContent>
+    </Combobox>
+  )
+}

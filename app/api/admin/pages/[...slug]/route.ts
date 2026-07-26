@@ -78,11 +78,26 @@ export async function PATCH(request: Request, context: RouteContext) {
         ? parseSections(existing.sections)
         : def.defaults.sections
 
-  const nextOgImage =
-    parsed.data.ogImage ?? existing?.ogImage ?? def.defaults.ogImage
+  const existingOgImage = existing?.ogImage?.trim() || ""
+  const heroSrc =
+    nextSections.find((s) => s.type === "image" && s.key === "hero")?.src?.trim() ||
+    ""
+  const providedOgImage =
+    parsed.data.ogImage !== undefined ? parsed.data.ogImage.trim() : undefined
 
-  // Keep destination hero image in sync with OG/card image uploads.
-  if (slug.startsWith("destinations/") && nextOgImage) {
+  // Prefer /uploads/ so a text-only save cannot replace a card/hero upload with a
+  // stock Unsplash value still sitting in the admin form.
+  const preferUpload = (...candidates: string[]) => {
+    const urls = candidates.filter(Boolean)
+    return urls.find((url) => url.startsWith("/uploads/")) || urls[0] || ""
+  }
+
+  let nextOgImage: string
+  if (slug.startsWith("destinations/")) {
+    nextOgImage =
+      preferUpload(providedOgImage ?? "", heroSrc, existingOgImage) ||
+      def.defaults.ogImage
+
     let synced = false
     nextSections = nextSections.map((section) => {
       if (section.type === "image" && section.key === "hero") {
@@ -91,7 +106,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       }
       return section
     })
-    if (!synced) {
+    if (!synced && nextOgImage) {
       nextSections = [
         ...nextSections,
         {
@@ -103,6 +118,9 @@ export async function PATCH(request: Request, context: RouteContext) {
         },
       ]
     }
+  } else {
+    nextOgImage =
+      providedOgImage ?? (existingOgImage || def.defaults.ogImage)
   }
 
   const row = await prisma.pageContent.upsert({
@@ -123,7 +141,9 @@ export async function PATCH(request: Request, context: RouteContext) {
       ...(parsed.data.description != null
         ? { description: parsed.data.description }
         : {}),
-      ...(parsed.data.ogImage != null ? { ogImage: parsed.data.ogImage } : {}),
+      ...(slug.startsWith("destinations/") || parsed.data.ogImage != null
+        ? { ogImage: nextOgImage }
+        : {}),
       sections: nextSections,
     },
   })

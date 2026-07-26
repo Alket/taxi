@@ -7,6 +7,7 @@ import { Navigation } from "swiper/modules"
 import { Swiper, SwiperSlide } from "swiper/react"
 import type { Swiper as SwiperType } from "swiper"
 
+import { DestinationCard } from "@/components/marketing/destination-card"
 import {
   MarketingContainer,
   MARKETING_SECTION_TITLE,
@@ -14,48 +15,6 @@ import {
 import { DESTINATIONS, type Destination } from "@/lib/destinations"
 
 import "swiper/css"
-
-function DestinationCard({ destination }: { destination: Destination }) {
-  return (
-    <Link
-      href={`/destinations/${destination.id}`}
-      className="group relative flex h-[400px] flex-col overflow-hidden rounded-2xl border border-border bg-muted shadow-sm transition-shadow duration-300 hover:shadow-xl sm:rounded-3xl md:h-[420px]"
-    >
-      <div className="absolute inset-0 bg-muted">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={destination.image}
-          alt={destination.name}
-          className="size-full object-cover transition-transform duration-500 [@media(hover:hover)]:group-hover:scale-105"
-          loading="lazy"
-          draggable={false}
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-brand-panel/90 via-brand-panel/25 to-transparent" />
-      </div>
-
-      <div className="relative z-10 flex items-start justify-between gap-2 p-4 sm:p-6">
-        <span className="rounded-full bg-card/90 px-2.5 py-1 text-[11px] font-extrabold text-brand backdrop-blur-md sm:px-3 sm:text-xs">
-          {destination.badge}
-        </span>
-        <span className="rounded-full bg-primary px-2.5 py-1 text-[11px] font-extrabold text-primary-foreground sm:px-3 sm:text-xs">
-          From {destination.priceFrom}
-        </span>
-      </div>
-
-      <div className="relative z-10 mt-auto p-4 text-white sm:p-6">
-        <p className="mb-1 text-[11px] font-extrabold tracking-wider text-brand-accent uppercase sm:text-xs">
-          {destination.region}
-        </p>
-        <h3 className="mb-1.5 text-2xl font-extrabold md:mb-2">
-          {destination.name}
-        </h3>
-        <p className="line-clamp-2 text-sm leading-snug text-white/85">
-          {destination.description}
-        </p>
-      </div>
-    </Link>
-  )
-}
 
 export function DestinationsSection({
   heading,
@@ -83,13 +42,13 @@ export function DestinationsSection({
           </div>
 
           <div className="flex shrink-0 items-center gap-2 md:gap-6">
-            <a
-              href="#book"
+            <Link
+              href="/destinations"
               className="hidden items-center gap-2 text-sm font-extrabold text-primary transition-colors hover:text-primary/80 md:inline-flex"
             >
               View all
               <ArrowRight className="size-4" />
-            </a>
+            </Link>
             <div className="flex gap-1.5 sm:gap-2">
               <button
                 type="button"
@@ -136,6 +95,16 @@ export function DestinationsSection({
             </SwiperSlide>
           ))}
         </Swiper>
+
+        <div className="mt-6 md:hidden">
+          <Link
+            href="/destinations"
+            className="inline-flex items-center gap-2 text-sm font-extrabold text-primary"
+          >
+            View all destinations
+            <ArrowRight className="size-4" />
+          </Link>
+        </div>
       </MarketingContainer>
     </section>
   )

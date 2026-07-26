@@ -4,6 +4,7 @@ export type BookingFieldId =
   | "destination"
   | "pickupDateTime"
   | "returnDateTime"
+  | "passengers"
   | "quote"
   | "name"
   | "email"

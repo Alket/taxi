@@ -7,12 +7,14 @@ import {
   ArrowDown,
   ArrowLeft,
   ArrowUp,
+  FolderOpen,
   ImagePlus,
   Plus,
   Trash2,
 } from "lucide-react"
 import { toast } from "sonner"
 
+import { MediaPickerDialog } from "@/components/admin/media-picker-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -37,6 +39,11 @@ import {
   type PageSection,
   type PageSectionType,
 } from "@/lib/page-content-shared"
+import type { MediaAssetDto } from "@/lib/media-shared"
+
+const CONTENT_SECTION_TYPES = PAGE_SECTION_TYPES.filter(
+  (t) => t !== "faq_item",
+) as PageSectionType[]
 
 function newSection(type: PageSectionType): PageSection {
   return {
@@ -53,15 +60,45 @@ function newSection(type: PageSectionType): PageSection {
   }
 }
 
+function newFaqItem(): PageSection {
+  return {
+    id: crypto.randomUUID(),
+    type: "faq_item",
+    key: "",
+    question: "",
+    answer: "",
+  }
+}
+
+function splitSections(sections: PageSection[]) {
+  return {
+    content: sections.filter((s) => s.type !== "faq_item"),
+    faqs: sections.filter((s) => s.type === "faq_item"),
+  }
+}
+
+function mergeSections(content: PageSection[], faqs: PageSection[]): PageSection[] {
+  return [
+    ...content,
+    ...faqs.map((faq, i) => ({
+      ...faq,
+      type: "faq_item" as const,
+      key: `faq.${i + 1}`,
+    })),
+  ]
+}
+
 function SectionFields({
   section,
   onChange,
   onUpload,
+  onOpenLibrary,
   uploading,
 }: {
   section: PageSection
   onChange: (next: PageSection) => void
   onUpload: (file: File) => Promise<string | null>
+  onOpenLibrary: () => void
   uploading: boolean
 }) {
   return (
@@ -200,29 +237,42 @@ function SectionFields({
         <>
           <div className="flex flex-col gap-1.5 sm:col-span-2">
             <Label className="text-xs text-muted-foreground">Image URL</Label>
-            <div className="flex flex-col gap-2 sm:flex-row">
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
               <Input
                 value={section.src ?? ""}
                 placeholder="/uploads/pages/… or https://…"
                 onChange={(e) => onChange({ ...section, src: e.target.value })}
+                className="min-w-0 flex-1"
               />
-              <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-[0.8rem] font-medium hover:bg-muted">
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
-                  className="sr-only"
-                  disabled={uploading}
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0]
-                    e.target.value = ""
-                    if (!file) return
-                    const url = await onUpload(file)
-                    if (url) onChange({ ...section, src: url })
-                  }}
-                />
-                <ImagePlus className="size-3.5" />
-                {uploading ? "Uploading…" : "Upload"}
-              </label>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-auto gap-1.5 px-2.5 py-1.5 text-[0.8rem]"
+                  onClick={onOpenLibrary}
+                >
+                  <FolderOpen className="size-3.5" />
+                  Library
+                </Button>
+                <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-[0.8rem] font-medium hover:bg-muted">
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    className="sr-only"
+                    disabled={uploading}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0]
+                      e.target.value = ""
+                      if (!file) return
+                      const url = await onUpload(file)
+                      if (url) onChange({ ...section, src: url })
+                    }}
+                  />
+                  <ImagePlus className="size-3.5" />
+                  {uploading ? "Uploading…" : "Upload"}
+                </label>
+              </div>
             </div>
           </div>
           <div className="flex flex-col gap-1.5 sm:col-span-2">
@@ -277,6 +327,9 @@ export function PageEditorView({ slug }: { slug: string }) {
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [addType, setAddType] = useState<PageSectionType>("text")
+  const [libraryTarget, setLibraryTarget] = useState<
+    null | { type: "og" } | { type: "section"; id: string }
+  >(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -321,6 +374,36 @@ export function PageEditorView({ slug }: { slug: string }) {
     }
   }
 
+  function applyLibraryAsset(asset: MediaAssetDto) {
+    if (!page || !libraryTarget) return
+    if (libraryTarget.type === "og") {
+      setPage({
+        ...page,
+        ogImage: asset.url,
+        sections: page.slug.startsWith("destinations/")
+          ? page.sections.map((section) =>
+              section.type === "image" && section.key === "hero"
+                ? {
+                    ...section,
+                    src: asset.url,
+                    ...(asset.alt ? { alt: asset.alt } : {}),
+                  }
+                : section,
+            )
+          : page.sections,
+      })
+      return
+    }
+    const index = page.sections.findIndex((s) => s.id === libraryTarget.id)
+    const section = index >= 0 ? page.sections[index] : null
+    if (!section || section.type !== "image") return
+    updateSection(index, {
+      ...section,
+      src: asset.url,
+      ...(asset.alt ? { alt: asset.alt } : {}),
+    })
+  }
+
   async function save() {
     if (!page) return
     setSaving(true)
@@ -348,31 +431,91 @@ export function PageEditorView({ slug }: { slug: string }) {
     if (!page) return
     const sections = [...page.sections]
     sections[index] = next
-    setPage({ ...page, sections })
-  }
-
-  function moveSection(index: number, dir: -1 | 1) {
-    if (!page) return
-    const target = index + dir
-    if (target < 0 || target >= page.sections.length) return
-    const sections = [...page.sections]
-    ;[sections[index], sections[target]] = [sections[target], sections[index]]
-    setPage({ ...page, sections })
-  }
-
-  function removeSection(index: number) {
-    if (!page) return
+    const isDestinationHero =
+      page.slug.startsWith("destinations/") &&
+      next.type === "image" &&
+      next.key === "hero"
     setPage({
       ...page,
-      sections: page.sections.filter((_, i) => i !== index),
+      sections,
+      ...(isDestinationHero && next.src != null ? { ogImage: next.src } : {}),
+    })
+  }
+
+  function moveContentSection(contentIndex: number, dir: -1 | 1) {
+    if (!page) return
+    const { content, faqs } = splitSections(page.sections)
+    const target = contentIndex + dir
+    if (target < 0 || target >= content.length) return
+    const next = [...content]
+    ;[next[contentIndex], next[target]] = [next[target], next[contentIndex]]
+    setPage({ ...page, sections: mergeSections(next, faqs) })
+  }
+
+  function removeContentSection(contentIndex: number) {
+    if (!page) return
+    const { content, faqs } = splitSections(page.sections)
+    setPage({
+      ...page,
+      sections: mergeSections(
+        content.filter((_, i) => i !== contentIndex),
+        faqs,
+      ),
     })
   }
 
   function addSection() {
     if (!page) return
+    if (addType === "faq_item") {
+      addFaqItem()
+      return
+    }
+    const { content, faqs } = splitSections(page.sections)
     setPage({
       ...page,
-      sections: [...page.sections, newSection(addType)],
+      sections: mergeSections([...content, newSection(addType)], faqs),
+    })
+  }
+
+  function addFaqItem() {
+    if (!page) return
+    const { content, faqs } = splitSections(page.sections)
+    setPage({
+      ...page,
+      sections: mergeSections(content, [...faqs, newFaqItem()]),
+    })
+  }
+
+  function updateFaqItem(faqIndex: number, next: PageSection) {
+    if (!page) return
+    const { content, faqs } = splitSections(page.sections)
+    const nextFaqs = [...faqs]
+    nextFaqs[faqIndex] = next
+    setPage({ ...page, sections: mergeSections(content, nextFaqs) })
+  }
+
+  function moveFaqItem(faqIndex: number, dir: -1 | 1) {
+    if (!page) return
+    const { content, faqs } = splitSections(page.sections)
+    const target = faqIndex + dir
+    if (target < 0 || target >= faqs.length) return
+    const nextFaqs = [...faqs]
+    ;[nextFaqs[faqIndex], nextFaqs[target]] = [
+      nextFaqs[target],
+      nextFaqs[faqIndex],
+    ]
+    setPage({ ...page, sections: mergeSections(content, nextFaqs) })
+  }
+
+  function removeFaqItem(faqIndex: number) {
+    if (!page) return
+    const { content, faqs } = splitSections(page.sections)
+    setPage({
+      ...page,
+      sections: mergeSections(
+        content,
+        faqs.filter((_, i) => i !== faqIndex),
+      ),
     })
   }
 
@@ -385,6 +528,10 @@ export function PageEditorView({ slug }: { slug: string }) {
       </div>
     )
   }
+
+  const { content: contentSections, faqs: faqItems } = splitSections(
+    page.sections,
+  )
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 p-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:gap-6 sm:p-4 md:p-6">
@@ -452,7 +599,7 @@ export function PageEditorView({ slug }: { slug: string }) {
                 ? "Used on the homepage carousel and destination page hero."
                 : "Open Graph image for search and social shares."}
             </p>
-            <div className="flex flex-col gap-2 sm:flex-row">
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
               <Input
                 value={page.ogImage}
                 placeholder="/uploads/pages/… or https://…"
@@ -470,35 +617,48 @@ export function PageEditorView({ slug }: { slug: string }) {
                       : page.sections,
                   })
                 }}
+                className="min-w-0 flex-1"
               />
-              <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-[0.8rem] font-medium hover:bg-muted">
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
-                  className="sr-only"
-                  disabled={uploading}
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0]
-                    e.target.value = ""
-                    if (!file) return
-                    const url = await uploadImage(file)
-                    if (!url) return
-                    setPage({
-                      ...page,
-                      ogImage: url,
-                      sections: page.slug.startsWith("destinations/")
-                        ? page.sections.map((section) =>
-                            section.type === "image" && section.key === "hero"
-                              ? { ...section, src: url }
-                              : section,
-                          )
-                        : page.sections,
-                    })
-                  }}
-                />
-                <ImagePlus className="size-3.5" />
-                Upload
-              </label>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-auto gap-1.5 px-2.5 py-1.5 text-[0.8rem]"
+                  onClick={() => setLibraryTarget({ type: "og" })}
+                >
+                  <FolderOpen className="size-3.5" />
+                  Library
+                </Button>
+                <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-[0.8rem] font-medium hover:bg-muted">
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    className="sr-only"
+                    disabled={uploading}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0]
+                      e.target.value = ""
+                      if (!file) return
+                      const url = await uploadImage(file)
+                      if (!url) return
+                      setPage({
+                        ...page,
+                        ogImage: url,
+                        sections: page.slug.startsWith("destinations/")
+                          ? page.sections.map((section) =>
+                              section.type === "image" && section.key === "hero"
+                                ? { ...section, src: url }
+                                : section,
+                            )
+                          : page.sections,
+                      })
+                    }}
+                  />
+                  <ImagePlus className="size-3.5" />
+                  Upload
+                </label>
+              </div>
             </div>
           </div>
         </div>
@@ -509,18 +669,18 @@ export function PageEditorView({ slug }: { slug: string }) {
           <div>
             <h2 className="text-sm font-semibold">Sections</h2>
             <p className="mt-1 text-xs text-muted-foreground">
-              Heading, text, image, or FAQ item blocks in display order.
+              Heading, text, and image blocks in display order.
             </p>
           </div>
           <div className="flex items-center gap-2">
             <Select
-              value={addType}
+              value={addType === "faq_item" ? "text" : addType}
               onValueChange={(v) => {
-                if (v && PAGE_SECTION_TYPES.includes(v as PageSectionType)) {
+                if (v && CONTENT_SECTION_TYPES.includes(v as PageSectionType)) {
                   setAddType(v as PageSectionType)
                 }
               }}
-              items={PAGE_SECTION_TYPES.map((t) => ({
+              items={CONTENT_SECTION_TYPES.map((t) => ({
                 value: t,
                 label: t.replace("_", " "),
               }))}
@@ -529,7 +689,7 @@ export function PageEditorView({ slug }: { slug: string }) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {PAGE_SECTION_TYPES.map((t) => (
+                {CONTENT_SECTION_TYPES.map((t) => (
                   <SelectItem key={t} value={t}>
                     {t.replace("_", " ")}
                   </SelectItem>
@@ -543,62 +703,149 @@ export function PageEditorView({ slug }: { slug: string }) {
           </div>
         </div>
 
-        {page.sections.length === 0 ? (
+        {contentSections.length === 0 ? (
           <p className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-            No sections yet. Add one, or save to keep empty (site will use
-            built-in defaults).
+            No content sections yet. Add a heading, text, or image block.
           </p>
         ) : (
-          page.sections.map((section, index) => (
+          contentSections.map((section, contentIndex) => {
+            const realIndex = page.sections.findIndex((s) => s.id === section.id)
+            return (
+              <div
+                key={section.id}
+                className="rounded-xl border bg-card p-4 md:p-5"
+              >
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium capitalize">
+                      {section.type.replace("_", " ")}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      #{contentIndex + 1}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Select
+                      value={section.type}
+                      onValueChange={(v) => {
+                        if (
+                          !v ||
+                          !CONTENT_SECTION_TYPES.includes(v as PageSectionType)
+                        ) {
+                          return
+                        }
+                        if (realIndex < 0) return
+                        updateSection(realIndex, {
+                          ...newSection(v as PageSectionType),
+                          id: section.id,
+                          key: section.key,
+                        })
+                      }}
+                      items={CONTENT_SECTION_TYPES.map((t) => ({
+                        value: t,
+                        label: t.replace("_", " "),
+                      }))}
+                    >
+                      <SelectTrigger className="h-8 w-[130px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CONTENT_SECTION_TYPES.map((t) => (
+                          <SelectItem key={t} value={t}>
+                            {t.replace("_", " ")}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-8"
+                      disabled={contentIndex === 0}
+                      onClick={() => moveContentSection(contentIndex, -1)}
+                    >
+                      <ArrowUp className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-8"
+                      disabled={contentIndex === contentSections.length - 1}
+                      onClick={() => moveContentSection(contentIndex, 1)}
+                    >
+                      <ArrowDown className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-8 text-destructive"
+                      onClick={() => removeContentSection(contentIndex)}
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
+                </div>
+                <SectionFields
+                  section={section}
+                  onChange={(next) => {
+                    if (realIndex < 0) return
+                    updateSection(realIndex, next)
+                  }}
+                  onUpload={uploadImage}
+                  onOpenLibrary={() =>
+                    setLibraryTarget({ type: "section", id: section.id })
+                  }
+                  uploading={uploading}
+                />
+              </div>
+            )
+          })
+        )}
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold">FAQ items</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Add as many Q&amp;A pairs as you need. They appear in this order on
+              the page.
+            </p>
+          </div>
+          <Button type="button" variant="outline" onClick={addFaqItem}>
+            <Plus className="size-3.5" />
+            Add FAQ
+          </Button>
+        </div>
+
+        {faqItems.length === 0 ? (
+          <p className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+            No FAQ items yet. Click &ldquo;Add FAQ&rdquo; to create the first
+            one.
+          </p>
+        ) : (
+          faqItems.map((faq, faqIndex) => (
             <div
-              key={section.id}
+              key={faq.id}
               className="rounded-xl border bg-card p-4 md:p-5"
             >
               <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium capitalize">
-                    {section.type.replace("_", " ")}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    #{index + 1}
+                  <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium">
+                    FAQ #{faqIndex + 1}
                   </span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <Select
-                    value={section.type}
-                    onValueChange={(v) => {
-                      if (!v || !PAGE_SECTION_TYPES.includes(v as PageSectionType)) {
-                        return
-                      }
-                      updateSection(index, {
-                        ...newSection(v as PageSectionType),
-                        id: section.id,
-                        key: section.key,
-                      })
-                    }}
-                    items={PAGE_SECTION_TYPES.map((t) => ({
-                      value: t,
-                      label: t.replace("_", " "),
-                    }))}
-                  >
-                    <SelectTrigger className="h-8 w-[130px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PAGE_SECTION_TYPES.map((t) => (
-                        <SelectItem key={t} value={t}>
-                          {t.replace("_", " ")}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon"
                     className="size-8"
-                    disabled={index === 0}
-                    onClick={() => moveSection(index, -1)}
+                    disabled={faqIndex === 0}
+                    onClick={() => moveFaqItem(faqIndex, -1)}
                   >
                     <ArrowUp className="size-3.5" />
                   </Button>
@@ -607,8 +854,8 @@ export function PageEditorView({ slug }: { slug: string }) {
                     variant="ghost"
                     size="icon"
                     className="size-8"
-                    disabled={index === page.sections.length - 1}
-                    onClick={() => moveSection(index, 1)}
+                    disabled={faqIndex === faqItems.length - 1}
+                    onClick={() => moveFaqItem(faqIndex, 1)}
                   >
                     <ArrowDown className="size-3.5" />
                   </Button>
@@ -617,18 +864,43 @@ export function PageEditorView({ slug }: { slug: string }) {
                     variant="ghost"
                     size="icon"
                     className="size-8 text-destructive"
-                    onClick={() => removeSection(index)}
+                    onClick={() => removeFaqItem(faqIndex)}
                   >
                     <Trash2 className="size-3.5" />
                   </Button>
                 </div>
               </div>
-              <SectionFields
-                section={section}
-                onChange={(next) => updateSection(index, next)}
-                onUpload={uploadImage}
-                uploading={uploading}
-              />
+              <div className="grid gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <Label className="text-xs text-muted-foreground">
+                    Question
+                  </Label>
+                  <Input
+                    value={faq.question ?? ""}
+                    placeholder="e.g. How far in advance should I book?"
+                    onChange={(e) =>
+                      updateFaqItem(faqIndex, {
+                        ...faq,
+                        question: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label className="text-xs text-muted-foreground">Answer</Label>
+                  <Textarea
+                    rows={3}
+                    value={faq.answer ?? ""}
+                    placeholder="Write the answer shown on the site…"
+                    onChange={(e) =>
+                      updateFaqItem(faqIndex, {
+                        ...faq,
+                        answer: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+              </div>
             </div>
           ))
         )}
@@ -639,6 +911,14 @@ export function PageEditorView({ slug }: { slug: string }) {
           {saving ? "Saving…" : "Save changes"}
         </Button>
       </div>
+
+      <MediaPickerDialog
+        open={libraryTarget != null}
+        onOpenChange={(open) => {
+          if (!open) setLibraryTarget(null)
+        }}
+        onSelect={applyLibraryAsset}
+      />
     </div>
   )
 }

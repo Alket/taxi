@@ -49,7 +49,7 @@ const ICONS: { icon: LucideIcon; iconClassName: string }[] = [
 
 export function PeaceOfMindSection({ copy }: { copy: PeaceCopy }) {
   return (
-    <section className="overflow-hidden bg-white py-10 md:py-0">
+    <section className="overflow-hidden bg-white py-10 md:pt-24 md:pb-0">
       <MarketingContainer>
         <div className="relative overflow-hidden rounded-2xl border border-border bg-accent/70 p-5 md:rounded-3xl md:p-12 lg:p-16">
           <div className="mb-6 max-w-2xl md:mb-12">

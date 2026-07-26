@@ -3,6 +3,7 @@ import { Inter, JetBrains_Mono, Mulish } from "next/font/google"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { Toaster } from "@/components/ui/sonner"
 import { AppThemeProvider } from "@/components/admin/theme-provider"
+import { getSettings } from "@/lib/settings"
 import "./globals.css"
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" })
@@ -23,19 +24,39 @@ const museoSans = Mulish({
   display: "swap",
 })
 
-export const metadata: Metadata = {
-  title: {
-    default: "Albania Transfers",
-    template: "%s · Albania Transfers",
-  },
-  description:
-    "Book airport transfers across Albania, or manage operations from the admin console.",
-  manifest: "/manifest.webmanifest",
-  appleWebApp: {
-    capable: true,
-    title: "Albania Transfers",
-    statusBarStyle: "default",
-  },
+const FALLBACK_BRAND = "Albania Transfers"
+
+async function resolveBrandName() {
+  try {
+    const settings = await getSettings()
+    const name = settings.companyName?.trim()
+    return name || FALLBACK_BRAND
+  } catch {
+    return FALLBACK_BRAND
+  }
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const brand = await resolveBrandName()
+  return {
+    title: {
+      default: brand,
+      template: `%s · ${brand}`,
+    },
+    description:
+      "Book airport transfers across Albania, or manage operations from the admin console.",
+    manifest: "/manifest.webmanifest",
+    icons: {
+      icon: [{ url: "/marketing/favicon.png", type: "image/png", sizes: "512x512" }],
+      apple: [{ url: "/marketing/favicon.png", type: "image/png", sizes: "512x512" }],
+      shortcut: ["/marketing/favicon.png"],
+    },
+    appleWebApp: {
+      capable: true,
+      title: brand,
+      statusBarStyle: "default",
+    },
+  }
 }
 
 export const viewport: Viewport = {

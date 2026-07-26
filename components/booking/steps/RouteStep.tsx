@@ -429,7 +429,6 @@ export function RouteStep() {
                   patch({ pickupDateTime: iso })
                   setPickupDateError(null)
                 }}
-                variant="compact"
                 trigger={
                   <button
                     type="button"

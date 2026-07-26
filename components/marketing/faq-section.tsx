@@ -23,7 +23,7 @@ export function FaqSection({
   if (items.length === 0) return null
 
   return (
-    <section className="bg-white py-10 md:pt-0 md:pb-24">
+    <section id="faq" className="bg-white py-10 md:pt-0 md:pb-24">
       <MarketingContainer>
         <div className="mb-8 md:mb-12">
           <h2 className={MARKETING_SECTION_TITLE}>{heading}</h2>

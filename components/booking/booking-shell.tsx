@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import useSWR from "swr"
 import { toast } from "sonner"
 import {
+  ChevronLeftIcon,
   ChevronRightIcon,
   ChevronUpIcon,
 } from "lucide-react"
@@ -82,8 +83,8 @@ function MobileSummaryBar({
     createdBookingId
       ? 0
       : (infantCarrierCount * (seatConfig?.infantCarrierPrice ?? 0) +
-          childSeatCount * (seatConfig?.childSeatPrice ?? 0) +
-          boosterCount * (seatConfig?.boosterSeatPrice ?? 0))
+        childSeatCount * (seatConfig?.childSeatPrice ?? 0) +
+        boosterCount * (seatConfig?.boosterSeatPrice ?? 0))
 
   const fromPrice = Object.values(vehicleQuotes)
     .map((q) => q?.price)
@@ -167,7 +168,13 @@ export function BookingShell({
 
   useBookingStepSync(hydrated)
   const { dialog: leaveDialog } = useBookingLeaveGuard(hydrated)
-  const { currentStep, canGoNext, goNext } = useBookingWizardNav()
+  const { currentStep, canGoNext, goNext, goPrev } = useBookingWizardNav()
+
+  // Step URL sync uses scroll: false — bring the page back to the top on /book.
+  React.useEffect(() => {
+    if (!hydrated || isHero) return
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" })
+  }, [currentStep, hydrated, isHero])
 
   const meta = STEP_META[currentStep]
   const stepTitle =
@@ -216,26 +223,18 @@ export function BookingShell({
         isHero
           ? "flex w-full flex-col gap-4 pb-24 md:pb-0"
           : cn(
-              MARKETING_CONTAINER,
-              "flex flex-col gap-6 py-6 pb-28 md:pb-10",
-            )
+            MARKETING_CONTAINER,
+            "flex flex-col gap-6 py-6 pb-28 md:pb-10",
+          )
       }
     >
       {leaveDialog}
 
-      <header className="flex flex-col gap-6">
-        <div className="flex items-center justify-between border-b pb-4">
-          <BookingStepIndicator />
-          <div className="hidden items-center gap-6 text-[13px] font-medium text-muted-foreground md:flex">
-            <span>EN</span>
-            <span>€</span>
-            <button type="button" className="hover:text-brand">
-              Help
-            </button>
-          </div>
-        </div>
-        {!isHero && <BookingHeaderBenefits />}
-      </header>
+      {!isHero && (
+        <header className="flex flex-col gap-6 pt-12">
+          <BookingHeaderBenefits />
+        </header>
+      )}
 
       <div
         className={
@@ -253,9 +252,21 @@ export function BookingShell({
             }
           >
             {!isHero && (
-              <h2 className="mb-6 text-2xl font-bold tracking-tight text-brand">
-                {stepTitle}
-              </h2>
+              <div className="mb-6">
+                {currentStep === 2 && (
+                  <button
+                    type="button"
+                    onClick={goPrev}
+                    className="mb-3 inline-flex items-center gap-1.5 text-sm font-bold text-muted-foreground transition-colors hover:text-brand"
+                  >
+                    <ChevronLeftIcon className="size-4" />
+                    Back to details
+                  </button>
+                )}
+                <h2 className="text-2xl font-bold tracking-tight text-brand">
+                  {stepTitle}
+                </h2>
+              </div>
             )}
 
             {currentStep === 1 ? (

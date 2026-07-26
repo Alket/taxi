@@ -13,8 +13,8 @@ import { cn } from "@/lib/utils"
 const NAV = [
   { href: "/#book", label: "Book" },
   { href: "/#destinations", label: "Destinations" },
-  { href: "/driver", label: "Drivers" },
   { href: "/#safety", label: "Safety" },
+  { href: "/#faq", label: "FAQ" },
 ] as const
 
 export function SiteHeader({ className }: { className?: string }) {

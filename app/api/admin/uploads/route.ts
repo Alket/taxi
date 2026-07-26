@@ -1,9 +1,17 @@
-import { mkdir, writeFile } from "fs/promises"
+import { writeFile } from "fs/promises"
 import path from "path"
-import { randomBytes } from "crypto"
 import { NextResponse } from "next/server"
 
 import { requireAdmin } from "@/lib/auth"
+import { prisma } from "@/lib/db"
+import {
+  MEDIA_UPLOAD_DIR,
+  MEDIA_URL_PREFIX,
+  allocateStoredFilename,
+  originalFilenameForDisplay,
+  serializeMediaAsset,
+  titleFromFilename,
+} from "@/lib/media"
 
 const MAX_BYTES = 5 * 1024 * 1024
 const MAX_SVG_BYTES = 512 * 1024
@@ -21,6 +29,11 @@ function resolveExt(file: File): string | null {
   // Some browsers send empty/octet-stream for SVG
   if (file.name.toLowerCase().endsWith(".svg")) return "svg"
   return null
+}
+
+function formString(form: FormData, key: string): string {
+  const value = form.get(key)
+  return typeof value === "string" ? value.trim() : ""
 }
 
 export async function POST(request: Request) {
@@ -69,11 +82,36 @@ export async function POST(request: Request) {
     }
   }
 
-  const filename = `${Date.now()}-${randomBytes(6).toString("hex")}.${ext}`
-  const dir = path.join(process.cwd(), "public", "uploads", "pages")
-  await mkdir(dir, { recursive: true })
-  await writeFile(path.join(dir, filename), buffer)
+  const storedName = await allocateStoredFilename(file.name, ext)
+  await writeFile(path.join(MEDIA_UPLOAD_DIR, storedName), buffer)
 
-  const url = `/uploads/pages/${filename}`
-  return NextResponse.json({ url })
+  const url = `${MEDIA_URL_PREFIX}/${storedName}`
+  const displayName = originalFilenameForDisplay(file.name, ext)
+  const title =
+    formString(form, "title") ||
+    titleFromFilename(file.name) ||
+    titleFromFilename(displayName) ||
+    "Untitled image"
+  const description = formString(form, "description")
+  const alt = formString(form, "alt")
+  const mimeType = file.type || ALLOWED.get(`image/${ext}`) || ""
+
+  const asset = await prisma.mediaAsset.create({
+    data: {
+      url,
+      filename: displayName,
+      mimeType:
+        mimeType ||
+        (ext === "jpg" ? "image/jpeg" : `image/${ext === "svg" ? "svg+xml" : ext}`),
+      sizeBytes: file.size,
+      title,
+      description,
+      alt,
+    },
+  })
+
+  return NextResponse.json({
+    url: asset.url,
+    asset: serializeMediaAsset(asset),
+  })
 }

@@ -15,22 +15,22 @@ const BENEFITS: {
   title: string
   description: string
 }[] = [
-  {
-    icon: UsersIcon,
-    title: "Travellers rate us excellent",
-    description: "4.98 / 5 average · 3000 reviews",
-  },
-  {
-    icon: StarIcon,
-    title: "Best drivers in Tirana",
-    description: "We handpick the friendliest professional drivers",
-  },
-  {
-    icon: ClockIcon,
-    title: "Always on time",
-    description: "Our drivers monitor the flights in case of delays",
-  },
-]
+    {
+      icon: UsersIcon,
+      title: "Travellers rate us excellent",
+      description: "4.98 / 5 average · 3000 reviews",
+    },
+    {
+      icon: StarIcon,
+      title: "Best drivers in Tirana",
+      description: "We handpick the friendliest professional drivers",
+    },
+    {
+      icon: ClockIcon,
+      title: "Always on time",
+      description: "Our drivers monitor the flights in case of delays",
+    },
+  ]
 
 function BenefitCard({
   icon: Icon,
@@ -135,7 +135,7 @@ export function BookingHeaderBenefits() {
       </div>
 
       {/* Desktop / tablet grid */}
-      <div className="hidden rounded-xl bg-brand-panel p-4 text-white sm:block md:p-6 lg:rounded-2xl">
+      <div className="hidden rounded-xl shadow-sm bg-white p-4 text-brand-ink sm:block md:p-6 lg:rounded-2xl">
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-3 md:gap-8">
           {BENEFITS.map(({ icon: Icon, title, description }) => (
             <div key={title} className="flex items-center gap-2">
@@ -146,7 +146,7 @@ export function BookingHeaderBenefits() {
                 <p className="text-xs font-bold leading-tight sm:text-[13px]">
                   {title}
                 </p>
-                <p className="mt-0.5 text-[10px] text-white/60 sm:text-xs">
+                <p className="mt-0.5 text-[10px] text-brand-ink sm:text-xs">
                   {description}
                 </p>
               </div>

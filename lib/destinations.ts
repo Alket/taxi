@@ -6,6 +6,8 @@ export type Destination = {
   badge: string
   priceFrom: string
   image: string
+  /** Accessibility text from media library when available. */
+  imageAlt?: string
   /** Keywords matched against booking addresses for review filtering. */
   reviewKeywords: string[]
 }
@@ -111,4 +113,40 @@ export const DESTINATIONS: Destination[] = [
 
 export function getDestination(id: string) {
   return DESTINATIONS.find((d) => d.id === id) ?? null
+}
+
+function normalizePlaceName(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+}
+
+/** Match a booking service zone name to a marketing destination (CMS image source). */
+export function matchDestinationForZoneName(
+  zoneName: string,
+): Destination | null {
+  const normalized = normalizePlaceName(zoneName)
+  if (!normalized) return null
+
+  for (const dest of DESTINATIONS) {
+    const id = normalizePlaceName(dest.id)
+    if (normalized === id || normalized.includes(id) || id.includes(normalized)) {
+      return dest
+    }
+    for (const keyword of dest.reviewKeywords) {
+      const kw = normalizePlaceName(keyword)
+      if (!kw) continue
+      if (
+        normalized === kw ||
+        normalized.includes(kw) ||
+        kw.includes(normalized.split(" ")[0] ?? "")
+      ) {
+        return dest
+      }
+    }
+  }
+  return null
 }

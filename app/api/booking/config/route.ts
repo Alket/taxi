@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server"
 
 import { withAirportCoords } from "@/lib/airports"
+import { matchDestinationForZoneName } from "@/lib/destinations"
 import { prisma } from "@/lib/db"
+import { resolveDestinationCards } from "@/lib/page-content"
 import { getSettingsRow, parseAirports } from "@/lib/settings"
 
 /** Public booking config — airports, service zones, support contact. */
 export async function GET() {
   try {
-    const [row, zones] = await Promise.all([
+    const [row, zones, destinationCards] = await Promise.all([
       getSettingsRow(),
       prisma.zone.findMany({
         where: { active: true },
@@ -17,9 +19,13 @@ export async function GET() {
           name: true,
         },
       }),
+      resolveDestinationCards(),
     ])
 
     const airports = withAirportCoords(parseAirports(row.airports))
+    const imageByDestinationId = new Map(
+      destinationCards.map((card) => [card.id, card.image]),
+    )
 
     return NextResponse.json({
       companyName: row.companyName,
@@ -31,10 +37,17 @@ export async function GET() {
       childSeatPrice: Number(row.childSeatPrice ?? 0),
       boosterSeatPrice: Number(row.boosterSeatPrice ?? 0),
       airports,
-      zones: zones.map((zone) => ({
-        id: zone.id,
-        name: zone.name,
-      })),
+      zones: zones.map((zone) => {
+        const destination = matchDestinationForZoneName(zone.name)
+        const image = destination
+          ? imageByDestinationId.get(destination.id) || destination.image
+          : undefined
+        return {
+          id: zone.id,
+          name: zone.name,
+          ...(image ? { image } : {}),
+        }
+      }),
     })
   } catch {
     return NextResponse.json(

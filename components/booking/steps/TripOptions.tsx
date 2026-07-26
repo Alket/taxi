@@ -135,7 +135,10 @@ export function TripOptions() {
   return (
     <div className="flex flex-col gap-6">
       {!startedFromHero && (
-        <div className="grid gap-2 sm:grid-cols-2">
+        <div
+          className="grid gap-2 sm:grid-cols-2"
+          data-booking-field="passengers"
+        >
           <Stepper
             id="passengerCount"
             label="Passengers"

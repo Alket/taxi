@@ -1,9 +1,16 @@
 import { prisma } from "@/lib/db"
 import { DESTINATIONS, type Destination } from "@/lib/destinations"
 import {
+  isUploadHashLabel,
+  resolveMediaAlt,
+} from "@/lib/media-shared"
+import { mediaMetaByUrls } from "@/lib/media"
+import {
+  type HomeMarketingCopy,
   type PageContentRecord,
   type PageSection,
   type PageSectionType,
+  homeCopyFromSections,
   parseSections,
   sectionHeading,
   sectionValue,
@@ -291,14 +298,18 @@ export async function resolvePageContent(
     }
   }
 
-  const sections = parseSections(row.sections)
+  const parsed = parseSections(row.sections)
+  const sections = parsed.length > 0 ? parsed : def.defaults.sections
+  const ogImage = slug.startsWith("destinations/")
+    ? destinationCardImage(sections, row.ogImage, def.defaults.ogImage)
+    : row.ogImage || def.defaults.ogImage
   return {
     slug: row.slug,
     label: row.label || def.label,
     title: row.title || def.defaults.title,
     description: row.description || def.defaults.description,
-    ogImage: row.ogImage || def.defaults.ogImage,
-    sections: sections.length > 0 ? sections : def.defaults.sections,
+    ogImage,
+    sections,
     updatedAt: row.updatedAt.toISOString(),
     fromDatabase: true,
   }
@@ -357,7 +368,7 @@ function destinationCardImage(
 
 /** Destination cards for the homepage carousel (CMS with code fallbacks). */
 export async function resolveDestinationCards(): Promise<Destination[]> {
-  return Promise.all(
+  const cards = await Promise.all(
     DESTINATIONS.map(async (dest) => {
       const page = await resolvePageContent(`destinations/${dest.id}`)
       const sections = page?.sections ?? []
@@ -374,7 +385,62 @@ export async function resolveDestinationCards(): Promise<Destination[]> {
           page?.ogImage ?? "",
           dest.image,
         ),
+        imageAlt: "",
       }
     }),
   )
+
+  const byUrl = await mediaMetaByUrls(cards.map((card) => card.image))
+  return cards.map((card) => {
+    const meta = byUrl.get(card.image)
+    return {
+      ...card,
+      imageAlt: resolveMediaAlt(meta, card.name),
+    }
+  })
+}
+
+/**
+ * Homepage copy with media-library title / description / alt applied.
+ * Non-empty Media fields win so library edits show on the site;
+ * page section values remain the fallback.
+ */
+export async function resolveHomeMarketingCopy(
+  sections: PageSection[],
+): Promise<HomeMarketingCopy> {
+  const copy = homeCopyFromSections(sections)
+  const urls = [
+    copy.hero.image,
+    ...copy.safety.items.map((item) => item.image),
+  ]
+  const byUrl = await mediaMetaByUrls(urls)
+
+  const heroMeta = byUrl.get(copy.hero.image)
+  const heroTitle = heroMeta?.title?.trim()
+  copy.hero.imageAlt =
+    (heroMeta?.alt?.trim() && !isUploadHashLabel(heroMeta.alt)
+      ? heroMeta.alt.trim()
+      : "") ||
+    copy.hero.imageAlt.trim() ||
+    (heroTitle && !isUploadHashLabel(heroTitle) ? heroTitle : "") ||
+    ""
+
+  copy.safety.items = copy.safety.items.map((item) => {
+    const meta = byUrl.get(item.image)
+    const mediaTitle =
+      meta?.title?.trim() && !isUploadHashLabel(meta.title)
+        ? meta.title.trim()
+        : ""
+    const title = mediaTitle || item.title.trim()
+    const description =
+      meta?.description?.trim() || item.description.trim()
+    return {
+      ...item,
+      title,
+      description,
+      alt: resolveMediaAlt(meta, title || item.alt.trim()),
+    }
+  })
+
+  return copy
 }
