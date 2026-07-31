@@ -9,28 +9,7 @@ import {
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
-
-const BENEFITS: {
-  icon: LucideIcon
-  title: string
-  description: string
-}[] = [
-    {
-      icon: UsersIcon,
-      title: "Travellers rate us excellent",
-      description: "4.98 / 5 average · 3000 reviews",
-    },
-    {
-      icon: StarIcon,
-      title: "Best drivers in Tirana",
-      description: "We handpick the friendliest professional drivers",
-    },
-    {
-      icon: ClockIcon,
-      title: "Always on time",
-      description: "Our drivers monitor the flights in case of delays",
-    },
-  ]
+import { useT } from "@/lib/i18n/use-locale"
 
 function BenefitCard({
   icon: Icon,
@@ -70,8 +49,31 @@ function BenefitCard({
 }
 
 export function BookingHeaderBenefits() {
+  const tr = useT()
   const scrollerRef = React.useRef<HTMLDivElement>(null)
   const [active, setActive] = React.useState(0)
+
+  const benefits: {
+    icon: LucideIcon
+    title: string
+    description: string
+  }[] = [
+    {
+      icon: UsersIcon,
+      title: tr("book.benefit1Title"),
+      description: tr("book.benefit1Desc"),
+    },
+    {
+      icon: StarIcon,
+      title: tr("book.benefit2Title"),
+      description: tr("book.benefit2Desc"),
+    },
+    {
+      icon: ClockIcon,
+      title: tr("book.benefit3Title"),
+      description: tr("book.benefit3Desc"),
+    },
+  ]
 
   function onScroll() {
     const el = scrollerRef.current
@@ -79,7 +81,7 @@ export function BookingHeaderBenefits() {
     const width = el.clientWidth
     if (width <= 0) return
     const next = Math.round(el.scrollLeft / width)
-    setActive(Math.min(BENEFITS.length - 1, Math.max(0, next)))
+    setActive(Math.min(benefits.length - 1, Math.max(0, next)))
   }
 
   function goTo(index: number) {
@@ -98,7 +100,7 @@ export function BookingHeaderBenefits() {
           onScroll={onScroll}
           className="flex snap-x snap-mandatory overflow-x-auto scroll-smooth [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
-          {BENEFITS.map((benefit) => (
+          {benefits.map((benefit) => (
             <div
               key={benefit.title}
               className="w-full shrink-0 snap-center px-0"
@@ -109,7 +111,7 @@ export function BookingHeaderBenefits() {
         </div>
 
         <div className="mt-3 flex items-center justify-center gap-1.5">
-          {BENEFITS.map((benefit, index) => {
+          {benefits.map((benefit, index) => {
             const isActive = index === active
             return (
               <button
@@ -137,7 +139,7 @@ export function BookingHeaderBenefits() {
       {/* Desktop / tablet grid */}
       <div className="hidden rounded-xl shadow-sm bg-white p-4 text-brand-ink sm:block md:p-6 lg:rounded-2xl">
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-3 md:gap-8">
-          {BENEFITS.map(({ icon: Icon, title, description }) => (
+          {benefits.map(({ icon: Icon, title, description }) => (
             <div key={title} className="flex items-center gap-2">
               <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-brand-surface/10 sm:size-12">
                 <Icon className="size-5 text-brand-accent sm:size-6" />

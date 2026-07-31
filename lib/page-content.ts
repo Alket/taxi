@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db"
-import { DESTINATIONS, type Destination } from "@/lib/destinations"
+import { DESTINATIONS, type Destination, slugifyDestinationId } from "@/lib/destinations"
+import { DEFAULT_LOCALE, type Locale, isLocale } from "@/lib/i18n/locales"
 import {
   isUploadHashLabel,
   resolveMediaAlt,
@@ -11,6 +12,7 @@ import {
   type PageSection,
   type PageSectionType,
   homeCopyFromSections,
+  mergeLocalizedSections,
   parseSections,
   sectionHeading,
   sectionValue,
@@ -22,11 +24,15 @@ export {
   type PageSection,
   type PageContentRecord,
   type HomeMarketingCopy,
+  type DestinationAttraction,
   parseSections,
   sectionValue,
   sectionHeading,
   faqSections,
+  attractionSections,
+  attractionsFromSections,
   homeCopyFromSections,
+  mergeLocalizedSections,
 } from "@/lib/page-content-shared"
 
 export type PageDefinition = {
@@ -213,6 +219,10 @@ const CANCELLATION_DEFAULTS: PageDefinition["defaults"] = {
 function destinationDefaults(slug: string): PageDefinition | null {
   const dest = DESTINATIONS.find((d) => d.id === slug)
   if (!dest) return null
+  return destinationDefinitionFromMeta(dest)
+}
+
+export function destinationDefinitionFromMeta(dest: Destination): PageDefinition {
   return {
     slug: `destinations/${dest.id}`,
     label: `Destination · ${dest.name}`,
@@ -228,11 +238,86 @@ function destinationDefaults(slug: string): PageDefinition | null {
         section("image", "hero", { src: dest.image, alt: dest.name }),
         section("text", "badge", { body: dest.badge }),
         section("text", "priceFrom", { body: dest.priceFrom }),
+        section("heading", "attractions.heading", {
+          heading: "Top attractions",
+          level: 2,
+        }),
         section("heading", "more.heading", {
           heading: "More destinations",
           level: 2,
         }),
       ],
+    },
+  }
+}
+
+export function isBuiltInDestinationId(id: string): boolean {
+  return DESTINATIONS.some((d) => d.id === id)
+}
+
+export function isCorePageSlug(slug: string): boolean {
+  return slug === "home" || slug === "cancellation-policy"
+}
+
+export function isDestinationSlug(slug: string): boolean {
+  return slug.startsWith("destinations/")
+}
+
+export function destinationIdFromSlug(slug: string): string | null {
+  if (!isDestinationSlug(slug)) return null
+  const id = slug.slice("destinations/".length)
+  return id || null
+}
+
+const HIDDEN_STATUS_KEY = "_status"
+
+export function isDestinationHidden(sections: PageSection[]): boolean {
+  return sectionValue(sections, HIDDEN_STATUS_KEY).trim().toLowerCase() === "hidden"
+}
+
+function withHiddenStatus(sections: PageSection[]): PageSection[] {
+  const without = sections.filter((s) => s.key !== HIDDEN_STATUS_KEY)
+  return [
+    ...without,
+    section("text", HIDDEN_STATUS_KEY, { body: "hidden" }),
+  ]
+}
+
+function pageDefinitionFromRow(row: {
+  slug: string
+  label: string
+  title: string
+  description: string
+  ogImage: string
+  sections: unknown
+}): PageDefinition {
+  const id = destinationIdFromSlug(row.slug) || row.slug
+  const sections = parseSections(row.sections)
+  const name =
+    sectionHeading(sections, "title") ||
+    row.label.replace(/^Destination\s*·\s*/i, "").trim() ||
+    id
+  return {
+    slug: row.slug,
+    label: row.label || `Destination · ${name}`,
+    path: `/destinations/${id}`,
+    defaults: {
+      title: row.title || `${name} airport transfer`,
+      description: row.description || "",
+      ogImage: row.ogImage || "",
+      sections:
+        sections.length > 0
+          ? sections
+          : destinationDefinitionFromMeta({
+              id,
+              name,
+              region: "",
+              description: row.description || "",
+              badge: "New",
+              priceFrom: "€—",
+              image: row.ogImage || "",
+              reviewKeywords: [name],
+            }).defaults.sections,
     },
   }
 }
@@ -257,17 +342,38 @@ export function getPageDefinition(slug: string): PageDefinition | undefined {
   return PAGE_DEFINITIONS.find((p) => p.slug === slug)
 }
 
-export function serializePageContent(row: {
-  slug: string
-  label: string
-  title: string
-  description: string
-  ogImage: string
-  sections: unknown
-  updatedAt: Date
-}): PageContentRecord {
+/** Built-in definition, or a custom destination row from the database. */
+export async function resolvePageDefinition(
+  slug: string,
+): Promise<PageDefinition | undefined> {
+  const builtIn = getPageDefinition(slug)
+  if (builtIn) return builtIn
+  if (!isDestinationSlug(slug)) return undefined
+  const row =
+    (await prisma.pageContent.findUnique({
+      where: { slug_locale: { slug, locale: DEFAULT_LOCALE } },
+    })) ??
+    (await prisma.pageContent.findFirst({ where: { slug } }))
+  if (!row) return undefined
+  return pageDefinitionFromRow(row)
+}
+
+export function serializePageContent(
+  row: {
+    slug: string
+    locale?: string
+    label: string
+    title: string
+    description: string
+    ogImage: string
+    sections: unknown
+    updatedAt: Date
+  },
+  opts?: { hasLocaleRow?: boolean },
+): PageContentRecord {
   return {
     slug: row.slug,
+    locale: row.locale ?? DEFAULT_LOCALE,
     label: row.label,
     title: row.title,
     description: row.description,
@@ -275,59 +381,211 @@ export function serializePageContent(row: {
     sections: parseSections(row.sections),
     updatedAt: row.updatedAt.toISOString(),
     fromDatabase: true,
+    hasLocaleRow: opts?.hasLocaleRow ?? true,
   }
 }
 
-/** Resolved page content: DB row merged over defaults when present. */
+function normalizeLocale(locale?: string | null): Locale {
+  return isLocale(locale) ? locale : DEFAULT_LOCALE
+}
+
+/**
+ * Public site resolution: prefer locale row, fall back to English content,
+ * then code defaults.
+ */
 export async function resolvePageContent(
   slug: string,
+  localeInput?: string | null,
 ): Promise<PageContentRecord | null> {
-  const def = getPageDefinition(slug)
+  const locale = normalizeLocale(localeInput)
+  const def = await resolvePageDefinition(slug)
   if (!def) return null
 
-  const row = await prisma.pageContent.findUnique({ where: { slug } })
+  const localized = await prisma.pageContent.findUnique({
+    where: { slug_locale: { slug, locale } },
+  })
+  const english =
+    locale === DEFAULT_LOCALE
+      ? localized
+      : await prisma.pageContent.findUnique({
+          where: { slug_locale: { slug, locale: DEFAULT_LOCALE } },
+        })
+
+  const isCustomDestination =
+    isDestinationSlug(slug) &&
+    !isBuiltInDestinationId(destinationIdFromSlug(slug) || "")
+
+  const hideSource = english ?? localized
+  if (
+    hideSource &&
+    isDestinationSlug(slug) &&
+    isDestinationHidden(parseSections(hideSource.sections))
+  ) {
+    return null
+  }
+
+  const row = localized ?? english
   if (!row) {
+    if (isCustomDestination) return null
     return {
       slug: def.slug,
+      locale: DEFAULT_LOCALE,
       label: def.label,
       title: def.defaults.title,
       description: def.defaults.description,
       ogImage: def.defaults.ogImage,
       sections: def.defaults.sections,
       fromDatabase: false,
+      hasLocaleRow: false,
     }
   }
 
-  const parsed = parseSections(row.sections)
-  const sections = parsed.length > 0 ? parsed : def.defaults.sections
+  const localizedSections = localized ? parseSections(localized.sections) : []
+  const englishSections = english ? parseSections(english.sections) : []
+  const baseSections =
+    englishSections.length > 0
+      ? englishSections
+      : localizedSections.length > 0
+        ? localizedSections
+        : def.defaults.sections
+
+  const sections =
+    locale !== DEFAULT_LOCALE && localized
+      ? mergeLocalizedSections(localizedSections, baseSections)
+      : baseSections.length > 0
+        ? baseSections
+        : def.defaults.sections
+
+  const title =
+    (localized?.title?.trim() || english?.title?.trim() || def.defaults.title)
+  const description =
+    localized?.description?.trim() ||
+    english?.description?.trim() ||
+    def.defaults.description
+  const rawOg =
+    localized?.ogImage?.trim() ||
+    english?.ogImage?.trim() ||
+    def.defaults.ogImage
   const ogImage = slug.startsWith("destinations/")
-    ? destinationCardImage(sections, row.ogImage, def.defaults.ogImage)
-    : row.ogImage || def.defaults.ogImage
+    ? destinationCardImage(sections, rawOg, def.defaults.ogImage)
+    : rawOg
+
   return {
     slug: row.slug,
-    label: row.label || def.label,
-    title: row.title || def.defaults.title,
-    description: row.description || def.defaults.description,
+    locale,
+    label: localized?.label || english?.label || def.label,
+    title,
+    description,
     ogImage,
     sections,
     updatedAt: row.updatedAt.toISOString(),
     fromDatabase: true,
+    hasLocaleRow: Boolean(localized),
   }
 }
 
-export async function listAdminPages() {
+/**
+ * Admin editor resolution: if the locale has no row yet, return an empty
+ * editable shell (structure from EN/defaults) so translators start blank.
+ */
+export async function resolvePageContentForAdmin(
+  slug: string,
+  localeInput?: string | null,
+): Promise<PageContentRecord | null> {
+  const locale = normalizeLocale(localeInput)
+  if (locale === DEFAULT_LOCALE) {
+    return resolvePageContent(slug, locale)
+  }
+
+  const def = await resolvePageDefinition(slug)
+  if (!def) return null
+
+  const localized = await prisma.pageContent.findUnique({
+    where: { slug_locale: { slug, locale } },
+  })
+  if (localized) {
+    return serializePageContent(localized, { hasLocaleRow: true })
+  }
+
+  const english = await prisma.pageContent.findUnique({
+    where: { slug_locale: { slug, locale: DEFAULT_LOCALE } },
+  })
+  const base = english
+    ? serializePageContent(english, { hasLocaleRow: false })
+    : {
+        slug: def.slug,
+        locale: DEFAULT_LOCALE,
+        label: def.label,
+        title: def.defaults.title,
+        description: def.defaults.description,
+        ogImage: def.defaults.ogImage,
+        sections: def.defaults.sections,
+        fromDatabase: false,
+        hasLocaleRow: false,
+      }
+
+  return {
+    slug: def.slug,
+    locale,
+    label: base.label,
+    title: "",
+    description: "",
+    ogImage: base.ogImage,
+    sections: base.sections.map((section) => {
+      if (section.type === "image") return { ...section }
+      if (section.type === "heading") return { ...section, heading: "" }
+      if (section.type === "text") return { ...section, body: "" }
+      if (section.type === "faq_item") {
+        return { ...section, question: "", answer: "" }
+      }
+      if (section.type === "attraction") {
+        return { ...section, heading: "", body: "", alt: section.alt ?? "" }
+      }
+      return { ...section }
+    }),
+    fromDatabase: false,
+    hasLocaleRow: false,
+    updatedAt: base.updatedAt,
+  }
+}
+
+export type AdminPageListItem = {
+  slug: string
+  label: string
+  path: string
+  title: string
+  updatedAt: string | null
+  fromDatabase: boolean
+  /** Permanent delete (custom destinations). */
+  canDelete: boolean
+  /** Clear DB overrides and restore code defaults. */
+  canReset: boolean
+  isCustomDestination: boolean
+}
+
+export async function listAdminPages(): Promise<AdminPageListItem[]> {
   const rows = await prisma.pageContent.findMany({
+    where: { locale: DEFAULT_LOCALE },
     select: {
       slug: true,
       label: true,
       title: true,
+      description: true,
+      ogImage: true,
+      sections: true,
       updatedAt: true,
     },
   })
   const bySlug = new Map(rows.map((r) => [r.slug, r]))
 
-  return PAGE_DEFINITIONS.map((def) => {
+  const builtIn = PAGE_DEFINITIONS.map((def) => {
     const row = bySlug.get(def.slug)
+    const isDestination = isDestinationSlug(def.slug)
+    const hidden =
+      isDestination && row
+        ? isDestinationHidden(parseSections(row.sections))
+        : false
+    if (hidden) return null
     return {
       slug: def.slug,
       label: row?.label || def.label,
@@ -335,8 +593,34 @@ export async function listAdminPages() {
       title: row?.title || def.defaults.title,
       updatedAt: row?.updatedAt?.toISOString() ?? null,
       fromDatabase: Boolean(row),
+      canDelete: isDestination,
+      canReset: !isDestination && Boolean(row),
+      isCustomDestination: false,
     }
-  })
+  }).filter((item): item is NonNullable<typeof item> => Boolean(item))
+
+  const builtInSlugs = new Set(PAGE_DEFINITIONS.map((d) => d.slug))
+  const custom = rows
+    .filter((row) => {
+      if (!isDestinationSlug(row.slug) || builtInSlugs.has(row.slug)) return false
+      return !isDestinationHidden(parseSections(row.sections))
+    })
+    .map((row) => {
+      const def = pageDefinitionFromRow(row)
+      return {
+        slug: row.slug,
+        label: row.label || def.label,
+        path: def.path,
+        title: row.title || def.defaults.title,
+        updatedAt: row.updatedAt.toISOString(),
+        fromDatabase: true,
+        canDelete: true,
+        canReset: false,
+        isCustomDestination: true,
+      }
+    })
+
+  return [...builtIn, ...custom]
 }
 
 export function pageMetadataFields(page: PageContentRecord) {
@@ -366,30 +650,81 @@ function destinationCardImage(
   return hero || ogImage || anyImage || fallback
 }
 
-/** Destination cards for the homepage carousel (CMS with code fallbacks). */
-export async function resolveDestinationCards(): Promise<Destination[]> {
-  const cards = await Promise.all(
-    DESTINATIONS.map(async (dest) => {
-      const page = await resolvePageContent(`destinations/${dest.id}`)
-      const sections = page?.sections ?? []
-      return {
-        ...dest,
-        name: sectionHeading(sections, "title") || dest.name,
-        region: sectionValue(sections, "region") || dest.region,
-        description:
-          sectionValue(sections, "description") || dest.description,
-        badge: sectionValue(sections, "badge") || dest.badge,
-        priceFrom: sectionValue(sections, "priceFrom") || dest.priceFrom,
-        image: destinationCardImage(
-          sections,
-          page?.ogImage ?? "",
-          dest.image,
-        ),
-        imageAlt: "",
-      }
-    }),
-  )
+function destinationFromPage(
+  id: string,
+  page: PageContentRecord,
+  fallback?: Destination,
+): Destination {
+  const sections = page.sections
+  const name = sectionHeading(sections, "title") || fallback?.name || id
+  return {
+    id,
+    name,
+    region: sectionValue(sections, "region") || fallback?.region || "",
+    description:
+      sectionValue(sections, "description") ||
+      page.description ||
+      fallback?.description ||
+      "",
+    badge: sectionValue(sections, "badge") || fallback?.badge || "New",
+    priceFrom:
+      sectionValue(sections, "priceFrom") || fallback?.priceFrom || "€—",
+    image: destinationCardImage(
+      sections,
+      page.ogImage ?? "",
+      fallback?.image || "",
+    ),
+    imageAlt: "",
+    reviewKeywords: fallback?.reviewKeywords?.length
+      ? fallback.reviewKeywords
+      : [name],
+  }
+}
 
+/** Destination cards for the homepage carousel (CMS with code fallbacks). */
+export async function resolveDestinationCards(
+  localeInput?: string | null,
+): Promise<Destination[]> {
+  const locale = normalizeLocale(localeInput)
+  const builtInCards = (
+    await Promise.all(
+      DESTINATIONS.map(async (dest) => {
+        const page = await resolvePageContent(`destinations/${dest.id}`, locale)
+        if (!page) return null
+        return destinationFromPage(dest.id, page, dest)
+      }),
+    )
+  ).filter((card): card is Destination => Boolean(card))
+
+  const builtInIds = new Set(DESTINATIONS.map((d) => d.id))
+  const customRows = await prisma.pageContent.findMany({
+    where: {
+      slug: { startsWith: "destinations/" },
+      locale: { in: [locale, DEFAULT_LOCALE] },
+    },
+  })
+
+  const bySlug = new Map<string, (typeof customRows)[number]>()
+  for (const row of customRows) {
+    const existing = bySlug.get(row.slug)
+    if (!existing || row.locale === locale) {
+      bySlug.set(row.slug, row)
+    }
+  }
+
+  const customCards = [...bySlug.values()]
+    .map((row) => {
+      const id = destinationIdFromSlug(row.slug)
+      if (!id || builtInIds.has(id)) return null
+      const page = serializePageContent(row)
+      if (isDestinationHidden(page.sections)) return null
+      // Prefer localized; if we only have EN for a custom slug that's fine.
+      if (row.locale !== locale && row.locale !== DEFAULT_LOCALE) return null
+      return destinationFromPage(id, page)
+    })
+    .filter((card): card is Destination => Boolean(card))
+
+  const cards = [...builtInCards, ...customCards]
   const byUrl = await mediaMetaByUrls(cards.map((card) => card.image))
   return cards.map((card) => {
     const meta = byUrl.get(card.image)
@@ -398,6 +733,144 @@ export async function resolveDestinationCards(): Promise<Destination[]> {
       imageAlt: resolveMediaAlt(meta, card.name),
     }
   })
+}
+
+export async function resolveDestination(
+  id: string,
+  localeInput?: string | null,
+): Promise<Destination | null> {
+  const cards = await resolveDestinationCards(localeInput)
+  return cards.find((card) => card.id === id) ?? null
+}
+
+export async function createDestinationPage(input: {
+  name: string
+  id?: string
+  region?: string
+  description?: string
+  badge?: string
+  priceFrom?: string
+  image?: string
+}) {
+  const name = input.name.trim()
+  if (!name) throw new Error("Name is required.")
+
+  const id = slugifyDestinationId(input.id?.trim() || name)
+  if (!id) throw new Error("Enter a valid destination id (letters and numbers).")
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id)) {
+    throw new Error("Id must be lowercase letters, numbers, and hyphens.")
+  }
+
+  const slug = `destinations/${id}`
+  const existing = await prisma.pageContent.findUnique({
+    where: { slug_locale: { slug, locale: DEFAULT_LOCALE } },
+  })
+  const existingHidden =
+    existing != null && isDestinationHidden(parseSections(existing.sections))
+
+  if (isBuiltInDestinationId(id) && !existingHidden) {
+    throw new Error("That destination already exists.")
+  }
+  if (existing && !existingHidden) {
+    throw new Error("That destination already exists.")
+  }
+
+  const dest: Destination = {
+    id,
+    name,
+    region: input.region?.trim() || "Albania",
+    description:
+      input.description?.trim() ||
+      `Airport transfers to ${name}.`,
+    badge: input.badge?.trim() || "New",
+    priceFrom: input.priceFrom?.trim() || "€—",
+    image:
+      input.image?.trim() ||
+      "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&q=80&w=800",
+    reviewKeywords: [name],
+  }
+
+  const def = destinationDefinitionFromMeta(dest)
+  const data = {
+    label: def.label,
+    title: def.defaults.title,
+    description: def.defaults.description,
+    ogImage: def.defaults.ogImage,
+    sections: def.defaults.sections,
+  }
+  const row = existingHidden
+    ? await prisma.pageContent.update({
+        where: { slug_locale: { slug, locale: DEFAULT_LOCALE } },
+        data,
+      })
+    : await prisma.pageContent.create({
+        data: {
+          slug,
+          locale: DEFAULT_LOCALE,
+          ...data,
+        },
+      })
+
+  return serializePageContent(row)
+}
+
+export async function deleteAdminPage(slug: string): Promise<{
+  mode: "deleted" | "reset"
+}> {
+  const def = await resolvePageDefinition(slug)
+  if (!def && !isDestinationSlug(slug)) {
+    throw new Error("Unknown page.")
+  }
+
+  const id = destinationIdFromSlug(slug)
+  const isCustom = Boolean(id && !isBuiltInDestinationId(id))
+
+  if (isCustom) {
+    await prisma.pageContent.deleteMany({ where: { slug } })
+    return { mode: "deleted" }
+  }
+
+  if (id && isBuiltInDestinationId(id)) {
+    const existing = await prisma.pageContent.findUnique({
+      where: { slug_locale: { slug, locale: DEFAULT_LOCALE } },
+    })
+    const baseSections = existing
+      ? parseSections(existing.sections).filter((s) => s.key !== HIDDEN_STATUS_KEY)
+      : def?.defaults.sections ?? []
+    await prisma.pageContent.upsert({
+      where: { slug_locale: { slug, locale: DEFAULT_LOCALE } },
+      create: {
+        slug,
+        locale: DEFAULT_LOCALE,
+        label: def?.label || `Destination · ${id}`,
+        title: def?.defaults.title || id,
+        description: def?.defaults.description || "",
+        ogImage: def?.defaults.ogImage || "",
+        sections: withHiddenStatus(
+          baseSections.length ? baseSections : def?.defaults.sections ?? [],
+        ),
+      },
+      update: {
+        sections: withHiddenStatus(
+          baseSections.length ? baseSections : def?.defaults.sections ?? [],
+        ),
+      },
+    })
+    // Drop non-EN translations for a deleted built-in destination.
+    await prisma.pageContent.deleteMany({
+      where: { slug, locale: { not: DEFAULT_LOCALE } },
+    })
+    return { mode: "deleted" }
+  }
+
+  if (isCorePageSlug(slug)) {
+    const existing = await prisma.pageContent.findFirst({ where: { slug } })
+    if (!existing) throw new Error("Nothing to reset — this page uses defaults.")
+    await prisma.pageContent.deleteMany({ where: { slug } })
+    return { mode: "reset" }
+  }
+
+  throw new Error("This page cannot be deleted.")
 }
 
 /**

@@ -4,11 +4,13 @@ import { z } from "zod"
 
 import { requireAdmin } from "@/lib/auth"
 import { prisma } from "@/lib/db"
+import { DEFAULT_LOCALE, isLocale, type Locale } from "@/lib/i18n/locales"
 import {
   PAGE_SECTION_TYPES,
-  getPageDefinition,
+  deleteAdminPage,
   parseSections,
-  resolvePageContent,
+  resolvePageContentForAdmin,
+  resolvePageDefinition,
   serializePageContent,
 } from "@/lib/page-content"
 
@@ -31,6 +33,7 @@ const sectionSchema = z.object({
 })
 
 const updateSchema = z.object({
+  locale: z.string().optional(),
   label: z.string().trim().max(200).optional(),
   title: z.string().trim().max(200).optional(),
   description: z.string().trim().max(2000).optional(),
@@ -42,12 +45,21 @@ function slugFromParams(parts: string[]) {
   return parts.map((p) => decodeURIComponent(p)).join("/")
 }
 
-export async function GET(_request: Request, context: RouteContext) {
+function localeFromRequest(request: Request, bodyLocale?: string): Locale {
+  const url = new URL(request.url)
+  const fromQuery = url.searchParams.get("locale")
+  if (isLocale(fromQuery)) return fromQuery
+  if (isLocale(bodyLocale)) return bodyLocale
+  return DEFAULT_LOCALE
+}
+
+export async function GET(request: Request, context: RouteContext) {
   const denied = await requireAdmin()
   if (denied) return denied
 
   const slug = slugFromParams((await context.params).slug)
-  const page = await resolvePageContent(slug)
+  const locale = localeFromRequest(request)
+  const page = await resolvePageContentForAdmin(slug, locale)
   if (!page) {
     return NextResponse.json({ error: "Unknown page." }, { status: 404 })
   }
@@ -59,7 +71,7 @@ export async function PATCH(request: Request, context: RouteContext) {
   if (denied) return denied
 
   const slug = slugFromParams((await context.params).slug)
-  const def = getPageDefinition(slug)
+  const def = await resolvePageDefinition(slug)
   if (!def) {
     return NextResponse.json({ error: "Unknown page." }, { status: 404 })
   }
@@ -70,23 +82,34 @@ export async function PATCH(request: Request, context: RouteContext) {
     return NextResponse.json({ error: "Invalid page payload." }, { status: 400 })
   }
 
-  const existing = await prisma.pageContent.findUnique({ where: { slug } })
+  const locale = localeFromRequest(request, parsed.data.locale)
+  const existing = await prisma.pageContent.findUnique({
+    where: { slug_locale: { slug, locale } },
+  })
+  const english =
+    locale === DEFAULT_LOCALE
+      ? existing
+      : await prisma.pageContent.findUnique({
+          where: { slug_locale: { slug, locale: DEFAULT_LOCALE } },
+        })
+
   let nextSections =
     parsed.data.sections != null
       ? parseSections(parsed.data.sections)
       : existing
         ? parseSections(existing.sections)
-        : def.defaults.sections
+        : english
+          ? parseSections(english.sections)
+          : def.defaults.sections
 
   const existingOgImage = existing?.ogImage?.trim() || ""
+  const englishOgImage = english?.ogImage?.trim() || ""
   const heroSrc =
     nextSections.find((s) => s.type === "image" && s.key === "hero")?.src?.trim() ||
     ""
   const providedOgImage =
     parsed.data.ogImage !== undefined ? parsed.data.ogImage.trim() : undefined
 
-  // Prefer /uploads/ so a text-only save cannot replace a card/hero upload with a
-  // stock Unsplash value still sitting in the admin form.
   const preferUpload = (...candidates: string[]) => {
     const urls = candidates.filter(Boolean)
     return urls.find((url) => url.startsWith("/uploads/")) || urls[0] || ""
@@ -95,8 +118,12 @@ export async function PATCH(request: Request, context: RouteContext) {
   let nextOgImage: string
   if (slug.startsWith("destinations/")) {
     nextOgImage =
-      preferUpload(providedOgImage ?? "", heroSrc, existingOgImage) ||
-      def.defaults.ogImage
+      preferUpload(
+        providedOgImage ?? "",
+        heroSrc,
+        existingOgImage,
+        englishOgImage,
+      ) || def.defaults.ogImage
 
     let synced = false
     nextSections = nextSections.map((section) => {
@@ -120,14 +147,16 @@ export async function PATCH(request: Request, context: RouteContext) {
     }
   } else {
     nextOgImage =
-      providedOgImage ?? (existingOgImage || def.defaults.ogImage)
+      providedOgImage ??
+      (existingOgImage || englishOgImage || def.defaults.ogImage)
   }
 
   const row = await prisma.pageContent.upsert({
-    where: { slug },
+    where: { slug_locale: { slug, locale } },
     create: {
       slug,
-      label: parsed.data.label?.trim() || def.label,
+      locale,
+      label: parsed.data.label?.trim() || english?.label || def.label,
       title: parsed.data.title ?? def.defaults.title,
       description: parsed.data.description ?? def.defaults.description,
       ogImage: nextOgImage,
@@ -148,12 +177,36 @@ export async function PATCH(request: Request, context: RouteContext) {
     },
   })
 
-  // Homepage carousel + destination detail pages read this content.
   revalidatePath("/")
   revalidatePath(def.path)
   if (slug.startsWith("destinations/")) {
+    revalidatePath("/destinations")
     revalidatePath("/destinations/[slug]", "page")
   }
 
-  return NextResponse.json({ page: serializePageContent(row) })
+  return NextResponse.json({
+    page: serializePageContent(row, { hasLocaleRow: true }),
+  })
+}
+
+export async function DELETE(_request: Request, context: RouteContext) {
+  const denied = await requireAdmin()
+  if (denied) return denied
+
+  const slug = slugFromParams((await context.params).slug)
+  try {
+    const result = await deleteAdminPage(slug)
+    revalidatePath("/")
+    revalidatePath("/destinations")
+    revalidatePath("/destinations/[slug]", "page")
+    revalidatePath("/admin/pages")
+    if (slug === "home") revalidatePath("/")
+    if (slug === "cancellation-policy") revalidatePath("/cancellation-policy")
+    return NextResponse.json(result)
+  } catch (error) {
+    return NextResponse.json(
+      { error: (error as Error).message || "Could not delete page." },
+      { status: 400 },
+    )
+  }
 }

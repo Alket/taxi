@@ -13,6 +13,10 @@ import {
   MARKETING_SECTION_TITLE,
 } from "@/components/marketing/marketing-container"
 import { DESTINATIONS, type Destination } from "@/lib/destinations"
+import { useLocale } from "@/lib/i18n/use-locale"
+import { localePath } from "@/lib/i18n/locales"
+import { t } from "@/lib/i18n/t"
+import { cn } from "@/lib/utils"
 
 import "swiper/css"
 
@@ -20,17 +24,21 @@ export function DestinationsSection({
   heading,
   text,
   destinations = DESTINATIONS,
+  className,
 }: {
   heading: string
   text: string
   destinations?: Destination[]
+  className?: string
 }) {
   const swiperRef = useRef<SwiperType | null>(null)
+  const locale = useLocale()
+  const destinationsHref = localePath("/destinations", locale)
 
   return (
     <section
       id="destinations"
-      className="overflow-hidden bg-white py-10 md:py-0"
+      className={cn("overflow-hidden bg-white py-10 md:py-0", className)}
     >
       <MarketingContainer>
         <div className="mb-8 flex items-end justify-between gap-4 md:mb-12">
@@ -43,10 +51,10 @@ export function DestinationsSection({
 
           <div className="flex shrink-0 items-center gap-2 md:gap-6">
             <Link
-              href="/destinations"
+              href={destinationsHref}
               className="hidden items-center gap-2 text-sm font-extrabold text-primary transition-colors hover:text-primary/80 md:inline-flex"
             >
-              View all
+              {t(locale, "cta.viewAll")}
               <ArrowRight className="size-4" />
             </Link>
             <div className="flex gap-1.5 sm:gap-2">
@@ -98,10 +106,10 @@ export function DestinationsSection({
 
         <div className="mt-6 md:hidden">
           <Link
-            href="/destinations"
+            href={destinationsHref}
             className="inline-flex items-center gap-2 text-sm font-extrabold text-primary"
           >
-            View all destinations
+            {t(locale, "cta.viewAllDestinations")}
             <ArrowRight className="size-4" />
           </Link>
         </div>

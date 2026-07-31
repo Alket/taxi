@@ -3,6 +3,7 @@ import { Inter, JetBrains_Mono, Mulish } from "next/font/google"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { Toaster } from "@/components/ui/sonner"
 import { AppThemeProvider } from "@/components/admin/theme-provider"
+import { getRequestLocale } from "@/lib/i18n/get-locale"
 import { getSettings } from "@/lib/settings"
 import "./globals.css"
 
@@ -67,14 +68,15 @@ export const viewport: Viewport = {
   ],
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const locale = await getRequestLocale()
   return (
     <html
-      lang="en"
+      lang={locale}
       suppressHydrationWarning
       className={`${inter.variable} ${jetbrainsMono.variable} ${museoSans.variable}`}
     >

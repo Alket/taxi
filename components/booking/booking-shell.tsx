@@ -14,7 +14,6 @@ import { fetcher } from "@/lib/api"
 import { formatMoney } from "@/lib/format"
 import {
   useBookingStore,
-  type BookingStep,
 } from "@/lib/store/booking-store"
 import {
   useBookingStepSync,
@@ -40,24 +39,12 @@ import { RouteStep } from "@/components/booking/steps/RouteStep"
 import { DetailsStep } from "@/components/booking/steps/DetailsStep"
 import { PaymentStep } from "@/components/booking/steps/PaymentStep"
 import { MARKETING_CONTAINER } from "@/components/marketing/marketing-container"
+import { localePath } from "@/lib/i18n/locales"
+import { useLocale, useT } from "@/lib/i18n/use-locale"
 import { cn } from "@/lib/utils"
 
 import { getFirstInvalidBookingField } from "@/lib/booking-validation"
 import { dispatchBookingFieldFocus } from "@/lib/booking-field-focus"
-
-const STEP_META: Record<
-  BookingStep,
-  { title: string; description: string }
-> = {
-  1: {
-    title: "Booking details",
-    description: "Route, passengers, and your contact details.",
-  },
-  2: {
-    title: "Payment",
-    description: "Pay your deposit to confirm the transfer.",
-  },
-}
 
 function MobileSummaryBar({
   open,
@@ -66,6 +53,7 @@ function MobileSummaryBar({
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
+  const tr = useT()
   const quotedPrice = useBookingStore((s) => s.quotedPrice)
   const vehicleQuotes = useBookingStore((s) => s.vehicleQuotes)
   const quoteStatus = useBookingStore((s) => s.quoteStatus)
@@ -108,7 +96,9 @@ function MobileSummaryBar({
         >
           <div className="min-w-0">
             <p className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
-              {quotedPrice !== null ? "Estimated total" : "From"}
+              {quotedPrice !== null
+                ? tr("book.estimatedTotal")
+                : tr("book.fromLabel")}
             </p>
             {quoteStatus === "loading" ? (
               <Skeleton className="mt-1 h-6 w-20" />
@@ -119,7 +109,7 @@ function MobileSummaryBar({
             )}
           </div>
           <span className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-muted-foreground">
-            Summary
+            {tr("book.summary")}
             <ChevronUpIcon className="size-4" aria-hidden />
           </span>
         </SheetTrigger>
@@ -128,7 +118,7 @@ function MobileSummaryBar({
           className="max-h-[min(85vh,40rem)] gap-0 rounded-t-2xl pb-[env(safe-area-inset-bottom)]"
         >
           <SheetHeader className="border-b pb-3 text-left">
-            <SheetTitle>Trip summary</SheetTitle>
+            <SheetTitle>{tr("book.tripSummary")}</SheetTitle>
           </SheetHeader>
           <div className="overflow-y-auto overscroll-contain p-4">
             <BookingSummaryContent />
@@ -146,6 +136,8 @@ export function BookingShell({
   variant?: "page" | "hero"
 }) {
   const router = useRouter()
+  const locale = useLocale()
+  const tr = useT()
   const [hydrated, setHydrated] = React.useState(false)
   const [summaryOpen, setSummaryOpen] = React.useState(false)
   const isHero = variant === "hero"
@@ -163,8 +155,8 @@ export function BookingShell({
   React.useEffect(() => {
     if (!hydrated || isHero) return
     if (startedFromHero) return
-    router.replace("/#book")
-  }, [hydrated, isHero, startedFromHero, router])
+    router.replace(localePath("/#book", locale))
+  }, [hydrated, isHero, startedFromHero, router, locale])
 
   useBookingStepSync(hydrated)
   const { dialog: leaveDialog } = useBookingLeaveGuard(hydrated)
@@ -176,9 +168,12 @@ export function BookingShell({
     window.scrollTo({ top: 0, left: 0, behavior: "auto" })
   }, [currentStep, hydrated, isHero])
 
-  const meta = STEP_META[currentStep]
   const stepTitle =
-    currentStep === 1 && startedFromHero ? "Complete your booking" : meta.title
+    currentStep === 1 && startedFromHero
+      ? tr("book.completeTitle")
+      : currentStep === 1
+        ? tr("book.stepDetailsTitle")
+        : tr("book.stepPaymentTitle")
 
   function handleContinue() {
     const state = useBookingStore.getState()
@@ -194,7 +189,7 @@ export function BookingShell({
     }
 
     if (!canGoNext) {
-      toast.error("Please complete all required fields.")
+      toast.error(tr("book.completeFields"))
       return
     }
 
@@ -260,7 +255,7 @@ export function BookingShell({
                     className="mb-3 inline-flex items-center gap-1.5 text-sm font-bold text-muted-foreground transition-colors hover:text-brand"
                   >
                     <ChevronLeftIcon className="size-4" />
-                    Back to details
+                    {tr("book.backToDetails")}
                   </button>
                 )}
                 <h2 className="text-2xl font-bold tracking-tight text-brand">
@@ -275,7 +270,7 @@ export function BookingShell({
                 <div className={startedFromHero ? undefined : "border-t pt-8"}>
                   {!startedFromHero && (
                     <h3 className="mb-6 text-lg font-bold tracking-tight text-brand">
-                      Your details
+                      {tr("book.yourDetails")}
                     </h3>
                   )}
                   <DetailsStep />
@@ -287,7 +282,7 @@ export function BookingShell({
                     className="h-12 w-full rounded-xl font-extrabold bg-brand-accent text-white hover:bg-brand-accent-hover"
                     onClick={handleContinue}
                   >
-                    Continue
+                    {tr("book.continue")}
                     <ChevronRightIcon data-icon="inline-end" />
                   </Button>
                 )}
@@ -304,7 +299,7 @@ export function BookingShell({
                 className="rounded font-extrabold bg-brand-accent text-white hover:bg-brand-accent-hover"
                 onClick={handleContinue}
               >
-                Continue
+                {tr("book.continue")}
                 <ChevronRightIcon data-icon="inline-end" />
               </Button>
             </div>

@@ -27,7 +27,13 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
-import { apiPatch, fetcher } from "@/lib/api"
+import { apiDelete, apiPatch, fetcher } from "@/lib/api"
+import {
+  DEFAULT_LOCALE,
+  LOCALES,
+  LOCALE_LABELS,
+  type Locale,
+} from "@/lib/i18n/locales"
 import {
   MARKETING_ICON_SELECT_ITEMS,
   getMarketingIcon,
@@ -40,9 +46,10 @@ import {
   type PageSectionType,
 } from "@/lib/page-content-shared"
 import type { MediaAssetDto } from "@/lib/media-shared"
+import { cn } from "@/lib/utils"
 
 const CONTENT_SECTION_TYPES = PAGE_SECTION_TYPES.filter(
-  (t) => t !== "faq_item",
+  (t) => t !== "faq_item" && t !== "attraction",
 ) as PageSectionType[]
 
 function newSection(type: PageSectionType): PageSection {
@@ -56,7 +63,9 @@ function newSection(type: PageSectionType): PageSection {
         ? { body: "" }
         : type === "image"
           ? { src: "", alt: "" }
-          : { question: "", answer: "" }),
+          : type === "attraction"
+            ? { heading: "", body: "", src: "", alt: "" }
+            : { question: "", answer: "" }),
   }
 }
 
@@ -70,16 +79,40 @@ function newFaqItem(): PageSection {
   }
 }
 
+function newAttractionItem(): PageSection {
+  return {
+    id: crypto.randomUUID(),
+    type: "attraction",
+    key: "",
+    heading: "",
+    body: "",
+    src: "",
+    alt: "",
+  }
+}
+
 function splitSections(sections: PageSection[]) {
   return {
-    content: sections.filter((s) => s.type !== "faq_item"),
+    content: sections.filter(
+      (s) => s.type !== "faq_item" && s.type !== "attraction",
+    ),
+    attractions: sections.filter((s) => s.type === "attraction"),
     faqs: sections.filter((s) => s.type === "faq_item"),
   }
 }
 
-function mergeSections(content: PageSection[], faqs: PageSection[]): PageSection[] {
+function mergeSections(
+  content: PageSection[],
+  attractions: PageSection[],
+  faqs: PageSection[],
+): PageSection[] {
   return [
     ...content,
+    ...attractions.map((item, i) => ({
+      ...item,
+      type: "attraction" as const,
+      key: `attraction.${i + 1}`,
+    })),
     ...faqs.map((faq, i) => ({
       ...faq,
       type: "faq_item" as const,
@@ -322,33 +355,44 @@ function SectionFields({
 
 export function PageEditorView({ slug }: { slug: string }) {
   const router = useRouter()
+  const [locale, setLocale] = useState<Locale>(DEFAULT_LOCALE)
   const [page, setPage] = useState<PageContentRecord | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [addType, setAddType] = useState<PageSectionType>("text")
   const [libraryTarget, setLibraryTarget] = useState<
     null | { type: "og" } | { type: "section"; id: string }
   >(null)
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const data = await fetcher<{ page: PageContentRecord }>(
-        `/api/admin/pages/${slug}`,
-      )
-      setPage(data.page)
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to load page")
-      router.push("/admin/pages")
-    } finally {
-      setLoading(false)
-    }
-  }, [router, slug])
+  const load = useCallback(
+    async (nextLocale: Locale) => {
+      setLoading(true)
+      try {
+        const data = await fetcher<{ page: PageContentRecord }>(
+          `/api/admin/pages/${slug}?locale=${nextLocale}`,
+        )
+        setPage(data.page)
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed to load page")
+        router.push("/admin/pages")
+      } finally {
+        setLoading(false)
+      }
+    },
+    [router, slug],
+  )
 
   useEffect(() => {
-    void load()
-  }, [load])
+    void load(locale)
+  }, [load, locale])
+
+  function switchLocale(next: Locale) {
+    if (next === locale) return
+    setPage(null)
+    setLocale(next)
+  }
 
   async function uploadImage(file: File): Promise<string | null> {
     setUploading(true)
@@ -396,7 +440,12 @@ export function PageEditorView({ slug }: { slug: string }) {
     }
     const index = page.sections.findIndex((s) => s.id === libraryTarget.id)
     const section = index >= 0 ? page.sections[index] : null
-    if (!section || section.type !== "image") return
+    if (
+      !section ||
+      (section.type !== "image" && section.type !== "attraction")
+    ) {
+      return
+    }
     updateSection(index, {
       ...section,
       src: asset.url,
@@ -409,8 +458,9 @@ export function PageEditorView({ slug }: { slug: string }) {
     setSaving(true)
     try {
       const data = await apiPatch<{ page: PageContentRecord }>(
-        `/api/admin/pages/${slug}`,
+        `/api/admin/pages/${slug}?locale=${locale}`,
         {
+          locale,
           label: page.label,
           title: page.title,
           description: page.description,
@@ -419,11 +469,59 @@ export function PageEditorView({ slug }: { slug: string }) {
         },
       )
       setPage(data.page)
-      toast.success("Page saved")
+      toast.success(
+        locale === DEFAULT_LOCALE
+          ? "Page saved"
+          : `${LOCALE_LABELS[locale].label} translation saved`,
+      )
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Save failed")
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function removePage() {
+    if (!page) return
+    const destId = page.slug.startsWith("destinations/")
+      ? page.slug.slice("destinations/".length)
+      : ""
+    const canDelete = Boolean(destId)
+    const canReset =
+      page.fromDatabase &&
+      (page.slug === "home" || page.slug === "cancellation-policy")
+
+    if (!canDelete && !canReset) {
+      toast.error(
+        page.fromDatabase
+          ? "This page cannot be deleted."
+          : "Nothing to reset — this page still uses defaults.",
+      )
+      return
+    }
+
+    const confirmed = window.confirm(
+      canDelete
+        ? "Delete this destination? It will be removed from the site."
+        : "Reset this page to built-in defaults? Your custom edits will be cleared.",
+    )
+    if (!confirmed) return
+
+    setDeleting(true)
+    try {
+      const res = await apiDelete<{ mode: "deleted" | "reset" }>(
+        `/api/admin/pages/${slug}`,
+      )
+      toast.success(
+        res.mode === "deleted"
+          ? "Destination deleted."
+          : "Page reset to defaults.",
+      )
+      router.push("/admin/pages")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Delete failed")
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -444,21 +542,22 @@ export function PageEditorView({ slug }: { slug: string }) {
 
   function moveContentSection(contentIndex: number, dir: -1 | 1) {
     if (!page) return
-    const { content, faqs } = splitSections(page.sections)
+    const { content, attractions, faqs } = splitSections(page.sections)
     const target = contentIndex + dir
     if (target < 0 || target >= content.length) return
     const next = [...content]
     ;[next[contentIndex], next[target]] = [next[target], next[contentIndex]]
-    setPage({ ...page, sections: mergeSections(next, faqs) })
+    setPage({ ...page, sections: mergeSections(next, attractions, faqs) })
   }
 
   function removeContentSection(contentIndex: number) {
     if (!page) return
-    const { content, faqs } = splitSections(page.sections)
+    const { content, attractions, faqs } = splitSections(page.sections)
     setPage({
       ...page,
       sections: mergeSections(
         content.filter((_, i) => i !== contentIndex),
+        attractions,
         faqs,
       ),
     })
@@ -470,33 +569,40 @@ export function PageEditorView({ slug }: { slug: string }) {
       addFaqItem()
       return
     }
-    const { content, faqs } = splitSections(page.sections)
+    const { content, attractions, faqs } = splitSections(page.sections)
     setPage({
       ...page,
-      sections: mergeSections([...content, newSection(addType)], faqs),
+      sections: mergeSections(
+        [...content, newSection(addType)],
+        attractions,
+        faqs,
+      ),
     })
   }
 
   function addFaqItem() {
     if (!page) return
-    const { content, faqs } = splitSections(page.sections)
+    const { content, attractions, faqs } = splitSections(page.sections)
     setPage({
       ...page,
-      sections: mergeSections(content, [...faqs, newFaqItem()]),
+      sections: mergeSections(content, attractions, [...faqs, newFaqItem()]),
     })
   }
 
   function updateFaqItem(faqIndex: number, next: PageSection) {
     if (!page) return
-    const { content, faqs } = splitSections(page.sections)
+    const { content, attractions, faqs } = splitSections(page.sections)
     const nextFaqs = [...faqs]
     nextFaqs[faqIndex] = next
-    setPage({ ...page, sections: mergeSections(content, nextFaqs) })
+    setPage({
+      ...page,
+      sections: mergeSections(content, attractions, nextFaqs),
+    })
   }
 
   function moveFaqItem(faqIndex: number, dir: -1 | 1) {
     if (!page) return
-    const { content, faqs } = splitSections(page.sections)
+    const { content, attractions, faqs } = splitSections(page.sections)
     const target = faqIndex + dir
     if (target < 0 || target >= faqs.length) return
     const nextFaqs = [...faqs]
@@ -504,17 +610,74 @@ export function PageEditorView({ slug }: { slug: string }) {
       nextFaqs[target],
       nextFaqs[faqIndex],
     ]
-    setPage({ ...page, sections: mergeSections(content, nextFaqs) })
+    setPage({
+      ...page,
+      sections: mergeSections(content, attractions, nextFaqs),
+    })
   }
 
   function removeFaqItem(faqIndex: number) {
     if (!page) return
-    const { content, faqs } = splitSections(page.sections)
+    const { content, attractions, faqs } = splitSections(page.sections)
     setPage({
       ...page,
       sections: mergeSections(
         content,
+        attractions,
         faqs.filter((_, i) => i !== faqIndex),
+      ),
+    })
+  }
+
+  function addAttractionItem() {
+    if (!page) return
+    const { content, attractions, faqs } = splitSections(page.sections)
+    setPage({
+      ...page,
+      sections: mergeSections(
+        content,
+        [...attractions, newAttractionItem()],
+        faqs,
+      ),
+    })
+  }
+
+  function updateAttractionItem(index: number, next: PageSection) {
+    if (!page) return
+    const { content, attractions, faqs } = splitSections(page.sections)
+    const nextItems = [...attractions]
+    nextItems[index] = next
+    setPage({
+      ...page,
+      sections: mergeSections(content, nextItems, faqs),
+    })
+  }
+
+  function moveAttractionItem(index: number, dir: -1 | 1) {
+    if (!page) return
+    const { content, attractions, faqs } = splitSections(page.sections)
+    const target = index + dir
+    if (target < 0 || target >= attractions.length) return
+    const nextItems = [...attractions]
+    ;[nextItems[index], nextItems[target]] = [
+      nextItems[target],
+      nextItems[index],
+    ]
+    setPage({
+      ...page,
+      sections: mergeSections(content, nextItems, faqs),
+    })
+  }
+
+  function removeAttractionItem(index: number) {
+    if (!page) return
+    const { content, attractions, faqs } = splitSections(page.sections)
+    setPage({
+      ...page,
+      sections: mergeSections(
+        content,
+        attractions.filter((_, i) => i !== index),
+        faqs,
       ),
     })
   }
@@ -529,9 +692,16 @@ export function PageEditorView({ slug }: { slug: string }) {
     )
   }
 
-  const { content: contentSections, faqs: faqItems } = splitSections(
-    page.sections,
-  )
+  const {
+    content: contentSections,
+    attractions: attractionItems,
+    faqs: faqItems,
+  } = splitSections(page.sections)
+  const isDestinationPage = page.slug.startsWith("destinations/")
+  const canDelete = isDestinationPage
+  const canReset =
+    page.fromDatabase &&
+    (page.slug === "home" || page.slug === "cancellation-policy")
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 p-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:gap-6 sm:p-4 md:p-6">
@@ -553,10 +723,71 @@ export function PageEditorView({ slug }: { slug: string }) {
             {!page.fromDatabase ? " · showing defaults until saved" : null}
           </p>
         </div>
-        <Button onClick={() => void save()} disabled={saving}>
-          {saving ? "Saving…" : "Save changes"}
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          {canDelete || canReset ? (
+            <Button
+              variant={canDelete ? "destructive" : "outline"}
+              disabled={deleting || saving}
+              onClick={() => void removePage()}
+            >
+              <Trash2 className="size-3.5" />
+              {deleting
+                ? "Working…"
+                : canDelete
+                  ? "Delete"
+                  : "Reset defaults"}
+            </Button>
+          ) : null}
+          <Button onClick={() => void save()} disabled={saving || deleting}>
+            {saving ? "Saving…" : "Save changes"}
+          </Button>
+        </div>
       </div>
+
+      <section className="rounded-xl border bg-card p-4 md:p-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-sm font-semibold">Language</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Edit SEO and section copy per locale. English is the fallback for
+              the public site.
+            </p>
+          </div>
+          <div
+            className="flex flex-wrap gap-1.5"
+            role="tablist"
+            aria-label="Content locale"
+          >
+            {LOCALES.map((code) => {
+              const active = code === locale
+              return (
+                <button
+                  key={code}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  disabled={loading || saving}
+                  onClick={() => switchLocale(code)}
+                  className={cn(
+                    "rounded-full px-2.5 py-1 text-xs font-bold tracking-wide transition-colors",
+                    active
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground hover:bg-accent hover:text-foreground",
+                  )}
+                >
+                  {LOCALE_LABELS[code].short}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+        {page.hasLocaleRow === false && locale !== DEFAULT_LOCALE ? (
+          <p className="mt-3 rounded-lg border border-dashed border-amber-500/40 bg-amber-500/5 px-3 py-2 text-xs text-amber-900 dark:text-amber-100">
+            No translation yet — showing empty fields; save to create the{" "}
+            {LOCALE_LABELS[locale].label} row.
+          </p>
+        ) : null}
+      </section>
 
       <section className="rounded-xl border bg-card p-4 md:p-6">
         <h2 className="text-sm font-semibold">SEO</h2>
@@ -806,105 +1037,282 @@ export function PageEditorView({ slug }: { slug: string }) {
         )}
       </section>
 
-      <section className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 className="text-sm font-semibold">FAQ items</h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Add as many Q&amp;A pairs as you need. They appear in this order on
-              the page.
-            </p>
-          </div>
-          <Button type="button" variant="outline" onClick={addFaqItem}>
-            <Plus className="size-3.5" />
-            Add FAQ
-          </Button>
-        </div>
-
-        {faqItems.length === 0 ? (
-          <p className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-            No FAQ items yet. Click &ldquo;Add FAQ&rdquo; to create the first
-            one.
-          </p>
-        ) : (
-          faqItems.map((faq, faqIndex) => (
-            <div
-              key={faq.id}
-              className="rounded-xl border bg-card p-4 md:p-5"
-            >
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium">
-                    FAQ #{faqIndex + 1}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="size-8"
-                    disabled={faqIndex === 0}
-                    onClick={() => moveFaqItem(faqIndex, -1)}
-                  >
-                    <ArrowUp className="size-3.5" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="size-8"
-                    disabled={faqIndex === faqItems.length - 1}
-                    onClick={() => moveFaqItem(faqIndex, 1)}
-                  >
-                    <ArrowDown className="size-3.5" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="size-8 text-destructive"
-                    onClick={() => removeFaqItem(faqIndex)}
-                  >
-                    <Trash2 className="size-3.5" />
-                  </Button>
-                </div>
-              </div>
-              <div className="grid gap-3">
-                <div className="flex flex-col gap-1.5">
-                  <Label className="text-xs text-muted-foreground">
-                    Question
-                  </Label>
-                  <Input
-                    value={faq.question ?? ""}
-                    placeholder="e.g. How far in advance should I book?"
-                    onChange={(e) =>
-                      updateFaqItem(faqIndex, {
-                        ...faq,
-                        question: e.target.value,
-                      })
-                    }
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label className="text-xs text-muted-foreground">Answer</Label>
-                  <Textarea
-                    rows={3}
-                    value={faq.answer ?? ""}
-                    placeholder="Write the answer shown on the site…"
-                    onChange={(e) =>
-                      updateFaqItem(faqIndex, {
-                        ...faq,
-                        answer: e.target.value,
-                      })
-                    }
-                  />
-                </div>
-              </div>
+      {isDestinationPage ? (
+        <section className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold">Attractions</h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Add places to visit for this destination. They appear in this
+                order on the destination page.
+              </p>
             </div>
-          ))
-        )}
-      </section>
+            <Button type="button" variant="outline" onClick={addAttractionItem}>
+              <Plus className="size-3.5" />
+              Add attraction
+            </Button>
+          </div>
+
+          {attractionItems.length === 0 ? (
+            <p className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+              No attractions yet. Click &ldquo;Add attraction&rdquo; to create
+              the first one.
+            </p>
+          ) : (
+            attractionItems.map((item, index) => (
+              <div
+                key={item.id}
+                className="rounded-xl border bg-card p-4 md:p-5"
+              >
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                  <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium">
+                    Attraction #{index + 1}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-8"
+                      disabled={index === 0}
+                      onClick={() => moveAttractionItem(index, -1)}
+                    >
+                      <ArrowUp className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-8"
+                      disabled={index === attractionItems.length - 1}
+                      onClick={() => moveAttractionItem(index, 1)}
+                    >
+                      <ArrowDown className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-8 text-destructive"
+                      onClick={() => removeAttractionItem(index)}
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="grid gap-3">
+                  <div className="flex flex-col gap-1.5">
+                    <Label className="text-xs text-muted-foreground">
+                      Title
+                    </Label>
+                    <Input
+                      value={item.heading ?? ""}
+                      placeholder="e.g. Theth Waterfall"
+                      onChange={(e) =>
+                        updateAttractionItem(index, {
+                          ...item,
+                          heading: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label className="text-xs text-muted-foreground">
+                      Description
+                    </Label>
+                    <Textarea
+                      rows={3}
+                      value={item.body ?? ""}
+                      placeholder="Short description visitors will see…"
+                      onChange={(e) =>
+                        updateAttractionItem(index, {
+                          ...item,
+                          body: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label className="text-xs text-muted-foreground">
+                      Image
+                    </Label>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                      <Input
+                        value={item.src ?? ""}
+                        placeholder="/uploads/pages/… or https://…"
+                        onChange={(e) =>
+                          updateAttractionItem(index, {
+                            ...item,
+                            src: e.target.value,
+                          })
+                        }
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() =>
+                          setLibraryTarget({ type: "section", id: item.id })
+                        }
+                      >
+                        <FolderOpen className="size-3.5" />
+                        Library
+                      </Button>
+                      <label className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-md border border-input bg-background px-3 text-sm font-medium hover:bg-muted">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="sr-only"
+                          disabled={uploading}
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0]
+                            e.target.value = ""
+                            if (!file) return
+                            const url = await uploadImage(file)
+                            if (!url) return
+                            updateAttractionItem(index, {
+                              ...item,
+                              src: url,
+                            })
+                          }}
+                        />
+                        <ImagePlus className="size-3.5" />
+                        Upload
+                      </label>
+                    </div>
+                    {item.src ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={item.src}
+                        alt={item.alt || item.heading || ""}
+                        className="mt-1 h-32 w-full rounded-lg border object-cover"
+                      />
+                    ) : null}
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label className="text-xs text-muted-foreground">
+                      Image alt text
+                    </Label>
+                    <Input
+                      value={item.alt ?? ""}
+                      placeholder="Describe the image for accessibility"
+                      onChange={(e) =>
+                        updateAttractionItem(index, {
+                          ...item,
+                          alt: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </section>
+      ) : null}
+
+      {!isDestinationPage ? (
+        <section className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold">FAQ items</h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Add as many Q&amp;A pairs as you need. They appear in this order
+                on the page.
+              </p>
+            </div>
+            <Button type="button" variant="outline" onClick={addFaqItem}>
+              <Plus className="size-3.5" />
+              Add FAQ
+            </Button>
+          </div>
+
+          {faqItems.length === 0 ? (
+            <p className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+              No FAQ items yet. Click &ldquo;Add FAQ&rdquo; to create the first
+              one.
+            </p>
+          ) : (
+            faqItems.map((faq, faqIndex) => (
+              <div
+                key={faq.id}
+                className="rounded-xl border bg-card p-4 md:p-5"
+              >
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium">
+                      FAQ #{faqIndex + 1}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-8"
+                      disabled={faqIndex === 0}
+                      onClick={() => moveFaqItem(faqIndex, -1)}
+                    >
+                      <ArrowUp className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-8"
+                      disabled={faqIndex === faqItems.length - 1}
+                      onClick={() => moveFaqItem(faqIndex, 1)}
+                    >
+                      <ArrowDown className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-8 text-destructive"
+                      onClick={() => removeFaqItem(faqIndex)}
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="grid gap-3">
+                  <div className="flex flex-col gap-1.5">
+                    <Label className="text-xs text-muted-foreground">
+                      Question
+                    </Label>
+                    <Input
+                      value={faq.question ?? ""}
+                      placeholder="e.g. How far in advance should I book?"
+                      onChange={(e) =>
+                        updateFaqItem(faqIndex, {
+                          ...faq,
+                          question: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label className="text-xs text-muted-foreground">
+                      Answer
+                    </Label>
+                    <Textarea
+                      rows={3}
+                      value={faq.answer ?? ""}
+                      placeholder="Write the answer shown on the site…"
+                      onChange={(e) =>
+                        updateFaqItem(faqIndex, {
+                          ...faq,
+                          answer: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </section>
+      ) : null}
 
       <div className="sticky bottom-4 flex justify-end">
         <Button onClick={() => void save()} disabled={saving} size="lg">

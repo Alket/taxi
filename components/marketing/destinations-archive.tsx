@@ -7,22 +7,33 @@ import {
   MARKETING_SECTION_TITLE,
 } from "@/components/marketing/marketing-container"
 import { DESTINATIONS, type Destination } from "@/lib/destinations"
+import {
+  DEFAULT_LOCALE,
+  type Locale,
+  localePath,
+} from "@/lib/i18n/locales"
+import { t } from "@/lib/i18n/t"
 import { cn } from "@/lib/utils"
 
 export const DESTINATIONS_PAGE_SIZE = 6
 
 const ARCHIVE_HERO_FALLBACK = DESTINATIONS[0]?.image ?? ""
 
-function pageHref(page: number) {
-  return page <= 1 ? "/destinations" : `/destinations?page=${page}`
+function pageHref(page: number, locale: Locale) {
+  return localePath(
+    page <= 1 ? "/destinations" : `/destinations?page=${page}`,
+    locale,
+  )
 }
 
 function Pagination({
   page,
   totalPages,
+  locale,
 }: {
   page: number
   totalPages: number
+  locale: Locale
 }) {
   if (totalPages <= 1) return null
 
@@ -34,11 +45,11 @@ function Pagination({
       className="mt-12 flex flex-col items-center gap-4 border-t border-border/70 pt-10 md:mt-16"
     >
       <p className="text-xs font-bold tracking-wider text-muted-foreground uppercase">
-        Page {page} of {totalPages}
+        {t(locale, "common.pageOf", { page, total: totalPages })}
       </p>
       <div className="flex items-center gap-2">
         <Link
-          href={pageHref(page - 1)}
+          href={pageHref(page - 1, locale)}
           aria-disabled={page <= 1}
           tabIndex={page <= 1 ? -1 : undefined}
           className={cn(
@@ -58,7 +69,7 @@ function Pagination({
             return (
               <li key={n}>
                 <Link
-                  href={pageHref(n)}
+                  href={pageHref(n, locale)}
                   aria-current={active ? "page" : undefined}
                   className={cn(
                     "inline-flex size-10 items-center justify-center rounded-full text-sm font-extrabold transition-colors",
@@ -75,7 +86,7 @@ function Pagination({
         </ul>
 
         <Link
-          href={pageHref(page + 1)}
+          href={pageHref(page + 1, locale)}
           aria-disabled={page >= totalPages}
           tabIndex={page >= totalPages ? -1 : undefined}
           className={cn(
@@ -99,12 +110,14 @@ export function DestinationsArchive({
   totalPages,
   totalCount,
   heroImage = ARCHIVE_HERO_FALLBACK,
+  locale = DEFAULT_LOCALE,
 }: {
   destinations: Destination[]
   page: number
   totalPages: number
   totalCount: number
   heroImage?: string
+  locale?: Locale
 }) {
   const from = totalCount === 0 ? 0 : (page - 1) * DESTINATIONS_PAGE_SIZE + 1
   const to = Math.min(page * DESTINATIONS_PAGE_SIZE, totalCount)
@@ -123,18 +136,17 @@ export function DestinationsArchive({
 
         <MarketingContainer className="relative z-10 flex h-full flex-col justify-end pb-10 pt-28 text-white md:pb-14 md:pt-32">
           <Link
-            href="/#destinations"
+            href={localePath("/", locale)}
             className="mb-5 inline-flex w-fit items-center gap-1.5 text-sm font-bold text-white/75 transition-colors hover:text-white"
           >
             <ArrowLeft className="size-4" />
-            Back to home
+            {t(locale, "common.backHome")}
           </Link>
           <h1 className="font-brand text-4xl font-extrabold tracking-tight sm:text-5xl md:text-6xl">
-            Destinations
+            {t(locale, "nav.destinations")}
           </h1>
           <p className="mt-3 max-w-xl text-base leading-relaxed text-white/85 md:text-lg">
-            Airport transfers to Albania&apos;s most loved cities, coasts, and
-            mountain escapes.
+            {t(locale, "destinations.intro")}
           </p>
         </MarketingContainer>
       </section>
@@ -142,12 +154,16 @@ export function DestinationsArchive({
       <MarketingContainer className="relative py-10 md:py-14 lg:py-16">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <h2 className={cn(MARKETING_SECTION_TITLE, "text-2xl md:text-3xl")}>
-            All destinations
+            {t(locale, "destinations.all")}
           </h2>
           <p className="text-sm font-semibold text-muted-foreground">
             {totalCount === 0
-              ? "No destinations yet"
-              : `Showing ${from}–${to} of ${totalCount}`}
+              ? t(locale, "destinations.noneYet")
+              : t(locale, "destinations.showing", {
+                  from,
+                  to,
+                  total: totalCount,
+                })}
           </p>
         </div>
 
@@ -165,29 +181,31 @@ export function DestinationsArchive({
           </ul>
         ) : (
           <div className="mt-12 rounded-3xl border border-dashed border-border bg-brand-surface px-6 py-16 text-center">
-            <p className="text-lg font-bold text-brand">No destinations found</p>
+            <p className="text-lg font-bold text-brand">
+              {t(locale, "destinations.noneFound")}
+            </p>
             <p className="mt-2 text-sm text-muted-foreground">
-              Check back soon for new transfer routes across Albania.
+              {t(locale, "destinations.noneHint")}
             </p>
           </div>
         )}
 
-        <Pagination page={page} totalPages={totalPages} />
+        <Pagination page={page} totalPages={totalPages} locale={locale} />
 
         <div className="mt-14 flex flex-col items-start justify-between gap-4 rounded-3xl bg-brand-panel px-6 py-8 text-white sm:flex-row sm:items-center sm:px-8 md:mt-16">
           <div>
             <p className="text-lg font-extrabold tracking-tight">
-              Ready to book a transfer?
+              {t(locale, "destinations.readyTitle")}
             </p>
             <p className="mt-1 text-sm text-white/70">
-              Choose your route and lock in a fixed price in minutes.
+              {t(locale, "destinations.readyText")}
             </p>
           </div>
           <Link
-            href="/#book"
+            href={localePath("/#book", locale)}
             className="inline-flex h-11 items-center justify-center rounded-full bg-brand-accent px-6 text-sm font-extrabold text-white transition-colors hover:bg-brand-accent-hover"
           >
-            Book now
+            {t(locale, "cta.bookTransfer")}
           </Link>
         </div>
       </MarketingContainer>

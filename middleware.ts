@@ -6,6 +6,13 @@ import {
   DRIVER_SESSION_COOKIE,
   isValidDriverSessionToken,
 } from "@/lib/driver-session"
+import {
+  DEFAULT_LOCALE,
+  LOCALE_COOKIE,
+  LOCALE_HEADER,
+  isPrefixedLocale,
+  type Locale,
+} from "@/lib/i18n/locales"
 
 function normalizePath(pathname: string) {
   if (pathname.length > 1 && pathname.endsWith("/")) {
@@ -14,8 +21,75 @@ function normalizePath(pathname: string) {
   return pathname
 }
 
+function withLocaleHeaders(
+  response: NextResponse,
+  locale: Locale,
+): NextResponse {
+  response.headers.set(LOCALE_HEADER, locale)
+  response.cookies.set(LOCALE_COOKIE, locale, {
+    path: "/",
+    sameSite: "lax",
+    maxAge: 60 * 60 * 24 * 365,
+  })
+  return response
+}
+
+function applyPublicLocale(request: NextRequest): NextResponse | null {
+  const pathname = request.nextUrl.pathname
+
+  // Skip APIs, admin, driver, Next internals, and static files.
+  if (
+    pathname.startsWith("/api") ||
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/driver") ||
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/uploads") ||
+    pathname.includes(".")
+  ) {
+    return null
+  }
+
+  const segments = pathname.split("/").filter(Boolean)
+  const first = segments[0]
+
+  // /en or /en/... → redirect to unprefixed English URL.
+  if (first === "en") {
+    const rest = segments.slice(1).join("/")
+    const url = request.nextUrl.clone()
+    url.pathname = rest ? `/${rest}` : "/"
+    const redirect = NextResponse.redirect(url)
+    return withLocaleHeaders(redirect, DEFAULT_LOCALE)
+  }
+
+  // /it/... → rewrite to unprefixed path with locale header/cookie.
+  if (first && isPrefixedLocale(first)) {
+    const locale = first
+    const rest = segments.slice(1).join("/")
+    const url = request.nextUrl.clone()
+    url.pathname = rest ? `/${rest}` : "/"
+    const rewrite = NextResponse.rewrite(url)
+    return withLocaleHeaders(rewrite, locale)
+  }
+
+  // Default English (unprefixed).
+  const response = NextResponse.next()
+  return withLocaleHeaders(response, DEFAULT_LOCALE)
+}
+
 export async function middleware(request: NextRequest) {
   const path = normalizePath(request.nextUrl.pathname)
+
+  // ── Public locale handling (marketing + booking chrome) ────────
+  const localeResponse = applyPublicLocale(request)
+  // Continue into auth only for admin/driver; for public return locale response.
+  if (
+    !path.startsWith("/admin") &&
+    !path.startsWith("/api/admin") &&
+    !path.startsWith("/driver") &&
+    !path.startsWith("/api/driver")
+  ) {
+    return localeResponse ?? NextResponse.next()
+  }
 
   // ── Driver portal ──────────────────────────────────────────────
   if (path.startsWith("/driver") || path.startsWith("/api/driver")) {
@@ -78,11 +152,10 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/admin",
-    "/admin/:path*",
-    "/api/admin/:path*",
-    "/driver",
-    "/driver/:path*",
-    "/api/driver/:path*",
+    /*
+     * Match all pathnames except static files handled above via extension check.
+     * Keep broad so locale rewrites apply to marketing routes.
+     */
+    "/((?!_next/static|_next/image|favicon.ico|.*\\..*).*)",
   ],
 }

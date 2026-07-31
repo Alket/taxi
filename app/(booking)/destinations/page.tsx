@@ -5,6 +5,8 @@ import {
   DESTINATIONS_PAGE_SIZE,
   DestinationsArchive,
 } from "@/components/marketing/destinations-archive"
+import { getRequestLocale } from "@/lib/i18n/get-locale"
+import { localePath } from "@/lib/i18n/locales"
 import { resolveDestinationCards } from "@/lib/page-content"
 
 export const dynamic = "force-dynamic"
@@ -22,8 +24,9 @@ type PageProps = {
 export default async function DestinationsArchivePage({
   searchParams,
 }: PageProps) {
+  const locale = await getRequestLocale()
   const { page: pageParam } = await searchParams
-  const destinations = await resolveDestinationCards()
+  const destinations = await resolveDestinationCards(locale)
   const totalCount = destinations.length
   const totalPages = Math.max(1, Math.ceil(totalCount / DESTINATIONS_PAGE_SIZE))
 
@@ -31,7 +34,12 @@ export default async function DestinationsArchivePage({
   const requested = Number.isFinite(parsed) && parsed > 0 ? parsed : 1
 
   if (requested > totalPages) {
-    redirect(totalPages <= 1 ? "/destinations" : `/destinations?page=${totalPages}`)
+    redirect(
+      localePath(
+        totalPages <= 1 ? "/destinations" : `/destinations?page=${totalPages}`,
+        locale,
+      ),
+    )
   }
 
   const page = requested
@@ -48,6 +56,7 @@ export default async function DestinationsArchivePage({
       totalPages={totalPages}
       totalCount={totalCount}
       heroImage={heroImage}
+      locale={locale}
     />
   )
 }

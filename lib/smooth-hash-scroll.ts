@@ -1,20 +1,22 @@
-/** Extract id from `/#section` or `#section`. */
+import { localeFromPathname, localePath } from "@/lib/i18n/locales"
+
+/** Extract id from `/#section`, `/it/#section`, or `#section`. */
 export function getHashId(href: string): string | null {
-  if (href.startsWith("/#")) return href.slice(2) || null
-  if (href.startsWith("#") && href.length > 1) return href.slice(1)
-  return null
+  const hashIndex = href.indexOf("#")
+  if (hashIndex < 0 || hashIndex === href.length - 1) return null
+  return href.slice(hashIndex + 1) || null
 }
 
 export function scrollToHashId(
   id: string,
-  options?: { updateUrl?: boolean }
+  options?: { updateUrl?: boolean },
 ): boolean {
   if (typeof document === "undefined") return false
   const el = document.getElementById(id)
   if (!el) return false
 
   const prefersReduced = window.matchMedia(
-    "(prefers-reduced-motion: reduce)"
+    "(prefers-reduced-motion: reduce)",
   ).matches
 
   el.scrollIntoView({
@@ -23,8 +25,9 @@ export function scrollToHashId(
   })
 
   if (options?.updateUrl !== false) {
-    const next = `/#${id}`
-    if (window.location.hash !== `#${id}`) {
+    const locale = localeFromPathname(window.location.pathname)
+    const next = localePath(`/#${id}`, locale)
+    if (`${window.location.pathname}${window.location.hash}` !== next) {
       window.history.pushState(null, "", next)
     }
   }

@@ -3,23 +3,25 @@
 import { CheckIcon } from "lucide-react"
 
 import { useBookingStore, type BookingStep } from "@/lib/store/booking-store"
+import { useT } from "@/lib/i18n/use-locale"
 import { cn } from "@/lib/utils"
-
-const STEPS: { step: BookingStep; label: string }[] = [
-  { step: 1, label: "Details" },
-  { step: 2, label: "Payment" },
-]
 
 export function BookingStepIndicator() {
   const currentStep = useBookingStore((s) => s.currentStep)
+  const tr = useT()
+
+  const steps: { step: BookingStep; label: string }[] = [
+    { step: 1, label: tr("book.stepDetails") },
+    { step: 2, label: tr("book.stepPayment") },
+  ]
 
   return (
     <nav aria-label="Booking progress" className="w-full">
       <ol className="flex items-center">
-        {STEPS.map(({ step, label }, index) => {
+        {steps.map(({ step, label }, index) => {
           const complete = currentStep > step
           const active = currentStep === step
-          const isLast = index === STEPS.length - 1
+          const isLast = index === steps.length - 1
 
           return (
             <li

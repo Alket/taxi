@@ -8,17 +8,24 @@ import { MenuIcon, XIcon } from "lucide-react"
 import { HashLink } from "@/components/marketing/hash-link"
 import { LanguageSwitcher } from "@/components/marketing/language-switcher"
 import { MarketingContainer } from "@/components/marketing/marketing-container"
+import { useLocale } from "@/lib/i18n/use-locale"
+import { localePath } from "@/lib/i18n/locales"
+import { t } from "@/lib/i18n/t"
 import { cn } from "@/lib/utils"
-
-const NAV = [
-  { href: "/#book", label: "Book" },
-  { href: "/#destinations", label: "Destinations" },
-  { href: "/#safety", label: "Safety" },
-  { href: "/#faq", label: "FAQ" },
-] as const
 
 export function SiteHeader({ className }: { className?: string }) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const locale = useLocale()
+
+  const nav = [
+    { href: localePath("/#book", locale), label: t(locale, "nav.book") },
+    {
+      href: localePath("/destinations", locale),
+      label: t(locale, "nav.destinations"),
+    },
+    { href: localePath("/#safety", locale), label: t(locale, "nav.safety") },
+    { href: localePath("/#faq", locale), label: t(locale, "nav.faq") },
+  ] as const
 
   return (
     <header className={cn("sticky top-4 z-50", className)}>
@@ -27,7 +34,7 @@ export function SiteHeader({ className }: { className?: string }) {
           {/* Left: logo */}
           <div className="flex min-w-0 items-center">
             <Link
-              href="/"
+              href={localePath("/", locale)}
               className="flex shrink-0 items-center gap-2.5 font-brand text-xl font-extrabold tracking-tight text-brand sm:gap-3 sm:text-2xl"
             >
               <Image
@@ -44,7 +51,7 @@ export function SiteHeader({ className }: { className?: string }) {
           {/* Right: menu + language + My booking */}
           <div className="flex items-center gap-4 sm:gap-6 lg:gap-8">
             <nav className="hidden items-center gap-6 md:flex lg:gap-8">
-              {NAV.map(({ href, label }) =>
+              {nav.map(({ href, label }) =>
                 href.includes("#") ? (
                   <HashLink
                     key={label}
@@ -68,16 +75,20 @@ export function SiteHeader({ className }: { className?: string }) {
             <LanguageSwitcher className="hidden md:inline-block" />
 
             <Link
-              href="/my-booking"
+              href={localePath("/my-booking", locale)}
               className="rounded-full bg-primary px-4 py-2 text-xs font-extrabold tracking-wide text-primary-foreground shadow-md shadow-primary/20 transition-colors hover:bg-brand-accent-hover sm:px-6 sm:py-2.5 sm:text-sm"
             >
-              My booking
+              {t(locale, "nav.myBooking")}
             </Link>
 
             <button
               type="button"
               className="relative size-10 touch-manipulation p-2 text-brand md:hidden"
-              aria-label={menuOpen ? "Close menu" : "Open menu"}
+              aria-label={
+                menuOpen
+                  ? t(locale, "nav.closeMenu")
+                  : t(locale, "nav.openMenu")
+              }
               aria-expanded={menuOpen}
               onClick={() => setMenuOpen((open) => !open)}
             >
@@ -114,7 +125,7 @@ export function SiteHeader({ className }: { className?: string }) {
           >
             <div className="rounded-3xl border border-border bg-white p-4 shadow-lg">
               <nav className="flex flex-col gap-1">
-                {NAV.map(({ href, label }, index) => {
+                {nav.map(({ href, label }, index) => {
                   const linkClass = cn(
                     "rounded-xl px-4 py-3 text-sm font-bold text-brand transition-all duration-300 ease-out hover:bg-accent hover:text-primary",
                     menuOpen
@@ -159,7 +170,7 @@ export function SiteHeader({ className }: { className?: string }) {
                   }}
                 >
                   <p className="mb-2 px-2 text-[10px] font-bold tracking-[0.14em] text-muted-foreground uppercase">
-                    Language
+                    {t(locale, "lang.label")}
                   </p>
                   <LanguageSwitcher variant="chips" className="px-2" />
                 </div>

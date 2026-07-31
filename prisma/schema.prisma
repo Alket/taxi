@@ -356,7 +356,9 @@ model Settings {
 model PageContent {
   id          String   @id @default(cuid())
   /** Unique page key, e.g. "home", "cancellation-policy". */
-  slug        String   @unique
+  slug        String
+  /** Locale code: en, it, de, pl, tr, uk, ru. */
+  locale      String   @default("en")
   /** Human label shown in the admin list. */
   label       String   @default("")
   /** SEO document title. */
@@ -365,10 +367,13 @@ model PageContent {
   description String   @default("") @db.Text
   /** Open Graph image URL (path or absolute). */
   ogImage     String   @default("")
-  /** Ordered list of sections: heading | text | image | faq_item. */
+  /** Ordered list of sections: heading | text | image | faq_item | attraction. */
   sections    Json
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@unique([slug, locale])
+  @@index([locale])
 }
 
 /** Uploaded images for the admin media library (files under public/uploads/pages). */

@@ -32,6 +32,8 @@ import {
   pickupLeadTimeMessage,
 } from "@/lib/pickup-lead-time"
 import { autoSelectVehiclePatch } from "@/lib/vehicles"
+import { localePath } from "@/lib/i18n/locales"
+import { useLocale, useT } from "@/lib/i18n/use-locale"
 import { cn } from "@/lib/utils"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock"
@@ -190,6 +192,8 @@ export function HeroBookingCard() {
   const setStep = useBookingStore((s) => s.setStep)
 
   const router = useRouter()
+  const locale = useLocale()
+  const tr = useT()
   const [calendarOpen, setCalendarOpen] = React.useState(false)
   const [returnCalendarOpen, setReturnCalendarOpen] = React.useState(false)
   const [passengersOpen, setPassengersOpen] = React.useState(false)
@@ -396,15 +400,15 @@ export function HeroBookingCard() {
     const hasTime = Boolean(state.pickupDateTime)
 
     if (!hasAirport) {
-      toast.error("Select an airport.")
+      toast.error(tr("book.selectAirport"))
       return
     }
     if (!hasZone) {
-      toast.error("Select a destination.")
+      toast.error(tr("book.selectDestination"))
       return
     }
     if (!hasTime) {
-      toast.error("Add a pickup date and time.")
+      toast.error(tr("book.addPickupRequired"))
       if (opts?.fromPassengersSheet) setPassengersOpen(false)
       setCalendarOpen(true)
       return
@@ -417,7 +421,7 @@ export function HeroBookingCard() {
     }
     if (state.isRoundTrip) {
       if (!state.returnDateTime) {
-        toast.error("Add a return date and time.")
+        toast.error(tr("book.addReturnRequired"))
         if (opts?.fromPassengersSheet) setPassengersOpen(false)
         setReturnCalendarOpen(true)
         return
@@ -425,7 +429,7 @@ export function HeroBookingCard() {
       const pickupMs = new Date(state.pickupDateTime!).getTime()
       const returnMs = new Date(state.returnDateTime).getTime()
       if (Number.isNaN(returnMs) || returnMs <= pickupMs) {
-        toast.error("Return must be after pickup.")
+        toast.error(tr("book.returnAfterPickup"))
         if (opts?.fromPassengersSheet) setPassengersOpen(false)
         setReturnCalendarOpen(true)
         return
@@ -441,11 +445,10 @@ export function HeroBookingCard() {
         if (!quoted) {
           latest = useBookingStore.getState()
           if (latest.quoteStatus === "uncovered") {
-            toast.error("That destination isn't covered yet.")
+            toast.error(tr("book.notCovered"))
           } else {
             toast.error(
-              latest.quoteError ||
-              "Could not get prices for this route. Try again.",
+              latest.quoteError || tr("book.quoteRetry"),
             )
           }
           setContinuing(false)
@@ -465,7 +468,7 @@ export function HeroBookingCard() {
         startedFromHero: true,
       })
       setStep(1)
-      router.push("/book")
+      router.push(localePath("/book", locale))
       // Leave continuing on so the white reloader stays until unmount.
     } catch {
       setContinuing(false)
@@ -537,10 +540,19 @@ export function HeroBookingCard() {
   }
 
   React.useEffect(() => {
-    router.prefetch("/book")
-  }, [router])
+    router.prefetch(localePath("/book", locale))
+  }, [router, locale])
 
-  const passengersLabel = `${passengerCount} passenger${passengerCount === 1 ? "" : "s"} · ${luggageCount} luggage`
+  const passengersLabel =
+    passengerCount === 1
+      ? tr("book.passengersSummary", {
+          count: passengerCount,
+          luggage: luggageCount,
+        })
+      : tr("book.passengersSummaryPlural", {
+          count: passengerCount,
+          luggage: luggageCount,
+        })
 
   return (
     <div className="relative z-20 w-full rounded-2xl bg-brand-surface text-brand shadow-[0_20px_50px_rgba(0,0,0,0.28)]">
@@ -557,7 +569,7 @@ export function HeroBookingCard() {
                 : "text-muted-foreground hover:text-brand",
             )}
           >
-            One Way
+            {tr("book.oneWay")}
           </button>
           <button
             type="button"
@@ -569,7 +581,7 @@ export function HeroBookingCard() {
                 : "text-muted-foreground hover:text-brand",
             )}
           >
-            Return
+            {tr("book.return")}
           </button>
         </div>
 
@@ -588,7 +600,7 @@ export function HeroBookingCard() {
                 ) : (
                   <HeroFieldSelect
                     value={selectedAirportIata}
-                    placeholder="From (airport, port, address)"
+                    placeholder={tr("book.fromPlaceholder")}
                     options={airportOptions}
                     onChange={onAirportPicked}
                     anchor={fromRowAnchor}
@@ -597,12 +609,12 @@ export function HeroBookingCard() {
               ) : (
                 <HeroFieldSelect
                   value={selectedZoneId}
-                  placeholder="From (airport, port, address)"
+                  placeholder={tr("book.fromPlaceholder")}
                   options={zoneOptions}
                   onChange={onZonePicked}
                   anchor={fromRowAnchor}
                   mobileSheet
-                  sheetTitle="Choose destination"
+                  sheetTitle={tr("book.chooseDestination")}
                   onAfterSelect={openCalendarAfterDestination}
                 />
               )}
@@ -616,7 +628,7 @@ export function HeroBookingCard() {
                 )
               }
             >
-              Swap
+              {tr("book.swap")}
             </button>
           </div>
 
@@ -629,12 +641,12 @@ export function HeroBookingCard() {
               {fromIsAirport ? (
                 <HeroFieldSelect
                   value={selectedZoneId}
-                  placeholder="To (airport, port, address)"
+                  placeholder={tr("book.toPlaceholder")}
                   options={zoneOptions}
                   onChange={onZonePicked}
                   anchor={toRowAnchor}
                   mobileSheet
-                  sheetTitle="Choose destination"
+                  sheetTitle={tr("book.chooseDestination")}
                   onAfterSelect={openCalendarAfterDestination}
                 />
               ) : singleAirportOnly ? (
@@ -644,12 +656,12 @@ export function HeroBookingCard() {
               ) : (
                 <HeroFieldSelect
                   value={selectedAirportIata}
-                  placeholder="To (airport, port, address)"
+                  placeholder={tr("book.toPlaceholder")}
                   options={airportOptions}
                   onChange={onAirportPicked}
                   anchor={toRowAnchor}
                   mobileSheet
-                  sheetTitle="Choose destination"
+                  sheetTitle={tr("book.chooseDestination")}
                   onAfterSelect={openCalendarAfterDestination}
                 />
               )}
@@ -681,7 +693,7 @@ export function HeroBookingCard() {
                 >
                   {pickupDateTime
                     ? formatHeroDateLabel(pickupDateTime)
-                    : "Add pickup date & time"}
+                    : tr("book.addPickup")}
                 </span>
               </button>
             }
@@ -715,11 +727,11 @@ export function HeroBookingCard() {
                   >
                     {returnDateTime
                       ? formatHeroDateLabel(returnDateTime)
-                      : "Add return date & time"}
-                  </span>
-                </button>
-              }
-            />
+                      : tr("book.addReturn")}
+                </span>
+              </button>
+            }
+          />
           ) : null}
         </div>
 
@@ -754,7 +766,7 @@ export function HeroBookingCard() {
               >
                 <SheetHeader className="shrink-0 border-b border-border px-4 py-3 pr-14">
                   <SheetTitle className="text-base font-bold text-brand">
-                    Passengers & luggage
+                    {tr("book.passengersLuggage")}
                   </SheetTitle>
                 </SheetHeader>
 
@@ -762,14 +774,14 @@ export function HeroBookingCard() {
                   <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5">
                     <div className="flex flex-col gap-5">
                       <Stepper
-                        label="Passengers"
+                        label={tr("book.passengers")}
                         value={passengerCount}
                         min={1}
                         max={8}
                         onChange={(n) => patch({ passengerCount: n })}
                       />
                       <Stepper
-                        label="Luggage pieces"
+                        label={tr("book.luggage")}
                         value={luggageCount}
                         min={0}
                         max={10}
@@ -792,10 +804,10 @@ export function HeroBookingCard() {
                             className="animate-spin"
                             data-icon="inline-start"
                           />
-                          Continue…
+                          {tr("book.continueEllipsis")}
                         </>
                       ) : (
-                        "Confirm"
+                        tr("book.confirm")
                       )}
                     </Button>
                   </div>
@@ -806,14 +818,14 @@ export function HeroBookingCard() {
         ) : (
           <div className="mt-4 grid grid-cols-2 gap-4">
             <Stepper
-              label="Passengers"
+              label={tr("book.passengers")}
               value={passengerCount}
               min={1}
               max={8}
               onChange={(n) => patch({ passengerCount: n })}
             />
             <Stepper
-              label="Luggage pieces"
+              label={tr("book.luggage")}
               value={luggageCount}
               min={0}
               max={10}
@@ -824,12 +836,12 @@ export function HeroBookingCard() {
 
         {quoteStatus === "uncovered" && (
           <p className="mt-3 text-xs text-amber-700 text-center font-medium">
-            That destination isn&apos;t covered yet.
+            {tr("book.notCovered")}
           </p>
         )}
         {quoteStatus === "error" && (
           <p className="mt-3 text-xs text-red-600 text-center font-medium">
-            {quoteError || "Could not load prices."}
+            {quoteError || tr("book.couldNotLoadPrices")}
           </p>
         )}
 
@@ -843,10 +855,12 @@ export function HeroBookingCard() {
           {busy ? (
             <>
               <Loader2Icon className="animate-spin" data-icon="inline-start" />
-              {quoteStatus === "loading" ? "Getting prices…" : "Continue…"}
+              {quoteStatus === "loading"
+                ? tr("book.gettingPrices")
+                : tr("book.continueEllipsis")}
             </>
           ) : (
-            "Continue"
+            tr("book.continue")
           )}
         </Button>
       </div>
@@ -856,7 +870,7 @@ export function HeroBookingCard() {
           <UsersIcon className="size-4 text-muted-foreground" />
         </div>
         <span>
-          Fixed prices, every trip, no surprises.
+          {tr("book.fixedPrices")}
         </span>
       </div>
     </div>

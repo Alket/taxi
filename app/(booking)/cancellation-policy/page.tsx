@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 
 import { CancellationPolicyView } from "@/components/marketing/cancellation-policy-view"
 import { DESTINATIONS } from "@/lib/destinations"
+import { getRequestLocale } from "@/lib/i18n/get-locale"
 import {
   pageMetadataFields,
   resolvePageContent,
@@ -12,13 +13,15 @@ import {
 export const dynamic = "force-dynamic"
 
 export async function generateMetadata(): Promise<Metadata> {
-  const page = await resolvePageContent("cancellation-policy")
+  const locale = await getRequestLocale()
+  const page = await resolvePageContent("cancellation-policy", locale)
   if (!page) return { title: "Cancellation Policy" }
   return pageMetadataFields(page)
 }
 
 export default async function CancellationPolicyPage() {
-  const page = await resolvePageContent("cancellation-policy")
+  const locale = await getRequestLocale()
+  const page = await resolvePageContent("cancellation-policy", locale)
   const sections = page?.sections ?? []
 
   const title = sectionHeading(sections, "title") || "Cancellation Policy"
@@ -59,6 +62,7 @@ export default async function CancellationPolicyPage() {
       intro={intro}
       blocks={blocks}
       heroImage={heroImage}
+      locale={locale}
     />
   )
 }

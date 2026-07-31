@@ -25,8 +25,11 @@ export function SafetyPrioritySection({ copy }: { copy: SafetyCopy }) {
         </div>
 
         <div className="grid grid-cols-1 gap-8 md:grid-cols-2 md:gap-10 lg:gap-12">
-          {copy.items.map(({ title, description, image, alt }) => (
-            <article key={title} className="group flex flex-col">
+          {copy.items.map(({ title, description, image, alt }, index) => (
+            <article
+              key={`safety-item-${index}`}
+              className="group flex flex-col"
+            >
               <div className="relative mb-4 aspect-[16/10] w-full overflow-hidden rounded-2xl bg-muted shadow-md sm:mb-6 sm:rounded-3xl">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img

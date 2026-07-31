@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 
 import { HomeLanding } from "@/components/marketing/home-landing"
 import { SiteFooter } from "@/components/marketing/site-footer"
+import { getRequestLocale } from "@/lib/i18n/get-locale"
 import {
   pageMetadataFields,
   resolveDestinationCards,
@@ -13,7 +14,8 @@ import {
 export const dynamic = "force-dynamic"
 
 export async function generateMetadata(): Promise<Metadata> {
-  const page = await resolvePageContent("home")
+  const locale = await getRequestLocale()
+  const page = await resolvePageContent("home", locale)
   if (!page) {
     return {
       title: "Albania Transfers · Airport transfers",
@@ -25,9 +27,10 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function HomePage() {
+  const locale = await getRequestLocale()
   const [page, destinations] = await Promise.all([
-    resolvePageContent("home"),
-    resolveDestinationCards(),
+    resolvePageContent("home", locale),
+    resolveDestinationCards(locale),
   ])
   const copy = await resolveHomeMarketingCopy(page?.sections ?? [])
   return (

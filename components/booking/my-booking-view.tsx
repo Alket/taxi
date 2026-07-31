@@ -246,8 +246,7 @@ export function MyBookingView() {
       </section>
 
       <section className="bg-brand-page py-10 md:py-14">
-        <MarketingContainer>
-          <div className="mx-auto flex max-w-3xl flex-col gap-6">
+        <MarketingContainer className="flex flex-col gap-6">
             <form
               className="rounded-3xl border border-border bg-brand-surface p-5 shadow-sm sm:p-7"
               onSubmit={(e) => {
@@ -332,7 +331,6 @@ export function MyBookingView() {
               supportEmail={supportEmail}
               supportPhone={supportPhone}
             />
-          </div>
         </MarketingContainer>
       </section>
     </div>

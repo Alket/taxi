@@ -1,6 +1,11 @@
+"use client"
+
 import Link from "next/link"
 
 import type { Destination } from "@/lib/destinations"
+import { useLocale } from "@/lib/i18n/use-locale"
+import { localePath } from "@/lib/i18n/locales"
+import { t } from "@/lib/i18n/t"
 import { cn } from "@/lib/utils"
 
 export function DestinationCard({
@@ -12,9 +17,11 @@ export function DestinationCard({
   className?: string
   priority?: boolean
 }) {
+  const locale = useLocale()
+
   return (
     <Link
-      href={`/destinations/${destination.id}`}
+      href={localePath(`/destinations/${destination.id}`, locale)}
       className={cn(
         "group relative flex h-[380px] flex-col overflow-hidden rounded-2xl border border-border bg-muted shadow-sm transition-shadow duration-300 hover:shadow-xl sm:rounded-3xl md:h-[400px]",
         className,
@@ -37,7 +44,7 @@ export function DestinationCard({
           {destination.badge}
         </span>
         <span className="rounded-full bg-primary px-2.5 py-1 text-[11px] font-extrabold text-primary-foreground sm:px-3 sm:text-xs">
-          From {destination.priceFrom}
+          {t(locale, "cta.from", { price: destination.priceFrom })}
         </span>
       </div>
 

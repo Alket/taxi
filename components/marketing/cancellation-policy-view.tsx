@@ -8,6 +8,12 @@ import {
 } from "lucide-react"
 
 import { MarketingContainer } from "@/components/marketing/marketing-container"
+import {
+  DEFAULT_LOCALE,
+  type Locale,
+  localePath,
+} from "@/lib/i18n/locales"
+import { t } from "@/lib/i18n/t"
 import { cn } from "@/lib/utils"
 
 type PolicyBlock = {
@@ -18,22 +24,22 @@ type PolicyBlock = {
 
 const BLOCK_META: Record<
   string,
-  { icon: LucideIcon; accent: string; summary: string }
+  { icon: LucideIcon; accent: string; summaryKey: string }
 > = {
   customer: {
     icon: BanIcon,
     accent: "text-brand-accent",
-    summary: "Deposit is forfeited",
+    summaryKey: "policy.summary.customer",
   },
   refund: {
     icon: ShieldCheckIcon,
     accent: "text-brand-accent",
-    summary: "Full refund when we fail",
+    summaryKey: "policy.summary.refund",
   },
   how: {
     icon: ClipboardListIcon,
     accent: "text-brand-accent",
-    summary: "Cancel via My booking",
+    summaryKey: "policy.summary.how",
   },
 }
 
@@ -76,11 +82,13 @@ export function CancellationPolicyView({
   intro,
   blocks,
   heroImage,
+  locale = DEFAULT_LOCALE,
 }: {
   title: string
   intro: string
   blocks: PolicyBlock[]
   heroImage: string
+  locale?: Locale
 }) {
   return (
     <div>
@@ -96,11 +104,11 @@ export function CancellationPolicyView({
 
         <MarketingContainer className="relative z-10 flex h-full flex-col justify-end pb-10 pt-28 text-white md:pb-12 md:pt-32">
           <Link
-            href="/"
+            href={localePath("/", locale)}
             className="mb-5 inline-flex w-fit items-center gap-1.5 text-sm font-bold text-white/75 transition-colors hover:text-white"
           >
             <ArrowLeft className="size-4" />
-            Back to home
+            {t(locale, "common.backHome")}
           </Link>
           <h1 className="max-w-3xl font-brand text-4xl font-extrabold tracking-tight sm:text-5xl">
             {title}
@@ -115,12 +123,10 @@ export function CancellationPolicyView({
         <MarketingContainer>
           <div className="mx-auto max-w-3xl rounded-3xl border border-brand-accent/20 bg-brand-surface px-5 py-5 shadow-sm sm:px-7 sm:py-6">
             <p className="text-xs font-extrabold tracking-[0.14em] text-brand-accent uppercase">
-              Key takeaway
+              {t(locale, "policy.keyTakeaway")}
             </p>
             <p className="mt-2 text-base font-bold leading-snug text-brand sm:text-lg">
-              Customer cancellations forfeit the deposit. There is no free
-              cancellation window. You only get a full refund if we fail to
-              deliver the transfer.
+              {t(locale, "policy.takeawayBody")}
             </p>
           </div>
 
@@ -151,9 +157,9 @@ export function CancellationPolicyView({
                           {String(index + 1).padStart(2, "0")}
                         </span>
                       </div>
-                      {meta?.summary ? (
+                      {meta?.summaryKey ? (
                         <p className="mt-1 text-sm font-semibold text-brand-accent">
-                          {meta.summary}
+                          {t(locale, meta.summaryKey)}
                         </p>
                       ) : null}
                     </div>
@@ -171,17 +177,17 @@ export function CancellationPolicyView({
           <div className="mx-auto mt-10 flex max-w-3xl flex-col gap-4 rounded-3xl bg-brand-panel px-6 py-7 text-white sm:flex-row sm:items-center sm:justify-between sm:px-8 md:mt-12">
             <div>
               <p className="text-lg font-extrabold tracking-tight">
-                Need to cancel a booking?
+                {t(locale, "policy.needCancelTitle")}
               </p>
               <p className="mt-1 text-sm text-white/70">
-                Use your reference code and email in My booking.
+                {t(locale, "policy.needCancelText")}
               </p>
             </div>
             <Link
-              href="/my-booking"
+              href={localePath("/my-booking", locale)}
               className="inline-flex h-11 shrink-0 items-center justify-center rounded-full bg-brand-accent px-6 text-sm font-extrabold text-white transition-colors hover:bg-brand-accent-hover"
             >
-              Go to My booking
+              {t(locale, "nav.myBooking")}
             </Link>
           </div>
         </MarketingContainer>
