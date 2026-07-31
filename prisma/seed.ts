@@ -16,6 +16,7 @@ import { hashPassword } from "../lib/auth"
 const prisma = new PrismaClient()
 
 const ADMIN_EMAIL = "ops@transfers.co"
+/** Dev/demo only — production seed refuses to run (see main()). */
 const ADMIN_PASSWORD = "admin123"
 
 const STATUS_ORDER: BookingStatus[] = [
@@ -98,6 +99,12 @@ function pricingForTier(tier: number, vehicleType: VehicleType) {
 }
 
 async function main() {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "Refusing to seed in production. The demo admin (ops@transfers.co / admin123) must never be created in a production database. Invite an admin from a secure bootstrap instead.",
+    )
+  }
+
   await prisma.notificationLog.deleteMany()
   await prisma.flightStatusEvent.deleteMany()
   await prisma.bookingStatusEvent.deleteMany()
@@ -118,6 +125,8 @@ async function main() {
       email: ADMIN_EMAIL,
       passwordHash,
       role: "admin",
+      // Even in non-prod, force a new password on first login.
+      requiresPasswordReset: true,
     },
   })
 
@@ -663,8 +672,9 @@ async function main() {
     }
   }
 
-  console.log("Seed complete:")
+  console.log("Seed complete (non-production only):")
   console.log(`  Admin: ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}`)
+  console.log("  (requiresPasswordReset=true — set a new password on first login)")
   console.log(`  Zones: ${createdZones.length}`)
   console.log(`  Pricing rules: ${createdZones.length * vehicleTypes.length}`)
   console.log(`  Drivers: ${drivers.length}`)

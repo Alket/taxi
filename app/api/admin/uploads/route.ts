@@ -12,9 +12,11 @@ import {
   serializeMediaAsset,
   titleFromFilename,
 } from "@/lib/media"
+import { sanitizeSvgMarkup } from "@/lib/sanitize-svg"
 
 const MAX_BYTES = 5 * 1024 * 1024
 const MAX_SVG_BYTES = 512 * 1024
+const MAX_META_CHARS = 500
 const ALLOWED = new Map([
   ["image/jpeg", "jpg"],
   ["image/png", "png"],
@@ -33,7 +35,8 @@ function resolveExt(file: File): string | null {
 
 function formString(form: FormData, key: string): string {
   const value = form.get(key)
-  return typeof value === "string" ? value.trim() : ""
+  if (typeof value !== "string") return ""
+  return value.trim().slice(0, MAX_META_CHARS)
 }
 
 export async function POST(request: Request) {
@@ -71,10 +74,12 @@ export async function POST(request: Request) {
     )
   }
 
-  const buffer = Buffer.from(await file.arrayBuffer())
+  let buffer = Buffer.from(await file.arrayBuffer())
   if (ext === "svg") {
-    const text = buffer.toString("utf8").trim().toLowerCase()
-    if (!text.includes("<svg") || text.includes("<script")) {
+    try {
+      const sanitized = sanitizeSvgMarkup(buffer.toString("utf8"))
+      buffer = Buffer.from(sanitized, "utf8")
+    } catch {
       return NextResponse.json(
         { error: "Invalid or unsafe SVG file." },
         { status: 400 },
@@ -103,7 +108,7 @@ export async function POST(request: Request) {
       mimeType:
         mimeType ||
         (ext === "jpg" ? "image/jpeg" : `image/${ext === "svg" ? "svg+xml" : ext}`),
-      sizeBytes: file.size,
+      sizeBytes: buffer.length,
       title,
       description,
       alt,

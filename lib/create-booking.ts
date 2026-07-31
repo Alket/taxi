@@ -2,6 +2,13 @@ import { randomBytes } from "crypto"
 import { z } from "zod"
 
 import {
+  bookingCustomerEmailSchema,
+  bookingCustomerNameSchema,
+  bookingCustomerPhoneSchema,
+  bookingFlightNumberSchema,
+  normalizeFlightNumber,
+} from "@/lib/booking-details"
+import {
   computeChildSeatTotal,
   formatChildSeatNotes,
   parseChildSeatCounts,
@@ -21,9 +28,9 @@ import { computeTripTotal, round2 } from "@/lib/vehicles"
 
 export const bookingCreateSchema = z.object({
   customer: z.object({
-    name: z.string().min(1).max(200),
-    email: z.string().email().max(320),
-    phone: z.string().min(1).max(50),
+    name: bookingCustomerNameSchema,
+    email: bookingCustomerEmailSchema,
+    phone: bookingCustomerPhoneSchema,
     whatsappOptIn: z.boolean().optional().default(true),
   }),
   direction: z.enum(["airport_to_dest", "dest_to_airport"]),
@@ -35,7 +42,7 @@ export const bookingCreateSchema = z.object({
   dropoffLng: z.coerce.number(),
   pickupDateTime: z.string().min(1),
   returnDateTime: z.string().optional().nullable(),
-  flightNumber: z.string().optional().nullable(),
+  flightNumber: bookingFlightNumberSchema,
   passengerCount: z.coerce.number().int().min(1).max(30),
   luggageCount: z.coerce.number().int().min(0).max(50),
   infantCarrierCount: z.coerce.number().int().min(0).max(4).optional().default(0),
@@ -191,7 +198,9 @@ export async function createBookingsFromInput(
 
     const referenceCode = await generateUniqueReferenceCode()
     const pickupPin = await generateUniquePickupPin()
-    const flightNumber = input.flightNumber?.toString().trim() ?? ""
+    const flightNumber = input.flightNumber
+      ? normalizeFlightNumber(input.flightNumber)
+      : ""
 
     const driverNotes = input.driverNotes?.trim() ?? ""
 

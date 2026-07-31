@@ -36,7 +36,8 @@ services:
     environment:
       NODE_ENV: development
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-taxi}?schema=public
-      JWT_SECRET: ${JWT_SECRET:-change-me-to-a-long-random-string}
+      # Dev convenience default is rejected by lib/jwt-secret — set JWT_SECRET in .env
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET to a unique random string of at least 32 characters}
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
       NEXT_PUBLIC_VAPID_PUBLIC_KEY: ${NEXT_PUBLIC_VAPID_PUBLIC_KEY:-}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}

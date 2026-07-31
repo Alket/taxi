@@ -80,6 +80,43 @@ export function normalizeFlightNumber(value: string) {
   return value.replace(/[\s-]/g, "").toUpperCase()
 }
 
+/** Shared with bookingCreateSchema — keep client DetailsStep and server in sync. */
+export const bookingCustomerNameSchema = z
+  .string()
+  .trim()
+  .min(2, "Enter your full name.")
+  .max(80, "Name is too long.")
+
+export const bookingCustomerEmailSchema = z
+  .string()
+  .trim()
+  .email("Enter a valid email address.")
+  .max(320)
+
+/** Joined E.164-style value from joinPhone (e.g. +355691234567). */
+export const bookingCustomerPhoneSchema = z
+  .string()
+  .trim()
+  .refine((value) => {
+    const digits = value.replace(/\D/g, "")
+    return digits.length >= 8 && digits.length <= 18
+  }, "Enter a valid phone number.")
+  .max(50)
+
+export const bookingFlightNumberSchema = z
+  .string()
+  .trim()
+  .optional()
+  .nullable()
+  .transform((value) => (value == null ? "" : value))
+  .refine(
+    (value) => {
+      if (!value) return true
+      return FLIGHT_NUMBER_RE.test(normalizeFlightNumber(value))
+    },
+    "Use a format like LH1445 (2 letters + 1–4 digits).",
+  )
+
 export function createDetailsSchema(options: {
   isRoundTrip: boolean
   returnDateTime: string | null
@@ -107,12 +144,8 @@ export function createDetailsSchema(options: {
           },
           "Use a format like LH1445 (2 letters + 1–4 digits).",
         ),
-      name: z
-        .string()
-        .trim()
-        .min(2, "Enter your full name.")
-        .max(80, "Name is too long."),
-      email: z.string().trim().email("Enter a valid email address."),
+      name: bookingCustomerNameSchema,
+      email: bookingCustomerEmailSchema,
       phoneCountryCode: z.string().min(2, "Select a country code."),
       phoneNational: z
         .string()

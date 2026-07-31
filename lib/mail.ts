@@ -80,14 +80,31 @@ export async function sendMail(input: SendMailInput): Promise<{ messageId: strin
     throw new Error("SMTP is not configured.")
   }
 
+  const to = sanitizeMailHeader(input.to, "to")
+  const subject = sanitizeMailHeader(input.subject, "subject")
+  const replyTo =
+    input.replyTo != null && input.replyTo !== ""
+      ? sanitizeMailHeader(input.replyTo, "replyTo")
+      : undefined
+  const from = sanitizeMailHeader(getMailFrom(), "from")
+
   const info = await getTransporter().sendMail({
-    from: getMailFrom(),
-    to: input.to,
-    subject: input.subject,
+    from,
+    to,
+    subject,
     text: input.text,
     html: input.html,
-    replyTo: input.replyTo,
+    replyTo,
   })
 
   return { messageId: String(info.messageId ?? "") }
+}
+
+/** Remove CR/LF and other ASCII controls so values cannot inject SMTP headers. */
+function sanitizeMailHeader(value: string, field: string): string {
+  const cleaned = value.replace(/[\r\n\u0000-\u001f\u007f]/g, "").trim()
+  if (!cleaned) {
+    throw new Error(`Invalid email ${field}: empty after sanitizing.`)
+  }
+  return cleaned
 }

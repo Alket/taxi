@@ -1,6 +1,13 @@
-# Environment variables
+# Environment variables — never commit real secrets
 .env
 .env*.local
+.env.production
+.env.staging
+.env.docker
+# Keep tracked templates
+!.env.example
+!.env.docker.example
+!.env.*.example
 
 # Dependencies
 node_modules
