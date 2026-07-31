@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 
+import { requireStaffSession } from "@/lib/auth"
 import { isBookingLockedForDriverAssign } from "@/lib/booking-status"
 import {
   bookingDetailInclude,
@@ -13,6 +14,9 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const session = await requireStaffSession(request)
+  if ("error" in session) return session.error
+
   const { id } = await params
   const body = await request.json().catch(() => ({}))
   const driverId = body.driverId as string | undefined

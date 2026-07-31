@@ -37,11 +37,10 @@ export async function PATCH(
     return NextResponse.json({ error: "Not allowed." }, { status: 403 })
   }
 
-  const booking = await prisma.booking.findUnique({
-    where: { id },
+  const booking = await prisma.booking.findFirst({
+    where: { id, driverId: session.driver.id },
     select: {
       id: true,
-      driverId: true,
       status: true,
       referenceCode: true,
       pickupAddress: true,
@@ -53,7 +52,7 @@ export async function PATCH(
     },
   })
 
-  if (!booking || booking.driverId !== session.driver.id) {
+  if (!booking) {
     return NextResponse.json({ error: "Booking not found." }, { status: 404 })
   }
 
@@ -80,15 +79,25 @@ export async function PATCH(
     }
   }
 
-  await prisma.$transaction(async (tx) => {
-    await tx.booking.update({
-      where: { id },
-      data: { status: nextStatus },
+  try {
+    await prisma.$transaction(async (tx) => {
+      const updated = await tx.booking.updateMany({
+        where: { id, driverId: session.driver.id },
+        data: { status: nextStatus },
+      })
+      if (updated.count === 0) {
+        throw new Error("BOOKING_OWNERSHIP_LOST")
+      }
+      await tx.bookingStatusEvent.create({
+        data: { bookingId: id, status: nextStatus },
+      })
     })
-    await tx.bookingStatusEvent.create({
-      data: { bookingId: id, status: nextStatus },
-    })
-  })
+  } catch (err) {
+    if (err instanceof Error && err.message === "BOOKING_OWNERSHIP_LOST") {
+      return NextResponse.json({ error: "Booking not found." }, { status: 404 })
+    }
+    throw err
+  }
 
   if (nextStatus === "arrived") {
     const { notifyAdminsDriverArrived } = await import(

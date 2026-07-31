@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 
-import { getSession } from "@/lib/auth"
+import { requireStaffSession } from "@/lib/auth"
 import { prisma } from "@/lib/db"
 import { recalculateDriverAvgRating } from "@/lib/reviews"
 
@@ -12,10 +12,8 @@ const bodySchema = z.object({
 type RouteContext = { params: Promise<{ id: string }> }
 
 export async function PATCH(request: Request, context: RouteContext) {
-  const user = await getSession()
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const session = await requireStaffSession(request)
+  if ("error" in session) return session.error
 
   const { id } = await context.params
   const parsed = bodySchema.safeParse(await request.json().catch(() => ({})))

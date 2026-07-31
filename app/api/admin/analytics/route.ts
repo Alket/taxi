@@ -9,7 +9,7 @@ import {
   roundMoney,
   type PaymentRow,
 } from "@/lib/analytics"
-import { getSession } from "@/lib/auth"
+import { requireStaffSession } from "@/lib/auth"
 import { cashToCollect } from "@/lib/driver-cash"
 import { startOfMonth } from "@/lib/dashboard"
 import { prisma } from "@/lib/db"
@@ -24,10 +24,8 @@ const PROVIDER_LABELS: Record<string, string> = {
 }
 
 export async function GET(request: Request) {
-  const user = await getSession()
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const session = await requireStaffSession(request)
+  if ("error" in session) return session.error
 
   const { searchParams } = new URL(request.url)
   const now = new Date()

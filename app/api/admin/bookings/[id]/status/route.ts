@@ -2,6 +2,7 @@ import { BookingStatus } from "@prisma/client"
 import { NextResponse } from "next/server"
 import { z } from "zod"
 
+import { requireStaffSession } from "@/lib/auth"
 import {
   bookingDetailInclude,
   serializeBookingDetail,
@@ -17,6 +18,9 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const session = await requireStaffSession(request)
+  if ("error" in session) return session.error
+
   const { id } = await params
   const parsed = bodySchema.safeParse(await request.json().catch(() => ({})))
 

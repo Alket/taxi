@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 
-import { getSession } from "@/lib/auth"
+import { requireStaffSession } from "@/lib/auth"
 import {
   deletePushSubscription,
   savePushSubscription,
@@ -16,10 +16,8 @@ const bodySchema = z.object({
 })
 
 export async function POST(request: Request) {
-  const user = await getSession()
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const session = await requireStaffSession(request)
+  if ("error" in session) return session.error
 
   const parsed = bodySchema.safeParse(await request.json().catch(() => ({})))
   if (!parsed.success) {
@@ -31,7 +29,7 @@ export async function POST(request: Request) {
       endpoint: parsed.data.endpoint,
       keys: parsed.data.keys,
       audience: "admin",
-      ownerId: user.id,
+      ownerId: session.user.id,
       userAgent: request.headers.get("user-agent"),
     })
   } catch (err) {
@@ -46,10 +44,8 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const user = await getSession()
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const session = await requireStaffSession(request)
+  if ("error" in session) return session.error
 
   const body = await request.json().catch(() => ({}))
   const endpoint = typeof body.endpoint === "string" ? body.endpoint : null
@@ -57,6 +53,10 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "endpoint required" }, { status: 400 })
   }
 
-  await deletePushSubscription(endpoint)
+  await deletePushSubscription({
+    endpoint,
+    audience: "admin",
+    ownerId: session.user.id,
+  })
   return NextResponse.json({ ok: true })
 }

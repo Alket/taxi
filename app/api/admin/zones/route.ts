@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 
-import { requireAdmin } from "@/lib/auth"
+import { requireAdmin, requireStaffSession } from "@/lib/auth"
 import { prisma } from "@/lib/db"
 import { serializeZone } from "@/lib/pricing-admin"
 import type { VehicleType } from "@/lib/types"
@@ -22,7 +22,10 @@ const createZoneSchema = z.object({
   defaultMinFare: z.coerce.number().positive().optional(),
 })
 
-export async function GET() {
+export async function GET(request: Request) {
+  const session = await requireStaffSession(request)
+  if ("error" in session) return session.error
+
   const zones = await prisma.zone.findMany({
     orderBy: { name: "asc" },
     select: {

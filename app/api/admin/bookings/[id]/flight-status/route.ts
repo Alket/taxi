@@ -32,6 +32,7 @@ type RouteContext = {
 export async function PATCH(request: Request, context: RouteContext) {
   const denied = await requireAdmin(
     "Only admins can update flight tracking status.",
+    request,
   )
   if (denied) return denied
 

@@ -98,9 +98,9 @@ export async function POST(request: Request) {
   return NextResponse.json(
     {
       user: serializeAdminUser(user),
-      temporaryPassword,
       emailSent,
       emailError: emailSent ? undefined : emailError,
+      ...(emailSent ? {} : { temporaryPassword }),
     },
     { status: 201 },
   )

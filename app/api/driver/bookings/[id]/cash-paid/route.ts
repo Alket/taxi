@@ -18,11 +18,10 @@ export async function POST(
 
   const { id } = await params
 
-  const booking = await prisma.booking.findUnique({
-    where: { id },
+  const booking = await prisma.booking.findFirst({
+    where: { id, driverId: session.driver.id },
     select: {
       id: true,
-      driverId: true,
       status: true,
       paymentStatus: true,
       totalPrice: true,
@@ -34,7 +33,7 @@ export async function POST(
     },
   })
 
-  if (!booking || booking.driverId !== session.driver.id) {
+  if (!booking) {
     return NextResponse.json({ error: "Booking not found." }, { status: 404 })
   }
 
@@ -78,32 +77,42 @@ export async function POST(
   const now = new Date()
   const total = Number(booking.totalPrice)
 
-  await prisma.$transaction(async (tx) => {
-    await tx.booking.update({
-      where: { id: booking.id },
-      data: {
-        depositPaid: round2(total),
-        balanceDue: 0,
-        isBalanceCharged: true,
-        balanceChargedAt: now,
-        balanceChargedBy: session.driver.name,
-        paymentStatus: "fully_paid",
-      },
-    })
+  try {
+    await prisma.$transaction(async (tx) => {
+      const updated = await tx.booking.updateMany({
+        where: { id: booking.id, driverId: session.driver.id },
+        data: {
+          depositPaid: round2(total),
+          balanceDue: 0,
+          isBalanceCharged: true,
+          balanceChargedAt: now,
+          balanceChargedBy: session.driver.name,
+          paymentStatus: "fully_paid",
+        },
+      })
+      if (updated.count === 0) {
+        throw new Error("BOOKING_OWNERSHIP_LOST")
+      }
 
-    await tx.payment.create({
-      data: {
-        bookingId: booking.id,
-        type: "balance",
-        amount,
-        currency: booking.currency,
-        status: "fully_paid",
-        provider: "manual",
-        externalId: `cash:${booking.id}:${now.getTime()}`,
-        paidAt: now,
-      },
+      await tx.payment.create({
+        data: {
+          bookingId: booking.id,
+          type: "balance",
+          amount,
+          currency: booking.currency,
+          status: "fully_paid",
+          provider: "manual",
+          externalId: `cash:${booking.id}:${now.getTime()}`,
+          paidAt: now,
+        },
+      })
     })
-  })
+  } catch (err) {
+    if (err instanceof Error && err.message === "BOOKING_OWNERSHIP_LOST") {
+      return NextResponse.json({ error: "Booking not found." }, { status: 404 })
+    }
+    throw err
+  }
 
   const { notifyAdminsCashPaid } = await import("@/lib/push-notifications")
   notifyAdminsCashPaid({

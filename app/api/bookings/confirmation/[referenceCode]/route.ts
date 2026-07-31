@@ -10,7 +10,7 @@ type RouteContext = {
 
 /**
  * Public confirmation payload — safe for a URL-guessable reference code.
- * Omits email, phone, and full customer identity.
+ * Omits email, phone, customer identity, and pickupPin.
  */
 export async function GET(_request: Request, context: RouteContext) {
   const { referenceCode: raw } = await context.params
@@ -24,7 +24,6 @@ export async function GET(_request: Request, context: RouteContext) {
     where: { referenceCode },
     select: {
       referenceCode: true,
-      pickupPin: true,
       direction: true,
       pickupAddress: true,
       dropoffAddress: true,
@@ -57,7 +56,6 @@ export async function GET(_request: Request, context: RouteContext) {
 
   return NextResponse.json({
     referenceCode: booking.referenceCode,
-    pickupPin: booking.pickupPin,
     direction: booking.direction,
     directionLabel: DIRECTION_LABELS[booking.direction as Direction],
     pickupAddress: booking.pickupAddress,

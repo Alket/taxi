@@ -25,11 +25,10 @@ export async function POST(
     )
   }
 
-  const booking = await prisma.booking.findUnique({
-    where: { id },
+  const booking = await prisma.booking.findFirst({
+    where: { id, driverId: session.driver.id },
     select: {
       id: true,
-      driverId: true,
       status: true,
       referenceCode: true,
       pickupAddress: true,
@@ -37,7 +36,7 @@ export async function POST(
     },
   })
 
-  if (!booking || booking.driverId !== session.driver.id) {
+  if (!booking) {
     return NextResponse.json({ error: "Booking not found." }, { status: 404 })
   }
 
@@ -49,15 +48,25 @@ export async function POST(
   }
 
   if (parsed.data.action === "accept") {
-    await prisma.$transaction(async (tx) => {
-      await tx.booking.update({
-        where: { id },
-        data: { status: "driver_accepted" },
+    try {
+      await prisma.$transaction(async (tx) => {
+        const updated = await tx.booking.updateMany({
+          where: { id, driverId: session.driver.id },
+          data: { status: "driver_accepted" },
+        })
+        if (updated.count === 0) {
+          throw new Error("BOOKING_OWNERSHIP_LOST")
+        }
+        await tx.bookingStatusEvent.create({
+          data: { bookingId: id, status: "driver_accepted" },
+        })
       })
-      await tx.bookingStatusEvent.create({
-        data: { bookingId: id, status: "driver_accepted" },
-      })
-    })
+    } catch (err) {
+      if (err instanceof Error && err.message === "BOOKING_OWNERSHIP_LOST") {
+        return NextResponse.json({ error: "Booking not found." }, { status: 404 })
+      }
+      throw err
+    }
 
     const { notifyAdminsDriverAccepted } = await import(
       "@/lib/push-notifications"
@@ -87,18 +96,28 @@ export async function POST(
     })
   }
 
-  await prisma.$transaction(async (tx) => {
-    await tx.booking.update({
-      where: { id },
-      data: {
-        driverId: null,
-        status: "confirmed",
-      },
+  try {
+    await prisma.$transaction(async (tx) => {
+      const updated = await tx.booking.updateMany({
+        where: { id, driverId: session.driver.id },
+        data: {
+          driverId: null,
+          status: "confirmed",
+        },
+      })
+      if (updated.count === 0) {
+        throw new Error("BOOKING_OWNERSHIP_LOST")
+      }
+      await tx.bookingStatusEvent.create({
+        data: { bookingId: id, status: "confirmed" },
+      })
     })
-    await tx.bookingStatusEvent.create({
-      data: { bookingId: id, status: "confirmed" },
-    })
-  })
+  } catch (err) {
+    if (err instanceof Error && err.message === "BOOKING_OWNERSHIP_LOST") {
+      return NextResponse.json({ error: "Booking not found." }, { status: 404 })
+    }
+    throw err
+  }
 
   const { notifyAdminsDriverRejected } = await import(
     "@/lib/push-notifications"

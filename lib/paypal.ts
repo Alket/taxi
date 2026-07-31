@@ -8,6 +8,8 @@
 
 import { prisma } from "@/lib/db"
 import { SETTINGS_ID } from "@/lib/settings"
+import type { PaymentOption } from "@/lib/types"
+import { round2 } from "@/lib/vehicles"
 
 type PaypalMode = "sandbox" | "live"
 
@@ -18,6 +20,9 @@ export type PaypalConfig = {
   secret: string
   baseUrl: string
 }
+
+/** Max absolute difference (major currency units) allowed vs expected. */
+export const PAYPAL_AMOUNT_TOLERANCE = 0.02
 
 function baseUrlForMode(mode: PaypalMode) {
   return mode === "live"
@@ -100,10 +105,51 @@ async function getAccessToken(config: PaypalConfig): Promise<string> {
   return data.access_token
 }
 
+/**
+ * Encode booking binding into PayPal custom_id (max 127 chars).
+ * Format: `{paymentOption}:{amount}:{bookingId}`
+ */
+export function encodePaypalCustomId(input: {
+  bookingId: string
+  paymentOption: PaymentOption
+  amount: number
+}) {
+  return `${input.paymentOption}:${input.amount.toFixed(2)}:${input.bookingId}`
+}
+
+export function parsePaypalCustomId(customId: string | undefined | null): {
+  paymentOption: PaymentOption
+  amount: number
+  bookingId: string
+} | null {
+  if (!customId) return null
+  const parts = customId.split(":")
+  if (parts.length < 3) return null
+  const [paymentOptionRaw, amountStr, ...bookingParts] = parts
+  if (paymentOptionRaw !== "deposit" && paymentOptionRaw !== "full") return null
+  const amount = Number(amountStr)
+  const bookingId = bookingParts.join(":")
+  if (!bookingId || !Number.isFinite(amount)) return null
+  return {
+    paymentOption: paymentOptionRaw,
+    amount: round2(amount),
+    bookingId,
+  }
+}
+
+export function amountsMatch(
+  actual: number,
+  expected: number,
+  tolerance = PAYPAL_AMOUNT_TOLERANCE,
+) {
+  return Math.abs(round2(actual) - round2(expected)) <= tolerance
+}
+
 export async function createPaypalOrder({
   amount,
   currency,
   bookingId,
+  paymentOption,
   referenceCode,
   returnUrl,
   cancelUrl,
@@ -111,12 +157,18 @@ export async function createPaypalOrder({
   amount: number
   currency: string
   bookingId: string
+  paymentOption: PaymentOption
   referenceCode: string
   returnUrl: string
   cancelUrl: string
 }) {
   const config = await getPaypalConfig()
   const token = await getAccessToken(config)
+  const customId = encodePaypalCustomId({
+    bookingId,
+    paymentOption,
+    amount,
+  })
   const res = await fetch(`${config.baseUrl}/v2/checkout/orders`, {
     method: "POST",
     headers: {
@@ -128,8 +180,8 @@ export async function createPaypalOrder({
       purchase_units: [
         {
           reference_id: bookingId,
-          description: `Transfer deposit ${referenceCode}`,
-          custom_id: bookingId,
+          description: `Transfer ${paymentOption === "full" ? "payment" : "deposit"} ${referenceCode}`,
+          custom_id: customId,
           amount: {
             currency_code: currency.toUpperCase(),
             value: amount.toFixed(2),
@@ -158,10 +210,25 @@ export async function createPaypalOrder({
   return {
     orderId: data.id as string,
     approveUrl: approve?.href as string | undefined,
+    customId,
   }
 }
 
-export async function capturePaypalOrder(orderId: string) {
+export type PaypalCaptureResult = {
+  id: string
+  status: string
+  captureId: string | null
+  capturedAmount: number | null
+  capturedCurrency: string | null
+  bookingId: string | null
+  paymentOption: PaymentOption | null
+  customId: string | null
+  referenceId: string | null
+}
+
+export async function capturePaypalOrder(
+  orderId: string,
+): Promise<PaypalCaptureResult> {
   const config = await getPaypalConfig()
   const token = await getAccessToken(config)
   const res = await fetch(
@@ -180,15 +247,44 @@ export async function capturePaypalOrder(orderId: string) {
     throw new Error(formatPaypalError(data, "Failed to capture PayPal payment."))
   }
 
-  return data as {
-    id: string
-    status: string
-    purchase_units?: Array<{
-      reference_id?: string
-      payments?: {
-        captures?: Array<{ id: string; status: string }>
-      }
-    }>
+  return parsePaypalCaptureResponse(data)
+}
+
+export function parsePaypalCaptureResponse(data: {
+  id?: string
+  status?: string
+  purchase_units?: Array<{
+    reference_id?: string
+    custom_id?: string
+    payments?: {
+      captures?: Array<{
+        id?: string
+        status?: string
+        amount?: { value?: string; currency_code?: string }
+      }>
+    }
+  }>
+}): PaypalCaptureResult {
+  const unit = data.purchase_units?.[0]
+  const capture = unit?.payments?.captures?.[0]
+  const customId = unit?.custom_id ?? null
+  const parsed = parsePaypalCustomId(customId)
+  const capturedAmountRaw = capture?.amount?.value
+  const capturedAmount =
+    capturedAmountRaw != null && Number.isFinite(Number(capturedAmountRaw))
+      ? round2(Number(capturedAmountRaw))
+      : null
+
+  return {
+    id: data.id ?? "",
+    status: data.status ?? "",
+    captureId: capture?.id ?? null,
+    capturedAmount,
+    capturedCurrency: capture?.amount?.currency_code?.toUpperCase() ?? null,
+    bookingId: parsed?.bookingId ?? unit?.reference_id ?? null,
+    paymentOption: parsed?.paymentOption ?? null,
+    customId,
+    referenceId: unit?.reference_id ?? null,
   }
 }
 

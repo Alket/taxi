@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import type { ReviewStatus } from "@prisma/client"
 
-import { getSession } from "@/lib/auth"
+import { requireStaffSession } from "@/lib/auth"
 import { prisma } from "@/lib/db"
 
 function serializeAdminReview(
@@ -55,10 +55,8 @@ async function loadReviews(status?: ReviewStatus) {
 }
 
 export async function GET(request: Request) {
-  const user = await getSession()
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const session = await requireStaffSession(request)
+  if ("error" in session) return session.error
 
   const statusParam = new URL(request.url).searchParams.get("status")
   const status =

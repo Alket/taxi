@@ -45,11 +45,19 @@ export async function POST(request: Request) {
     const paymentOption =
       intent.metadata?.paymentType === "full" ? "full" : "deposit"
 
+    const gatewayAmount =
+      typeof intent.amount_received === "number"
+        ? intent.amount_received / 100
+        : typeof intent.amount === "number"
+          ? intent.amount / 100
+          : undefined
+
     await recordBookingPayment({
       bookingId: booking.id,
       paymentIntentId: intent.id,
       provider: "stripe",
       paymentOption,
+      gatewayAmount,
     })
 
     return NextResponse.json({

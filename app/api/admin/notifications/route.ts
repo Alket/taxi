@@ -1,14 +1,12 @@
 import { NextResponse } from "next/server"
 
-import { getSession } from "@/lib/auth"
+import { requireStaffSession } from "@/lib/auth"
 import { prisma } from "@/lib/db"
 import { serializeStaffNotification } from "@/lib/staff-notifications"
 
 export async function GET(request: Request) {
-  const user = await getSession()
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const session = await requireStaffSession(request)
+  if ("error" in session) return session.error
 
   const { searchParams } = new URL(request.url)
   const unreadOnly = searchParams.get("unread") === "1"
@@ -40,11 +38,9 @@ export async function GET(request: Request) {
 }
 
 /** Mark all admin notifications as read. */
-export async function PATCH() {
-  const user = await getSession()
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+export async function PATCH(request: Request) {
+  const session = await requireStaffSession(request)
+  if ("error" in session) return session.error
 
   const result = await prisma.staffNotification.updateMany({
     where: { audience: "admin", readAt: null },

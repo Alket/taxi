@@ -6,7 +6,7 @@ import {
   DRIVER_BUSY_STATUSES,
   pickupMinuteRange,
 } from "@/lib/driver-availability"
-import { requireAdmin } from "@/lib/auth"
+import { requireAdmin, requireStaffSession } from "@/lib/auth"
 import { prisma } from "@/lib/db"
 import { DRIVER_PUBLIC_SELECT, serializeDriver } from "@/lib/drivers"
 
@@ -27,6 +27,9 @@ function parsePositiveInt(value: string | null, fallback: number): number {
 }
 
 export async function GET(request: Request) {
+  const session = await requireStaffSession(request)
+  if ("error" in session) return session.error
+
   const { searchParams } = new URL(request.url)
   const activeOnly = searchParams.get("active") === "true"
   const forBookingId = searchParams.get("forBookingId")

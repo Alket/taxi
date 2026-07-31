@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 
-import { getSession } from "@/lib/auth"
+import { requireStaffSession } from "@/lib/auth"
 import { prisma } from "@/lib/db"
 import { formatDateTime } from "@/lib/format"
 
@@ -9,10 +9,8 @@ import { formatDateTime } from "@/lib/format"
  * Skips unpaid public checkouts still awaiting deposit.
  */
 export async function GET(request: Request) {
-  const user = await getSession()
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const session = await requireStaffSession(request)
+  if ("error" in session) return session.error
 
   const { searchParams } = new URL(request.url)
   const sinceRaw = searchParams.get("since")

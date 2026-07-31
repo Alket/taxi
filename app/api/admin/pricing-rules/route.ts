@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 
-import { requireAdmin, requireCanDelete } from "@/lib/auth"
+import { requireAdmin, requireCanDelete, requireStaffSession } from "@/lib/auth"
 import { prisma } from "@/lib/db"
 import { serializePricingRule } from "@/lib/pricing-admin"
 
@@ -23,6 +23,9 @@ const updateRuleSchema = z.object({
 })
 
 export async function GET(request: Request) {
+  const session = await requireStaffSession(request)
+  if ("error" in session) return session.error
+
   const { searchParams } = new URL(request.url)
   const zoneId = searchParams.get("zoneId")
 

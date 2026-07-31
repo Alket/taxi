@@ -53,6 +53,10 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "endpoint required" }, { status: 400 })
   }
 
-  await deletePushSubscription(endpoint)
+  await deletePushSubscription({
+    endpoint,
+    audience: "driver",
+    ownerId: session.driver.id,
+  })
   return NextResponse.json({ ok: true })
 }

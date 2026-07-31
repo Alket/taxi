@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 
+import { requireAdmin } from "@/lib/auth"
 import {
   bookingDetailInclude,
   serializeBookingDetail,
@@ -16,9 +17,15 @@ import { formatDateTime } from "@/lib/format"
 export const runtime = "nodejs"
 
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const denied = await requireAdmin(
+    "Your account cannot charge card balances. Ask an admin.",
+    request,
+  )
+  if (denied) return denied
+
   const { id } = await params
 
   const booking = await prisma.booking.findUnique({

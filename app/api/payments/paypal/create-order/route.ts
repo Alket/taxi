@@ -70,6 +70,7 @@ export async function POST(request: Request) {
         where: {
           roundTripId: booking.roundTripId,
           paymentStatus: "unpaid",
+          status: { not: "cancelled" },
         },
       })
     : [booking]
@@ -83,8 +84,16 @@ export async function POST(request: Request) {
     ),
   )
 
+  if (chargeAmount <= 0) {
+    return NextResponse.json(
+      { error: "This booking does not have an amount to collect." },
+      { status: 400 },
+    )
+  }
+
   const origin = getPublicOrigin(request)
-  const returnUrl = `${origin}/book/payment/paypal/return?bookingId=${booking.id}&paymentOption=${paymentOption}`
+  // bookingId in return URL is UX-only; capture trusts server-side intent + PayPal.
+  const returnUrl = `${origin}/book/payment/paypal/return?bookingId=${booking.id}`
   const cancelUrl = `${origin}/?payment=cancelled`
 
   try {
@@ -92,6 +101,7 @@ export async function POST(request: Request) {
       amount: chargeAmount,
       currency: booking.currency,
       bookingId: booking.id,
+      paymentOption,
       referenceCode: booking.referenceCode,
       returnUrl,
       cancelUrl,
@@ -103,6 +113,17 @@ export async function POST(request: Request) {
         { status: 502 },
       )
     }
+
+    await prisma.paypalOrderIntent.create({
+      data: {
+        orderId: order.orderId,
+        bookingId: booking.id,
+        paymentOption,
+        expectedAmount: chargeAmount,
+        currency: booking.currency.toUpperCase(),
+        status: "created",
+      },
+    })
 
     return NextResponse.json({
       orderId: order.orderId,

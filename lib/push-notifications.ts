@@ -63,8 +63,18 @@ export async function savePushSubscription(input: {
   })
 }
 
-export async function deletePushSubscription(endpoint: string) {
-  await prisma.pushSubscription.deleteMany({ where: { endpoint } })
+export async function deletePushSubscription(input: {
+  endpoint: string
+  audience: PushAudience
+  ownerId: string
+}) {
+  await prisma.pushSubscription.deleteMany({
+    where: {
+      endpoint: input.endpoint,
+      audience: input.audience,
+      ownerId: input.ownerId,
+    },
+  })
 }
 
 export async function sendStaffPush(

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 
-import { getSession } from "@/lib/auth"
+import { requireStaffSession } from "@/lib/auth"
 import { prisma } from "@/lib/db"
 import { serializeStaffNotification } from "@/lib/staff-notifications"
 
@@ -9,11 +9,9 @@ type RouteContext = {
 }
 
 /** Mark a single notification as read. */
-export async function PATCH(_request: Request, context: RouteContext) {
-  const user = await getSession()
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+export async function PATCH(request: Request, context: RouteContext) {
+  const session = await requireStaffSession(request)
+  if ("error" in session) return session.error
 
   const { id } = await context.params
 

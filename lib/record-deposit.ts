@@ -9,26 +9,34 @@ import { round2 } from "@/lib/vehicles"
  *
  * - "deposit": marks paymentStatus deposit_paid, keeps the remaining balance.
  * - "full": marks paymentStatus fully_paid and clears the balance.
+ *
+ * When `gatewayAmount` is provided (preferred), Payment.amount and
+ * depositPaid allocations use the gateway-confirmed total (split across
+ * round-trip legs by expected share). Otherwise falls back to list prices.
  */
 export async function recordBookingPayment({
   bookingId,
   paymentIntentId,
   provider,
   paymentOption = "deposit",
+  gatewayAmount,
+  claimPaypalOrderId,
   paidAt = new Date(),
 }: {
   bookingId: string
   paymentIntentId: string
   provider: "stripe" | "paypal"
   paymentOption?: PaymentOption
+  /** Actual amount confirmed by the payment provider (major currency units). */
+  gatewayAmount?: number
+  /**
+   * When set, claim this PaypalOrderIntent (status created → captured) in the
+   * same transaction as the payment write. If another request already claimed
+   * it, returns { alreadyRecorded: true } without mutating bookings again.
+   */
+  claimPaypalOrderId?: string
   paidAt?: Date
 }) {
-  const existingPayment = await prisma.payment.findFirst({
-    where: { externalId: paymentIntentId },
-    select: { id: true },
-  })
-  if (existingPayment) return { alreadyRecorded: true }
-
   const booking = await prisma.booking.findUnique({ where: { id: bookingId } })
   if (!booking) return { alreadyRecorded: false }
 
@@ -43,14 +51,48 @@ export async function recordBookingPayment({
     : [booking]
 
   const isFull = paymentOption === "full"
+  const expectedShares = targets.map((t) =>
+    isFull ? Number(t.totalPrice) : Number(t.depositAmount),
+  )
+  const expectedTotal = round2(expectedShares.reduce((sum, n) => sum + n, 0))
+  const capturedTotal =
+    gatewayAmount != null && Number.isFinite(gatewayAmount)
+      ? round2(gatewayAmount)
+      : expectedTotal
 
-  await prisma.$transaction(async (tx) => {
-    for (const target of targets) {
+  const outcome = await prisma.$transaction(async (tx) => {
+    if (claimPaypalOrderId) {
+      const claimed = await tx.paypalOrderIntent.updateMany({
+        where: { orderId: claimPaypalOrderId, status: "created" },
+        data: { status: "captured" },
+      })
+      if (claimed.count === 0) {
+        return { alreadyRecorded: true as const }
+      }
+    }
+
+    const existingPayment = await tx.payment.findFirst({
+      where: { externalId: paymentIntentId },
+      select: { id: true },
+    })
+    if (existingPayment) return { alreadyRecorded: true as const }
+
+    // If the primary booking was already marked paid (e.g. concurrent Stripe
+    // path) and we have no unpaid targets, treat as idempotent success.
+    if (targets.length === 0) {
+      return { alreadyRecorded: true as const }
+    }
+
+    for (let i = 0; i < targets.length; i++) {
+      const target = targets[i]
       const shouldConfirm = target.status === "pending"
       const total = Number(target.totalPrice)
-      const deposit = Number(target.depositAmount)
-      const amountPaid = isFull ? total : deposit
-      const balanceDue = isFull ? 0 : round2(total - deposit)
+      const expectedShare = expectedShares[i]
+      const amountPaid =
+        targets.length === 1 || expectedTotal <= 0
+          ? capturedTotal
+          : round2((expectedShare / expectedTotal) * capturedTotal)
+      const balanceDue = isFull ? 0 : round2(total - amountPaid)
 
       await tx.booking.update({
         where: { id: target.id },
@@ -93,7 +135,11 @@ export async function recordBookingPayment({
         })
       }
     }
+
+    return { alreadyRecorded: false as const }
   })
+
+  if (outcome.alreadyRecorded) return outcome
 
   // Alert admins when a public checkout becomes a real booking.
   try {
@@ -140,6 +186,7 @@ export async function recordDepositPaid(args: {
   bookingId: string
   paymentIntentId: string
   provider: "stripe" | "paypal"
+  gatewayAmount?: number
   paidAt?: Date
 }) {
   return recordBookingPayment({ ...args, paymentOption: "deposit" })

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 
+import { requireAdmin } from "@/lib/auth"
 import { prisma } from "@/lib/db"
 import { createBookingCheckoutSession } from "@/lib/stripe-booking-payments"
 
@@ -14,6 +15,12 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const denied = await requireAdmin(
+    "Your account cannot create payment links. Ask an admin.",
+    request,
+  )
+  if (denied) return denied
+
   const { id } = await params
   const parsed = bodySchema.safeParse(await request.json().catch(() => ({})))
   const paymentType = parsed.success ? parsed.data.paymentType : "deposit"

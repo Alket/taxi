@@ -210,6 +210,7 @@ model Booking {
   statusEvents       BookingStatusEvent[]
   flightStatusEvents FlightStatusEvent[]
   notificationLogs   NotificationLog[]
+  paypalOrderIntents PaypalOrderIntent[]
 
   @@index([status])
   @@index([paymentStatus])
@@ -218,6 +219,27 @@ model Booking {
   @@index([customerId])
   @@index([zoneId])
   @@index([roundTripId])
+}
+
+/** Server-side PayPal checkout intent — binds orderId → booking/option/amount. */
+model PaypalOrderIntent {
+  id             String   @id @default(cuid())
+  /** PayPal checkout order id (token). */
+  orderId        String   @unique
+  bookingId      String
+  /** "deposit" | "full" */
+  paymentOption  String
+  expectedAmount Decimal  @db.Decimal(10, 2)
+  currency       String
+  /** created | captured */
+  status         String   @default("created")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+  @@index([status])
 }
 
 model BookingStatusEvent {

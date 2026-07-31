@@ -106,11 +106,26 @@ export async function POST(request: Request) {
             chargedBy: "customer",
           })
         } else {
+          const intent =
+            typeof session.payment_intent === "string"
+              ? await (await getStripe()).paymentIntents.retrieve(
+                  paymentIntentId,
+                )
+              : session.payment_intent
+
+          const gatewayAmount =
+            typeof intent.amount_received === "number"
+              ? intent.amount_received / 100
+              : typeof intent.amount === "number"
+                ? intent.amount / 100
+                : undefined
+
           await recordBookingPayment({
             bookingId,
             paymentIntentId,
             provider: "stripe",
             paymentOption: paymentType === "full" ? "full" : "deposit",
+            gatewayAmount,
             paidAt,
           })
         }
@@ -133,11 +148,19 @@ export async function POST(request: Request) {
           chargedBy: "customer",
         })
       } else {
+        const gatewayAmount =
+          typeof intent.amount_received === "number"
+            ? intent.amount_received / 100
+            : typeof intent.amount === "number"
+              ? intent.amount / 100
+              : undefined
+
         await recordBookingPayment({
           bookingId,
           paymentIntentId: intent.id,
           provider: "stripe",
           paymentOption: paymentType === "full" ? "full" : "deposit",
+          gatewayAmount,
           paidAt,
         })
       }

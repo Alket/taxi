@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 
+import { requireStaffSession } from "@/lib/auth"
 import type { VehicleType } from "@/lib/types"
 import {
   calculatePriceForZone,
@@ -14,6 +15,9 @@ const querySchema = z.object({
 })
 
 export async function GET(request: Request) {
+  const session = await requireStaffSession(request)
+  if ("error" in session) return session.error
+
   const { searchParams } = new URL(request.url)
 
   const parsed = querySchema.safeParse({

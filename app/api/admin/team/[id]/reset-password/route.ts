@@ -101,8 +101,8 @@ export async function POST(_request: Request, context: RouteContext) {
 
   return NextResponse.json({
     user: serializeAdminUser(updated),
-    temporaryPassword,
     emailSent,
     emailError: emailSent ? undefined : emailError,
+    ...(emailSent ? {} : { temporaryPassword }),
   })
 }

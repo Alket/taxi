@@ -19,6 +19,7 @@ export async function PATCH(
 ) {
   const denied = await requireAdmin(
     "Your account cannot cancel bookings. Ask an admin.",
+    _request,
   )
   if (denied) return denied
 

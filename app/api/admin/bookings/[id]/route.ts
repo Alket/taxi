@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 
-import { requireAdmin, requireCanDelete } from "@/lib/auth"
+import { requireAdmin, requireCanDelete, requireStaffSession } from "@/lib/auth"
 import { isBookingLockedForEdit } from "@/lib/booking-status"
 import {
   bookingDetailInclude,
@@ -33,7 +33,10 @@ type RouteContext = {
   params: Promise<{ id: string }>
 }
 
-export async function GET(_request: Request, context: RouteContext) {
+export async function GET(request: Request, context: RouteContext) {
+  const session = await requireStaffSession(request)
+  if ("error" in session) return session.error
+
   const { id } = await context.params
 
   const booking = await prisma.booking.findUnique({
@@ -51,6 +54,7 @@ export async function GET(_request: Request, context: RouteContext) {
 export async function PATCH(request: Request, context: RouteContext) {
   const denied = await requireAdmin(
     "Your account cannot edit bookings. Ask an admin.",
+    request,
   )
   if (denied) return denied
 
@@ -136,7 +140,10 @@ export async function PATCH(request: Request, context: RouteContext) {
   return NextResponse.json({ booking: serializeBookingDetail(updated) })
 }
 
-export async function DELETE(_request: Request, context: RouteContext) {
+export async function DELETE(request: Request, context: RouteContext) {
+  const staff = await requireStaffSession(request)
+  if ("error" in staff) return staff.error
+
   const denied = await requireCanDelete()
   if (denied) return denied
 

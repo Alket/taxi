@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 
+import { requireStaffSession } from "@/lib/auth"
 import {
   bookingListInclude,
   serializeBookingListItem,
@@ -14,7 +15,10 @@ import {
 import { prisma } from "@/lib/db"
 import type { DashboardSummary } from "@/lib/types"
 
-export async function GET() {
+export async function GET(request: Request) {
+  const session = await requireStaffSession(request)
+  if ("error" in session) return session.error
+
   const now = new Date()
   const todayStart = startOfDay(now)
   const todayEnd = addDays(todayStart, 1)

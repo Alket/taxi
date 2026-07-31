@@ -76,17 +76,55 @@ export function canDelete(user: Pick<AdminUser, "role"> | null | undefined) {
 }
 
 /**
+ * Staff session for any authenticated admin console user (admin or operator).
+ * Verifies JWT, loads AdminUser, rejects suspended accounts, and blocks
+ * requiresPasswordReset except on allowlisted endpoints.
+ */
+export async function requireStaffSession(
+  request?: Request,
+): Promise<{ user: AdminUser } | { error: NextResponse }> {
+  const user = await getSession()
+  if (!user) {
+    return {
+      error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+    }
+  }
+
+  if (user.requiresPasswordReset) {
+    const rawPath = request ? new URL(request.url).pathname : ""
+    const path =
+      rawPath.length > 1 && rawPath.endsWith("/")
+        ? rawPath.slice(0, -1)
+        : rawPath
+    const allowedWhileResetPending = new Set([
+      "/api/admin/set-password",
+      "/api/admin/logout",
+      "/api/admin/me",
+    ])
+    if (!allowedWhileResetPending.has(path)) {
+      return {
+        error: NextResponse.json(
+          { error: "Password reset required." },
+          { status: 403 },
+        ),
+      }
+    }
+  }
+
+  return { user }
+}
+
+/**
  * Returns a 401/403 response when the current session is not an admin,
  * or null when access is allowed.
  */
 export async function requireAdmin(
   message = "Only admins can perform this action.",
+  request?: Request,
 ): Promise<NextResponse | null> {
-  const user = await getSession()
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
-  if (!isAdmin(user)) {
+  const session = await requireStaffSession(request)
+  if ("error" in session) return session.error
+  if (!isAdmin(session.user)) {
     return NextResponse.json({ error: message }, { status: 403 })
   }
   return null

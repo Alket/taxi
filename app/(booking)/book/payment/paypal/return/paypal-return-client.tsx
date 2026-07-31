@@ -12,12 +12,10 @@ export default function PaypalReturnClient() {
   const [error, setError] = React.useState<string | null>(null)
 
   React.useEffect(() => {
-    const bookingId = params.get("bookingId")
+    // PayPal returns the order id as `token`. bookingId query is UX-only.
     const orderId = params.get("token")
-    const paymentOption =
-      params.get("paymentOption") === "full" ? "full" : "deposit"
 
-    if (!bookingId || !orderId) {
+    if (!orderId) {
       setError("Missing PayPal return parameters.")
       return
     }
@@ -28,7 +26,7 @@ export default function PaypalReturnClient() {
       try {
         const res = await apiPost<{ referenceCode: string }>(
           "/api/payments/paypal/capture",
-          { bookingId, orderId, paymentOption },
+          { orderId },
         )
         if (!cancelled) {
           navigateToBookingConfirmation(res.referenceCode)

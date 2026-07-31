@@ -10,6 +10,7 @@ import {
   bookingCreateSchema,
   createBookingsFromInput,
 } from "@/lib/create-booking"
+import { requireStaffSession } from "@/lib/auth"
 import { prisma } from "@/lib/db"
 
 const BOOKING_STATUSES = new Set<string>([
@@ -37,6 +38,9 @@ function parsePositiveInt(value: string | null, fallback: number): number {
 }
 
 export async function GET(request: Request) {
+  const session = await requireStaffSession(request)
+  if ("error" in session) return session.error
+
   const { searchParams } = new URL(request.url)
 
   const status = searchParams.get("status")
@@ -119,6 +123,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const session = await requireStaffSession(request)
+  if ("error" in session) return session.error
+
   const body = await request.json().catch(() => ({}))
   const parsed = bookingCreateSchema.safeParse({ ...body, source: "admin" })
   if (!parsed.success) {
