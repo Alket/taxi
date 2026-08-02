@@ -24,6 +24,8 @@ import {
   formatDateTime,
   formatMoney,
 } from "@/lib/format"
+import { localePath } from "@/lib/i18n/locales"
+import { useLocale, useT } from "@/lib/i18n/use-locale"
 import type { ManagedBooking } from "@/lib/managed-booking"
 import { cn } from "@/lib/utils"
 import {
@@ -44,8 +46,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-
-const LOOKUP_ERROR = "We couldn't find a booking matching those details."
 
 const HERO_IMAGE =
   DESTINATIONS.find((d) => d.id === "vlore")?.image ||
@@ -69,21 +69,23 @@ function NeedHelpCard({
   supportEmail: string
   supportPhone: string
 }) {
+  const tr = useT()
+  const locale = useLocale()
   const whatsappUrl = whatsappUrlFromPhone(supportPhone)
   const telHref = supportPhone.replace(/[^\d+]/g, "")
 
   return (
     <div className="rounded-3xl border border-border/80 bg-brand-surface px-5 py-5 sm:px-7 sm:py-6">
-      <p className="text-sm font-extrabold text-brand">Need help?</p>
+      <p className="text-sm font-extrabold text-brand">{tr("myBooking.needHelp")}</p>
       <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-        Check your confirmation email for the reference code, or review our{" "}
+        {tr("myBooking.needHelpBodyBefore")}{" "}
         <Link
-          href="/cancellation-policy"
+          href={localePath("/cancellation-policy", locale)}
           className="font-semibold text-brand underline underline-offset-2"
         >
-          cancellation policy
+          {tr("myBooking.cancellationPolicy")}
         </Link>
-        . Our team is happy to help.
+        {tr("myBooking.needHelpBodyAfter")}
       </p>
 
       <ul className="mt-4 grid gap-2.5 sm:grid-cols-3">
@@ -100,7 +102,7 @@ function NeedHelpCard({
               </span>
               <span className="min-w-0">
                 <span className="block text-[11px] font-extrabold tracking-wider text-muted-foreground uppercase">
-                  WhatsApp
+                  {tr("myBooking.whatsapp")}
                 </span>
                 <span className="block truncate text-sm font-bold text-brand">
                   {supportPhone}
@@ -121,7 +123,7 @@ function NeedHelpCard({
               </span>
               <span className="min-w-0">
                 <span className="block text-[11px] font-extrabold tracking-wider text-muted-foreground uppercase">
-                  Phone
+                  {tr("myBooking.phone")}
                 </span>
                 <span className="block truncate text-sm font-bold text-brand">
                   {supportPhone}
@@ -142,7 +144,7 @@ function NeedHelpCard({
               </span>
               <span className="min-w-0">
                 <span className="block text-[11px] font-extrabold tracking-wider text-muted-foreground uppercase">
-                  Email
+                  {tr("myBooking.email")}
                 </span>
                 <span className="block truncate text-sm font-bold text-brand">
                   {supportEmail}
@@ -157,6 +159,8 @@ function NeedHelpCard({
 }
 
 export function MyBookingView() {
+  const tr = useT()
+  const locale = useLocale()
   const searchParams = useSearchParams()
   const { data: settings } = useSWR<SupportSettings>(
     "/api/settings/public",
@@ -186,7 +190,7 @@ export function MyBookingView() {
     const cleanedRef = ref.trim()
     const cleanedEmail = mail.trim()
     if (!cleanedRef || !cleanedEmail) {
-      setError("Enter your reference code and email.")
+      setError(tr("myBooking.enterDetails"))
       return
     }
 
@@ -201,7 +205,7 @@ export function MyBookingView() {
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
         setBooking(null)
-        setError(data.error || LOOKUP_ERROR)
+        setError(data.error || tr("myBooking.lookupError"))
         return
       }
       setBooking(data.booking)
@@ -209,7 +213,7 @@ export function MyBookingView() {
       setEmail(cleanedEmail)
     } catch {
       setBooking(null)
-      setError(LOOKUP_ERROR)
+      setError(tr("myBooking.lookupError"))
     } finally {
       setPending(false)
     }
@@ -229,18 +233,17 @@ export function MyBookingView() {
 
         <MarketingContainer className="relative z-10 flex h-full flex-col justify-end pb-10 pt-28 text-white md:pb-12 md:pt-32">
           <Link
-            href="/"
+            href={localePath("/", locale)}
             className="mb-5 inline-flex w-fit items-center gap-1.5 text-sm font-bold text-white/75 transition-colors hover:text-white"
           >
             <ArrowLeft className="size-4" />
-            Back to home
+            {tr("myBooking.backHome")}
           </Link>
           <h1 className="max-w-3xl font-brand text-4xl font-extrabold tracking-tight sm:text-5xl">
-            My booking
+            {tr("myBooking.title")}
           </h1>
           <p className="mt-3 max-w-xl text-base leading-relaxed text-white/85 md:text-lg">
-            Look up your transfer with the reference code and email from your
-            confirmation. No account needed.
+            {tr("myBooking.hero")}
           </p>
         </MarketingContainer>
       </section>
@@ -256,17 +259,17 @@ export function MyBookingView() {
             >
               <div className="mb-5">
                 <h2 className="font-brand text-xl font-extrabold tracking-tight text-brand">
-                  Find your transfer
+                  {tr("myBooking.findTitle")}
                 </h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Enter the details from your confirmation email.
+                  {tr("myBooking.findDesc")}
                 </p>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="reference" className="text-sm font-bold text-brand">
-                    Reference code
+                    {tr("myBooking.reference")}
                   </Label>
                   <Input
                     id="reference"
@@ -279,14 +282,14 @@ export function MyBookingView() {
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="email" className="text-sm font-bold text-brand">
-                    Email
+                    {tr("myBooking.email")}
                   </Label>
                   <Input
                     id="email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
+                    placeholder={tr("myBooking.emailPlaceholder")}
                     className="h-11"
                     autoComplete="email"
                   />
@@ -308,12 +311,12 @@ export function MyBookingView() {
                 {pending ? (
                   <>
                     <Loader2Icon className="animate-spin" data-icon="inline-start" />
-                    Looking up…
+                    {tr("myBooking.lookingUp")}
                   </>
                 ) : (
                   <>
                     <SearchIcon data-icon="inline-start" />
-                    Find booking
+                    {tr("myBooking.findBooking")}
                   </>
                 )}
               </Button>
@@ -346,6 +349,7 @@ function BookingManagePanel({
   email: string
   onUpdated: (booking: ManagedBooking) => void
 }) {
+  const tr = useT()
   const [cancelOpen, setCancelOpen] = React.useState(false)
   const [editOpen, setEditOpen] = React.useState(false)
 
@@ -356,13 +360,13 @@ function BookingManagePanel({
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="text-xs font-extrabold tracking-[0.14em] text-brand-accent uppercase">
-                Booking found
+                {tr("myBooking.found")}
               </p>
               <p className="mt-1 font-mono text-xl font-extrabold tracking-tight text-brand">
                 {booking.referenceCode}
               </p>
               <p className="mt-1 font-mono text-sm font-semibold tabular-nums text-brand">
-                PIN {booking.pickupPin}
+                {tr("myBooking.pin", { pin: booking.pickupPin })}
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
                 {BOOKING_STATUS_LABELS[booking.status]} ·{" "}
@@ -379,7 +383,7 @@ function BookingManagePanel({
                   onClick={() => setEditOpen(true)}
                 >
                   <CalendarIcon data-icon="inline-start" />
-                  Change date
+                  {tr("myBooking.changeDate")}
                 </Button>
               )}
               {booking.cancellable && (
@@ -391,7 +395,7 @@ function BookingManagePanel({
                   onClick={() => setCancelOpen(true)}
                 >
                   <XIcon data-icon="inline-start" />
-                  Cancel booking
+                  {tr("myBooking.cancelBooking")}
                 </Button>
               )}
             </div>
@@ -399,27 +403,21 @@ function BookingManagePanel({
 
           {booking.status !== "cancelled" && booking.status !== "completed" ? (
             <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
-              {booking.cancellable ? (
-                <>
-                  Cancelling forfeits the deposit paid — it is not refunded. The
-                  remaining balance is never charged.
-                </>
-              ) : (
-                <>
-                  This booking can no longer be cancelled online after the driver
-                  has arrived. Contact support if you need help.
-                </>
-              )}{" "}
+              {booking.cancellable
+                ? tr("myBooking.cancelForfeit")
+                : tr("myBooking.cancelTooLate")}{" "}
               {booking.editable
-                ? "You can change the pickup date until a driver is assigned."
-                : "Pickup date can no longer be changed online."}
+                ? tr("myBooking.editUntilAssigned")
+                : tr("myBooking.editTooLate")}
             </p>
           ) : null}
         </div>
 
         <div className="grid gap-8 p-5 sm:p-7 md:grid-cols-2">
           <div>
-            <h2 className="mb-3 text-sm font-extrabold text-brand">Status</h2>
+            <h2 className="mb-3 text-sm font-extrabold text-brand">
+              {tr("myBooking.status")}
+            </h2>
             <ManagedStatusTimeline
               status={booking.status}
               timeline={booking.timeline}
@@ -429,36 +427,55 @@ function BookingManagePanel({
 
           <div className="flex flex-col gap-5">
             <div>
-              <h2 className="mb-3 text-sm font-extrabold text-brand">Trip</h2>
+              <h2 className="mb-3 text-sm font-extrabold text-brand">
+                {tr("myBooking.trip")}
+              </h2>
               <dl className="flex flex-col gap-2.5 text-sm">
-                <InfoRow label="Direction" value={booking.directionLabel} />
                 <InfoRow
-                  label="Route"
+                  label={tr("myBooking.direction")}
+                  value={booking.directionLabel}
+                />
+                <InfoRow
+                  label={tr("myBooking.route")}
                   value={`${booking.pickupAddress} → ${booking.dropoffAddress}`}
                 />
                 <InfoRow
-                  label="Pickup"
+                  label={tr("myBooking.pickup")}
                   value={formatDateTime(booking.pickupDateTime)}
                 />
                 {booking.flightNumber && (
-                  <InfoRow label="Flight" value={booking.flightNumber} />
+                  <InfoRow
+                    label={tr("myBooking.flight")}
+                    value={booking.flightNumber}
+                  />
                 )}
                 <InfoRow
-                  label="Vehicle"
-                  value={`${booking.vehicleLabel}${booking.meetAndGreet ? " · Meet & greet" : ""}`}
+                  label={tr("myBooking.vehicle")}
+                  value={`${booking.vehicleLabel}${
+                    booking.meetAndGreet
+                      ? ` · ${tr("myBooking.meetAndGreet")}`
+                      : ""
+                  }`}
                 />
                 <InfoRow
-                  label="Party"
-                  value={`${booking.passengerCount} passengers, ${booking.luggageCount} bags`}
+                  label={tr("myBooking.party")}
+                  value={tr("myBooking.partyValue", {
+                    passengers: booking.passengerCount,
+                    bags: booking.luggageCount,
+                  })}
                 />
               </dl>
             </div>
 
             <div>
-              <h2 className="mb-3 text-sm font-extrabold text-brand">Payment</h2>
+              <h2 className="mb-3 text-sm font-extrabold text-brand">
+                {tr("myBooking.payment")}
+              </h2>
               <dl className="flex flex-col gap-2 rounded-2xl bg-brand-page px-4 py-3.5 text-sm">
                 <div className="flex justify-between gap-3">
-                  <span className="text-muted-foreground">Total</span>
+                  <span className="text-muted-foreground">
+                    {tr("myBooking.total")}
+                  </span>
                   <span className="font-semibold tabular-nums text-brand">
                     {formatMoney(booking.totalPrice, booking.currency)}
                   </span>
@@ -466,7 +483,9 @@ function BookingManagePanel({
                 {booking.paymentStatus === "fully_paid" ||
                 booking.paymentStatus === "paid" ? (
                   <div className="flex justify-between gap-3">
-                    <span className="text-muted-foreground">Paid in full</span>
+                    <span className="text-muted-foreground">
+                      {tr("myBooking.paidInFull")}
+                    </span>
                     <span className="font-semibold tabular-nums text-brand">
                       {formatMoney(
                         booking.depositPaid || booking.totalPrice,
@@ -477,13 +496,17 @@ function BookingManagePanel({
                 ) : (
                   <>
                     <div className="flex justify-between gap-3">
-                      <span className="text-muted-foreground">Deposit paid</span>
+                      <span className="text-muted-foreground">
+                        {tr("myBooking.depositPaid")}
+                      </span>
                       <span className="font-semibold tabular-nums text-brand">
                         {formatMoney(booking.depositPaid, booking.currency)}
                       </span>
                     </div>
                     <div className="flex justify-between gap-3">
-                      <span className="text-muted-foreground">Balance due</span>
+                      <span className="text-muted-foreground">
+                        {tr("myBooking.balanceDue")}
+                      </span>
                       <span className="font-extrabold tabular-nums text-brand-accent">
                         {formatMoney(booking.balanceDue, booking.currency)}
                       </span>
@@ -497,7 +520,7 @@ function BookingManagePanel({
               <div className="rounded-2xl border border-border bg-brand-page p-4">
                 <h2 className="mb-2 flex items-center gap-1.5 text-sm font-extrabold text-brand">
                   <CarIcon className="size-4 text-brand-accent" />
-                  Your driver
+                  {tr("myBooking.yourDriver")}
                 </h2>
                 <p className="text-sm font-bold text-brand">{booking.driver.name}</p>
                 <p className="text-xs text-muted-foreground">
@@ -512,7 +535,7 @@ function BookingManagePanel({
                     className="mt-3 inline-flex h-9 items-center justify-center gap-1.5 rounded-full border border-border bg-brand-surface px-3.5 text-xs font-bold text-brand transition-colors hover:bg-muted"
                   >
                     <MessageCircleIcon className="size-3.5" />
-                    Message via WhatsApp
+                    {tr("myBooking.messageWhatsApp")}
                   </a>
                 )}
               </div>
@@ -570,6 +593,7 @@ function CancelBookingDialog({
   email: string
   onCancelled: (booking: ManagedBooking) => void
 }) {
+  const tr = useT()
   const [pending, setPending] = React.useState(false)
 
   async function confirmCancel() {
@@ -582,9 +606,7 @@ function CancelBookingDialog({
         email,
         reference: booking.referenceCode,
       })
-      toast.success(
-        "Booking cancelled. Your deposit has been forfeited and will not be refunded.",
-      )
+      toast.success(tr("myBooking.cancelSuccess"))
       onCancelled(res.booking)
     } catch (err) {
       toast.error((err as Error).message)
@@ -597,22 +619,21 @@ function CancelBookingDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Cancel booking?</DialogTitle>
-          <DialogDescription>
-            Cancelling forfeits your deposit and cannot be undone. The remaining
-            balance will not be charged.
-          </DialogDescription>
+          <DialogTitle>{tr("myBooking.cancelTitle")}</DialogTitle>
+          <DialogDescription>{tr("myBooking.cancelDesc")}</DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <DialogClose render={<Button variant="outline" />}>
-            Keep booking
+            {tr("myBooking.keepBooking")}
           </DialogClose>
           <Button
             variant="destructive"
             disabled={pending}
             onClick={() => void confirmCancel()}
           >
-            {pending ? "Cancelling…" : "Confirm cancellation"}
+            {pending
+              ? tr("myBooking.cancelling")
+              : tr("myBooking.confirmCancel")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -633,6 +654,7 @@ function EditBookingDialog({
   email: string
   onSaved: (booking: ManagedBooking) => void
 }) {
+  const tr = useT()
   const [pending, setPending] = React.useState(false)
   const [calendarOpen, setCalendarOpen] = React.useState(false)
   const [pickupDateTime, setPickupDateTime] = React.useState(
@@ -647,7 +669,7 @@ function EditBookingDialog({
 
   async function save() {
     if (!pickupDateTime) {
-      toast.error("Select a pickup date and time.")
+      toast.error(tr("myBooking.selectPickup"))
       return
     }
 
@@ -660,8 +682,8 @@ function EditBookingDialog({
           pickupDateTime: new Date(pickupDateTime).toISOString(),
         },
       )
-      if (!res.booking) throw new Error("Update failed.")
-      toast.success("Pickup date updated.")
+      if (!res.booking) throw new Error(tr("myBooking.updateFailed"))
+      toast.success(tr("myBooking.updateSuccess"))
       onSaved(res.booking)
     } catch (err) {
       toast.error((err as Error).message)
@@ -674,15 +696,13 @@ function EditBookingDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Change pickup date</DialogTitle>
-          <DialogDescription>
-            Choose a new pickup date and time for your transfer.
-          </DialogDescription>
+          <DialogTitle>{tr("myBooking.editTitle")}</DialogTitle>
+          <DialogDescription>{tr("myBooking.editDesc")}</DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-1.5">
           <Label className="text-sm font-bold text-brand">
-            Pickup date & time
+            {tr("myBooking.pickupDateTime")}
           </Label>
           <HeroDateTimePicker
             inDialog
@@ -716,10 +736,10 @@ function EditBookingDialog({
 
         <DialogFooter>
           <DialogClose render={<Button variant="outline" />}>
-            Cancel
+            {tr("myBooking.cancel")}
           </DialogClose>
           <Button disabled={pending || !pickupDateTime} onClick={() => void save()}>
-            {pending ? "Saving…" : "Save date"}
+            {pending ? tr("myBooking.saving") : tr("myBooking.saveDate")}
           </Button>
         </DialogFooter>
       </DialogContent>
