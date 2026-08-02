@@ -96,7 +96,7 @@ async function loadConfirmation(
     pickupAddress: booking.pickupAddress,
     dropoffAddress: booking.dropoffAddress,
     pickupDateTime: booking.pickupDateTime.toISOString(),
-    flightNumber: booking.flightNumber || null,
+    flightNumber: booking.flightNumber?.trim() || null,
     vehicleLabel: VEHICLE_LABELS[booking.vehicleType as VehicleType],
     passengerCount: booking.passengerCount,
     luggageCount: booking.luggageCount,

@@ -19,7 +19,11 @@ import {
   useBookingStepSync,
   useBookingWizardNav,
 } from "@/hooks/use-booking-step-sync"
-import { useBookingLeaveGuard, enableBookingLeaveGuard } from "@/hooks/use-booking-leave-guard"
+import {
+  useBookingLeaveGuard,
+  enableBookingLeaveGuard,
+  isBookingLeaveGuardBypassed,
+} from "@/hooks/use-booking-leave-guard"
 import { Button } from "@/components/ui/button"
 import {
   Sheet,
@@ -152,9 +156,12 @@ export function BookingShell({
   }, [])
 
   // /book is only for customers who continued from the homepage form.
+  // Skip when checkout just succeeded — resetBooking() clears startedFromHero
+  // and would otherwise race navigateToBookingConfirmation() back to /#book.
   React.useEffect(() => {
     if (!hydrated || isHero) return
     if (startedFromHero) return
+    if (isBookingLeaveGuardBypassed()) return
     router.replace(localePath("/#book", locale))
   }, [hydrated, isHero, startedFromHero, router, locale])
 

@@ -1,4 +1,8 @@
 import { isPickupTooSoon, pickupLeadTimeMessage } from "@/lib/pickup-lead-time"
+import {
+  FLIGHT_NUMBER_RE,
+  normalizeFlightNumber,
+} from "@/lib/booking-details"
 import type { BookingLocation, BookingState } from "@/lib/store/booking-store"
 import { VEHICLE_TYPES } from "@/lib/store/booking-store"
 import type { BookingFieldId } from "@/lib/booking-field-focus"
@@ -99,11 +103,10 @@ export function getFirstInvalidBookingField(
 
   const flight = state.flightNumber.trim()
   if (flight) {
-    const normalized = flight.replace(/[\s-]/g, "").toUpperCase()
-    if (!/^[A-Z]{2}\d{1,4}$/.test(normalized)) {
+    if (!FLIGHT_NUMBER_RE.test(normalizeFlightNumber(flight))) {
       return {
         field: "flightNumber",
-        message: "Enter a valid flight number (e.g. LH1445).",
+        message: "Enter a valid flight number (e.g. LH1445 or EAF654).",
       }
     }
   }

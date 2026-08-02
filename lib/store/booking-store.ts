@@ -2,6 +2,10 @@ import { create } from "zustand"
 import { createJSONStorage, persist } from "zustand/middleware"
 
 import { isPickupTooSoon } from "@/lib/pickup-lead-time"
+import {
+  FLIGHT_NUMBER_RE,
+  normalizeFlightNumber,
+} from "@/lib/booking-details"
 import type { Direction, VehicleType } from "@/lib/types"
 
 export type BookingStep = 1 | 2
@@ -200,8 +204,7 @@ function isDetailsComplete(state: BookingState) {
 
   const flight = state.flightNumber.trim()
   if (flight) {
-    const normalized = flight.replace(/[\s-]/g, "").toUpperCase()
-    if (!/^[A-Z]{2}\d{1,4}$/.test(normalized)) return false
+    if (!FLIGHT_NUMBER_RE.test(normalizeFlightNumber(flight))) return false
   }
 
   const { name, email, phone } = state.customer

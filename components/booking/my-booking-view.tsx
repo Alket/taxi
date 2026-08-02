@@ -18,7 +18,6 @@ import {
 } from "lucide-react"
 
 import { apiPatch, fetcher } from "@/lib/api"
-import { DESTINATIONS } from "@/lib/destinations"
 import {
   BOOKING_STATUS_LABELS,
   formatDateTime,
@@ -47,10 +46,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 
-const HERO_IMAGE =
-  DESTINATIONS.find((d) => d.id === "vlore")?.image ||
-  DESTINATIONS[0]?.image ||
-  ""
+const HERO_IMAGE = "/uploads/pages/book-your-tirana-airport-transfer.webp"
 
 type SupportSettings = {
   supportEmail?: string

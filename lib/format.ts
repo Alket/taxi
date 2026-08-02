@@ -5,6 +5,9 @@ import type {
   PaymentStatus,
   VehicleType,
 } from "@/lib/types"
+import { APP_TIMEZONE } from "@/lib/timezone"
+
+export { APP_TIMEZONE } from "@/lib/timezone"
 
 export function formatMoney(amount: number, currency = "EUR"): string {
   return new Intl.NumberFormat("en-GB", {
@@ -21,6 +24,8 @@ export function formatDateTime(value: string | null): string {
     month: "short",
     hour: "2-digit",
     minute: "2-digit",
+    hour12: false,
+    timeZone: APP_TIMEZONE,
   }).format(new Date(value))
 }
 
@@ -29,6 +34,8 @@ export function formatTime(value: string | null): string {
   return new Intl.DateTimeFormat("en-GB", {
     hour: "2-digit",
     minute: "2-digit",
+    hour12: false,
+    timeZone: APP_TIMEZONE,
   }).format(new Date(value))
 }
 

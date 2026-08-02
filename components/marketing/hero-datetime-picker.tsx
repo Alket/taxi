@@ -12,6 +12,11 @@ import {
   earliestPickupAt,
   MIN_PICKUP_LEAD_LABEL,
 } from "@/lib/pickup-lead-time"
+import { APP_TIMEZONE } from "@/lib/format"
+import {
+  getZonedWallTime,
+  zonedWallTimeToIso,
+} from "@/lib/timezone"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
@@ -72,20 +77,16 @@ function CalendarPanel({
   open: boolean
   layout: "dropdown" | "sheet"
 }) {
-  const initial = value ? new Date(value) : earliest
+  const initialWall = getZonedWallTime(value ? new Date(value) : earliest)
   const [view, setView] = React.useState(
-    () => new Date(initial.getFullYear(), initial.getMonth(), 1),
+    () => new Date(initialWall.year, initialWall.month - 1, 1),
   )
-  const [selectedDay, setSelectedDay] = React.useState<Date>(() =>
-    startOfDay(initial),
+  const [selectedDay, setSelectedDay] = React.useState<Date>(
+    () => new Date(initialWall.year, initialWall.month - 1, initialWall.day),
   )
-  const [hour, setHour] = React.useState(() =>
-    value ? initial.getHours() : earliest.getHours(),
-  )
+  const [hour, setHour] = React.useState(() => initialWall.hour)
   const [minute, setMinute] = React.useState(() => {
-    const raw = value
-      ? Math.floor(initial.getMinutes() / 5) * 5
-      : Math.ceil(earliest.getMinutes() / 5) * 5
+    const raw = Math.floor(initialWall.minute / 5) * 5
     return raw === 60 ? 0 : raw
   })
 
@@ -93,13 +94,19 @@ function CalendarPanel({
     if (!open) return
     const base = value ? new Date(value) : earliest
     const safe = base.getTime() < earliest.getTime() ? earliest : base
-    setView(new Date(safe.getFullYear(), safe.getMonth(), 1))
-    setSelectedDay(startOfDay(safe))
-    setHour(safe.getHours())
-    setMinute(Math.floor(safe.getMinutes() / 5) * 5)
+    const wall = getZonedWallTime(safe)
+    setView(new Date(wall.year, wall.month - 1, 1))
+    setSelectedDay(new Date(wall.year, wall.month - 1, wall.day))
+    setHour(wall.hour)
+    setMinute(Math.floor(wall.minute / 5) * 5)
   }, [open, value, earliest])
 
-  const today = startOfDay(earliest)
+  const earliestWall = getZonedWallTime(earliest)
+  const today = new Date(
+    earliestWall.year,
+    earliestWall.month - 1,
+    earliestWall.day,
+  )
   const year = view.getFullYear()
   const month = view.getMonth()
   const firstDow = new Date(year, month, 1).getDay()
@@ -109,28 +116,44 @@ function CalendarPanel({
   for (let i = 0; i < firstDow; i++) cells.push(null)
   for (let d = 1; d <= totalDays; d++) cells.push(d)
 
-  function slotDate(h: number, m: number) {
-    const next = new Date(selectedDay)
-    next.setHours(h, m, 0, 0)
-    return next
+  function slotIso(h: number, m: number) {
+    return zonedWallTimeToIso(
+      selectedDay.getFullYear(),
+      selectedDay.getMonth(),
+      selectedDay.getDate(),
+      h,
+      m,
+    )
   }
 
   function isSlotDisabled(h: number, m: number) {
-    return slotDate(h, m).getTime() < earliest.getTime()
+    return new Date(slotIso(h, m)).getTime() < earliest.getTime()
   }
 
   function confirm() {
-    let next = slotDate(hour, minute)
-    if (next.getTime() < earliest.getTime()) {
-      next = new Date(earliest)
-      const snapped = Math.ceil(next.getMinutes() / 5) * 5
+    let nextIso = slotIso(hour, minute)
+    if (new Date(nextIso).getTime() < earliest.getTime()) {
+      const wall = getZonedWallTime(earliest)
+      const snapped = Math.ceil(wall.minute / 5) * 5
       if (snapped === 60) {
-        next.setHours(next.getHours() + 1, 0, 0, 0)
+        nextIso = zonedWallTimeToIso(
+          wall.year,
+          wall.month - 1,
+          wall.day,
+          wall.hour + 1,
+          0,
+        )
       } else {
-        next.setMinutes(snapped, 0, 0)
+        nextIso = zonedWallTimeToIso(
+          wall.year,
+          wall.month - 1,
+          wall.day,
+          wall.hour,
+          snapped,
+        )
       }
     }
-    onChange(next.toISOString())
+    onChange(nextIso)
     // Open the next sheet first so scroll-lock ref-count never drops to 0.
     onAfterConfirm?.()
     onOpenChange(false)
@@ -375,15 +398,20 @@ export function formatHeroDateLabel(iso: string | null) {
   if (!iso) return "Add date & time"
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return "Add date & time"
-  const day = d.toLocaleDateString("en-GB", { weekday: "short" })
+  const day = d.toLocaleDateString("en-GB", {
+    weekday: "short",
+    timeZone: APP_TIMEZONE,
+  })
   const date = d.toLocaleDateString("en-GB", {
     day: "numeric",
     month: "short",
+    timeZone: APP_TIMEZONE,
   })
   const time = d.toLocaleTimeString("en-GB", {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
+    timeZone: APP_TIMEZONE,
   })
   return `${day}, ${date}, ${time}`
 }

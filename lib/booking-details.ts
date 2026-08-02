@@ -10,8 +10,9 @@ import {
 } from "@/lib/pickup-lead-time"
 import { z } from "zod"
 
-/** IATA-style flight numbers: 2 letters + 1–4 digits (e.g. LH1445). */
-export const FLIGHT_NUMBER_RE = /^[A-Za-z]{2}\d{1,4}$/
+/** IATA (2-char) or ICAO (3-letter) airline code + 1–4 digits, optional suffix (e.g. LH1445, EAF654, U2123). */
+export const FLIGHT_NUMBER_RE =
+  /^(?:[A-Za-z][A-Za-z0-9]|[A-Za-z]{3})\d{1,4}[A-Za-z]?$/
 
 /** Shown first in the country-code picker (Albania + region). */
 const PRIORITY_COUNTRIES: CountryCode[] = [
@@ -114,7 +115,7 @@ export const bookingFlightNumberSchema = z
       if (!value) return true
       return FLIGHT_NUMBER_RE.test(normalizeFlightNumber(value))
     },
-    "Use a format like LH1445 (2 letters + 1–4 digits).",
+    "Use a format like LH1445 or EAF654.",
   )
 
 export function createDetailsSchema(options: {
@@ -142,7 +143,7 @@ export function createDetailsSchema(options: {
             if (!value) return true
             return FLIGHT_NUMBER_RE.test(normalizeFlightNumber(value))
           },
-          "Use a format like LH1445 (2 letters + 1–4 digits).",
+          "Use a format like LH1445 or EAF654.",
         ),
       name: bookingCustomerNameSchema,
       email: bookingCustomerEmailSchema,

@@ -15,8 +15,12 @@ export function navigateToBookingConfirmation(referenceCode: string) {
   const code = referenceCode.trim().toUpperCase()
   if (!code) return
 
+  const confirmationUrl = `/book/confirmation/${encodeURIComponent(code)}`
+
+  // Must run before resetBooking(): clearing startedFromHero would otherwise
+  // trigger BookingShell's /#book redirect and cancel this navigation (worse
+  // over slower tunnels like ngrok).
   bypassBookingLeaveGuard()
-  useBookingStore.getState().resetBooking()
 
   const host = document.createElement("div")
   host.setAttribute("data-booking-confirming", "true")
@@ -25,8 +29,8 @@ export function navigateToBookingConfirmation(referenceCode: string) {
     <BookingConfirmingScreen message="Confirming your booking…" />,
   )
 
-  // Paint the overlay, then leave the wizard entirely.
-  window.requestAnimationFrame(() => {
-    window.location.assign(`/book/confirmation/${encodeURIComponent(code)}`)
-  })
+  useBookingStore.getState().resetBooking()
+
+  // Hard navigate immediately — do not wait for rAF (soft-nav can win the race).
+  window.location.assign(confirmationUrl)
 }
