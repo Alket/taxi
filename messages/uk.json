@@ -88,7 +88,6 @@
   "book.benefit2Desc": "Ми відбираємо найпривітніших професіоналів",
   "book.benefit3Title": "Завжди вчасно",
   "book.benefit3Desc": "Наші водії стежать за рейсами у разі затримок",
-
   "myBooking.backHome": "На головну",
   "myBooking.title": "Моє бронювання",
   "myBooking.hero": "Знайдіть трансфер за кодом і email з підтвердження. Обліковий запис не потрібен.",
@@ -146,5 +145,19 @@
   "myBooking.saveDate": "Зберегти дату",
   "myBooking.selectPickup": "Оберіть дату й час подачі.",
   "myBooking.updateSuccess": "Дату подачі оновлено.",
-  "myBooking.updateFailed": "Не вдалося оновити."
+  "myBooking.updateFailed": "Не вдалося оновити.",
+  "cookies.bannerTitle": "Ми використовуємо файли cookie",
+  "cookies.bannerBody": "Ми використовуємо необхідні файли cookie для роботи сайту та додаткові — щоб покращити ваш досвід. Ви можете прийняти всі, відхилити необов’язкові або обрати налаштування.",
+  "cookies.learnMore": "Політика cookies",
+  "cookies.accept": "Прийняти всі",
+  "cookies.reject": "Відхилити необов’язкові",
+  "cookies.customize": "Налаштувати",
+  "cookies.save": "Зберегти налаштування",
+  "cookies.settings": "Налаштування cookies",
+  "cookies.necessary": "Необхідні",
+  "cookies.necessaryDesc": "Потрібні для бронювання, безпеки та мови. Завжди увімкнені.",
+  "cookies.analytics": "Аналітика",
+  "cookies.analyticsDesc": "Допомагають зрозуміти, як користуються сайтом.",
+  "cookies.marketing": "Маркетинг",
+  "cookies.marketingDesc": "Для релевантних пропозицій і вимірювання кампаній."
 }

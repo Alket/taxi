@@ -88,7 +88,6 @@
   "book.benefit2Desc": "Selezioniamo i professionisti più cordiali",
   "book.benefit3Title": "Sempre puntuali",
   "book.benefit3Desc": "I nostri autisti monitorano i voli in caso di ritardi",
-
   "myBooking.backHome": "Torna alla home",
   "myBooking.title": "La mia prenotazione",
   "myBooking.hero": "Cerca il tuo trasferimento con il codice di riferimento e l'email della conferma. Nessun account necessario.",
@@ -146,5 +145,19 @@
   "myBooking.saveDate": "Salva data",
   "myBooking.selectPickup": "Seleziona data e ora di ritiro.",
   "myBooking.updateSuccess": "Data di ritiro aggiornata.",
-  "myBooking.updateFailed": "Aggiornamento non riuscito."
+  "myBooking.updateFailed": "Aggiornamento non riuscito.",
+  "cookies.bannerTitle": "Utilizziamo i cookie",
+  "cookies.bannerBody": "Usiamo cookie necessari per far funzionare il sito e cookie opzionali per migliorare la tua esperienza. Puoi accettare tutti, rifiutare quelli non essenziali o scegliere le preferenze.",
+  "cookies.learnMore": "Politica sui cookie",
+  "cookies.accept": "Accetta tutti",
+  "cookies.reject": "Rifiuta non essenziali",
+  "cookies.customize": "Personalizza",
+  "cookies.save": "Salva preferenze",
+  "cookies.settings": "Impostazioni cookie",
+  "cookies.necessary": "Necessari",
+  "cookies.necessaryDesc": "Obbligatori per prenotazioni, sicurezza e lingua. Sempre attivi.",
+  "cookies.analytics": "Analitici",
+  "cookies.analyticsDesc": "Ci aiutano a capire come viene usato il sito per migliorarlo.",
+  "cookies.marketing": "Marketing",
+  "cookies.marketingDesc": "Usati per offerte rilevanti e per misurare le campagne."
 }

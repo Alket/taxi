@@ -12,6 +12,7 @@ import {
   type PageSection,
   type PageSectionType,
   homeCopyFromSections,
+  isCorePageSlug,
   mergeLocalizedSections,
   parseSections,
   sectionHeading,
@@ -20,11 +21,14 @@ import {
 
 export {
   PAGE_SECTION_TYPES,
+  CORE_PAGE_SLUGS,
+  isCorePageSlug,
   type PageSectionType,
   type PageSection,
   type PageContentRecord,
   type HomeMarketingCopy,
   type DestinationAttraction,
+  type CorePageSlug,
   parseSections,
   sectionValue,
   sectionHeading,
@@ -216,6 +220,143 @@ const CANCELLATION_DEFAULTS: PageDefinition["defaults"] = {
   ],
 }
 
+const PRIVACY_DEFAULTS: PageDefinition["defaults"] = {
+  title: "Privacy Policy",
+  description:
+    "How we collect, use, and protect personal information when you book airport transfers in Albania.",
+  ogImage: "",
+  sections: [
+    section("heading", "title", { heading: "Privacy Policy", level: 1 }),
+    section("text", "intro", {
+      body: "How we collect, use, and protect your personal information when you use our booking site and transfer services.",
+    }),
+    section("heading", "collect.heading", {
+      heading: "What we collect",
+      level: 2,
+    }),
+    section("text", "collect.text", {
+      body: "We collect information you provide when booking or managing a transfer, including:\n• Name, email address, and phone number\n• Pickup and drop-off details, flight number, and travel date/time\n• Passenger and luggage counts, and optional preferences (e.g. child seats)\n• Payment-related details processed by our payment providers (we do not store full card numbers)",
+    }),
+    section("heading", "use.heading", {
+      heading: "How we use your data",
+      level: 2,
+    }),
+    section("text", "use.text", {
+      body: "We use your information to:\n• Confirm and deliver your transfer\n• Contact you about your booking (including delays or driver updates)\n• Process payments and prevent fraud\n• Improve our website and customer support\n• Meet legal and accounting obligations",
+    }),
+    section("heading", "sharing.heading", {
+      heading: "Sharing",
+      level: 2,
+    }),
+    section("text", "sharing.text", {
+      body: "We share booking details with assigned drivers and operations staff only as needed to deliver your transfer. Payment processors handle card and wallet payments on our behalf. We do not sell your personal data.",
+    }),
+    section("heading", "rights.heading", {
+      heading: "Your rights",
+      level: 2,
+    }),
+    section("text", "rights.text", {
+      body: "Depending on applicable law, you may request access, correction, or deletion of your personal data, or object to certain processing. Contact us with your booking reference and we will respond as soon as reasonably possible.",
+    }),
+    section("heading", "contact.heading", {
+      heading: "Contact",
+      level: 2,
+    }),
+    section("text", "contact.text", {
+      body: "For privacy questions, use the contact details in the website footer or email our support team. Please include your booking reference when relevant.",
+    }),
+  ],
+}
+
+const TERMS_DEFAULTS: PageDefinition["defaults"] = {
+  title: "Terms & Conditions",
+  description:
+    "Terms that apply when you book and travel with our airport transfer service in Albania.",
+  ogImage: "",
+  sections: [
+    section("heading", "title", { heading: "Terms & Conditions", level: 1 }),
+    section("text", "intro", {
+      body: "These terms apply when you book and travel with our private transfer service. By completing a booking you agree to them.",
+    }),
+    section("heading", "service.heading", {
+      heading: "Our service",
+      level: 2,
+    }),
+    section("text", "service.text", {
+      body: "We provide private airport and city transfers in Albania. The quoted fare is for the vehicle and route shown at booking, including meet-and-greet and flight monitoring where offered. Waiting time, route changes, or extras may affect the final amount if agreed separately.",
+    }),
+    section("heading", "bookings.heading", {
+      heading: "Bookings",
+      level: 2,
+    }),
+    section("text", "bookings.text", {
+      body: "A booking is confirmed when you receive a reference code and confirmation email. You are responsible for accurate pickup details, flight numbers, and contact information. You can look up and manage eligible bookings via My booking using your reference and email.",
+    }),
+    section("heading", "payments.heading", {
+      heading: "Payments",
+      level: 2,
+    }),
+    section("text", "payments.text", {
+      body: "Prices are shown before checkout. A deposit may be required to confirm the booking; any remaining balance is due as stated at checkout (often to the driver). Refunds and cancellations follow our Cancellation Policy.",
+    }),
+    section("heading", "liability.heading", {
+      heading: "Liability",
+      level: 2,
+    }),
+    section("text", "liability.text", {
+      body: "We aim to deliver reliable, on-time transfers. We are not responsible for delays caused by factors outside our control (including traffic, weather, or airline changes), beyond what is required by law. Please keep valuables with you; report issues promptly with your booking reference.",
+    }),
+    section("heading", "contact.heading", {
+      heading: "Contact",
+      level: 2,
+    }),
+    section("text", "contact.text", {
+      body: "Questions about these terms can be sent to the support contacts listed on this website.",
+    }),
+  ],
+}
+
+const COOKIES_DEFAULTS: PageDefinition["defaults"] = {
+  title: "Cookie Policy",
+  description:
+    "How we use cookies and similar technologies on our transfer booking website.",
+  ogImage: "",
+  sections: [
+    section("heading", "title", { heading: "Cookie Policy", level: 1 }),
+    section("text", "intro", {
+      body: "This page explains how we use cookies and similar technologies when you visit our site.",
+    }),
+    section("heading", "what.heading", {
+      heading: "What are cookies?",
+      level: 2,
+    }),
+    section("text", "what.text", {
+      body: "Cookies are small text files stored on your device. They help the site remember preferences, keep sessions working, and understand how pages are used.",
+    }),
+    section("heading", "how.heading", {
+      heading: "How we use cookies",
+      level: 2,
+    }),
+    section("text", "how.text", {
+      body: "We use cookies to:\n• Keep essential booking and locale settings working\n• Remember language preference\n• Measure basic site performance and improve the booking flow\n• Support secure login for staff areas where applicable",
+    }),
+    section("heading", "manage.heading", {
+      heading: "Managing cookies",
+      level: 2,
+    }),
+    section("text", "manage.text", {
+      body: "You can block or delete cookies in your browser settings. Essential cookies may be required for booking and language features to work correctly. Disabling cookies can limit site functionality.",
+    }),
+    section("heading", "third.heading", {
+      heading: "Third-party cookies",
+      level: 2,
+    }),
+    section("text", "third.text", {
+      body: "Payment providers and similar partners may set their own cookies when you complete checkout. Those cookies are governed by the partner’s policies. We only enable what is needed to process your booking securely.",
+    }),
+  ],
+}
+
 function destinationDefaults(slug: string): PageDefinition | null {
   const dest = DESTINATIONS.find((d) => d.id === slug)
   if (!dest) return null
@@ -253,10 +394,6 @@ export function destinationDefinitionFromMeta(dest: Destination): PageDefinition
 
 export function isBuiltInDestinationId(id: string): boolean {
   return DESTINATIONS.some((d) => d.id === id)
-}
-
-export function isCorePageSlug(slug: string): boolean {
-  return slug === "home" || slug === "cancellation-policy"
 }
 
 export function isDestinationSlug(slug: string): boolean {
@@ -334,6 +471,24 @@ export const PAGE_DEFINITIONS: PageDefinition[] = [
     label: "Cancellation Policy",
     path: "/cancellation-policy",
     defaults: CANCELLATION_DEFAULTS,
+  },
+  {
+    slug: "privacy-policy",
+    label: "Privacy Policy",
+    path: "/privacy-policy",
+    defaults: PRIVACY_DEFAULTS,
+  },
+  {
+    slug: "terms",
+    label: "Terms & Conditions",
+    path: "/terms",
+    defaults: TERMS_DEFAULTS,
+  },
+  {
+    slug: "cookies",
+    label: "Cookie Policy",
+    path: "/cookies",
+    defaults: COOKIES_DEFAULTS,
   },
   ...DESTINATIONS.map((d) => destinationDefaults(d.id)!),
 ]

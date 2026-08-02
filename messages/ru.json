@@ -88,7 +88,6 @@
   "book.benefit2Desc": "Мы отбираем самых дружелюбных профессионалов",
   "book.benefit3Title": "Всегда вовремя",
   "book.benefit3Desc": "Наши водители отслеживают рейсы при задержках",
-
   "myBooking.backHome": "На главную",
   "myBooking.title": "Моё бронирование",
   "myBooking.hero": "Найдите трансфер по коду и email из подтверждения. Аккаунт не нужен.",
@@ -146,5 +145,19 @@
   "myBooking.saveDate": "Сохранить дату",
   "myBooking.selectPickup": "Выберите дату и время подачи.",
   "myBooking.updateSuccess": "Дата подачи обновлена.",
-  "myBooking.updateFailed": "Не удалось обновить."
+  "myBooking.updateFailed": "Не удалось обновить.",
+  "cookies.bannerTitle": "Мы используем файлы cookie",
+  "cookies.bannerBody": "Мы используем необходимые cookie для работы сайта и дополнительные — чтобы улучшить ваш опыт. Вы можете принять все, отклонить необязательные или выбрать настройки.",
+  "cookies.learnMore": "Политика cookies",
+  "cookies.accept": "Принять все",
+  "cookies.reject": "Отклонить необязательные",
+  "cookies.customize": "Настроить",
+  "cookies.save": "Сохранить настройки",
+  "cookies.settings": "Настройки cookies",
+  "cookies.necessary": "Необходимые",
+  "cookies.necessaryDesc": "Нужны для бронирования, безопасности и языка. Всегда включены.",
+  "cookies.analytics": "Аналитика",
+  "cookies.analyticsDesc": "Помогают понять, как используется сайт.",
+  "cookies.marketing": "Маркетинг",
+  "cookies.marketingDesc": "Для релевантных предложений и измерения кампаний."
 }

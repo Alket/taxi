@@ -88,7 +88,6 @@
   "book.benefit2Desc": "Wir wählen die freundlichsten Profifahrer aus",
   "book.benefit3Title": "Immer pünktlich",
   "book.benefit3Desc": "Unsere Fahrer überwachen Flüge bei Verspätungen",
-
   "myBooking.backHome": "Zurück zur Startseite",
   "myBooking.title": "Meine Buchung",
   "myBooking.hero": "Suchen Sie Ihren Transfer mit dem Referenzcode und der E-Mail aus Ihrer Bestätigung. Kein Konto nötig.",
@@ -146,5 +145,19 @@
   "myBooking.saveDate": "Datum speichern",
   "myBooking.selectPickup": "Wählen Sie Abholdatum und -uhrzeit.",
   "myBooking.updateSuccess": "Abholdatum aktualisiert.",
-  "myBooking.updateFailed": "Aktualisierung fehlgeschlagen."
+  "myBooking.updateFailed": "Aktualisierung fehlgeschlagen.",
+  "cookies.bannerTitle": "Wir verwenden Cookies",
+  "cookies.bannerBody": "Wir nutzen notwendige Cookies für den Betrieb der Website und optionale Cookies zur Verbesserung Ihres Erlebnisses. Sie können alle akzeptieren, nicht notwendige ablehnen oder Einstellungen wählen.",
+  "cookies.learnMore": "Cookie-Richtlinie",
+  "cookies.accept": "Alle akzeptieren",
+  "cookies.reject": "Nicht notwendige ablehnen",
+  "cookies.customize": "Anpassen",
+  "cookies.save": "Einstellungen speichern",
+  "cookies.settings": "Cookie-Einstellungen",
+  "cookies.necessary": "Notwendig",
+  "cookies.necessaryDesc": "Erforderlich für Buchung, Sicherheit und Sprache. Immer aktiv.",
+  "cookies.analytics": "Analyse",
+  "cookies.analyticsDesc": "Hilft uns zu verstehen, wie die Website genutzt wird.",
+  "cookies.marketing": "Marketing",
+  "cookies.marketingDesc": "Für relevante Angebote und Messung von Kampagnen."
 }

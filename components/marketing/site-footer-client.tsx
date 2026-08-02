@@ -5,6 +5,7 @@ import Link from "next/link"
 
 import { HashLink } from "@/components/marketing/hash-link"
 import { MarketingContainer } from "@/components/marketing/marketing-container"
+import { openCookiePreferences } from "@/lib/cookie-consent"
 import { localePath } from "@/lib/i18n/locales"
 import { useLocale, useT } from "@/lib/i18n/use-locale"
 import { cn } from "@/lib/utils"
@@ -72,16 +73,26 @@ function FacebookIcon() {
   )
 }
 
-const navLinkClass =
-  "w-fit text-[14.5px] text-muted-foreground transition-[color,transform] duration-150 hover:translate-x-0.5 hover:text-brand"
+const FOOTER_EASE = "ease-[cubic-bezier(0.16,1,0.3,1)]"
+
+const navLinkClass = cn(
+  "w-fit text-[14.5px] text-muted-foreground",
+  "transition-colors duration-300",
+  FOOTER_EASE,
+  "hover:text-brand",
+)
 
 const contactLinkClass = cn(
   navLinkClass,
   "inline-flex items-center gap-2 [&_svg]:text-brand-accent",
 )
 
-const socialIconClass =
-  "flex size-9 items-center justify-center rounded-full border border-border bg-brand/5 text-brand transition-all duration-150 hover:-translate-y-0.5 hover:border-brand hover:bg-brand hover:text-white"
+const socialIconClass = cn(
+  "flex size-9 items-center justify-center rounded-full border border-border bg-brand/5 text-brand",
+  "transition-[color,background-color,border-color,transform,box-shadow] duration-300",
+  FOOTER_EASE,
+  "hover:-translate-y-0.5 hover:border-brand hover:bg-brand hover:text-white",
+)
 
 export function SiteFooterClient({
   companyName,
@@ -111,9 +122,18 @@ export function SiteFooterClient({
   ] as const
 
   const legalLinks = [
-    { href: "#", label: tr("footer.terms") },
-    { href: "#", label: tr("footer.privacy") },
-    { href: "#", label: tr("footer.cookies") },
+    {
+      href: localePath("/terms", locale),
+      label: tr("footer.terms"),
+    },
+    {
+      href: localePath("/privacy-policy", locale),
+      label: tr("footer.privacy"),
+    },
+    {
+      href: localePath("/cookies", locale),
+      label: tr("footer.cookies"),
+    },
     {
       href: localePath("/cancellation-policy", locale),
       label: tr("footer.cancellation"),
@@ -127,7 +147,12 @@ export function SiteFooterClient({
           <div className="flex flex-col items-start">
             <Link
               href={localePath("/", locale)}
-              className="mb-4 inline-flex items-center gap-2.5"
+              className={cn(
+                "mb-4 inline-flex items-center gap-2.5 opacity-100",
+                "transition-[opacity,transform] duration-300",
+                FOOTER_EASE,
+                "hover:opacity-80",
+              )}
               aria-label={`${companyName} Homepage`}
             >
               <Image
@@ -200,7 +225,14 @@ export function SiteFooterClient({
               {whatsappUrl ? (
                 <a
                   href={whatsappUrl}
-                  className="mt-1.5 inline-flex w-fit items-center gap-2 rounded-full bg-primary px-[18px] py-2.5 text-[13.5px] font-bold text-white shadow-[0_4px_14px_rgba(37,211,102,0.3)] transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-0.5  hover:shadow-[0_6px_20px_rgba(37,211,102,0.45)] active:translate-y-0"
+                  className={cn(
+                    "mt-1.5 inline-flex w-fit items-center gap-2 rounded-full bg-primary px-[18px] py-2.5 text-[13.5px] font-bold text-white",
+                    "shadow-[0_4px_14px_rgba(37,211,102,0.3)]",
+                    "transition-[transform,box-shadow,filter] duration-500",
+                    FOOTER_EASE,
+                    "hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(37,211,102,0.45)] hover:brightness-[1.06]",
+                    "active:translate-y-0 active:brightness-100",
+                  )}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
@@ -213,9 +245,18 @@ export function SiteFooterClient({
         </div>
 
         <div className="flex flex-col-reverse flex-wrap items-start justify-between gap-5 border-t border-border pt-8 sm:flex-row sm:items-center">
-          <p className="m-0 text-[13px] text-muted-foreground/80">
-            &copy; {year} {companyName}. Tirana, Albania. {tr("footer.rights")}
-          </p>
+          <div className="flex flex-col gap-2">
+            <p className="m-0 text-[13px] text-muted-foreground/80">
+              &copy; {year} {companyName}. Tirana, Albania. {tr("footer.rights")}
+            </p>
+            <button
+              type="button"
+              onClick={() => openCookiePreferences()}
+              className="w-fit text-left text-[13px] font-semibold text-muted-foreground underline-offset-2 transition-colors hover:text-brand hover:underline"
+            >
+              {tr("cookies.settings")}
+            </button>
+          </div>
 
           <div className="flex gap-3">
             <a href="#" className={socialIconClass} aria-label="Instagram">

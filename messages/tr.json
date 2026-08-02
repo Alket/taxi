@@ -88,7 +88,6 @@
   "book.benefit2Desc": "En samimi profesyonel sürücüleri seçiyoruz",
   "book.benefit3Title": "Her zaman zamanında",
   "book.benefit3Desc": "Sürücülerimiz gecikmelerde uçuşları takip eder",
-
   "myBooking.backHome": "Ana sayfaya dön",
   "myBooking.title": "Rezervasyonum",
   "myBooking.hero": "Onay e-postanızdaki referans kodu ve e-posta ile transferinizi bulun. Hesap gerekmez.",
@@ -146,5 +145,19 @@
   "myBooking.saveDate": "Tarihi kaydet",
   "myBooking.selectPickup": "Alış tarihi ve saati seçin.",
   "myBooking.updateSuccess": "Alış tarihi güncellendi.",
-  "myBooking.updateFailed": "Güncelleme başarısız."
+  "myBooking.updateFailed": "Güncelleme başarısız.",
+  "cookies.bannerTitle": "Çerez kullanıyoruz",
+  "cookies.bannerBody": "Sitenin çalışması için gerekli çerezler ve deneyiminizi iyileştirmek için isteğe bağlı çerezler kullanırız. Tümünü kabul edebilir, zorunlu olmayanları reddedebilir veya tercihlerinizi seçebilirsiniz.",
+  "cookies.learnMore": "Çerez Politikası",
+  "cookies.accept": "Tümünü kabul et",
+  "cookies.reject": "Zorunlu olmayanları reddet",
+  "cookies.customize": "Özelleştir",
+  "cookies.save": "Tercihleri kaydet",
+  "cookies.settings": "Çerez ayarları",
+  "cookies.necessary": "Gerekli",
+  "cookies.necessaryDesc": "Rezervasyon, güvenlik ve dil için zorunlu. Her zaman açık.",
+  "cookies.analytics": "Analitik",
+  "cookies.analyticsDesc": "Sitenin nasıl kullanıldığını anlamamıza yardımcı olur.",
+  "cookies.marketing": "Pazarlama",
+  "cookies.marketingDesc": "İlgili teklifler ve kampanya ölçümü için kullanılır."
 }

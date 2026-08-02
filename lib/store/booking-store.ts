@@ -129,7 +129,7 @@ export const initialBookingState: BookingState = {
   vehicleType: null,
   isRoundTrip: false,
   returnDateTime: null,
-  meetAndGreet: false,
+  meetAndGreet: true,
   infantCarrierCount: 0,
   childSeatCount: 0,
   boosterCount: 0,

@@ -8,6 +8,20 @@ export const PAGE_SECTION_TYPES = [
 
 export type PageSectionType = (typeof PAGE_SECTION_TYPES)[number]
 
+export const CORE_PAGE_SLUGS = [
+  "home",
+  "cancellation-policy",
+  "privacy-policy",
+  "terms",
+  "cookies",
+] as const
+
+export type CorePageSlug = (typeof CORE_PAGE_SLUGS)[number]
+
+export function isCorePageSlug(slug: string): boolean {
+  return (CORE_PAGE_SLUGS as readonly string[]).includes(slug)
+}
+
 export type PageSection = {
   id: string
   type: PageSectionType

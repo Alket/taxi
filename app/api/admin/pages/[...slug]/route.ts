@@ -202,6 +202,9 @@ export async function DELETE(_request: Request, context: RouteContext) {
     revalidatePath("/admin/pages")
     if (slug === "home") revalidatePath("/")
     if (slug === "cancellation-policy") revalidatePath("/cancellation-policy")
+    if (slug === "privacy-policy") revalidatePath("/privacy-policy")
+    if (slug === "terms") revalidatePath("/terms")
+    if (slug === "cookies") revalidatePath("/cookies")
     return NextResponse.json(result)
   } catch (error) {
     return NextResponse.json(

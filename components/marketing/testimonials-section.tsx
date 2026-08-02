@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef } from "react"
+import { useCallback, useRef, useState } from "react"
 import useSWR from "swr"
 import { ChevronLeft, ChevronRight, StarIcon } from "lucide-react"
 import { Navigation } from "swiper/modules"
@@ -63,14 +63,12 @@ function ReviewCard({ review }: { review: PublicReview }) {
         </p>
       ) : (
         <p className="flex-1 text-sm text-muted-foreground sm:text-base">
-          Rated {review.platformRating}/5 overall with {review.driverName}.
+          Rated {review.platformRating}/5 overall.
         </p>
       )}
       <div className="border-t pt-3 text-xs text-muted-foreground sm:text-sm">
         <p className="font-semibold text-brand">{review.customerFirstName}</p>
-        <p className="mt-0.5 truncate">
-          {review.driverName} · {review.dropoffAddress}
-        </p>
+        <p className="mt-0.5 truncate">{review.dropoffAddress}</p>
       </div>
     </div>
   )
@@ -86,6 +84,7 @@ export function TestimonialsSection({
   heading?: string
 }) {
   const swiperRef = useRef<SwiperType | null>(null)
+  const [showArrows, setShowArrows] = useState(false)
   const params = new URLSearchParams({ limit: "6" })
   if (destination) params.set("destination", destination)
   const { data } = useSWR<{ reviews: PublicReview[] }>(
@@ -93,6 +92,11 @@ export function TestimonialsSection({
     fetcher,
   )
   const reviews = data?.reviews ?? []
+
+  const syncArrows = useCallback((swiper: SwiperType) => {
+    setShowArrows(!swiper.isLocked)
+  }, [])
+
   if (reviews.length === 0) return null
 
   const title =
@@ -112,24 +116,26 @@ export function TestimonialsSection({
             <h2 className={MARKETING_SECTION_TITLE}>{title}</h2>
           </div>
 
-          <div className="flex shrink-0 gap-1.5 sm:gap-2">
-            <button
-              type="button"
-              aria-label="Previous reviews"
-              className="flex size-9 items-center justify-center rounded-full border border-border bg-card text-brand transition-colors hover:bg-muted sm:size-10"
-              onClick={() => swiperRef.current?.slidePrev()}
-            >
-              <ChevronLeft className="size-4 sm:size-5" />
-            </button>
-            <button
-              type="button"
-              aria-label="Next reviews"
-              className="flex size-9 items-center justify-center rounded-full border border-border bg-card text-brand transition-colors hover:bg-muted sm:size-10"
-              onClick={() => swiperRef.current?.slideNext()}
-            >
-              <ChevronRight className="size-4 sm:size-5" />
-            </button>
-          </div>
+          {showArrows ? (
+            <div className="flex shrink-0 gap-1.5 sm:gap-2">
+              <button
+                type="button"
+                aria-label="Previous reviews"
+                className="flex size-9 items-center justify-center rounded-full border border-border bg-card text-brand transition-colors hover:bg-muted sm:size-10"
+                onClick={() => swiperRef.current?.slidePrev()}
+              >
+                <ChevronLeft className="size-4 sm:size-5" />
+              </button>
+              <button
+                type="button"
+                aria-label="Next reviews"
+                className="flex size-9 items-center justify-center rounded-full border border-border bg-card text-brand transition-colors hover:bg-muted sm:size-10"
+                onClick={() => swiperRef.current?.slideNext()}
+              >
+                <ChevronRight className="size-4 sm:size-5" />
+              </button>
+            </div>
+          ) : null}
         </div>
 
         <Swiper
@@ -149,7 +155,11 @@ export function TestimonialsSection({
           }}
           onSwiper={(swiper) => {
             swiperRef.current = swiper
+            syncArrows(swiper)
           }}
+          onResize={syncArrows}
+          onBreakpoint={syncArrows}
+          onUpdate={syncArrows}
         >
           {reviews.map((review) => (
             <SwiperSlide key={review.id} className="!h-auto">

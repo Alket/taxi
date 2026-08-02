@@ -88,7 +88,6 @@
   "book.benefit2Desc": "Wybieramy najbardziej przyjaznych profesjonalistów",
   "book.benefit3Title": "Zawsze na czas",
   "book.benefit3Desc": "Nasi kierowcy monitorują loty w razie opóźnień",
-
   "myBooking.backHome": "Powrót do strony głównej",
   "myBooking.title": "Moja rezerwacja",
   "myBooking.hero": "Znajdź transfer za pomocą kodu referencyjnego i e-maila z potwierdzenia. Konto nie jest potrzebne.",
@@ -146,5 +145,19 @@
   "myBooking.saveDate": "Zapisz datę",
   "myBooking.selectPickup": "Wybierz datę i godzinę odbioru.",
   "myBooking.updateSuccess": "Data odbioru zaktualizowana.",
-  "myBooking.updateFailed": "Aktualizacja nie powiodła się."
+  "myBooking.updateFailed": "Aktualizacja nie powiodła się.",
+  "cookies.bannerTitle": "Używamy plików cookie",
+  "cookies.bannerBody": "Używamy niezbędnych plików cookie do działania strony oraz opcjonalnych, aby poprawić Twoje doświadczenie. Możesz zaakceptować wszystkie, odrzucić zbędne lub wybrać preferencje.",
+  "cookies.learnMore": "Polityka cookies",
+  "cookies.accept": "Akceptuj wszystkie",
+  "cookies.reject": "Odrzuć zbędne",
+  "cookies.customize": "Dostosuj",
+  "cookies.save": "Zapisz preferencje",
+  "cookies.settings": "Ustawienia cookies",
+  "cookies.necessary": "Niezbędne",
+  "cookies.necessaryDesc": "Wymagane do rezerwacji, bezpieczeństwa i języka. Zawsze włączone.",
+  "cookies.analytics": "Analityczne",
+  "cookies.analyticsDesc": "Pomagają nam zrozumieć, jak używana jest strona.",
+  "cookies.marketing": "Marketingowe",
+  "cookies.marketingDesc": "Służą do trafnych ofert i pomiaru kampanii."
 }

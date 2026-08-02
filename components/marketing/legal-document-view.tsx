@@ -1,9 +1,10 @@
 import Link from "next/link"
 import {
   ArrowLeft,
-  BanIcon,
-  ClipboardListIcon,
-  ShieldCheckIcon,
+  CookieIcon,
+  FileTextIcon,
+  ScaleIcon,
+  ShieldIcon,
   type LucideIcon,
 } from "lucide-react"
 
@@ -16,31 +17,26 @@ import {
 import { t } from "@/lib/i18n/t"
 import { cn } from "@/lib/utils"
 
-type PolicyBlock = {
+export type LegalBlock = {
   key: string
   heading: string
   text: string
 }
 
-const BLOCK_META: Record<
-  string,
-  { icon: LucideIcon; accent: string; summaryKey: string }
-> = {
-  customer: {
-    icon: BanIcon,
-    accent: "text-brand-accent",
-    summaryKey: "policy.summary.customer",
-  },
-  refund: {
-    icon: ShieldCheckIcon,
-    accent: "text-brand-accent",
-    summaryKey: "policy.summary.refund",
-  },
-  how: {
-    icon: ClipboardListIcon,
-    accent: "text-brand-accent",
-    summaryKey: "policy.summary.how",
-  },
+const BLOCK_ICONS: Record<string, LucideIcon> = {
+  collect: ShieldIcon,
+  use: FileTextIcon,
+  sharing: ShieldIcon,
+  rights: ScaleIcon,
+  contact: FileTextIcon,
+  service: FileTextIcon,
+  bookings: ScaleIcon,
+  payments: FileTextIcon,
+  liability: ShieldIcon,
+  what: CookieIcon,
+  how: CookieIcon,
+  manage: ScaleIcon,
+  third: ShieldIcon,
 }
 
 function PolicyBody({ text }: { text: string }) {
@@ -77,7 +73,7 @@ function PolicyBody({ text }: { text: string }) {
   )
 }
 
-export function CancellationPolicyView({
+export function LegalDocumentView({
   title,
   intro,
   blocks,
@@ -86,7 +82,7 @@ export function CancellationPolicyView({
 }: {
   title: string
   intro: string
-  blocks: PolicyBlock[]
+  blocks: LegalBlock[]
   heroImage: string
   locale?: Locale
 }) {
@@ -121,19 +117,9 @@ export function CancellationPolicyView({
 
       <section className="bg-brand-page py-10 md:py-14">
         <MarketingContainer>
-          <div className="rounded-3xl border border-brand-accent/20 bg-brand-surface px-5 py-5 shadow-sm sm:px-7 sm:py-6">
-            <p className="text-xs font-extrabold tracking-[0.14em] text-brand-accent uppercase">
-              {t(locale, "policy.keyTakeaway")}
-            </p>
-            <p className="mt-2 text-base font-bold leading-snug text-brand sm:text-lg">
-              {t(locale, "policy.takeawayBody")}
-            </p>
-          </div>
-
-          <div className="mt-8 grid gap-4 md:mt-10">
+          <div className="grid gap-4">
             {blocks.map((block, index) => {
-              const meta = BLOCK_META[block.key]
-              const Icon = meta?.icon ?? ClipboardListIcon
+              const Icon = BLOCK_ICONS[block.key] ?? FileTextIcon
               return (
                 <article
                   key={block.key}
@@ -142,8 +128,7 @@ export function CancellationPolicyView({
                   <div className="flex items-start gap-4 border-b border-border/70 px-5 py-5 sm:gap-5 sm:px-7 sm:py-6">
                     <span
                       className={cn(
-                        "flex size-11 shrink-0 items-center justify-center rounded-2xl bg-brand-page",
-                        meta?.accent,
+                        "flex size-11 shrink-0 items-center justify-center rounded-2xl bg-brand-page text-brand-accent",
                       )}
                     >
                       <Icon className="size-5" strokeWidth={1.75} />
@@ -157,11 +142,6 @@ export function CancellationPolicyView({
                           {String(index + 1).padStart(2, "0")}
                         </span>
                       </div>
-                      {meta?.summaryKey ? (
-                        <p className="mt-1 text-sm font-semibold text-brand-accent">
-                          {t(locale, meta.summaryKey)}
-                        </p>
-                      ) : null}
                     </div>
                   </div>
                   {block.text ? (
@@ -172,23 +152,6 @@ export function CancellationPolicyView({
                 </article>
               )
             })}
-          </div>
-
-          <div className="mt-10 flex flex-col gap-4 rounded-3xl bg-brand-panel px-6 py-7 text-white sm:flex-row sm:items-center sm:justify-between sm:px-8 md:mt-12">
-            <div>
-              <p className="text-lg font-extrabold tracking-tight">
-                {t(locale, "policy.needCancelTitle")}
-              </p>
-              <p className="mt-1 text-sm text-white/70">
-                {t(locale, "policy.needCancelText")}
-              </p>
-            </div>
-            <Link
-              href={localePath("/my-booking", locale)}
-              className="inline-flex h-11 shrink-0 items-center justify-center rounded-full bg-brand-accent px-6 text-sm font-extrabold text-white transition-colors hover:bg-brand-accent-hover"
-            >
-              {t(locale, "nav.myBooking")}
-            </Link>
           </div>
         </MarketingContainer>
       </section>

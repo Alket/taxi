@@ -4,6 +4,7 @@ import { Suspense, useEffect, type ReactNode } from "react"
 
 import { DestinationsSection } from "@/components/marketing/destinations-section"
 import { FaqSection } from "@/components/marketing/faq-section"
+import { CookieConsentBanner } from "@/components/marketing/cookie-consent-banner"
 import { HeroBookingCard } from "@/components/marketing/hero-booking-card"
 import { MarketingContainer } from "@/components/marketing/marketing-container"
 import { PeaceOfMindSection } from "@/components/marketing/peace-of-mind-section"
@@ -152,6 +153,7 @@ export function HomeLanding({
       <FaqSection items={copy.faq} />
 
       {footer}
+      <CookieConsentBanner />
     </div>
   )
 }

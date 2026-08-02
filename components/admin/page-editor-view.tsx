@@ -41,6 +41,7 @@ import {
 } from "@/lib/marketing-icons"
 import {
   PAGE_SECTION_TYPES,
+  isCorePageSlug,
   type PageContentRecord,
   type PageSection,
   type PageSectionType,
@@ -487,9 +488,7 @@ export function PageEditorView({ slug }: { slug: string }) {
       ? page.slug.slice("destinations/".length)
       : ""
     const canDelete = Boolean(destId)
-    const canReset =
-      page.fromDatabase &&
-      (page.slug === "home" || page.slug === "cancellation-policy")
+    const canReset = page.fromDatabase && isCorePageSlug(page.slug)
 
     if (!canDelete && !canReset) {
       toast.error(
@@ -699,9 +698,7 @@ export function PageEditorView({ slug }: { slug: string }) {
   } = splitSections(page.sections)
   const isDestinationPage = page.slug.startsWith("destinations/")
   const canDelete = isDestinationPage
-  const canReset =
-    page.fromDatabase &&
-    (page.slug === "home" || page.slug === "cancellation-policy")
+  const canReset = page.fromDatabase && isCorePageSlug(page.slug)
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 p-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:gap-6 sm:p-4 md:p-6">

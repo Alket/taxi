@@ -88,7 +88,6 @@
   "book.benefit2Desc": "We handpick the friendliest professional drivers",
   "book.benefit3Title": "Always on time",
   "book.benefit3Desc": "Our drivers monitor the flights in case of delays",
-
   "myBooking.backHome": "Back to home",
   "myBooking.title": "My booking",
   "myBooking.hero": "Look up your transfer with the reference code and email from your confirmation. No account needed.",
@@ -146,5 +145,19 @@
   "myBooking.saveDate": "Save date",
   "myBooking.selectPickup": "Select a pickup date and time.",
   "myBooking.updateSuccess": "Pickup date updated.",
-  "myBooking.updateFailed": "Update failed."
+  "myBooking.updateFailed": "Update failed.",
+  "cookies.bannerTitle": "We use cookies",
+  "cookies.bannerBody": "We use necessary cookies to run the site and optional cookies to improve your experience. You can accept all, reject non-essential cookies, or choose your preferences.",
+  "cookies.learnMore": "Cookie Policy",
+  "cookies.accept": "Accept all",
+  "cookies.reject": "Reject non-essential",
+  "cookies.customize": "Customize",
+  "cookies.save": "Save preferences",
+  "cookies.settings": "Cookie settings",
+  "cookies.necessary": "Necessary",
+  "cookies.necessaryDesc": "Required for booking, security, and language. Always on.",
+  "cookies.analytics": "Analytics",
+  "cookies.analyticsDesc": "Helps us understand how the site is used so we can improve it.",
+  "cookies.marketing": "Marketing",
+  "cookies.marketingDesc": "Used for relevant offers and measuring campaign performance."
 }
