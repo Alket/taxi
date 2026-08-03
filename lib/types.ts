@@ -291,6 +291,8 @@ export interface Settings {
   supportWhatsApp: string
   /** Ops inbox for new/cancel/date-change emails. Empty → supportEmail. */
   adminNotificationEmail: string
+  /** Public favicon URL. Empty → /marketing/favicon.png. */
+  faviconUrl: string
   displayCurrencies: DisplayCurrency[]
   freeCancellationHours: number
   depositPercentage: number

@@ -58,6 +58,21 @@ export async function PATCH(request: Request) {
     if (typeof body.adminNotificationEmail === "string") {
       data.adminNotificationEmail = body.adminNotificationEmail.trim()
     }
+    if (typeof body.faviconUrl === "string") {
+      const url = body.faviconUrl.trim()
+      if (
+        url &&
+        !url.startsWith("/uploads/") &&
+        !url.startsWith("/marketing/") &&
+        !/^https?:\/\//i.test(url)
+      ) {
+        return NextResponse.json(
+          { error: "Favicon must be an uploaded image URL or https link." },
+          { status: 400 },
+        )
+      }
+      data.faviconUrl = url
+    }
 
     if (Array.isArray(body.displayCurrencies)) {
       const filtered = body.displayCurrencies.filter(

@@ -1,6 +1,16 @@
 #!/bin/sh
 set -eu
 
+UPLOAD_ROOT="${UPLOAD_DIR:-/app/public/uploads/pages}"
+mkdir -p "$UPLOAD_ROOT"
+
+# Named Docker volumes are often root-owned; fix before dropping privileges.
+if [ "$(id -u)" = "0" ]; then
+  chown -R nextjs:nodejs /app/public/uploads 2>/dev/null || true
+  chown -R nextjs:nodejs "$UPLOAD_ROOT" 2>/dev/null || true
+  exec runuser -u nextjs -- "$0" "$@"
+fi
+
 echo "[entrypoint] Applying Prisma migrations..."
 prisma migrate deploy
 

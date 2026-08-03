@@ -26,6 +26,7 @@ const museoSans = Mulish({
 })
 
 const FALLBACK_BRAND = "Albania Transfers"
+const FALLBACK_FAVICON = "/marketing/favicon.png"
 
 async function resolveBrandName() {
   try {
@@ -37,8 +38,31 @@ async function resolveBrandName() {
   }
 }
 
+async function resolveFaviconUrl() {
+  try {
+    const settings = await getSettings()
+    const url = settings.faviconUrl?.trim()
+    return url || FALLBACK_FAVICON
+  } catch {
+    return FALLBACK_FAVICON
+  }
+}
+
 export async function generateMetadata(): Promise<Metadata> {
-  const brand = await resolveBrandName()
+  const [brand, favicon] = await Promise.all([
+    resolveBrandName(),
+    resolveFaviconUrl(),
+  ])
+  const isSvg = favicon.toLowerCase().endsWith(".svg")
+  const isIco = favicon.toLowerCase().endsWith(".ico")
+  const type = isSvg
+    ? "image/svg+xml"
+    : isIco
+      ? "image/x-icon"
+      : favicon.toLowerCase().endsWith(".webp")
+        ? "image/webp"
+        : "image/png"
+
   return {
     title: {
       default: brand,
@@ -48,9 +72,9 @@ export async function generateMetadata(): Promise<Metadata> {
       "Book airport transfers across Albania, or manage operations from the admin console.",
     manifest: "/manifest.webmanifest",
     icons: {
-      icon: [{ url: "/marketing/favicon.png", type: "image/png", sizes: "512x512" }],
-      apple: [{ url: "/marketing/favicon.png", type: "image/png", sizes: "512x512" }],
-      shortcut: ["/marketing/favicon.png"],
+      icon: [{ url: favicon, type }],
+      apple: [{ url: favicon }],
+      shortcut: [favicon],
     },
     appleWebApp: {
       capable: true,

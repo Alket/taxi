@@ -338,6 +338,8 @@ model Settings {
   supportWhatsApp             String
   /** Inbox for ops alerts (new/cancel/date-change). Falls back to supportEmail. */
   adminNotificationEmail      String           @default("")
+  /** Public site favicon URL (e.g. /uploads/pages/favicon.png). Empty → default. */
+  faviconUrl                  String           @default("")
   displayCurrencies           String[]
   freeCancellationHours       Int              @default(24)
   depositPercentage           Int              @default(30)

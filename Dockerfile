@@ -54,10 +54,12 @@ COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder /app/node_modules/bcryptjs ./node_modules/bcryptjs
 
-RUN chmod +x ./scripts/docker-entrypoint.sh \
+RUN mkdir -p /app/public/uploads/pages \
+  && chmod +x ./scripts/docker-entrypoint.sh \
   && chown -R nextjs:nodejs /app
 
-USER nextjs
+# Entrypoint starts as root to fix upload-volume ownership, then drops to nextjs.
+USER root
 EXPOSE 3000
 
 ENTRYPOINT ["./scripts/docker-entrypoint.sh"]

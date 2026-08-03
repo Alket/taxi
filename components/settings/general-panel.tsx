@@ -2,15 +2,17 @@
 
 import * as React from "react"
 import { toast } from "sonner"
-import { CheckIcon } from "lucide-react"
+import { CheckIcon, ImagePlusIcon, Loader2Icon, Trash2Icon } from "lucide-react"
 
 import { apiPatch } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import type { DisplayCurrency, Settings } from "@/lib/types"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Field, PanelCard, SaveButton } from "@/components/settings/shared"
 
 const CURRENCIES: DisplayCurrency[] = ["EUR", "USD", "GBP"]
+const DEFAULT_FAVICON = "/marketing/favicon.png"
 
 function extract(s: Settings) {
   return {
@@ -18,6 +20,7 @@ function extract(s: Settings) {
     supportPhone: s.supportPhone,
     supportEmail: s.supportEmail,
     supportWhatsApp: s.supportWhatsApp,
+    faviconUrl: s.faviconUrl ?? "",
     displayCurrencies: s.displayCurrencies,
     depositPercentage: String(s.depositPercentage),
     infantCarrierPrice: String(s.infantCarrierPrice),
@@ -35,6 +38,8 @@ export function GeneralPanel({
 }) {
   const [form, setForm] = React.useState(() => extract(settings))
   const [pending, setPending] = React.useState(false)
+  const [uploading, setUploading] = React.useState(false)
+  const fileRef = React.useRef<HTMLInputElement>(null)
 
   const serverSnapshot = JSON.stringify(extract(settings))
   React.useEffect(() => {
@@ -44,6 +49,7 @@ export function GeneralPanel({
   }, [serverSnapshot])
 
   const dirty = JSON.stringify(form) !== serverSnapshot
+  const previewSrc = form.faviconUrl.trim() || DEFAULT_FAVICON
 
   function set<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
     setForm((f) => ({ ...f, [key]: value }))
@@ -58,6 +64,34 @@ export function GeneralPanel({
       // Preserve canonical order for stable dirty comparison.
       return { ...f, displayCurrencies: CURRENCIES.filter((x) => next.includes(x)) }
     })
+  }
+
+  async function uploadFavicon(file: File) {
+    setUploading(true)
+    try {
+      const body = new FormData()
+      body.set("file", file)
+      body.set("title", "Site favicon")
+      body.set("alt", "Site favicon")
+      const res = await fetch("/api/admin/uploads", {
+        method: "POST",
+        body,
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(data.error || "Upload failed.")
+      }
+      if (typeof data.url !== "string" || !data.url) {
+        throw new Error("Upload did not return a URL.")
+      }
+      set("faviconUrl", data.url)
+      toast.success("Favicon uploaded. Save changes to apply.")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Upload failed.")
+    } finally {
+      setUploading(false)
+      if (fileRef.current) fileRef.current.value = ""
+    }
   }
 
   async function save() {
@@ -76,6 +110,7 @@ export function GeneralPanel({
         supportPhone: form.supportPhone.trim(),
         supportEmail: form.supportEmail.trim(),
         supportWhatsApp: form.supportWhatsApp.trim(),
+        faviconUrl: form.faviconUrl.trim(),
         displayCurrencies: form.displayCurrencies,
         depositPercentage: Number(form.depositPercentage),
         infantCarrierPrice: Number(form.infantCarrierPrice),
@@ -104,6 +139,60 @@ export function GeneralPanel({
           onChange={(e) => set("companyName", e.target.value)}
           placeholder="Transfer Ops"
         />
+      </Field>
+
+      <Field
+        label="Site favicon"
+        hint="PNG, WebP, JPEG, GIF, or SVG. Shown in browser tabs and bookmarks."
+      >
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex size-14 items-center justify-center overflow-hidden rounded-xl border border-border bg-muted/40">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={previewSrc}
+              alt="Favicon preview"
+              className="size-10 object-contain"
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+              className="sr-only"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) void uploadFavicon(file)
+              }}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={uploading}
+              onClick={() => fileRef.current?.click()}
+            >
+              {uploading ? (
+                <Loader2Icon className="size-3.5 animate-spin" />
+              ) : (
+                <ImagePlusIcon className="size-3.5" />
+              )}
+              {uploading ? "Uploading…" : "Upload favicon"}
+            </Button>
+            {form.faviconUrl ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={uploading}
+                onClick={() => set("faviconUrl", "")}
+              >
+                <Trash2Icon className="size-3.5" />
+                Use default
+              </Button>
+            ) : null}
+          </div>
+        </div>
       </Field>
 
       <div className="grid gap-4 sm:grid-cols-2">

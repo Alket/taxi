@@ -23,12 +23,9 @@ export {
   resolveMediaAlt,
 } from "@/lib/media-shared"
 
-export const MEDIA_UPLOAD_DIR = path.join(
-  process.cwd(),
-  "public",
-  "uploads",
-  "pages",
-)
+export const MEDIA_UPLOAD_DIR =
+  process.env.UPLOAD_DIR?.trim() ||
+  path.join(process.cwd(), "public", "uploads", "pages")
 
 const MIME_BY_EXT: Record<string, string> = {
   jpg: "image/jpeg",

@@ -425,6 +425,7 @@ const settings: Settings = {
   supportEmail: "ops@transfers.co",
   supportWhatsApp: "+39 320 000 1122",
   adminNotificationEmail: "ops@transfers.co",
+  faviconUrl: "",
   displayCurrencies: ["EUR", "GBP"],
   freeCancellationHours: 24,
   depositPercentage: 30,
