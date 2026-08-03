@@ -340,6 +340,11 @@ model Settings {
   adminNotificationEmail      String           @default("")
   /** Public site favicon URL (e.g. /uploads/pages/favicon.png). Empty → default. */
   faviconUrl                  String           @default("")
+  /**
+   * When false, public pages send noindex/nofollow and robots.txt disallows all.
+   * Keep off until the site is ready for Google/Bing.
+   */
+  searchIndexingEnabled       Boolean          @default(false)
   displayCurrencies           String[]
   freeCancellationHours       Int              @default(24)
   depositPercentage           Int              @default(30)

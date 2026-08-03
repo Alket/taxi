@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils"
 import type { DisplayCurrency, Settings } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Switch } from "@/components/ui/switch"
 import { Field, PanelCard, SaveButton } from "@/components/settings/shared"
 
 const CURRENCIES: DisplayCurrency[] = ["EUR", "USD", "GBP"]
@@ -21,6 +22,7 @@ function extract(s: Settings) {
     supportEmail: s.supportEmail,
     supportWhatsApp: s.supportWhatsApp,
     faviconUrl: s.faviconUrl ?? "",
+    searchIndexingEnabled: s.searchIndexingEnabled === true,
     displayCurrencies: s.displayCurrencies,
     depositPercentage: String(s.depositPercentage),
     infantCarrierPrice: String(s.infantCarrierPrice),
@@ -111,6 +113,7 @@ export function GeneralPanel({
         supportEmail: form.supportEmail.trim(),
         supportWhatsApp: form.supportWhatsApp.trim(),
         faviconUrl: form.faviconUrl.trim(),
+        searchIndexingEnabled: form.searchIndexingEnabled,
         displayCurrencies: form.displayCurrencies,
         depositPercentage: Number(form.depositPercentage),
         infantCarrierPrice: Number(form.infantCarrierPrice),
@@ -193,6 +196,27 @@ export function GeneralPanel({
             ) : null}
           </div>
         </div>
+      </Field>
+
+      <Field
+        label="Search engines"
+        hint={
+          form.searchIndexingEnabled
+            ? "Indexing is allowed. Google/Bing may list public pages. Admin and API stay blocked in robots.txt."
+            : "Indexing is blocked (recommended until launch). Pages send noindex and robots.txt disallows all crawlers."
+        }
+      >
+        <label className="flex items-center gap-3 rounded-xl border border-border bg-muted/20 px-3.5 py-3">
+          <Switch
+            checked={form.searchIndexingEnabled}
+            onCheckedChange={(checked) =>
+              set("searchIndexingEnabled", Boolean(checked))
+            }
+          />
+          <span className="text-sm font-medium">
+            Allow search engines to index this site
+          </span>
+        </label>
       </Field>
 
       <div className="grid gap-4 sm:grid-cols-2">

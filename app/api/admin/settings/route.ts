@@ -73,6 +73,9 @@ export async function PATCH(request: Request) {
       }
       data.faviconUrl = url
     }
+    if (typeof body.searchIndexingEnabled === "boolean") {
+      data.searchIndexingEnabled = body.searchIndexingEnabled
+    }
 
     if (Array.isArray(body.displayCurrencies)) {
       const filtered = body.displayCurrencies.filter(

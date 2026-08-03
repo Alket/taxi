@@ -112,6 +112,7 @@ export function serializeSettings(
     supportWhatsApp: row.supportWhatsApp,
     adminNotificationEmail: row.adminNotificationEmail ?? "",
     faviconUrl: row.faviconUrl ?? "",
+    searchIndexingEnabled: row.searchIndexingEnabled ?? false,
     displayCurrencies: row.displayCurrencies.filter((currency): currency is DisplayCurrency =>
       VALID_CURRENCIES.includes(currency as DisplayCurrency),
     ),
@@ -173,6 +174,7 @@ export async function getSettingsRow() {
       supportWhatsApp: "",
       adminNotificationEmail: "",
       faviconUrl: "",
+      searchIndexingEnabled: false,
       displayCurrencies: ["EUR"],
       freeCancellationHours: 24,
       depositPercentage: 30,

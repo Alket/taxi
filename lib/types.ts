@@ -293,6 +293,8 @@ export interface Settings {
   adminNotificationEmail: string
   /** Public favicon URL. Empty → /marketing/favicon.png. */
   faviconUrl: string
+  /** When false, site is noindex and robots.txt blocks crawlers. */
+  searchIndexingEnabled: boolean
   displayCurrencies: DisplayCurrency[]
   freeCancellationHours: number
   depositPercentage: number

@@ -48,10 +48,20 @@ async function resolveFaviconUrl() {
   }
 }
 
+async function resolveSearchIndexingEnabled() {
+  try {
+    const settings = await getSettings()
+    return settings.searchIndexingEnabled === true
+  } catch {
+    return false
+  }
+}
+
 export async function generateMetadata(): Promise<Metadata> {
-  const [brand, favicon] = await Promise.all([
+  const [brand, favicon, indexingEnabled] = await Promise.all([
     resolveBrandName(),
     resolveFaviconUrl(),
+    resolveSearchIndexingEnabled(),
   ])
   const isSvg = favicon.toLowerCase().endsWith(".svg")
   const isIco = favicon.toLowerCase().endsWith(".ico")
@@ -81,6 +91,9 @@ export async function generateMetadata(): Promise<Metadata> {
       title: brand,
       statusBarStyle: "default",
     },
+    robots: indexingEnabled
+      ? { index: true, follow: true }
+      : { index: false, follow: false, nocache: true },
   }
 }
 
