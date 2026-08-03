@@ -26,11 +26,6 @@ type PageProps = {
 /** CMS images/copy must stay fresh after admin edits. */
 export const dynamic = "force-dynamic"
 
-export async function generateStaticParams() {
-  const destinations = await resolveDestinationCards()
-  return destinations.map((d) => ({ slug: d.id }))
-}
-
 export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
