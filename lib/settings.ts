@@ -155,11 +155,48 @@ export function resolveAdminNotificationEmail(settings: Settings): string | null
 }
 
 export async function getSettingsRow() {
-  const row = await prisma.settings.findUnique({ where: { id: SETTINGS_ID } })
-  if (!row) {
-    throw new Error("Settings not configured.")
-  }
-  return row
+  const existing = await prisma.settings.findUnique({
+    where: { id: SETTINGS_ID },
+  })
+  if (existing) return existing
+
+  // Fresh production DBs run migrations without seed — create a safe default row.
+  return prisma.settings.upsert({
+    where: { id: SETTINGS_ID },
+    update: {},
+    create: {
+      id: SETTINGS_ID,
+      companyName: "Albania Transfers",
+      supportPhone: "",
+      supportEmail: "",
+      supportWhatsApp: "",
+      adminNotificationEmail: "",
+      displayCurrencies: ["EUR"],
+      freeCancellationHours: 24,
+      depositPercentage: 30,
+      roundTripDiscountPercent: 0,
+      infantCarrierPrice: 0,
+      childSeatPrice: 0,
+      boosterSeatPrice: 0,
+      stripeEnabled: true,
+      paypalEnabled: true,
+      cashOnArrivalEnabled: false,
+      depositPaymentEnabled: true,
+      fullPaymentEnabled: true,
+      airports: [{ name: "Tirana International", iataCode: "TIA" }],
+      notificationChannelsEnabled: {
+        confirmation: true,
+        driverAssigned: true,
+        flightDelay: true,
+        reminder: true,
+        cancellation: true,
+        dateChange: true,
+        completedReceipt: true,
+        reviewRequest: true,
+      },
+      flightDelayThresholdMinutes: 45,
+    },
+  })
 }
 
 export async function getSettings(): Promise<Settings> {
