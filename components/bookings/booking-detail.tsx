@@ -371,8 +371,6 @@ function formatBalanceChargedBy(
   if (chargedBy === "admin" || chargedBy.startsWith("admin:")) return "Admin"
   if (chargedBy === "customer") return "Customer"
   if (chargedBy.startsWith("driver:")) {
-    const driverId = chargedBy.slice("driver:".length)
-    if (driver?.id === driverId && driver.name) return driver.name
     if (driver?.name) return driver.name
     return "Driver"
   }

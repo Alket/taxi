@@ -450,6 +450,7 @@ const settings: Settings = {
     cancellation: false,
     dateChange: true,
     completedReceipt: true,
+    reviewRequest: true,
   },
   flightDelayThresholdMinutes: 45,
   whatsappConnectionStatus: "connected",
