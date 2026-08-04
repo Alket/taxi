@@ -53,6 +53,82 @@ type AdminPageRow = {
   isCustomDestination: boolean
 }
 
+function PageRowActions({
+  page,
+  layout,
+  onDelete,
+  onReset,
+}: {
+  page: AdminPageRow
+  layout: "mobile" | "desktop"
+  onDelete: () => void
+  onReset: () => void
+}) {
+  const isMobile = layout === "mobile"
+  return (
+    <div
+      className={
+        isMobile
+          ? "grid grid-cols-2 gap-2"
+          : "flex flex-wrap items-center justify-end gap-1"
+      }
+    >
+      <Button
+        variant="outline"
+        size="sm"
+        className={
+          isMobile ? "h-10 touch-manipulation justify-center" : undefined
+        }
+        nativeButton={false}
+        render={<Link href={`/admin/pages/${page.slug}`} />}
+      >
+        <Pencil className="size-3.5" />
+        Edit
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        className={
+          isMobile ? "h-10 touch-manipulation justify-center" : undefined
+        }
+        nativeButton={false}
+        render={<Link href={page.path} target="_blank" rel="noreferrer" />}
+      >
+        <ExternalLink className="size-3.5" />
+        View
+      </Button>
+      {page.canReset ? (
+        <Button
+          variant="outline"
+          size="sm"
+          className={
+            isMobile ? "h-10 touch-manipulation justify-center" : undefined
+          }
+          onClick={onReset}
+        >
+          <RotateCcw className="size-3.5" />
+          Reset
+        </Button>
+      ) : null}
+      {page.canDelete ? (
+        <Button
+          variant="outline"
+          size="sm"
+          className={
+            isMobile
+              ? "h-10 touch-manipulation justify-center text-destructive hover:bg-destructive/10 hover:text-destructive"
+              : "text-destructive hover:bg-destructive/10 hover:text-destructive"
+          }
+          onClick={onDelete}
+        >
+          <Trash2 className="size-3.5" />
+          Delete
+        </Button>
+      ) : null}
+    </div>
+  )
+}
+
 export function PagesListView() {
   const router = useRouter()
   const { data, isLoading, mutate } = useSWR<{ pages: AdminPageRow[] }>(
@@ -148,119 +224,134 @@ export function PagesListView() {
         }
       />
       <div className="flex flex-col gap-5 p-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:gap-6 sm:p-4 md:p-6">
-      <div className="overflow-hidden rounded-xl border bg-card">
-        <table className="w-full text-sm">
-          <thead className="border-b bg-muted/40 text-left text-xs text-muted-foreground">
-            <tr>
-              <th className="px-4 py-3 font-medium">Page</th>
-              <th className="hidden px-4 py-3 font-medium sm:table-cell">
-                SEO title
-              </th>
-              <th className="hidden px-4 py-3 font-medium md:table-cell">
-                Status
-              </th>
-              <th className="px-4 py-3 text-right font-medium">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading &&
-              Array.from({ length: 4 }).map((_, i) => (
-                <tr key={i} className="border-b last:border-0">
-                  <td className="px-4 py-3" colSpan={4}>
-                    <Skeleton className="h-5 w-full max-w-md" />
-                  </td>
-                </tr>
-              ))}
-            {!isLoading &&
-              pages.map((page) => (
-                <tr
+        {/* Mobile cards */}
+        <div className="flex flex-col gap-2.5 md:hidden">
+          {isLoading
+            ? Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-36 w-full rounded-xl" />
+              ))
+            : null}
+          {!isLoading && pages.length === 0 ? (
+            <div className="rounded-xl border border-dashed bg-card px-4 py-10 text-center text-sm text-muted-foreground">
+              No pages found.
+            </div>
+          ) : null}
+          {!isLoading
+            ? pages.map((page) => (
+                <div
                   key={page.slug}
-                  className="border-b last:border-0 hover:bg-muted/30"
+                  className="flex flex-col gap-3 rounded-xl border bg-card p-3.5 shadow-sm"
                 >
-                  <td className="px-4 py-3">
-                    <div className="flex items-start gap-2">
-                      <FileText className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                      <div>
-                        <p className="font-medium">{page.label}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {page.path}
-                          {page.isCustomDestination ? " · custom" : null}
+                  <div className="flex items-start gap-2.5">
+                    <FileText className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="truncate text-[15px] font-semibold">
+                          {page.label}
                         </p>
+                        <span
+                          className={
+                            page.fromDatabase
+                              ? "shrink-0 text-[11px] font-medium text-emerald-700 dark:text-emerald-400"
+                              : "shrink-0 text-[11px] text-muted-foreground"
+                          }
+                        >
+                          {page.fromDatabase ? "Customized" : "Defaults"}
+                        </span>
                       </div>
+                      <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                        {page.path}
+                        {page.isCustomDestination ? " · custom" : null}
+                      </p>
+                      {page.title ? (
+                        <p className="mt-1.5 line-clamp-2 text-xs text-muted-foreground">
+                          {page.title}
+                        </p>
+                      ) : null}
                     </div>
-                  </td>
-                  <td className="hidden px-4 py-3 text-muted-foreground sm:table-cell">
-                    {page.title}
-                  </td>
-                  <td className="hidden px-4 py-3 md:table-cell">
-                    <span
-                      className={
-                        page.fromDatabase
-                          ? "text-xs font-medium text-emerald-700 dark:text-emerald-400"
-                          : "text-xs text-muted-foreground"
-                      }
-                    >
-                      {page.fromDatabase ? "Customized" : "Defaults"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        nativeButton={false}
-                        render={
-                          <Link
-                            href={page.path}
-                            target="_blank"
-                            rel="noreferrer"
-                          />
+                  </div>
+                  <PageRowActions
+                    page={page}
+                    layout="mobile"
+                    onDelete={() =>
+                      setPendingAction({ page, mode: "delete" })
+                    }
+                    onReset={() => setPendingAction({ page, mode: "reset" })}
+                  />
+                </div>
+              ))
+            : null}
+        </div>
+
+        {/* Desktop table */}
+        <div className="hidden overflow-hidden rounded-xl border bg-card md:block">
+          <table className="w-full text-sm">
+            <thead className="border-b bg-muted/40 text-left text-xs text-muted-foreground">
+              <tr>
+                <th className="px-4 py-3 font-medium">Page</th>
+                <th className="px-4 py-3 font-medium">SEO title</th>
+                <th className="px-4 py-3 font-medium">Status</th>
+                <th className="px-4 py-3 text-right font-medium">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading &&
+                Array.from({ length: 4 }).map((_, i) => (
+                  <tr key={i} className="border-b last:border-0">
+                    <td className="px-4 py-3" colSpan={4}>
+                      <Skeleton className="h-5 w-full max-w-md" />
+                    </td>
+                  </tr>
+                ))}
+              {!isLoading &&
+                pages.map((page) => (
+                  <tr
+                    key={page.slug}
+                    className="border-b last:border-0 hover:bg-muted/30"
+                  >
+                    <td className="px-4 py-3">
+                      <div className="flex items-start gap-2">
+                        <FileText className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                        <div>
+                          <p className="font-medium">{page.label}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {page.path}
+                            {page.isCustomDestination ? " · custom" : null}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {page.title}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={
+                          page.fromDatabase
+                            ? "text-xs font-medium text-emerald-700 dark:text-emerald-400"
+                            : "text-xs text-muted-foreground"
                         }
                       >
-                        <ExternalLink className="size-3.5" />
-                        <span className="sr-only">View</span>
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        nativeButton={false}
-                        render={<Link href={`/admin/pages/${page.slug}`} />}
-                      >
-                        <Pencil className="size-3.5" />
-                        Edit
-                      </Button>
-                      {page.canDelete ? (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                          onClick={() =>
-                            setPendingAction({ page, mode: "delete" })
-                          }
-                        >
-                          <Trash2 className="size-3.5" />
-                          Delete
-                        </Button>
-                      ) : null}
-                      {page.canReset ? (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() =>
-                            setPendingAction({ page, mode: "reset" })
-                          }
-                        >
-                          <RotateCcw className="size-3.5" />
-                          Reset
-                        </Button>
-                      ) : null}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
-      </div>
+                        {page.fromDatabase ? "Customized" : "Defaults"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <PageRowActions
+                        page={page}
+                        layout="desktop"
+                        onDelete={() =>
+                          setPendingAction({ page, mode: "delete" })
+                        }
+                        onReset={() =>
+                          setPendingAction({ page, mode: "reset" })
+                        }
+                      />
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <Dialog
