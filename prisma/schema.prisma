@@ -374,6 +374,15 @@ model Settings {
   paypalSandboxSecret         String           @default("")
   paypalLiveClientId          String           @default("")
   paypalLiveSecret            String           @default("")
+  /** Outbound email (nodemailer). Empty host → fall back to SMTP_* env vars. */
+  smtpHost                    String           @default("")
+  smtpPort                    Int              @default(465)
+  smtpSecure                  Boolean          @default(true)
+  smtpUser                    String           @default("")
+  smtpPass                    String           @default("")
+  /** From header, e.g. "Albania Transfers <noreply@example.com>". Empty → smtpUser. */
+  smtpFrom                    String           @default("")
+  smtpTlsRejectUnauthorized   Boolean          @default(true)
   airports                    Json
   notificationChannelsEnabled Json
   flightDelayThresholdMinutes Int              @default(45)

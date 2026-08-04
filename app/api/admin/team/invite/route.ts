@@ -70,7 +70,7 @@ export async function POST(request: Request) {
   let emailSent = false
   let emailError: string | undefined
 
-  if (isMailConfigured()) {
+  if (await isMailConfigured()) {
     try {
       let companyName = "Transfer Ops"
       try {

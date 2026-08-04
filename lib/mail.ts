@@ -1,6 +1,9 @@
 import nodemailer from "nodemailer"
 import type { Transporter } from "nodemailer"
 
+import { prisma } from "@/lib/db"
+import { decryptSecret, encryptSecret, isEncryptedSecret } from "@/lib/secret-box"
+
 export type SendMailInput = {
   to: string
   subject: string
@@ -9,17 +12,108 @@ export type SendMailInput = {
   replyTo?: string
 }
 
+type SmtpConfig = {
+  host: string
+  port: number
+  secure: boolean
+  user: string
+  pass: string
+  from: string
+  tlsRejectUnauthorized: boolean
+}
+
 function envFlag(value: string | undefined, fallback: boolean): boolean {
   if (value == null || value === "") return fallback
   return !["0", "false", "no", "off"].includes(value.trim().toLowerCase())
 }
 
-export function isMailConfigured(): boolean {
-  return Boolean(
-    process.env.SMTP_HOST?.trim() &&
-      process.env.SMTP_USER?.trim() &&
-      process.env.SMTP_PASS?.trim(),
-  )
+function configFromEnv(): SmtpConfig | null {
+  const host = process.env.SMTP_HOST?.trim()
+  const user = process.env.SMTP_USER?.trim()
+  const pass = process.env.SMTP_PASS?.trim()
+  if (!host || !user || !pass) return null
+
+  const port = Number(process.env.SMTP_PORT || "465")
+  return {
+    host,
+    port: Number.isFinite(port) && port > 0 ? port : 465,
+    secure: envFlag(process.env.SMTP_SECURE, port === 465),
+    user,
+    pass,
+    from:
+      process.env.SMTP_FROM?.trim() ||
+      user ||
+      "noreply@localhost",
+    tlsRejectUnauthorized: envFlag(
+      process.env.SMTP_TLS_REJECT_UNAUTHORIZED,
+      true,
+    ),
+  }
+}
+
+async function configFromDb(): Promise<SmtpConfig | null> {
+  try {
+    const row = await prisma.settings.findUnique({
+      where: { id: "default" },
+      select: {
+        smtpHost: true,
+        smtpPort: true,
+        smtpSecure: true,
+        smtpUser: true,
+        smtpPass: true,
+        smtpFrom: true,
+        smtpTlsRejectUnauthorized: true,
+      },
+    })
+    if (!row) return null
+
+    const host = row.smtpHost?.trim()
+    const user = row.smtpUser?.trim()
+    const storedPass = row.smtpPass?.trim()
+    if (!host || !user || !storedPass) return null
+
+    let pass: string
+    try {
+      pass = decryptSecret(storedPass)
+    } catch {
+      return null
+    }
+    if (!pass) return null
+
+    // Lazy-migrate legacy plaintext passwords to encrypted storage.
+    if (!isEncryptedSecret(storedPass)) {
+      void prisma.settings
+        .update({
+          where: { id: "default" },
+          data: { smtpPass: encryptSecret(pass) },
+        })
+        .catch(() => {
+          /* best-effort */
+        })
+    }
+
+    const port = row.smtpPort > 0 ? row.smtpPort : 465
+    return {
+      host,
+      port,
+      secure: row.smtpSecure,
+      user,
+      pass,
+      from: row.smtpFrom?.trim() || user,
+      tlsRejectUnauthorized: row.smtpTlsRejectUnauthorized,
+    }
+  } catch {
+    return null
+  }
+}
+
+/** Prefer Settings SMTP when complete; otherwise SMTP_* env vars. */
+export async function resolveSmtpConfig(): Promise<SmtpConfig | null> {
+  return (await configFromDb()) ?? configFromEnv()
+}
+
+export async function isMailConfigured(): Promise<boolean> {
+  return Boolean(await resolveSmtpConfig())
 }
 
 export function getAppBaseUrl(): string {
@@ -35,48 +129,48 @@ export function getAppBaseUrl(): string {
   }
 }
 
-export function getMailFrom(): string {
-  return (
-    process.env.SMTP_FROM?.trim() ||
-    process.env.SMTP_USER?.trim() ||
-    "noreply@localhost"
-  )
+export async function getMailFrom(): Promise<string> {
+  const config = await resolveSmtpConfig()
+  return config?.from || "noreply@localhost"
 }
 
 let transporter: Transporter | null = null
+let transporterKey: string | null = null
 
-function getTransporter(): Transporter {
-  if (transporter) return transporter
+async function getTransporter(config: SmtpConfig): Promise<Transporter> {
+  const key = [
+    config.host,
+    config.port,
+    config.secure,
+    config.user,
+    config.pass,
+    config.tlsRejectUnauthorized,
+  ].join("|")
 
-  const host = process.env.SMTP_HOST?.trim()
-  const user = process.env.SMTP_USER?.trim()
-  const pass = process.env.SMTP_PASS?.trim()
-  if (!host || !user || !pass) {
-    throw new Error("SMTP is not configured.")
-  }
-
-  const port = Number(process.env.SMTP_PORT || "465")
-  const secure = envFlag(process.env.SMTP_SECURE, port === 465)
+  if (transporter && transporterKey === key) return transporter
 
   transporter = nodemailer.createTransport({
-    host,
-    port,
-    secure,
-    auth: { user, pass },
+    host: config.host,
+    port: config.port,
+    secure: config.secure,
+    auth: { user: config.user, pass: config.pass },
     tls: {
       // Shared hosts often serve a wildcard cert that doesn't match the mail hostname.
-      rejectUnauthorized: envFlag(
-        process.env.SMTP_TLS_REJECT_UNAUTHORIZED,
-        true,
-      ),
+      rejectUnauthorized: config.tlsRejectUnauthorized,
     },
+    connectionTimeout: 15_000,
+    greetingTimeout: 15_000,
+    socketTimeout: 30_000,
   })
-
+  transporterKey = key
   return transporter
 }
 
-export async function sendMail(input: SendMailInput): Promise<{ messageId: string }> {
-  if (!isMailConfigured()) {
+export async function sendMail(
+  input: SendMailInput,
+): Promise<{ messageId: string }> {
+  const config = await resolveSmtpConfig()
+  if (!config) {
     throw new Error("SMTP is not configured.")
   }
 
@@ -86,9 +180,9 @@ export async function sendMail(input: SendMailInput): Promise<{ messageId: strin
     input.replyTo != null && input.replyTo !== ""
       ? sanitizeMailHeader(input.replyTo, "replyTo")
       : undefined
-  const from = sanitizeMailHeader(getMailFrom(), "from")
+  const from = sanitizeMailHeader(config.from, "from")
 
-  const info = await getTransporter().sendMail({
+  const info = await (await getTransporter(config)).sendMail({
     from,
     to,
     subject,

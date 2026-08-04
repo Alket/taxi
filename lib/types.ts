@@ -325,6 +325,14 @@ export interface Settings {
   paypalLiveClientId: string
   paypalSandboxSecretSet: boolean
   paypalLiveSecretSet: boolean
+  /** SMTP host/user/from are returned; password is a flag only. */
+  smtpHost: string
+  smtpPort: number
+  smtpSecure: boolean
+  smtpUser: string
+  smtpFrom: string
+  smtpTlsRejectUnauthorized: boolean
+  smtpPassSet: boolean
 }
 
 export type AdminRole = "admin" | "operator"

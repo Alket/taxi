@@ -119,7 +119,7 @@ async function logAndSend(input: {
   customerId?: string | null
   replyTo?: string
 }): Promise<SendResult> {
-  if (!isMailConfigured()) return { sent: false }
+  if (!(await isMailConfigured())) return { sent: false }
 
   const log = await prisma.notificationLog.create({
     data: {
@@ -210,7 +210,7 @@ export async function sendCustomerBookingConfirmation(
   bookingId: string,
 ): Promise<SendResult> {
   try {
-    if (!isMailConfigured()) return { sent: false }
+    if (!(await isMailConfigured())) return { sent: false }
     const settings = await getSettings()
     if (!channelEnabled(settings, "confirmation")) return { sent: false }
 
@@ -277,7 +277,7 @@ export async function sendAdminNewBooking(
   bookingId: string,
 ): Promise<SendResult> {
   try {
-    if (!isMailConfigured()) return { sent: false }
+    if (!(await isMailConfigured())) return { sent: false }
     const settings = await getSettings()
     const to = resolveAdminNotificationEmail(settings)
     if (!to) return { sent: false }
@@ -333,7 +333,7 @@ export async function sendCustomerCancellation(
   bookingId: string,
 ): Promise<SendResult> {
   try {
-    if (!isMailConfigured()) return { sent: false }
+    if (!(await isMailConfigured())) return { sent: false }
     const settings = await getSettings()
     if (!channelEnabled(settings, "cancellation")) return { sent: false }
 
@@ -388,7 +388,7 @@ export async function sendAdminCancellation(
   bookingId: string,
 ): Promise<SendResult> {
   try {
-    if (!isMailConfigured()) return { sent: false }
+    if (!(await isMailConfigured())) return { sent: false }
     const settings = await getSettings()
     const to = resolveAdminNotificationEmail(settings)
     if (!to) return { sent: false }
@@ -452,7 +452,7 @@ export async function sendCustomerDateChange(
   previousPickup: Date,
 ): Promise<SendResult> {
   try {
-    if (!isMailConfigured()) return { sent: false }
+    if (!(await isMailConfigured())) return { sent: false }
     const settings = await getSettings()
     if (!channelEnabled(settings, "dateChange")) return { sent: false }
 
@@ -509,7 +509,7 @@ export async function sendAdminDateChange(
   previousPickup: Date,
 ): Promise<SendResult> {
   try {
-    if (!isMailConfigured()) return { sent: false }
+    if (!(await isMailConfigured())) return { sent: false }
     const settings = await getSettings()
     const to = resolveAdminNotificationEmail(settings)
     if (!to) return { sent: false }
@@ -573,7 +573,7 @@ export async function sendCustomerDriverAssigned(
   bookingId: string,
 ): Promise<SendResult> {
   try {
-    if (!isMailConfigured()) return { sent: false }
+    if (!(await isMailConfigured())) return { sent: false }
     const settings = await getSettings()
     if (!channelEnabled(settings, "driverAssigned")) return { sent: false }
 
@@ -643,7 +643,7 @@ export async function sendCustomerPickupReminder(
   bookingId: string,
 ): Promise<SendResult> {
   try {
-    if (!isMailConfigured()) return { sent: false }
+    if (!(await isMailConfigured())) return { sent: false }
     const settings = await getSettings()
     if (!channelEnabled(settings, "reminder")) return { sent: false }
 
@@ -709,7 +709,7 @@ export async function sendCustomerCompletedReceipt(
   bookingId: string,
 ): Promise<SendResult> {
   try {
-    if (!isMailConfigured()) return { sent: false }
+    if (!(await isMailConfigured())) return { sent: false }
     const settings = await getSettings()
     if (!channelEnabled(settings, "completedReceipt")) return { sent: false }
 
@@ -768,7 +768,7 @@ export async function sendCustomerReviewRequest(
   bookingId: string,
 ): Promise<SendResult> {
   try {
-    if (!isMailConfigured()) return { sent: false }
+    if (!(await isMailConfigured())) return { sent: false }
     const settings = await getSettings()
     if (!channelEnabled(settings, "reviewRequest")) return { sent: false }
 
@@ -853,7 +853,7 @@ export async function sendAdminReviewSubmitted(
   reviewId: string,
 ): Promise<SendResult> {
   try {
-    if (!isMailConfigured()) return { sent: false }
+    if (!(await isMailConfigured())) return { sent: false }
     const settings = await getSettings()
     const to = resolveAdminNotificationEmail(settings)
     if (!to) return { sent: false }
@@ -964,7 +964,7 @@ export async function sendCustomerFlightDelay(
   opts: { delayMinutes: number },
 ): Promise<SendResult> {
   try {
-    if (!isMailConfigured()) return { sent: false }
+    if (!(await isMailConfigured())) return { sent: false }
     const settings = await getSettings()
     if (!channelEnabled(settings, "flightDelay")) return { sent: false }
     if (opts.delayMinutes < settings.flightDelayThresholdMinutes) {

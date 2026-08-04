@@ -468,6 +468,13 @@ const settings: Settings = {
   paypalLiveClientId: "",
   paypalSandboxSecretSet: false,
   paypalLiveSecretSet: false,
+  smtpHost: "",
+  smtpPort: 465,
+  smtpSecure: true,
+  smtpUser: "",
+  smtpFrom: "",
+  smtpTlsRejectUnauthorized: true,
+  smtpPassSet: false,
 }
 
 const adminUsers: AdminUser[] = [

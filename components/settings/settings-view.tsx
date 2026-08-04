@@ -4,6 +4,7 @@ import useSWR from "swr"
 import {
   BellIcon,
   CreditCardIcon,
+  MailIcon,
   PlaneIcon,
   SettingsIcon,
   UsersIcon,
@@ -19,6 +20,7 @@ import { GeneralPanel } from "@/components/settings/general-panel"
 import { NotificationsPanel } from "@/components/settings/notifications-panel"
 import { FlightTrackingPanel } from "@/components/settings/flight-tracking-panel"
 import { PaymentsPanel } from "@/components/settings/payments-panel"
+import { SmtpPanel } from "@/components/settings/smtp-panel"
 import { TeamPanel } from "@/components/settings/team-panel"
 import { cn } from "@/lib/utils"
 
@@ -29,6 +31,12 @@ const TABS = [
     label: "Notifications",
     short: "Alerts",
     icon: BellIcon,
+  },
+  {
+    value: "smtp",
+    label: "SMTP",
+    short: "SMTP",
+    icon: MailIcon,
   },
   {
     value: "flight",
@@ -121,6 +129,9 @@ export function SettingsView() {
                     settings={settings}
                     onSaved={() => mutate()}
                   />
+                </TabsContent>
+                <TabsContent value="smtp">
+                  <SmtpPanel settings={settings} onSaved={() => mutate()} />
                 </TabsContent>
                 <TabsContent value="flight">
                   <FlightTrackingPanel

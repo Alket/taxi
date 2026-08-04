@@ -145,6 +145,13 @@ export function serializeSettings(
     paypalLiveClientId: row.paypalLiveClientId ?? "",
     paypalSandboxSecretSet: Boolean(row.paypalSandboxSecret),
     paypalLiveSecretSet: Boolean(row.paypalLiveSecret),
+    smtpHost: row.smtpHost ?? "",
+    smtpPort: row.smtpPort ?? 465,
+    smtpSecure: row.smtpSecure ?? true,
+    smtpUser: row.smtpUser ?? "",
+    smtpFrom: row.smtpFrom ?? "",
+    smtpTlsRejectUnauthorized: row.smtpTlsRejectUnauthorized ?? true,
+    smtpPassSet: Boolean(row.smtpPass),
   }
 }
 

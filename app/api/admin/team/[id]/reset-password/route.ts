@@ -75,7 +75,7 @@ export async function POST(_request: Request, context: RouteContext) {
   let emailSent = false
   let emailError: string | undefined
 
-  if (isMailConfigured()) {
+  if (await isMailConfigured()) {
     try {
       let companyName = "Transfer Ops"
       try {

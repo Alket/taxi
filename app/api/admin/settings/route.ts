@@ -12,6 +12,11 @@ import {
   SETTINGS_ID,
   VALID_CURRENCIES,
 } from "@/lib/settings"
+import { encryptSecret } from "@/lib/secret-box"
+import {
+  assertSmtpHostAllowed,
+  assertSmtpPortAllowed,
+} from "@/lib/smtp-security"
 import type { DisplayCurrency, NotificationChannels } from "@/lib/types"
 
 export async function GET() {
@@ -304,6 +309,67 @@ export async function PATCH(request: Request) {
         600,
         current.flightDelayThresholdMinutes,
       )
+    }
+
+    if (typeof body.smtpHost === "string") {
+      const host = body.smtpHost.trim()
+      if (host) {
+        try {
+          data.smtpHost = await assertSmtpHostAllowed(host)
+        } catch (err) {
+          return NextResponse.json(
+            { error: (err as Error).message },
+            { status: 400 },
+          )
+        }
+      } else {
+        data.smtpHost = ""
+      }
+    }
+    if (body.smtpPort !== undefined) {
+      const port = clampNumber(body.smtpPort, 1, 65535, 465)
+      try {
+        data.smtpPort = assertSmtpPortAllowed(port)
+      } catch (err) {
+        return NextResponse.json(
+          { error: (err as Error).message },
+          { status: 400 },
+        )
+      }
+    }
+    if (typeof body.smtpSecure === "boolean") {
+      data.smtpSecure = body.smtpSecure
+    }
+    if (typeof body.smtpUser === "string") {
+      data.smtpUser = body.smtpUser.trim()
+    }
+    if (typeof body.smtpFrom === "string") {
+      data.smtpFrom = body.smtpFrom.trim()
+    }
+    if (typeof body.smtpTlsRejectUnauthorized === "boolean") {
+      data.smtpTlsRejectUnauthorized = body.smtpTlsRejectUnauthorized
+    }
+    // Password: only overwrite when a non-empty value is provided; store encrypted.
+    if (typeof body.smtpPass === "string" && body.smtpPass.trim().length > 0) {
+      data.smtpPass = encryptSecret(body.smtpPass.trim())
+    }
+
+    const existingHost = String(
+      (current as unknown as { smtpHost?: string }).smtpHost ?? "",
+    ).trim()
+    if (
+      typeof data.smtpHost !== "string" &&
+      existingHost &&
+      (data.smtpPass || data.smtpPort)
+    ) {
+      try {
+        await assertSmtpHostAllowed(existingHost)
+      } catch (err) {
+        return NextResponse.json(
+          { error: (err as Error).message },
+          { status: 400 },
+        )
+      }
     }
 
     const updated = await prisma.settings.update({
