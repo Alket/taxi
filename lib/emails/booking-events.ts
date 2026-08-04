@@ -160,7 +160,7 @@ async function logAndSend(input: {
   })
 
   try {
-    await sendMail({
+    const result = await sendMail({
       to,
       subject: input.subject,
       text: input.text,
@@ -169,7 +169,18 @@ async function logAndSend(input: {
     })
     await prisma.notificationLog.update({
       where: { id: log.id },
-      data: { status: "sent", sentAt: new Date() },
+      data: {
+        status: "sent",
+        sentAt: new Date(),
+        // Reuse errorMessage as a short delivery trace (message-id + SMTP reply).
+        errorMessage: [
+          result.messageId ? `id=${result.messageId}` : null,
+          result.response ? `smtp=${result.response}` : null,
+        ]
+          .filter(Boolean)
+          .join(" · ")
+          .slice(0, 500) || null,
+      },
     })
     return { sent: true }
   } catch (error) {

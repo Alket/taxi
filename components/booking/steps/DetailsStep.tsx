@@ -75,6 +75,30 @@ function SeatStepper({
   )
 }
 
+/** Clickable text beside Base UI checkboxes — avoids htmlFor scroll/toggle bugs. */
+function CheckboxText({
+  onToggle,
+  children,
+  className,
+}: {
+  onToggle: () => void
+  children: React.ReactNode
+  className?: string
+}) {
+  return (
+    <button
+      type="button"
+      className={
+        className ??
+        "min-w-0 flex-1 cursor-pointer text-left text-sm font-bold text-brand"
+      }
+      onClick={onToggle}
+    >
+      {children}
+    </button>
+  )
+}
+
 export function DetailsStep() {
   const isRoundTrip = useBookingStore((s) => s.isRoundTrip)
   const returnDateTime = useBookingStore((s) => s.returnDateTime)
@@ -326,24 +350,23 @@ export function DetailsStep() {
 
         <div className="flex items-start gap-3 rounded-xl border border-border px-3.5 py-3">
           <Checkbox
-            id="meetAndGreet"
             checked={meetAndGreet}
             onCheckedChange={(checked) =>
               patch({ meetAndGreet: Boolean(checked) })
             }
             className="mt-1 border-border data-checked:border-brand-accent data-checked:bg-brand-accent"
           />
-          <div className="min-w-0 flex-1">
-            <Label
-              htmlFor="meetAndGreet"
-              className="text-sm font-bold text-brand"
-            >
+          <CheckboxText
+            onToggle={() => patch({ meetAndGreet: !meetAndGreet })}
+            className="min-w-0 flex-1 cursor-pointer text-left"
+          >
+            <span className="block text-sm font-bold text-brand">
               Meet & Greet
-            </Label>
-            <p className="mt-0.5 text-xs text-muted-foreground">
+            </span>
+            <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
               Driver waits inside arrivals with a name sign
-            </p>
-          </div>
+            </span>
+          </CheckboxText>
         </div>
       </div>
 
@@ -353,26 +376,27 @@ export function DetailsStep() {
             control={control}
             name="whatsappOptIn"
             render={({ field }) => (
-              <Checkbox
-                id="opt-in"
-                checked={field.value}
-                onCheckedChange={(checked) => field.onChange(Boolean(checked))}
-                className="mt-1 border-border data-checked:border-brand-accent data-checked:bg-brand-accent"
-              />
+              <>
+                <Checkbox
+                  checked={field.value}
+                  onCheckedChange={(checked) =>
+                    field.onChange(Boolean(checked))
+                  }
+                  className="mt-1 border-border data-checked:border-brand-accent data-checked:bg-brand-accent"
+                />
+                <CheckboxText
+                  onToggle={() => field.onChange(!field.value)}
+                >
+                  I agree to receive status updates via email
+                </CheckboxText>
+              </>
             )}
           />
-          <Label
-            htmlFor="opt-in"
-            className="text-sm font-bold text-brand"
-          >
-            I agree to receive status updates via email & sms
-          </Label>
         </div>
 
         <div className="flex flex-col gap-4">
           <div className="flex items-start gap-3">
             <Checkbox
-              id="child-seats"
               checked={seatsEnabled}
               onCheckedChange={(checked) => {
                 const enabled = Boolean(checked)
@@ -387,12 +411,21 @@ export function DetailsStep() {
               }}
               className="mt-1 border-border data-checked:border-brand-accent data-checked:bg-brand-accent"
             />
-            <Label
-              htmlFor="child-seats"
-              className="text-sm font-bold text-brand"
+            <CheckboxText
+              onToggle={() => {
+                const enabled = !seatsEnabled
+                setSeatsEnabled(enabled)
+                if (!enabled) {
+                  patch({
+                    infantCarrierCount: 0,
+                    childSeatCount: 0,
+                    boosterCount: 0,
+                  })
+                }
+              }}
             >
               Add child seats
-            </Label>
+            </CheckboxText>
           </div>
 
           {seatsEnabled && (
@@ -432,7 +465,6 @@ export function DetailsStep() {
         <div className="flex flex-col gap-3">
           <div className="flex items-start gap-3">
             <Checkbox
-              id="driver-notes"
               checked={notesEnabled}
               onCheckedChange={(checked) => {
                 const enabled = Boolean(checked)
@@ -441,12 +473,15 @@ export function DetailsStep() {
               }}
               className="mt-1 border-border data-checked:border-brand-accent data-checked:bg-brand-accent"
             />
-            <Label
-              htmlFor="driver-notes"
-              className="text-sm font-bold text-brand"
+            <CheckboxText
+              onToggle={() => {
+                const enabled = !notesEnabled
+                setNotesEnabled(enabled)
+                if (!enabled) patch({ driverNotes: "" })
+              }}
             >
               Add notes for the driver
-            </Label>
+            </CheckboxText>
           </div>
 
           {notesEnabled && (

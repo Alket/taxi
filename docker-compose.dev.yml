@@ -39,6 +39,9 @@ services:
       # Dev convenience default is rejected by lib/jwt-secret — set JWT_SECRET in .env
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET to a unique random string of at least 32 characters}
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      # Stable domain for links inside customer emails (avoids ngrok spam filters)
+      EMAIL_PUBLIC_URL: ${EMAIL_PUBLIC_URL:-}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-}
       NEXT_PUBLIC_VAPID_PUBLIC_KEY: ${NEXT_PUBLIC_VAPID_PUBLIC_KEY:-}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
       VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:ops@transfers.co}

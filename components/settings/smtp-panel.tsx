@@ -293,6 +293,13 @@ export function SmtpPanel({
             Save changes before testing if you edited the form.
           </p>
         )}
+        <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+          A test to <span className="font-medium text-foreground">support@…</span>{" "}
+          only proves your mailbox accepts mail on the same server. Also send a
+          test to your personal Gmail/admin address. If that never arrives,
+          fix SPF/DKIM/DMARC on your domain (Namecheap / Cloudflare DNS) so
+          Gmail trusts <span className="font-medium text-foreground">no-reply@…</span>.
+        </p>
       </div>
     </PanelCard>
   )

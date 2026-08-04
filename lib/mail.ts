@@ -116,22 +116,63 @@ export async function isMailConfigured(): Promise<boolean> {
   return Boolean(await resolveSmtpConfig())
 }
 
+/**
+ * Public origin used in email links (Manage booking, review, admin deep links).
+ * Prefer a stable marketing/site URL over ephemeral tunnels (ngrok) — Gmail
+ * treats tunnel links as phishing and may hide the whole message.
+ */
 export function getAppBaseUrl(): string {
-  const raw = (
-    process.env.NEXT_PUBLIC_APP_URL ||
-    process.env.APP_URL ||
-    "http://localhost:3000"
-  ).trim()
+  const candidates = [
+    process.env.EMAIL_PUBLIC_URL,
+    process.env.NEXT_PUBLIC_SITE_URL,
+    process.env.NEXT_PUBLIC_APP_URL,
+    process.env.APP_URL,
+  ]
+
+  const parsed: string[] = []
+  for (const raw of candidates) {
+    const value = raw?.trim()
+    if (!value) continue
+    try {
+      parsed.push(new URL(value).origin)
+    } catch {
+      /* try next */
+    }
+  }
+
+  const stable = parsed.find((origin) => !isEphemeralTunnelHost(origin))
+  if (stable) return stable
+  if (parsed[0]) return parsed[0]
+  return "http://localhost:3000"
+}
+
+function isEphemeralTunnelHost(origin: string): boolean {
   try {
-    return new URL(raw).origin
+    const host = new URL(origin).hostname.toLowerCase()
+    return (
+      host.endsWith(".ngrok-free.dev") ||
+      host.endsWith(".ngrok-free.app") ||
+      host.endsWith(".ngrok.io") ||
+      host.endsWith(".loca.lt") ||
+      host.endsWith(".trycloudflare.com")
+    )
   } catch {
-    return "http://localhost:3000"
+    return false
   }
 }
 
 export async function getMailFrom(): Promise<string> {
   const config = await resolveSmtpConfig()
   return config?.from || "noreply@localhost"
+}
+
+/** Build `Name <email@domain>` when From is a bare address. */
+function formatFromHeader(from: string, displayName?: string): string {
+  const cleaned = sanitizeMailHeader(from, "from")
+  if (/<[^>]+@[^>]+>/.test(cleaned)) return cleaned
+  const name = displayName?.replace(/[\r\n"<>]/g, "").trim()
+  if (!name) return cleaned
+  return `"${name}" <${cleaned}>`
 }
 
 let transporter: Transporter | null = null
@@ -171,7 +212,7 @@ async function getTransporter(config: SmtpConfig): Promise<Transporter> {
 
 export async function sendMail(
   input: SendMailInput,
-): Promise<{ messageId: string }> {
+): Promise<{ messageId: string; accepted: string[]; response: string }> {
   const config = await resolveSmtpConfig()
   if (!config) {
     throw new Error("SMTP is not configured.")
@@ -190,7 +231,15 @@ export async function sendMail(
       replyTo = undefined
     }
   }
-  const from = sanitizeMailHeader(config.from, "from")
+
+  let displayName: string | undefined
+  try {
+    const { getSettings } = await import("@/lib/settings")
+    displayName = (await getSettings()).companyName
+  } catch {
+    displayName = undefined
+  }
+  const from = formatFromHeader(config.from, displayName)
 
   const info = await (await getTransporter(config)).sendMail({
     from,
@@ -201,7 +250,23 @@ export async function sendMail(
     replyTo,
   })
 
-  return { messageId: String(info.messageId ?? "") }
+  const accepted = (info.accepted ?? []).map(String)
+  const rejected = (info.rejected ?? []).map(String)
+  const response = String(info.response ?? "")
+
+  if (rejected.length > 0 || accepted.length === 0) {
+    throw new Error(
+      `SMTP did not accept recipient ${to}` +
+        (rejected.length ? ` (rejected: ${rejected.join(", ")})` : "") +
+        (response ? ` — ${response}` : ""),
+    )
+  }
+
+  return {
+    messageId: String(info.messageId ?? ""),
+    accepted,
+    response,
+  }
 }
 
 /** Remove CR/LF and other ASCII controls so values cannot inject SMTP headers. */
