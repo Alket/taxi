@@ -174,7 +174,7 @@ export function DestinationsArchive({
                 <DestinationCard
                   destination={destination}
                   priority={index < 3}
-                  className="h-full"
+                  className="h-[300px] md:h-[400px]"
                 />
               </li>
             ))}

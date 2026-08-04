@@ -7,6 +7,9 @@ import { cn } from "@/lib/utils"
 
 function Checkbox({
   className,
+  // Base UI puts `id` on a visually-hidden input (position:fixed; top:0) unless
+  // nativeButton is set — Label htmlFor then focuses that input and scrolls to top.
+  nativeButton = true,
   ...props
 }: CheckboxPrimitive.Root.Props) {
   return (
@@ -17,6 +20,7 @@ function Checkbox({
         className,
       )}
       {...props}
+      nativeButton={nativeButton}
     >
       <CheckboxPrimitive.Indicator
         data-slot="checkbox-indicator"
