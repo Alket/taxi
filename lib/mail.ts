@@ -154,6 +154,9 @@ async function getTransporter(config: SmtpConfig): Promise<Transporter> {
     port: config.port,
     secure: config.secure,
     auth: { user: config.user, pass: config.pass },
+    pool: true,
+    maxConnections: 1,
+    maxMessages: 50,
     tls: {
       // Shared hosts often serve a wildcard cert that doesn't match the mail hostname.
       rejectUnauthorized: config.tlsRejectUnauthorized,
@@ -176,10 +179,17 @@ export async function sendMail(
 
   const to = sanitizeMailHeader(input.to, "to")
   const subject = sanitizeMailHeader(input.subject, "subject")
-  const replyTo =
-    input.replyTo != null && input.replyTo !== ""
-      ? sanitizeMailHeader(input.replyTo, "replyTo")
-      : undefined
+  // Drop invalid Reply-To rather than failing the whole send (some SMTPs reject
+  // the message when Reply-To is not a valid address).
+  let replyTo: string | undefined
+  if (input.replyTo != null && input.replyTo !== "") {
+    try {
+      const cleaned = sanitizeMailHeader(input.replyTo, "replyTo")
+      replyTo = cleaned.includes("@") ? cleaned : undefined
+    } catch {
+      replyTo = undefined
+    }
+  }
   const from = sanitizeMailHeader(config.from, "from")
 
   const info = await (await getTransporter(config)).sendMail({

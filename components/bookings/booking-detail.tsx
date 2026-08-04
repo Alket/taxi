@@ -385,7 +385,6 @@ function PaymentSection({
   onMutated: () => void
 }) {
   const canCharge = booking.status === "completed" && !booking.isBalanceCharged
-  const depositOutstanding = booking.depositPaid < booking.depositAmount
   const chargedByLabel = formatBalanceChargedBy(
     booking.balanceChargedBy,
     booking.driver,
@@ -460,9 +459,6 @@ function PaymentSection({
             ))}
           </ul>
         </div>
-      )}
-      {depositOutstanding && (
-        <PaymentLinkSection booking={booking} onMutated={onMutated} />
       )}
       <ChargeBalanceDialog
         booking={booking}
@@ -544,32 +540,20 @@ function StatusAdvanceButtons({
 function PaymentLinkSection({
   booking,
   onMutated,
-  paymentType = "deposit",
 }: {
   booking: Booking
   onMutated: () => void
-  paymentType?: "deposit" | "balance"
 }) {
   const [pending, setPending] = React.useState(false)
   const [paymentUrl, setPaymentUrl] = React.useState<string | null>(null)
-
-  const amount =
-    paymentType === "deposit" ? booking.depositAmount : booking.balanceDue
-  const title =
-    paymentType === "deposit"
-      ? "Collect deposit by link"
-      : "Collect balance by link"
-  const buttonLabel =
-    paymentType === "deposit"
-      ? "Generate Payment Link"
-      : "Send new payment link for remaining balance"
+  const amount = booking.balanceDue
 
   async function generate() {
     setPending(true)
     try {
       const res = await apiPost<{ url: string }>(
         `/api/admin/bookings/${booking.id}/create-payment-link`,
-        { paymentType },
+        { paymentType: "balance" },
       )
       setPaymentUrl(res.url)
       toast.success("Payment link generated.")
@@ -594,7 +578,7 @@ function PaymentLinkSection({
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-primary/20 bg-primary/5 p-3">
       <div className="flex flex-col gap-1">
-        <span className="text-sm font-medium">{title}</span>
+        <span className="text-sm font-medium">Collect balance by link</span>
         <span className="text-xs text-muted-foreground">
           Generate a Stripe checkout link for{" "}
           {formatMoney(amount, booking.currency)}.
@@ -604,9 +588,9 @@ function PaymentLinkSection({
         className="h-10 w-full touch-manipulation sm:h-8"
         onClick={generate}
         disabled={pending}
-        variant={paymentType === "balance" ? "outline" : "default"}
+        variant="outline"
       >
-        {pending ? "Generating..." : buttonLabel}
+        {pending ? "Generating..." : "Send new payment link for remaining balance"}
       </Button>
       {paymentUrl && (
         <div className="flex flex-col gap-2 rounded-md border bg-background p-2.5">
@@ -761,11 +745,7 @@ function ChargeBalanceDialog({
           </div>
         </div>
         {showPaymentLinkFallback && (
-          <PaymentLinkSection
-            booking={booking}
-            onMutated={onMutated}
-            paymentType="balance"
-          />
+          <PaymentLinkSection booking={booking} onMutated={onMutated} />
         )}
         <DialogFooter>
           <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>

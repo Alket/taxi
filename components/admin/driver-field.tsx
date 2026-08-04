@@ -24,6 +24,13 @@ type DriverOption = {
   disabled?: boolean
 }
 
+type PanelPos = {
+  top: number
+  left: number
+  width: number
+  strategy: "fixed" | "absolute"
+}
+
 function DesktopPanel({
   open,
   onClose,
@@ -38,61 +45,121 @@ function DesktopPanel({
   className?: string
 }) {
   const [mounted, setMounted] = React.useState(false)
-  const [pos, setPos] = React.useState({ top: 0, left: 0, width: 280 })
+  const [ready, setReady] = React.useState(false)
+  const [pos, setPos] = React.useState<PanelPos>({
+    top: 0,
+    left: 0,
+    width: 280,
+    strategy: "fixed",
+  })
+  const [container, setContainer] = React.useState<HTMLElement | null>(null)
+  const panelRef = React.useRef<HTMLDivElement>(null)
 
   React.useEffect(() => {
     setMounted(true)
   }, [])
 
   React.useLayoutEffect(() => {
-    if (!open || !anchorRef.current) return
+    if (!open || !anchorRef.current) {
+      setReady(false)
+      setContainer(null)
+      return
+    }
 
     function place() {
       const el = anchorRef.current
       if (!el) return
+
+      const sheet = el.closest(
+        '[data-slot="sheet-content"]',
+      ) as HTMLElement | null
       const r = el.getBoundingClientRect()
-      const width = Math.min(320, Math.max(240, r.width))
-      let left = r.left
-      left = Math.min(left, window.innerWidth - width - 12)
-      left = Math.max(12, left)
-      let top = r.bottom + 6
-      const estimatedHeight = 360
-      if (top + estimatedHeight > window.innerHeight - 12) {
-        top = Math.max(12, r.top - estimatedHeight - 6)
+      const width = Math.min(360, Math.max(r.width, 240))
+      const panelHeight = panelRef.current?.offsetHeight ?? 280
+
+      if (sheet) {
+        // Keep the menu inside the booking sheet (modal focus scope + no clip).
+        const sr = sheet.getBoundingClientRect()
+        const spaceBelow = sr.bottom - r.bottom - 12
+        const spaceAbove = r.top - sr.top - 12
+        const openUp =
+          spaceBelow < Math.min(panelHeight, 280) && spaceAbove > spaceBelow
+
+        let top = openUp
+          ? r.top - sr.top - panelHeight - 6
+          : r.bottom - sr.top + 6
+        let left = r.left - sr.left
+        left = Math.min(left, sr.width - width - 8)
+        left = Math.max(8, left)
+        top = Math.max(8, Math.min(top, sr.height - panelHeight - 8))
+
+        setContainer(sheet)
+        setPos({ top, left, width, strategy: "absolute" })
+      } else {
+        let left = r.left
+        left = Math.min(left, window.innerWidth - width - 12)
+        left = Math.max(12, left)
+
+        const spaceBelow = window.innerHeight - r.bottom - 12
+        const spaceAbove = r.top - 12
+        const openUp =
+          spaceBelow < Math.min(panelHeight, 280) && spaceAbove > spaceBelow
+
+        let top = openUp ? r.top - panelHeight - 6 : r.bottom + 6
+        top = Math.min(top, window.innerHeight - panelHeight - 12)
+        top = Math.max(12, top)
+
+        setContainer(document.body)
+        setPos({ top, left, width, strategy: "fixed" })
       }
-      setPos({ top, left, width })
+      setReady(true)
     }
 
     place()
+    const raf = window.requestAnimationFrame(place)
     window.addEventListener("resize", place)
     window.addEventListener("scroll", place, true)
     return () => {
+      window.cancelAnimationFrame(raf)
       window.removeEventListener("resize", place)
       window.removeEventListener("scroll", place, true)
     }
   }, [open, anchorRef])
 
-  if (!open || !mounted) return null
+  if (!open || !mounted || !container) return null
 
   return createPortal(
     <>
       <button
         type="button"
-        className="fixed inset-0 z-[180] cursor-default"
+        className={cn(
+          "cursor-default",
+          pos.strategy === "fixed"
+            ? "fixed inset-0 z-[280]"
+            : "absolute inset-0 z-[60]",
+        )}
         aria-label="Close driver list"
         onClick={onClose}
       />
       <div
-        style={{ top: pos.top, left: pos.left, width: pos.width }}
+        ref={panelRef}
+        style={{
+          top: pos.top,
+          left: pos.left,
+          width: pos.width,
+          position: pos.strategy,
+          visibility: ready ? "visible" : "hidden",
+        }}
         className={cn(
-          "fixed z-[190] rounded-xl border bg-popover p-2 text-popover-foreground shadow-lg ring-1 ring-foreground/10",
+          "rounded-xl border bg-popover p-2 text-popover-foreground shadow-lg ring-1 ring-foreground/10",
+          pos.strategy === "fixed" ? "z-[290]" : "z-[70]",
           className,
         )}
       >
         {children}
       </div>
     </>,
-    document.body,
+    container,
   )
 }
 
@@ -283,7 +350,7 @@ export function AdminDriverField({
             variant="outline"
             size="icon"
             className="size-11 shrink-0 touch-manipulation md:size-10"
-            aria-label={`Clear ${label}`}
+            aria-label={`Clear ${label || "driver"}`}
             disabled={disabled}
             onClick={() => onChange(clearValue)}
           >
@@ -292,15 +359,7 @@ export function AdminDriverField({
         ) : null}
       </div>
 
-      {!isMobile ? (
-        <DesktopPanel
-          open={open}
-          onClose={() => setOpen(false)}
-          anchorRef={triggerRef}
-        >
-          {list}
-        </DesktopPanel>
-      ) : (
+      {isMobile ? (
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetContent
             side="bottom"
@@ -316,6 +375,14 @@ export function AdminDriverField({
             </div>
           </SheetContent>
         </Sheet>
+      ) : (
+        <DesktopPanel
+          open={open}
+          onClose={() => setOpen(false)}
+          anchorRef={triggerRef}
+        >
+          {list}
+        </DesktopPanel>
       )}
     </div>
   )

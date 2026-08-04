@@ -10,6 +10,7 @@ import {
   getSettings,
   resolveAdminNotificationEmail,
 } from "@/lib/settings"
+import { extractEmailAddress } from "@/lib/smtp-security"
 import type { NotificationChannels, Settings } from "@/lib/types"
 import {
   adminBookingUrl,
@@ -28,6 +29,20 @@ import {
 } from "@/lib/emails/templates"
 
 type SendResult = { sent: boolean }
+
+/** Only pass Reply-To when it is a real email — invalid values make some SMTPs reject the whole message. */
+function safeReplyTo(settings: Settings): string | undefined {
+  return extractEmailAddress(settings.supportEmail) ?? undefined
+}
+
+function channelEnabled(
+  settings: Settings,
+  key: keyof NotificationChannels,
+): boolean {
+  const value = settings.notificationChannelsEnabled?.[key]
+  // Missing key → enabled (matches parseNotificationChannels defaults).
+  return value !== false
+}
 
 const bookingSelect = {
   id: true,
@@ -121,6 +136,16 @@ async function logAndSend(input: {
 }): Promise<SendResult> {
   if (!(await isMailConfigured())) return { sent: false }
 
+  const to = extractEmailAddress(input.to)
+  if (!to) {
+    console.error(`[mail] ${input.type} skipped: invalid recipient`, input.to)
+    return { sent: false }
+  }
+
+  const replyTo = input.replyTo
+    ? extractEmailAddress(input.replyTo) ?? undefined
+    : undefined
+
   const log = await prisma.notificationLog.create({
     data: {
       bookingId: input.bookingId ?? null,
@@ -128,7 +153,7 @@ async function logAndSend(input: {
       channel: "email",
       type: input.type,
       status: "pending",
-      recipient: input.to,
+      recipient: to,
       subject: input.subject,
       body: input.text,
     },
@@ -136,11 +161,11 @@ async function logAndSend(input: {
 
   try {
     await sendMail({
-      to: input.to,
+      to,
       subject: input.subject,
       text: input.text,
       html: input.html,
-      replyTo: input.replyTo,
+      replyTo,
     })
     await prisma.notificationLog.update({
       where: { id: log.id },
@@ -155,16 +180,9 @@ async function logAndSend(input: {
         errorMessage: (error as Error).message || "Send failed",
       },
     })
-    console.error(`[mail] ${input.type} failed:`, error)
+    console.error(`[mail] ${input.type} → ${to} failed:`, error)
     return { sent: false }
   }
-}
-
-function channelEnabled(
-  settings: Settings,
-  key: keyof NotificationChannels,
-): boolean {
-  return Boolean(settings.notificationChannelsEnabled[key])
 }
 
 function baseCustomerRows(booking: BookingEmailRow): string {
@@ -195,14 +213,21 @@ function adminCustomerRows(booking: BookingEmailRow): string {
   ].join("")
 }
 
-/** @deprecated Prefer sendCustomerBookingConfirmation + sendAdminNewBooking */
+/** Sends customer confirmation first, then admin alert (sequential for shared SMTP hosts). */
 export async function sendBookingConfirmationEmail(
   bookingId: string,
 ): Promise<SendResult> {
-  const [customer, admin] = await Promise.all([
-    sendCustomerBookingConfirmation(bookingId),
-    sendAdminNewBooking(bookingId),
-  ])
+  let customer = await sendCustomerBookingConfirmation(bookingId)
+  if (!customer.sent) {
+    // One retry — shared SMTP hosts sometimes drop the first attempt.
+    customer = await sendCustomerBookingConfirmation(bookingId)
+    if (!customer.sent) {
+      console.error(
+        `[mail] customer confirmation not sent for booking ${bookingId}`,
+      )
+    }
+  }
+  const admin = await sendAdminNewBooking(bookingId)
   return { sent: customer.sent || admin.sent }
 }
 
@@ -212,7 +237,12 @@ export async function sendCustomerBookingConfirmation(
   try {
     if (!(await isMailConfigured())) return { sent: false }
     const settings = await getSettings()
-    if (!channelEnabled(settings, "confirmation")) return { sent: false }
+    if (!channelEnabled(settings, "confirmation")) {
+      console.warn(
+        `[mail] customer confirmation skipped — channel disabled (booking ${bookingId})`,
+      )
+      return { sent: false }
+    }
 
     const booking = await loadBooking(bookingId)
     if (!booking?.customer.email) return { sent: false }
@@ -265,7 +295,7 @@ export async function sendCustomerBookingConfirmation(
       type: "confirmation",
       bookingId: booking.id,
       customerId: booking.customerId,
-      replyTo: settings.supportEmail || undefined,
+      replyTo: safeReplyTo(settings),
     })
   } catch (error) {
     console.error("[mail] customer confirmation setup failed:", error)
@@ -376,7 +406,7 @@ export async function sendCustomerCancellation(
       type: "cancellation",
       bookingId: booking.id,
       customerId: booking.customerId,
-      replyTo: settings.supportEmail || undefined,
+      replyTo: safeReplyTo(settings),
     })
   } catch (error) {
     console.error("[mail] customer cancellation setup failed:", error)
@@ -496,7 +526,7 @@ export async function sendCustomerDateChange(
       type: "date_change",
       bookingId: booking.id,
       customerId: booking.customerId,
-      replyTo: settings.supportEmail || undefined,
+      replyTo: safeReplyTo(settings),
     })
   } catch (error) {
     console.error("[mail] customer date change setup failed:", error)
@@ -631,7 +661,7 @@ export async function sendCustomerDriverAssigned(
       type: "driver_assigned",
       bookingId: booking.id,
       customerId: booking.customerId,
-      replyTo: settings.supportEmail || undefined,
+      replyTo: safeReplyTo(settings),
     })
   } catch (error) {
     console.error("[mail] driver assigned setup failed:", error)
@@ -697,7 +727,7 @@ export async function sendCustomerPickupReminder(
       type: "reminder",
       bookingId: booking.id,
       customerId: booking.customerId,
-      replyTo: settings.supportEmail || undefined,
+      replyTo: safeReplyTo(settings),
     })
   } catch (error) {
     console.error("[mail] pickup reminder setup failed:", error)
@@ -756,7 +786,7 @@ export async function sendCustomerCompletedReceipt(
       type: "completed_receipt",
       bookingId: booking.id,
       customerId: booking.customerId,
-      replyTo: settings.supportEmail || undefined,
+      replyTo: safeReplyTo(settings),
     })
   } catch (error) {
     console.error("[mail] completed receipt setup failed:", error)
@@ -826,7 +856,7 @@ export async function sendCustomerReviewRequest(
       type: "review_request",
       bookingId: booking.id,
       customerId: booking.customerId,
-      replyTo: settings.supportEmail || undefined,
+      replyTo: safeReplyTo(settings),
     })
   } catch (error) {
     console.error("[mail] review request setup failed:", error)
@@ -1008,7 +1038,7 @@ export async function sendCustomerFlightDelay(
       type: "flight_delay",
       bookingId: booking.id,
       customerId: booking.customerId,
-      replyTo: settings.supportEmail || undefined,
+      replyTo: safeReplyTo(settings),
     })
   } catch (error) {
     console.error("[mail] flight delay setup failed:", error)
