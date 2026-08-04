@@ -7,20 +7,19 @@ import { cn } from "@/lib/utils"
 
 function Checkbox({
   className,
-  // Base UI puts `id` on a visually-hidden input (position:fixed; top:0) unless
-  // nativeButton is set — Label htmlFor then focuses that input and scrolls to top.
-  nativeButton = true,
   ...props
 }: CheckboxPrimitive.Root.Props) {
   return (
     <CheckboxPrimitive.Root
       data-slot="checkbox"
+      nativeButton={false}
       className={cn(
-        "peer flex size-4 shrink-0 items-center justify-center rounded border border-input bg-background transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 data-checked:border-primary data-checked:bg-primary data-checked:text-primary-foreground dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40",
+        "peer relative flex size-4 shrink-0 items-center justify-center rounded border border-input bg-background transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 data-checked:border-primary data-checked:bg-primary data-checked:text-primary-foreground dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40",
+        // Keep the hidden input in-flow so Label htmlFor cannot scroll the page to top:0.
+        "[&+input]:!absolute [&+input]:!inset-0 [&+input]:!m-0 [&+input]:!size-full [&+input]:!rounded [&+input]:!border-0 [&+input]:!opacity-0",
         className,
       )}
       {...props}
-      nativeButton={nativeButton}
     >
       <CheckboxPrimitive.Indicator
         data-slot="checkbox-indicator"

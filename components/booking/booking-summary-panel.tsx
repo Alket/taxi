@@ -40,7 +40,7 @@ import {
 } from "@/components/marketing/hero-datetime-picker"
 import { HeroFieldSelect } from "@/components/marketing/hero-field-select"
 import type { ServiceZonePlace } from "@/components/booking/zone-place-select"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import {
   Dialog,
   DialogClose,
@@ -606,18 +606,16 @@ function SummaryEditDialog({
 
         <DialogFooter className="mx-0 mb-0 gap-2 rounded-none border-border bg-brand-surface p-4 sm:justify-stretch sm:px-5">
           <DialogClose
-            render={
-              <Button
-                variant="outline"
-                className="h-11 flex-1 rounded-xl font-bold"
-              />
-            }
+            className={cn(
+              buttonVariants({ variant: "outline" }),
+              "h-12 min-h-12 w-full flex-1 rounded-xl font-bold touch-manipulation sm:h-11 sm:min-h-11",
+            )}
           >
             Cancel
           </DialogClose>
           <Button
             disabled={saving}
-            className="h-11 flex-1 rounded-xl bg-brand-accent text-base font-extrabold text-white hover:bg-brand-accent-hover"
+            className="h-12 min-h-12 w-full flex-1 rounded-xl bg-brand-accent text-base font-extrabold text-white touch-manipulation hover:bg-brand-accent-hover sm:h-11 sm:min-h-11"
             onClick={() => void save()}
           >
             {saving ? (

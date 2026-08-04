@@ -102,7 +102,7 @@ export function TestimonialsSection({
   const title =
     heading ||
     (destination
-      ? `What guests say about ${destination}`
+      ? "Guest reviews"
       : "Trusted by travellers across Albania")
 
   return (

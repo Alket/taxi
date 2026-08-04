@@ -2,7 +2,6 @@ import { prisma } from "@/lib/db"
 import { DESTINATIONS, type Destination, slugifyDestinationId } from "@/lib/destinations"
 import { DEFAULT_LOCALE, type Locale, isLocale } from "@/lib/i18n/locales"
 import {
-  isUploadHashLabel,
   resolveMediaAlt,
 } from "@/lib/media-shared"
 import { mediaMetaByUrls } from "@/lib/media"
@@ -1029,9 +1028,9 @@ export async function deleteAdminPage(slug: string): Promise<{
 }
 
 /**
- * Homepage copy with media-library title / description / alt applied.
- * Non-empty Media fields win so library edits show on the site;
- * page section values remain the fallback.
+ * Homepage copy with media-library alt applied to hero / safety images.
+ * Visible headings and body copy always come from page sections
+ * (/admin/pages/home); media title/description only feed alt text.
  */
 export async function resolveHomeMarketingCopy(
   sections: PageSection[],
@@ -1044,28 +1043,15 @@ export async function resolveHomeMarketingCopy(
   const byUrl = await mediaMetaByUrls(urls)
 
   const heroMeta = byUrl.get(copy.hero.image)
-  const heroTitle = heroMeta?.title?.trim()
-  copy.hero.imageAlt =
-    (heroMeta?.alt?.trim() && !isUploadHashLabel(heroMeta.alt)
-      ? heroMeta.alt.trim()
-      : "") ||
-    copy.hero.imageAlt.trim() ||
-    (heroTitle && !isUploadHashLabel(heroTitle) ? heroTitle : "") ||
-    ""
+  copy.hero.imageAlt = resolveMediaAlt(heroMeta, copy.hero.imageAlt.trim())
 
   copy.safety.items = copy.safety.items.map((item) => {
     const meta = byUrl.get(item.image)
-    const mediaTitle =
-      meta?.title?.trim() && !isUploadHashLabel(meta.title)
-        ? meta.title.trim()
-        : ""
-    const title = mediaTitle || item.title.trim()
-    const description =
-      meta?.description?.trim() || item.description.trim()
+    const title = item.title.trim()
     return {
       ...item,
       title,
-      description,
+      description: item.description.trim(),
       alt: resolveMediaAlt(meta, title || item.alt.trim()),
     }
   })
