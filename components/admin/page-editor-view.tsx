@@ -15,6 +15,7 @@ import {
 import { toast } from "sonner"
 
 import { MediaPickerDialog } from "@/components/admin/media-picker-dialog"
+import { PageHeader } from "@/components/admin/page-header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -683,11 +684,14 @@ export function PageEditorView({ slug }: { slug: string }) {
 
   if (loading || !page) {
     return (
-      <div className="flex flex-col gap-5 p-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:gap-6 sm:p-4 md:p-6">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-40 w-full" />
-        <Skeleton className="h-64 w-full" />
-      </div>
+      <>
+        <PageHeader title="Edit page" description="Loading…" />
+        <div className="flex flex-col gap-5 p-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:gap-6 sm:p-4 md:p-6">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-40 w-full" />
+          <Skeleton className="h-64 w-full" />
+        </div>
+      </>
     )
   }
 
@@ -701,44 +705,55 @@ export function PageEditorView({ slug }: { slug: string }) {
   const canReset = page.fromDatabase && isCorePageSlug(page.slug)
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 p-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:gap-6 sm:p-4 md:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="-ml-2 mb-2"
-            nativeButton={false}
-            render={<Link href="/admin/pages" />}
-          >
-            <ArrowLeft className="size-3.5" />
-            All pages
-          </Button>
-          <h1 className="text-xl font-semibold tracking-tight">{page.label}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Slug: <code className="text-xs">{page.slug}</code>
-            {!page.fromDatabase ? " · showing defaults until saved" : null}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {canDelete || canReset ? (
+    <>
+      <PageHeader
+        title={page.label}
+        description={
+          page.fromDatabase
+            ? `Slug: ${page.slug}`
+            : `Slug: ${page.slug} · showing defaults until saved`
+        }
+        actions={
+          <>
+            {canDelete || canReset ? (
+              <Button
+                variant={canDelete ? "destructive" : "outline"}
+                size="sm"
+                className="h-10 w-full touch-manipulation sm:h-8 sm:w-auto"
+                disabled={deleting || saving}
+                onClick={() => void removePage()}
+              >
+                <Trash2 className="size-3.5" />
+                {deleting
+                  ? "Working…"
+                  : canDelete
+                    ? "Delete"
+                    : "Reset defaults"}
+              </Button>
+            ) : null}
             <Button
-              variant={canDelete ? "destructive" : "outline"}
-              disabled={deleting || saving}
-              onClick={() => void removePage()}
+              size="sm"
+              className="h-10 w-full touch-manipulation sm:h-8 sm:w-auto"
+              onClick={() => void save()}
+              disabled={saving || deleting}
             >
-              <Trash2 className="size-3.5" />
-              {deleting
-                ? "Working…"
-                : canDelete
-                  ? "Delete"
-                  : "Reset defaults"}
+              {saving ? "Saving…" : "Save changes"}
             </Button>
-          ) : null}
-          <Button onClick={() => void save()} disabled={saving || deleting}>
-            {saving ? "Saving…" : "Save changes"}
-          </Button>
-        </div>
+          </>
+        }
+      />
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 p-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:gap-6 sm:p-4 md:p-6">
+      <div>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="-ml-2"
+          nativeButton={false}
+          render={<Link href="/admin/pages" />}
+        >
+          <ArrowLeft className="size-3.5" />
+          All pages
+        </Button>
       </div>
 
       <section className="rounded-xl border bg-card p-4 md:p-6">
@@ -1316,6 +1331,7 @@ export function PageEditorView({ slug }: { slug: string }) {
           {saving ? "Saving…" : "Save changes"}
         </Button>
       </div>
+      </div>
 
       <MediaPickerDialog
         open={libraryTarget != null}
@@ -1324,6 +1340,6 @@ export function PageEditorView({ slug }: { slug: string }) {
         }}
         onSelect={applyLibraryAsset}
       />
-    </div>
+    </>
   )
 }

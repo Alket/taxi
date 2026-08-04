@@ -11,6 +11,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 
+import { PageHeader } from "@/components/admin/page-header"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -126,37 +127,35 @@ export function MediaLibraryView() {
   }
 
   return (
-    <div className="flex flex-col gap-5 p-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:gap-6 sm:p-4 md:p-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">Media</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Upload images and set title, description, and alt text for each.
-          </p>
-        </div>
-        <label
-          className={cn(
-            "inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90",
-            uploading && "pointer-events-none opacity-60",
-          )}
-        >
-          <input
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
-            className="sr-only"
-            disabled={uploading}
-            onChange={async (e) => {
-              const file = e.target.files?.[0]
-              e.target.value = ""
-              if (!file) return
-              await uploadFile(file)
-            }}
-          />
-          <ImagePlus className="size-4" />
-          {uploading ? "Uploading…" : "Upload image"}
-        </label>
-      </div>
-
+    <>
+      <PageHeader
+        title="Media"
+        description="Upload images and set title, description, and alt text for each."
+        actions={
+          <label
+            className={cn(
+              "inline-flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary px-3.5 text-sm font-medium text-primary-foreground touch-manipulation hover:bg-primary/90 sm:h-8 sm:w-auto",
+              uploading && "pointer-events-none opacity-60",
+            )}
+          >
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
+              className="sr-only"
+              disabled={uploading}
+              onChange={async (e) => {
+                const file = e.target.files?.[0]
+                e.target.value = ""
+                if (!file) return
+                await uploadFile(file)
+              }}
+            />
+            <ImagePlus className="size-3.5" />
+            {uploading ? "Uploading…" : "Upload image"}
+          </label>
+        }
+      />
+      <div className="flex flex-col gap-5 p-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:gap-6 sm:p-4 md:p-6">
       {isLoading ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {Array.from({ length: 10 }).map((_, i) => (
@@ -332,6 +331,7 @@ export function MediaLibraryView() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </>
   )
 }

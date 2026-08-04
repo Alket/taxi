@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { apiDelete, apiPost, fetcher } from "@/lib/api"
 import { slugifyDestinationId } from "@/lib/destinations"
+import { PageHeader } from "@/components/admin/page-header"
 
 type AdminPageRow = {
   slug: string
@@ -131,20 +132,22 @@ export function PagesListView() {
   }
 
   return (
-    <div className="flex flex-col gap-5 p-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:gap-6 sm:p-4 md:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">Pages</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Edit marketing copy, images, FAQs, and SEO for each site page.
-          </p>
-        </div>
-        <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="size-3.5" />
-          Add destination
-        </Button>
-      </div>
-
+    <>
+      <PageHeader
+        title="Pages"
+        description="Edit marketing copy, images, FAQs, and SEO for each site page."
+        actions={
+          <Button
+            size="sm"
+            className="h-10 w-full touch-manipulation sm:h-8 sm:w-auto"
+            onClick={() => setCreateOpen(true)}
+          >
+            <Plus className="size-3.5" />
+            Add destination
+          </Button>
+        }
+      />
+      <div className="flex flex-col gap-5 p-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:gap-6 sm:p-4 md:p-6">
       <div className="overflow-hidden rounded-xl border bg-card">
         <table className="w-full text-sm">
           <thead className="border-b bg-muted/40 text-left text-xs text-muted-foreground">
@@ -257,6 +260,7 @@ export function PagesListView() {
               ))}
           </tbody>
         </table>
+      </div>
       </div>
 
       <Dialog
@@ -399,6 +403,6 @@ export function PagesListView() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </>
   )
 }

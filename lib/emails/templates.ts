@@ -103,6 +103,11 @@ export function companyName(settings: Settings): string {
   return settings.companyName?.trim() || "Albania Transfers"
 }
 
+/** Absolute URL for the email header logo (PNG — SVG is unreliable in clients). */
+export function emailLogoUrl(): string {
+  return `${getAppBaseUrl()}/marketing/logo-email.png`
+}
+
 export function vehicleLabel(type: string): string {
   return VEHICLE_LABELS[type as VehicleType] ?? type
 }
@@ -159,6 +164,8 @@ export function wrapEmail(opts: {
   const company = opts.company?.trim() || "Albania Transfers"
   const preheader = opts.preheader?.trim() || opts.title
   const year = new Date().getFullYear()
+  const logoUrl = emailLogoUrl()
+  const homeUrl = getAppBaseUrl()
 
   const badge = opts.eyebrow
     ? `<span style="display:inline-block;margin:0 0 14px;padding:6px 12px;border-radius:999px;background-color:${tone.badgeBg};color:${tone.badgeFg};font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;">${escapeHtml(opts.eyebrow)}</span>`
@@ -205,10 +212,18 @@ export function wrapEmail(opts: {
             <td style="padding:0 8px 20px;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                 <tr>
-                  <td align="left" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:18px;font-weight:800;letter-spacing:-0.02em;color:${EMAIL_BRAND.ink};">
-                    ${escapeHtml(company)}
+                  <td align="left" style="vertical-align:middle;">
+                    <a href="${escapeHtml(homeUrl)}" style="text-decoration:none;border:0;outline:none;">
+                      <img
+                        src="${escapeHtml(logoUrl)}"
+                        width="154"
+                        height="58"
+                        alt="${escapeHtml(company)}"
+                        style="display:block;width:154px;height:auto;max-width:154px;border:0;outline:none;text-decoration:none;"
+                      />
+                    </a>
                   </td>
-                  <td align="right" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;font-weight:600;color:${EMAIL_BRAND.muted};">
+                  <td align="right" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;font-weight:600;color:${EMAIL_BRAND.muted};vertical-align:middle;">
                     Transfer booking
                   </td>
                 </tr>

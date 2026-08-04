@@ -592,8 +592,18 @@ export function PaymentStep() {
   const [paypalError, setPaypalError] = React.useState<string | null>(null)
   const [cashPending, setCashPending] = React.useState(false)
   const [cashError, setCashError] = React.useState<string | null>(null)
+  const [termsInvalid, setTermsInvalid] = React.useState(false)
 
   useBookingFieldFocusListener("terms")
+
+  React.useEffect(() => {
+    if (termsAccepted) {
+      setTermsInvalid(false)
+      setCashError((prev) =>
+        prev?.includes("booking terms") ? null : prev,
+      )
+    }
+  }, [termsAccepted])
 
   const depositPercentage = settings?.depositPercentage ?? 30
   const stripeEnabled = settings?.stripeEnabled ?? true
@@ -865,12 +875,17 @@ export function PaymentStep() {
   async function confirmCashOnArrival() {
     if (!store.createdBookingId) return
     if (!termsAccepted) {
-      toast.error("Please agree to the booking terms and cancellation policy to proceed.")
-      focusBookingTerms()
+      const message =
+        "Please agree to the booking terms and cancellation policy to proceed."
+      setCashError(message)
+      setTermsInvalid(true)
+      toast.error(message)
+      focusBookingTerms(message)
       return
     }
     setCashPending(true)
     setCashError(null)
+    setTermsInvalid(false)
     try {
       const res = await apiPost<{ referenceCode: string }>(
         "/api/payments/cash-on-arrival",
@@ -1020,12 +1035,17 @@ export function PaymentStep() {
       <label
         id="terms-label-container"
         data-booking-field="terms"
-        className="flex items-start gap-3 rounded-xl border px-3.5 py-3 text-sm transition-all duration-300"
+        className={cn(
+          "flex items-start gap-3 rounded-xl border border-border px-3.5 py-3 text-sm transition-all duration-300",
+          termsInvalid &&
+            "border-destructive bg-destructive/5 ring-2 ring-destructive/40",
+        )}
       >
         <input
           type="checkbox"
           className="mt-0.5 size-4 shrink-0 rounded border-input accent-brand-accent"
           checked={termsAccepted}
+          aria-invalid={termsInvalid || undefined}
           onChange={(e) => setTermsAccepted(e.target.checked)}
         />
         <span className="min-w-0">
@@ -1042,6 +1062,11 @@ export function PaymentStep() {
           remaining balance is never charged.
         </span>
       </label>
+      {termsInvalid && !termsAccepted ? (
+        <p className="-mt-2 text-xs text-destructive" role="alert">
+          Please agree to the booking terms and cancellation policy to proceed.
+        </p>
+      ) : null}
 
       {showMethodChooser && selectedMethod ? (
         <PaymentMethodChooser
@@ -1157,7 +1182,7 @@ export function PaymentStep() {
               type="button"
               size="lg"
               className="h-12 w-full rounded-xl bg-brand-accent text-base font-extrabold text-white hover:bg-brand-accent-hover active:scale-[0.99]"
-              disabled={!termsAccepted || cashPending}
+              disabled={cashPending}
               onClick={() => void confirmCashOnArrival()}
             >
               {cashPending ? (

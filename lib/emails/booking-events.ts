@@ -63,6 +63,7 @@ const bookingSelect = {
   balanceDue: true,
   paymentStatus: true,
   cancellationOutcome: true,
+  notes: true,
   customerId: true,
   driverId: true,
   customer: {
@@ -99,6 +100,7 @@ type BookingEmailRow = {
   balanceDue: { toString(): string } | number
   paymentStatus: string
   cancellationOutcome: string | null
+  notes: string | null
   customerId: string
   driverId: string | null
   customer: {
@@ -115,6 +117,10 @@ type BookingEmailRow = {
     vehicleModel: string
     plateNumber: string
   } | null
+}
+
+function isCashOnArrivalBooking(booking: { notes: string | null }): boolean {
+  return (booking.notes?.toLowerCase() ?? "").includes("cash on arrival")
 }
 
 async function loadBooking(bookingId: string): Promise<BookingEmailRow | null> {
@@ -260,6 +266,7 @@ export async function sendCustomerBookingConfirmation(
 
     const company = companyName(settings)
     const manageUrl = manageBookingUrl()
+    const cashOnArrival = isCashOnArrivalBooking(booking)
     const subject = `Booking confirmed — ${booking.referenceCode}`
     const text = [
       `Hi ${booking.customer.name},`,
@@ -274,8 +281,15 @@ export async function sendCustomerBookingConfirmation(
       `Paid: ${money(Number(booking.depositPaid), booking.currency)}`,
       `Balance due: ${money(Number(booking.balanceDue), booking.currency)}`,
       "",
-      "Cancellation: Cancelling forfeits the deposit paid — it is not refunded. The remaining balance is never charged. If a driver fails to show or the service is not delivered, contact support for a full refund.",
-      "",
+      ...(cashOnArrival
+        ? [
+            "Payment: Pay the full amount in cash to your driver at pickup.",
+            "",
+          ]
+        : [
+            "Cancellation: Cancelling forfeits the deposit paid — it is not refunded. The remaining balance is never charged. If a driver fails to show or the service is not delivered, contact support for a full refund.",
+            "",
+          ]),
       `Manage: ${manageUrl}`,
       supportLine(settings),
     ].join("\n")
@@ -290,10 +304,15 @@ export async function sendCustomerBookingConfirmation(
       rowsHtml:
         baseCustomerRows(booking) +
         priceRows(booking) +
-        detailRow(
-          "Cancellation",
-          "Cancelling forfeits the deposit (no refund). Unpaid balance is never charged.",
-        ),
+        (cashOnArrival
+          ? detailRow(
+              "Payment",
+              "Pay the full amount in cash to your driver at pickup.",
+            )
+          : detailRow(
+              "Cancellation",
+              "Cancelling forfeits the deposit (no refund). Unpaid balance is never charged.",
+            )),
       cta: { href: manageUrl, label: "Manage booking" },
       footer: supportLine(settings),
     })
