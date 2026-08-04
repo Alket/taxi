@@ -60,7 +60,7 @@ import {
 } from "@/components/ui/select"
 
 const SUMMARY_IMAGE_FALLBACK =
-  "https://images.unsplash.com/photo-1600093463592-8e77ffe2476e?auto=format&fit=crop&q=80&w=800"
+  "/uploads/pages/book-your-tirana-airport-transfer-08b1cc.webp"
 
 const VEHICLE_LABELS: Record<string, string> = {
   sedan: "Sedan",

@@ -17,6 +17,11 @@ import {
   UsersIcon,
 } from "lucide-react"
 
+import {
+  markMarketingPreloaderHandoff,
+  MarketingPreloaderMark,
+} from "@/components/marketing/marketing-preloader"
+
 import { fetcher } from "@/lib/api"
 import type { AirportWithCoords } from "@/lib/airports"
 import { resolveAirportLocation } from "@/lib/airports"
@@ -72,15 +77,15 @@ function emptyLocation(): BookingLocation {
   return { address: "", lat: null, lng: null }
 }
 
-/** Full-viewport white reloader — portaled above sheet open/close animations. */
+/** Full-viewport branded cover — portaled above sheet open/close animations. */
 function HeroStepReloader() {
   const [mounted, setMounted] = React.useState(false)
   React.useEffect(() => setMounted(true), [])
   if (!mounted) return null
 
   return createPortal(
-    <div
-      className="fixed inset-0 z-[9999] flex h-[100dvh] w-screen items-center justify-center bg-white"
+    <MarketingPreloaderMark
+      className="z-[9999] h-[100dvh] w-screen"
       style={{
         top: 0,
         right: 0,
@@ -89,16 +94,7 @@ function HeroStepReloader() {
         width: "100vw",
         height: "100dvh",
       }}
-      role="status"
-      aria-live="polite"
-      aria-busy="true"
-      aria-label="Loading"
-    >
-      <Loader2Icon
-        className="size-10 animate-spin"
-        style={{ color: "var(--brand-accent)" }}
-      />
-    </div>,
+    />,
     document.body,
   )
 }
@@ -468,8 +464,10 @@ export function HeroBookingCard() {
         startedFromHero: true,
       })
       setStep(1)
+      // One branded cover through the handoff; skip /book layout preloader.
+      markMarketingPreloaderHandoff()
       router.push(localePath("/book", locale))
-      // Leave continuing on so the white reloader stays until unmount.
+      // Leave continuing on so the cover stays until this tree unmounts.
     } catch {
       setContinuing(false)
     }

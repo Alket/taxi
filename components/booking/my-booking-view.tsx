@@ -46,7 +46,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 
-const HERO_IMAGE = "/hero-pickup.png"
+const HERO_IMAGE =
+  "/uploads/pages/book-your-tirana-airport-transfer-08b1cc.webp"
 
 type SupportSettings = {
   supportEmail?: string

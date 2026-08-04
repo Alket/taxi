@@ -1,13 +1,14 @@
 "use client"
 
-import { useRef } from "react"
 import Link from "next/link"
 import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react"
-import { Navigation } from "swiper/modules"
-import { Swiper, SwiperSlide } from "swiper/react"
-import type { Swiper as SwiperType } from "swiper"
 
 import { DestinationCard } from "@/components/marketing/destination-card"
+import {
+  MarketingCarousel,
+  MARKETING_CAROUSEL_SLIDE,
+  useMarketingCarousel,
+} from "@/components/marketing/marketing-carousel"
 import {
   MarketingContainer,
   MARKETING_SECTION_TITLE,
@@ -17,8 +18,6 @@ import { useLocale } from "@/lib/i18n/use-locale"
 import { localePath } from "@/lib/i18n/locales"
 import { t } from "@/lib/i18n/t"
 import { cn } from "@/lib/utils"
-
-import "swiper/css"
 
 export function DestinationsSection({
   heading,
@@ -31,7 +30,7 @@ export function DestinationsSection({
   destinations?: Destination[]
   className?: string
 }) {
-  const swiperRef = useRef<SwiperType | null>(null)
+  const { emblaRef, scrollPrev, scrollNext } = useMarketingCarousel()
   const locale = useLocale()
   const destinationsHref = localePath("/destinations", locale)
 
@@ -62,7 +61,7 @@ export function DestinationsSection({
                 type="button"
                 aria-label="Previous destinations"
                 className="flex size-9 items-center justify-center rounded-full border border-border bg-card text-brand transition-colors hover:bg-muted sm:size-10"
-                onClick={() => swiperRef.current?.slidePrev()}
+                onClick={scrollPrev}
               >
                 <ChevronLeft className="size-4 sm:size-5" />
               </button>
@@ -70,7 +69,7 @@ export function DestinationsSection({
                 type="button"
                 aria-label="Next destinations"
                 className="flex size-9 items-center justify-center rounded-full border border-border bg-card text-brand transition-colors hover:bg-muted sm:size-10"
-                onClick={() => swiperRef.current?.slideNext()}
+                onClick={scrollNext}
               >
                 <ChevronRight className="size-4 sm:size-5" />
               </button>
@@ -78,31 +77,13 @@ export function DestinationsSection({
           </div>
         </div>
 
-        <Swiper
-          modules={[Navigation]}
-          speed={550}
-          spaceBetween={16}
-          slidesPerView={1.12}
-          resistanceRatio={0.65}
-          watchOverflow
-          preventInteractionOnTransition
-          grabCursor
-          breakpoints={{
-            480: { slidesPerView: 1.25, spaceBetween: 16 },
-            640: { slidesPerView: 1.5, spaceBetween: 18 },
-            768: { slidesPerView: 2.15, spaceBetween: 20 },
-            1024: { slidesPerView: 3, spaceBetween: 20 },
-          }}
-          onSwiper={(swiper) => {
-            swiperRef.current = swiper
-          }}
-        >
+        <MarketingCarousel emblaRef={emblaRef}>
           {destinations.map((destination) => (
-            <SwiperSlide key={destination.id}>
+            <div key={destination.id} className={MARKETING_CAROUSEL_SLIDE}>
               <DestinationCard destination={destination} />
-            </SwiperSlide>
+            </div>
           ))}
-        </Swiper>
+        </MarketingCarousel>
 
         <div className="mt-6 md:hidden">
           <Link

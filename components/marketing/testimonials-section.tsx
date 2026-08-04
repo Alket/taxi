@@ -1,20 +1,20 @@
 "use client"
 
-import { useCallback, useRef, useState } from "react"
+import { useEffect } from "react"
 import useSWR from "swr"
 import { ChevronLeft, ChevronRight, StarIcon } from "lucide-react"
-import { Navigation } from "swiper/modules"
-import { Swiper, SwiperSlide } from "swiper/react"
-import type { Swiper as SwiperType } from "swiper"
 
+import {
+  MarketingCarousel,
+  MARKETING_CAROUSEL_SLIDE,
+  useMarketingCarousel,
+} from "@/components/marketing/marketing-carousel"
 import {
   MarketingContainer,
   MARKETING_SECTION_TITLE,
 } from "@/components/marketing/marketing-container"
 import { fetcher } from "@/lib/api"
 import { cn } from "@/lib/utils"
-
-import "swiper/css"
 
 type PublicReview = {
   id: string
@@ -50,23 +50,23 @@ function Stars({ value }: { value: number }) {
 
 function ReviewCard({ review }: { review: PublicReview }) {
   return (
-    <div className="flex h-full min-h-[220px] flex-col gap-4 rounded-2xl border border-border bg-card p-5 shadow-sm sm:min-h-[240px] sm:p-6">
+    <div className="flex h-full min-h-[220px] w-full min-w-0 flex-col gap-4 rounded-2xl border border-border bg-card p-5 shadow-sm sm:min-h-[240px] sm:p-6">
       <div className="flex items-center justify-between gap-2">
         <Stars value={review.platformRating} />
-        <span className="text-xs text-muted-foreground">
+        <span className="shrink-0 text-xs text-muted-foreground">
           Driver {review.driverRating.toFixed(1)}
         </span>
       </div>
       {review.comment ? (
-        <p className="flex-1 text-sm leading-relaxed text-brand sm:text-base">
+        <p className="min-w-0 flex-1 text-sm leading-relaxed break-words text-brand sm:text-base">
           “{review.comment}”
         </p>
       ) : (
-        <p className="flex-1 text-sm text-muted-foreground sm:text-base">
+        <p className="min-w-0 flex-1 text-sm text-muted-foreground sm:text-base">
           Rated {review.platformRating}/5 overall.
         </p>
       )}
-      <div className="border-t pt-3 text-xs text-muted-foreground sm:text-sm">
+      <div className="min-w-0 border-t pt-3 text-xs text-muted-foreground sm:text-sm">
         <p className="font-semibold text-brand">{review.customerFirstName}</p>
         <p className="mt-0.5 truncate">{review.dropoffAddress}</p>
       </div>
@@ -83,8 +83,8 @@ export function TestimonialsSection({
   eyebrow?: string
   heading?: string
 }) {
-  const swiperRef = useRef<SwiperType | null>(null)
-  const [showArrows, setShowArrows] = useState(false)
+  const { emblaRef, emblaApi, scrollPrev, scrollNext, canScroll } =
+    useMarketingCarousel()
   const params = new URLSearchParams({ limit: "6" })
   if (destination) params.set("destination", destination)
   const { data } = useSWR<{ reviews: PublicReview[] }>(
@@ -93,9 +93,9 @@ export function TestimonialsSection({
   )
   const reviews = data?.reviews ?? []
 
-  const syncArrows = useCallback((swiper: SwiperType) => {
-    setShowArrows(!swiper.isLocked)
-  }, [])
+  useEffect(() => {
+    emblaApi?.reInit()
+  }, [emblaApi, reviews])
 
   if (reviews.length === 0) return null
 
@@ -116,13 +116,13 @@ export function TestimonialsSection({
             <h2 className={MARKETING_SECTION_TITLE}>{title}</h2>
           </div>
 
-          {showArrows ? (
+          {canScroll ? (
             <div className="flex shrink-0 gap-1.5 sm:gap-2">
               <button
                 type="button"
                 aria-label="Previous reviews"
                 className="flex size-9 items-center justify-center rounded-full border border-border bg-card text-brand transition-colors hover:bg-muted sm:size-10"
-                onClick={() => swiperRef.current?.slidePrev()}
+                onClick={scrollPrev}
               >
                 <ChevronLeft className="size-4 sm:size-5" />
               </button>
@@ -130,7 +130,7 @@ export function TestimonialsSection({
                 type="button"
                 aria-label="Next reviews"
                 className="flex size-9 items-center justify-center rounded-full border border-border bg-card text-brand transition-colors hover:bg-muted sm:size-10"
-                onClick={() => swiperRef.current?.slideNext()}
+                onClick={scrollNext}
               >
                 <ChevronRight className="size-4 sm:size-5" />
               </button>
@@ -138,35 +138,16 @@ export function TestimonialsSection({
           ) : null}
         </div>
 
-        <Swiper
-          modules={[Navigation]}
-          speed={550}
-          spaceBetween={16}
-          slidesPerView={1.12}
-          resistanceRatio={0.65}
-          watchOverflow
-          preventInteractionOnTransition
-          grabCursor
-          breakpoints={{
-            480: { slidesPerView: 1.25, spaceBetween: 16 },
-            640: { slidesPerView: 1.5, spaceBetween: 18 },
-            768: { slidesPerView: 2.15, spaceBetween: 20 },
-            1024: { slidesPerView: 3, spaceBetween: 20 },
-          }}
-          onSwiper={(swiper) => {
-            swiperRef.current = swiper
-            syncArrows(swiper)
-          }}
-          onResize={syncArrows}
-          onBreakpoint={syncArrows}
-          onUpdate={syncArrows}
-        >
+        <MarketingCarousel emblaRef={emblaRef}>
           {reviews.map((review) => (
-            <SwiperSlide key={review.id} className="!h-auto">
+            <div
+              key={review.id}
+              className={cn(MARKETING_CAROUSEL_SLIDE, "flex h-auto")}
+            >
               <ReviewCard review={review} />
-            </SwiperSlide>
+            </div>
           ))}
-        </Swiper>
+        </MarketingCarousel>
       </MarketingContainer>
     </section>
   )
