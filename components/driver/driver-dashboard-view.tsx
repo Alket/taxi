@@ -534,8 +534,9 @@ function TripCard({
   const t = useDriverT()
   const locale = useDriverLocale()
   const cardRef = React.useRef<HTMLLIElement>(null)
-  const [detailsOpen, setDetailsOpen] = React.useState(focused)
-  const showDetails = !readOnly || detailsOpen || focused
+  // Today/Upcoming start expanded; History starts collapsed.
+  const [detailsOpen, setDetailsOpen] = React.useState(!readOnly || focused)
+  const showDetails = detailsOpen || focused
   const pickupLabel = formatPickupLabel(trip.pickupDateTime, locale)
   const tripStatus = statusLabel(t, trip.status)
   const hint = cashHintLabel(
@@ -547,13 +548,13 @@ function TripCard({
 
   React.useEffect(() => {
     if (!focused) return
-    if (readOnly) setDetailsOpen(true)
+    setDetailsOpen(true)
     const timer = window.setTimeout(() => {
       cardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })
       onFocused?.()
     }, 120)
     return () => window.clearTimeout(timer)
-  }, [focused, readOnly, onFocused])
+  }, [focused, onFocused])
 
   return (
     <li
@@ -564,64 +565,47 @@ function TripCard({
         focused && "ring-2 ring-primary shadow-md",
       )}
     >
-      {readOnly ? (
-        <button
-          type="button"
-          className="flex w-full items-start justify-between gap-3 p-4 text-left touch-manipulation"
-          onClick={() => setDetailsOpen((open) => !open)}
-          aria-expanded={detailsOpen}
-        >
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="font-mono text-sm font-semibold">
-                {trip.referenceCode}
-              </p>
-              <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium">
-                {tripStatus}
-              </span>
-              <span className="rounded-md border border-primary/25 bg-primary/10 px-2 py-0.5 font-mono text-sm font-bold tracking-wider tabular-nums text-foreground">
-                {t("trips.pin", { pin: trip.pickupPin })}
-              </span>
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">{pickupLabel}</p>
-            <p className="mt-1.5 truncate text-sm font-medium">
-              {trip.pickupAddress}
-              <span className="mx-1.5 text-muted-foreground">→</span>
-              {trip.dropoffAddress}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {trip.customerName} · {trip.totalPriceLabel}
-            </p>
-          </div>
-          <ChevronDownIcon
-            className={cn(
-              "mt-0.5 size-5 shrink-0 text-muted-foreground transition-transform",
-              detailsOpen && "rotate-180",
-            )}
-          />
-        </button>
-      ) : (
-        <div className="flex items-start justify-between gap-2 p-4 pb-0">
-          <div>
+      <button
+        type="button"
+        className="flex w-full items-start justify-between gap-3 p-4 text-left touch-manipulation"
+        onClick={() => setDetailsOpen((open) => !open)}
+        aria-expanded={showDetails}
+      >
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
             <p className="font-mono text-sm font-semibold">
               {trip.referenceCode}
             </p>
-            <p className="text-xs text-muted-foreground">{pickupLabel}</p>
+            <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium">
+              {tripStatus}
+            </span>
+            <span className="rounded-md border border-primary/25 bg-primary/10 px-2 py-0.5 font-mono text-sm font-bold tracking-wider tabular-nums text-foreground">
+              {t("trips.pin", { pin: trip.pickupPin })}
+            </span>
           </div>
-          <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium">
-            {tripStatus}
-          </span>
+          <p className="mt-1 text-xs text-muted-foreground">{pickupLabel}</p>
+          <p className="mt-1.5 truncate text-sm font-medium">
+            {trip.pickupAddress}
+            <span className="mx-1.5 text-muted-foreground">→</span>
+            {trip.dropoffAddress}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {trip.customerName} · {trip.totalPriceLabel}
+            {trip.cashToCollect > 0
+              ? ` · ${trip.cashToCollectLabel}`
+              : ""}
+          </p>
         </div>
-      )}
+        <ChevronDownIcon
+          className={cn(
+            "mt-0.5 size-5 shrink-0 text-muted-foreground transition-transform",
+            showDetails && "rotate-180",
+          )}
+        />
+      </button>
 
       {showDetails ? (
-        <div
-          className={cn(
-            "flex flex-col gap-3 p-4",
-            readOnly && "border-t pt-3",
-            !readOnly && "pt-3",
-          )}
-        >
+        <div className="flex flex-col gap-3 border-t p-4 pt-3">
           <div className="flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/10 px-3 py-3">
             <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
               <KeyRoundIcon className="size-5" />
