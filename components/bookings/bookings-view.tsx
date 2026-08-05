@@ -7,6 +7,8 @@ import {
   ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  CircleDollarSignIcon,
+  ListFilterIcon,
   SearchIcon,
   SlidersHorizontalIcon,
   XIcon,
@@ -24,11 +26,12 @@ import {
 import type { Booking, Driver, PaymentStatus } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { PageHeader } from "@/components/admin/page-header"
-import { AdminDateField } from "@/components/admin/date-field"
+import { AdminDateField, toDateInputValue } from "@/components/admin/date-field"
 import {
   AdminDriverField,
   type DriverFilterValue,
 } from "@/components/admin/driver-field"
+import { AdminFilterSelectField } from "@/components/admin/filter-select-field"
 import { DirectionIndicator } from "@/components/admin/direction-indicator"
 import {
   BookingStatusBadge,
@@ -40,7 +43,6 @@ import { NewBookingSheet } from "@/components/bookings/new-booking-sheet"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import {
   Select,
   SelectContent,
@@ -61,6 +63,23 @@ import { Empty, EmptyDescription, EmptyTitle } from "@/components/ui/empty"
 
 const PAGE_SIZE = 20
 
+const SORT_OPTIONS = [
+  { value: "pickup_asc", label: "Pickup soonest" },
+  { value: "pickup_desc", label: "Pickup latest" },
+  { value: "created_desc", label: "Newest created" },
+  { value: "created_asc", label: "Oldest created" },
+] as const
+
+type SortValue = (typeof SORT_OPTIONS)[number]["value"]
+
+const SORT_ITEMS = Object.fromEntries(
+  SORT_OPTIONS.map((o) => [o.value, o.label]),
+)
+
+function isSortValue(value: string | null): value is SortValue {
+  return SORT_OPTIONS.some((o) => o.value === value)
+}
+
 const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: "all", label: "All statuses" },
   ...BOOKING_STATUS_FLOW.map((s) => ({
@@ -77,13 +96,6 @@ const PAYMENT_OPTIONS: { value: string; label: string }[] = [
     label: PAYMENT_STATUS_LABELS[s],
   })),
 ]
-
-const STATUS_ITEMS = Object.fromEntries(
-  STATUS_OPTIONS.map((o) => [o.value, o.label]),
-)
-const PAYMENT_ITEMS = Object.fromEntries(
-  PAYMENT_OPTIONS.map((o) => [o.value, o.label]),
-)
 
 type BookingsResponse = {
   bookings: Booking[]
@@ -121,7 +133,7 @@ export function BookingsView() {
     ),
   )
   const [dateFrom, setDateFrom] = React.useState(
-    () => searchParams.get("dateFrom") ?? "",
+    () => searchParams.get("dateFrom") ?? toDateInputValue(new Date()),
   )
   const [dateTo, setDateTo] = React.useState(
     () => searchParams.get("dateTo") ?? "",
@@ -129,6 +141,10 @@ export function BookingsView() {
   const [searchInput, setSearchInput] = React.useState(
     searchParams.get("ref") ?? "",
   )
+  const [sort, setSort] = React.useState<SortValue>(() => {
+    const fromUrl = searchParams.get("sort")
+    return isSortValue(fromUrl) ? fromUrl : "pickup_asc"
+  })
   const [page, setPage] = React.useState(1)
   const [filtersOpen, setFiltersOpen] = React.useState(false)
   const search = useDebounced(searchInput)
@@ -141,8 +157,14 @@ export function BookingsView() {
     if (bookingId) {
       setSelectedId(bookingId)
     }
-    setDateFrom(searchParams.get("dateFrom") ?? "")
-    setDateTo(searchParams.get("dateTo") ?? "")
+    // Only sync dates from the URL when present so we keep the "from today"
+    // default when landing without date params.
+    if (searchParams.has("dateFrom")) {
+      setDateFrom(searchParams.get("dateFrom") ?? "")
+    }
+    if (searchParams.has("dateTo")) {
+      setDateTo(searchParams.get("dateTo") ?? "")
+    }
     const nextStatus = searchParams.get("status")
     if (nextStatus) setStatus(nextStatus)
     const nextDriver = normalizeDriverFilter(
@@ -154,7 +176,9 @@ export function BookingsView() {
   }, [searchParams])
 
   const statusSelectValue =
-    status.includes(",") || !STATUS_ITEMS[status] ? "all" : status
+    status.includes(",") || !STATUS_OPTIONS.some((o) => o.value === status)
+      ? "all"
+      : status
 
   const { data: driverData } = useSWR<{ drivers: Driver[] }>(
     "/api/admin/drivers",
@@ -164,7 +188,7 @@ export function BookingsView() {
 
   React.useEffect(() => {
     setPage(1)
-  }, [status, paymentStatus, driverId, search, dateFrom, dateTo])
+  }, [status, paymentStatus, driverId, search, dateFrom, dateTo, sort])
 
   // Keep range valid when "From" moves past "To" (string YYYY-MM-DD compares safely).
   React.useEffect(() => {
@@ -181,10 +205,11 @@ export function BookingsView() {
     if (search.trim()) params.set("search", search.trim())
     if (dateFrom) params.set("dateFrom", dateFrom)
     if (dateTo) params.set("dateTo", dateTo)
+    if (sort !== "pickup_asc") params.set("sort", sort)
     params.set("page", String(page))
     params.set("pageSize", String(PAGE_SIZE))
     return params.toString()
-  }, [status, paymentStatus, driverId, search, dateFrom, dateTo, page])
+  }, [status, paymentStatus, driverId, search, dateFrom, dateTo, sort, page])
 
   const { data, isLoading, mutate } = useSWR<BookingsResponse>(
     `/api/admin/bookings?${query}`,
@@ -195,23 +220,30 @@ export function BookingsView() {
   const total = data?.total ?? 0
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
+  const todayKey = toDateInputValue(new Date())
   const advancedFilterCount = [
     status !== "all",
     paymentStatus !== "all",
     driverId !== "all",
-    !!dateFrom,
+    !!dateFrom && dateFrom !== todayKey,
     !!dateTo,
   ].filter(Boolean).length
 
-  const hasFilters = advancedFilterCount > 0 || !!searchInput
+  const hasFilters =
+    advancedFilterCount > 0 ||
+    !!searchInput ||
+    sort !== "pickup_asc" ||
+    dateFrom !== todayKey ||
+    !!dateTo
 
   function resetFilters() {
     setStatus("all")
     setPaymentStatus("all")
     setDriverId("all")
-    setDateFrom("")
+    setDateFrom(toDateInputValue(new Date()))
     setDateTo("")
     setSearchInput("")
+    setSort("pickup_asc")
     setPage(1)
     router.replace("/admin/bookings")
   }
@@ -220,7 +252,7 @@ export function BookingsView() {
     <>
       <PageHeader
         title="Bookings"
-        description="Manage and track all transfer bookings"
+        description="Today and upcoming pickups first — change From to see past trips"
         actions={
           <NewBookingSheet
             onCreated={() => {
@@ -242,40 +274,66 @@ export function BookingsView() {
             />
           </div>
 
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              className="h-10 flex-1 touch-manipulation justify-between sm:flex-none"
-              onClick={() => setFiltersOpen((open) => !open)}
-              aria-expanded={filtersOpen}
-            >
-              <span className="inline-flex items-center gap-2">
-                <SlidersHorizontalIcon className="size-4" />
-                Filters
-                {advancedFilterCount > 0 ? (
-                  <Badge variant="secondary" className="tabular-nums">
-                    {advancedFilterCount}
-                  </Badge>
-                ) : null}
-              </span>
-              <ChevronDownIcon
-                className={cn(
-                  "size-4 text-muted-foreground transition-transform",
-                  filtersOpen && "rotate-180",
-                )}
-              />
-            </Button>
-            {hasFilters ? (
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="flex items-center gap-2">
               <Button
-                variant="ghost"
-                className="h-10 shrink-0 touch-manipulation"
-                onClick={resetFilters}
+                type="button"
+                variant="outline"
+                className="h-10 flex-1 touch-manipulation justify-between sm:flex-none"
+                onClick={() => setFiltersOpen((open) => !open)}
+                aria-expanded={filtersOpen}
               >
-                <XIcon data-icon="inline-start" />
-                Clear
+                <span className="inline-flex items-center gap-2">
+                  <SlidersHorizontalIcon className="size-4" />
+                  Filters
+                  {advancedFilterCount > 0 ? (
+                    <Badge variant="secondary" className="tabular-nums">
+                      {advancedFilterCount}
+                    </Badge>
+                  ) : null}
+                </span>
+                <ChevronDownIcon
+                  className={cn(
+                    "size-4 text-muted-foreground transition-transform",
+                    filtersOpen && "rotate-180",
+                  )}
+                />
               </Button>
-            ) : null}
+              {hasFilters || sort !== "pickup_asc" ? (
+                <Button
+                  variant="ghost"
+                  className="h-10 shrink-0 touch-manipulation"
+                  onClick={resetFilters}
+                >
+                  <XIcon data-icon="inline-start" />
+                  Clear
+                </Button>
+              ) : null}
+            </div>
+            <div className="sm:ml-auto sm:w-52">
+              <Select
+                value={sort}
+                onValueChange={(value) => {
+                  if (isSortValue(value)) setSort(value)
+                }}
+                items={SORT_ITEMS}
+              >
+                <SelectTrigger
+                  className="h-10 w-full md:h-8"
+                  size="default"
+                  aria-label="Sort bookings"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SORT_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div
@@ -284,46 +342,20 @@ export function BookingsView() {
               !filtersOpen && "hidden",
             )}
           >
-            <FilterField label="Status">
-              <Select
-                value={statusSelectValue}
-                onValueChange={(value) => {
-                  if (value) setStatus(value)
-                }}
-                items={STATUS_ITEMS}
-              >
-                <SelectTrigger className="h-10 w-full md:h-8" size="default">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {STATUS_OPTIONS.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>
-                      {o.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </FilterField>
-            <FilterField label="Payment">
-              <Select
-                value={paymentStatus}
-                onValueChange={(value) => {
-                  if (value) setPaymentStatus(value)
-                }}
-                items={PAYMENT_ITEMS}
-              >
-                <SelectTrigger className="h-10 w-full md:h-8" size="default">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {PAYMENT_OPTIONS.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>
-                      {o.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </FilterField>
+            <AdminFilterSelectField
+              label="Status"
+              value={statusSelectValue}
+              onChange={setStatus}
+              options={STATUS_OPTIONS}
+              icon={ListFilterIcon}
+            />
+            <AdminFilterSelectField
+              label="Payment"
+              value={paymentStatus}
+              onChange={setPaymentStatus}
+              options={PAYMENT_OPTIONS}
+              icon={CircleDollarSignIcon}
+            />
             <AdminDriverField
               label="Driver"
               value={driverId}
@@ -368,6 +400,7 @@ export function BookingsView() {
                 booking={b}
                 selected={selectedId === b.id}
                 onSelect={() => setSelectedId(b.id)}
+                showCreated={sort === "created_desc" || sort === "created_asc"}
               />
             ))
           ) : (
@@ -418,7 +451,14 @@ export function BookingsView() {
                     data-state={selectedId === b.id ? "selected" : undefined}
                   >
                     <TableCell className="pl-4 font-mono text-xs font-medium">
-                      {b.referenceCode}
+                      <div className="flex flex-col gap-0.5">
+                        <span>{b.referenceCode}</span>
+                        {sort === "created_desc" || sort === "created_asc" ? (
+                          <span className="font-sans text-[11px] font-normal text-muted-foreground">
+                            Booked {formatDateTime(b.createdAt)}
+                          </span>
+                        ) : null}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-col">
@@ -558,10 +598,12 @@ function BookingMobileCard({
   booking: b,
   selected,
   onSelect,
+  showCreated = false,
 }: {
   booking: Booking
   selected: boolean
   onSelect: () => void
+  showCreated?: boolean
 }) {
   return (
     <button
@@ -578,6 +620,11 @@ function BookingMobileCard({
           <p className="mt-0.5 font-mono text-xs text-muted-foreground">
             {b.referenceCode}
           </p>
+          {showCreated ? (
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              Booked {formatDateTime(b.createdAt)}
+            </p>
+          ) : null}
         </div>
         <BookingStatusBadge status={b.status} />
       </div>
@@ -609,20 +656,5 @@ function BookingMobileCard({
         </span>
       </div>
     </button>
-  )
-}
-
-function FilterField({
-  label,
-  children,
-}: {
-  label: string
-  children: React.ReactNode
-}) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
-      {children}
-    </div>
   )
 }

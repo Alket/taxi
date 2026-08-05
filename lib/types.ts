@@ -88,6 +88,7 @@ export interface Booking {
   freeCancellationUntil: string
   cancelledAt: string | null
   cancellationOutcome: CancellationOutcome | null
+  createdAt: string
   timeline: StatusEvent[]
   notes?: string
 }

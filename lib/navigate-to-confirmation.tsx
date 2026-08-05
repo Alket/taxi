@@ -3,6 +3,7 @@
 import { createRoot } from "react-dom/client"
 
 import { BookingConfirmingScreen } from "@/components/booking/booking-confirming-screen"
+import { markMarketingPreloaderHandoff } from "@/components/marketing/marketing-preloader"
 import { bypassBookingLeaveGuard } from "@/hooks/use-booking-leave-guard"
 import { useBookingStore } from "@/lib/store/booking-store"
 
@@ -21,6 +22,9 @@ export function navigateToBookingConfirmation(referenceCode: string) {
   // trigger BookingShell's /#book redirect and cancel this navigation (worse
   // over slower tunnels like ngrok).
   bypassBookingLeaveGuard()
+
+  // Skip booking-layout logo preloader on the confirmation hard load.
+  markMarketingPreloaderHandoff()
 
   const host = document.createElement("div")
   host.setAttribute("data-booking-confirming", "true")

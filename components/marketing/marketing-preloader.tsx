@@ -58,6 +58,10 @@ function isHomePathname(pathname: string) {
   return stripLocalePrefix(pathname) === "/"
 }
 
+function isBookingConfirmationPath(pathname: string) {
+  return stripLocalePrefix(pathname).startsWith("/book/confirmation")
+}
+
 export function MarketingPreloaderMark({
   className,
   leaving = false,
@@ -108,17 +112,24 @@ export function MarketingPreloader({
 }) {
   const pathname = usePathname()
   const [visible, setVisible] = useState(() => {
-    if (typeof window === "undefined") return true
-    if (scope === "booking" && isMarketingPreloaderHandoffActive()) return false
+    // Path-based skips must match SSR and client to avoid hydration mismatch.
+    if (scope === "booking" && isBookingConfirmationPath(pathname)) return false
     if (scope === "home" && !isHomePathname(pathname)) return false
     if (scope === "booking" && isHomePathname(pathname)) return false
+    // Handoff uses sessionStorage — client-only; keep SSR/client aligned by
+    // defaulting visible and letting the effect hide after mount when handoff.
+    if (typeof window !== "undefined") {
+      if (scope === "booking" && isMarketingPreloaderHandoffActive()) return false
+    }
     return true
   })
   const [leaving, setLeaving] = useState(false)
   const isFirst = useRef(
-    typeof window === "undefined"
-      ? true
-      : !(scope === "booking" && isMarketingPreloaderHandoffActive()),
+    scope === "booking" && isBookingConfirmationPath(pathname)
+      ? false
+      : typeof window === "undefined"
+        ? true
+        : !(scope === "booking" && isMarketingPreloaderHandoffActive()),
   )
   const timers = useRef<number[]>([])
 
@@ -133,6 +144,14 @@ export function MarketingPreloader({
       return
     }
     if (scope === "booking" && onHome) {
+      setVisible(false)
+      setLeaving(false)
+      return
+    }
+
+    // Confirmation uses BookingConfirmingScreen / loading.tsx only — no logo stack.
+    if (scope === "booking" && isBookingConfirmationPath(pathname)) {
+      isFirst.current = false
       setVisible(false)
       setLeaving(false)
       return

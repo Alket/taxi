@@ -101,6 +101,7 @@ function serializeBookingBase(
     freeCancellationUntil: booking.freeCancellationUntil.toISOString(),
     cancelledAt: booking.cancelledAt?.toISOString() ?? null,
     cancellationOutcome: booking.cancellationOutcome ?? null,
+    createdAt: booking.createdAt.toISOString(),
     timeline:
       "statusEvents" in booking
         ? serializeTimeline(booking.statusEvents)

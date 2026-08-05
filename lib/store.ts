@@ -166,6 +166,7 @@ const bookings: Booking[] = [
     freeCancellationUntil: iso(30),
     cancelledAt: null,
     cancellationOutcome: null,
+    createdAt: iso(-180),
     timeline: buildTimeline("confirmed", 90),
     notes: "Passenger requested a child booster seat.",
   },
@@ -198,6 +199,7 @@ const bookings: Booking[] = [
     freeCancellationUntil: iso(-60),
     cancelledAt: null,
     cancellationOutcome: null,
+    createdAt: iso(-180),
     timeline: buildTimeline("driver_assigned", 180),
   },
   {
@@ -229,6 +231,7 @@ const bookings: Booking[] = [
     freeCancellationUntil: iso(-1440),
     cancelledAt: null,
     cancellationOutcome: null,
+    createdAt: iso(-180),
     timeline: buildTimeline("en_route", -30),
   },
   {
@@ -260,6 +263,7 @@ const bookings: Booking[] = [
     freeCancellationUntil: iso(-4320),
     cancelledAt: null,
     cancellationOutcome: null,
+    createdAt: iso(-180),
     timeline: buildTimeline("completed", -2880),
   },
   {
@@ -291,6 +295,7 @@ const bookings: Booking[] = [
     freeCancellationUntil: iso(-5760),
     cancelledAt: null,
     cancellationOutcome: null,
+    createdAt: iso(-180),
     timeline: buildTimeline("completed", -4320),
   },
   {
@@ -322,6 +327,7 @@ const bookings: Booking[] = [
     freeCancellationUntil: iso(90),
     cancelledAt: null,
     cancellationOutcome: null,
+    createdAt: iso(-180),
     timeline: buildTimeline("pending", 150),
   },
   {
@@ -353,6 +359,7 @@ const bookings: Booking[] = [
     freeCancellationUntil: iso(180),
     cancelledAt: null,
     cancellationOutcome: null,
+    createdAt: iso(-180),
     timeline: buildTimeline("pending", 240),
   },
   {
@@ -384,6 +391,7 @@ const bookings: Booking[] = [
     freeCancellationUntil: iso(-1500),
     cancelledAt: iso(-1440),
     cancellationOutcome: "free_cancellation",
+    createdAt: iso(-180),
     timeline: buildTimeline("cancelled", -1440),
   },
   {
@@ -415,6 +423,7 @@ const bookings: Booking[] = [
     freeCancellationUntil: iso(140),
     cancelledAt: null,
     cancellationOutcome: null,
+    createdAt: iso(-180),
     timeline: buildTimeline("confirmed", 200),
   },
 ]

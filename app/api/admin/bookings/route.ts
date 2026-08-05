@@ -49,11 +49,22 @@ export async function GET(request: Request) {
   const dateFrom = searchParams.get("dateFrom")
   const dateTo = searchParams.get("dateTo")
   const search = searchParams.get("search")?.trim()
+  const sort = searchParams.get("sort")
   const page = parsePositiveInt(searchParams.get("page"), 1)
   const pageSize = Math.min(
     100,
     parsePositiveInt(searchParams.get("pageSize"), 20),
   )
+
+  // Allowlist only — reject arbitrary Prisma order fields.
+  const orderBy: Prisma.BookingOrderByWithRelationInput =
+    sort === "created_desc"
+      ? { createdAt: "desc" }
+      : sort === "created_asc"
+        ? { createdAt: "asc" }
+        : sort === "pickup_desc"
+          ? { pickupDateTime: "desc" }
+          : { pickupDateTime: "asc" }
 
   const where: Prisma.BookingWhereInput = {}
 
@@ -108,7 +119,7 @@ export async function GET(request: Request) {
     prisma.booking.findMany({
       where,
       include: bookingListInclude,
-      orderBy: { pickupDateTime: "asc" },
+      orderBy,
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),
