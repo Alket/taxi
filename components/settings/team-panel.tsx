@@ -300,6 +300,7 @@ function ResetPasswordControl({
                 type="button"
                 variant="outline"
                 size="icon"
+                disabled={!result?.temporaryPassword}
                 onClick={() => void copyPassword()}
                 aria-label="Copy temporary password"
               >
@@ -712,12 +713,12 @@ function InviteAdminDialog({
             </DialogHeader>
             <Field
               label="Temporary password"
-              hint="They should sign in and change this password on first use."
+              hint="Shown once here for backup. They should sign in and change it on first use."
             >
               <div className="flex gap-2">
                 <Input
                   readOnly
-                  value={inviteResult.temporaryPassword}
+                  value={inviteResult.temporaryPassword || ""}
                   className="font-mono"
                   aria-label="Temporary password"
                 />
@@ -725,6 +726,7 @@ function InviteAdminDialog({
                   type="button"
                   variant="outline"
                   size="icon"
+                  disabled={!inviteResult.temporaryPassword}
                   onClick={copyPassword}
                   aria-label="Copy temporary password"
                 >

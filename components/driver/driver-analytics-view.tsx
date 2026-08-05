@@ -4,7 +4,6 @@ import * as React from "react"
 import useSWR from "swr"
 import {
   BanknoteIcon,
-  TrendingUpIcon,
   WalletIcon,
 } from "lucide-react"
 
@@ -28,13 +27,29 @@ import {
   toDateInputValue,
 } from "@/lib/dashboard"
 import { formatMoney } from "@/lib/format"
+import { useDriverT, type DriverMessageKey } from "@/lib/i18n/driver"
 import type { DriverAnalyticsReport } from "@/lib/types"
 
 type DatePreset = {
   id: string
-  label: string
+  labelKey: string
   from: string
   to: string
+}
+
+type Translate = (
+  key: DriverMessageKey | string,
+  vars?: Record<string, string | number>,
+) => string
+
+function plural(
+  t: Translate,
+  key: string,
+  count: number,
+  vars?: Record<string, string | number>,
+) {
+  const resolved = count === 1 ? key : `${key}_other`
+  return t(resolved, { count, ...vars })
 }
 
 function buildPresets(now = new Date()): DatePreset[] {
@@ -44,28 +59,31 @@ function buildPresets(now = new Date()): DatePreset[] {
   const last30 = toDateInputValue(addDays(startOfDay(now), -29))
 
   return [
-    { id: "today", label: "Today", from: today, to: today },
-    { id: "week", label: "This week", from: weekStart, to: today },
-    { id: "month", label: "This month", from: monthStart, to: today },
-    { id: "30d", label: "Last 30 days", from: last30, to: today },
+    { id: "today", labelKey: "analytics.presetToday", from: today, to: today },
+    { id: "week", labelKey: "analytics.presetWeek", from: weekStart, to: today },
+    {
+      id: "month",
+      labelKey: "analytics.presetMonth",
+      from: monthStart,
+      to: today,
+    },
+    { id: "30d", labelKey: "analytics.preset30d", from: last30, to: today },
   ]
 }
 
 function DailyChart({
   series,
   currency,
+  emptyLabel,
 }: {
   series: DriverAnalyticsReport["dailySeries"]
   currency: string
+  emptyLabel: string
 }) {
   const max = Math.max(...series.map((point) => point.total), 1)
 
   if (series.every((point) => point.total === 0)) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        No payments in this date range.
-      </p>
-    )
+    return <p className="text-sm text-muted-foreground">{emptyLabel}</p>
   }
 
   return (
@@ -95,6 +113,7 @@ function DailyChart({
 }
 
 export function DriverAnalyticsView() {
+  const t = useDriverT()
   const presets = React.useMemo(() => buildPresets(), [])
   const [dateFrom, setDateFrom] = React.useState(presets[2]!.from)
   const [dateTo, setDateTo] = React.useState(presets[2]!.to)
@@ -117,16 +136,16 @@ export function DriverAnalyticsView() {
   return (
     <div className="flex min-h-dvh flex-col">
       <DriverPageHeader
-        title="Analytics"
-        description="Your earnings based on when payment was received"
+        title={t("analytics.title")}
+        description={t("analytics.description")}
       />
 
       <div className="flex flex-1 flex-col gap-5 p-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:gap-6 sm:p-4 md:p-6">
         <Card>
           <CardHeader className="gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <CardTitle className="text-base">Date range</CardTitle>
-              <CardDescription>Filter by payment received date</CardDescription>
+              <CardTitle className="text-base">{t("analytics.dateRange")}</CardTitle>
+              <CardDescription>{t("analytics.dateRangeHint")}</CardDescription>
             </div>
             <div className="flex flex-wrap gap-2">
               {presets.map((preset) => (
@@ -145,21 +164,29 @@ export function DriverAnalyticsView() {
                     setDateTo(preset.to)
                   }}
                 >
-                  {preset.label}
+                  {t(preset.labelKey)}
                 </Button>
               ))}
             </div>
           </CardHeader>
           <CardContent className="grid gap-3 sm:grid-cols-2">
-            <AdminDateField label="From" value={dateFrom} onChange={setDateFrom} />
-            <AdminDateField label="To" value={dateTo} onChange={setDateTo} />
+            <AdminDateField
+              label={t("analytics.from")}
+              value={dateFrom}
+              onChange={setDateFrom}
+            />
+            <AdminDateField
+              label={t("analytics.to")}
+              value={dateTo}
+              onChange={setDateTo}
+            />
           </CardContent>
         </Card>
 
         {error ? (
           <Card className="border-destructive/30 bg-destructive/5">
             <CardContent className="pt-6 text-sm text-destructive">
-              {(error as Error).message || "Could not load analytics."}
+              {(error as Error).message || t("analytics.loadError")}
             </CardContent>
           </Card>
         ) : null}
@@ -173,24 +200,30 @@ export function DriverAnalyticsView() {
             <>
               <Card>
                 <CardHeader>
-                  <CardDescription>Total collected</CardDescription>
+                  <CardDescription>{t("analytics.totalCollected")}</CardDescription>
                   <CardTitle className="text-2xl tabular-nums">
                     {data.summary.totalCollectedLabel}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-xs text-muted-foreground">
-                    {data.summary.tripCount} trip
-                    {data.summary.tripCount === 1 ? "" : "s"} ·{" "}
-                    {data.summary.paymentCount} payment
-                    {data.summary.paymentCount === 1 ? "" : "s"}
+                    {t(
+                      data.summary.tripCount === 1 &&
+                        data.summary.paymentCount === 1
+                        ? "analytics.tripsPayments"
+                        : "analytics.tripsPayments_other",
+                      {
+                        trips: data.summary.tripCount,
+                        payments: data.summary.paymentCount,
+                      },
+                    )}
                   </p>
                 </CardContent>
               </Card>
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
-                    <CardDescription>Cash</CardDescription>
+                    <CardDescription>{t("analytics.cash")}</CardDescription>
                     <BanknoteIcon className="size-4 text-muted-foreground" />
                   </div>
                   <CardTitle className="text-2xl tabular-nums">
@@ -201,7 +234,7 @@ export function DriverAnalyticsView() {
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
-                    <CardDescription>Online</CardDescription>
+                    <CardDescription>{t("analytics.online")}</CardDescription>
                     <WalletIcon className="size-4 text-muted-foreground" />
                   </div>
                   <CardTitle className="text-2xl tabular-nums">
@@ -217,23 +250,29 @@ export function DriverAnalyticsView() {
           <>
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Daily revenue</CardTitle>
-                <CardDescription>Total collected per day</CardDescription>
+                <CardTitle className="text-base">
+                  {t("analytics.dailyRevenue")}
+                </CardTitle>
+                <CardDescription>{t("analytics.dailyHint")}</CardDescription>
               </CardHeader>
               <CardContent>
-                <DailyChart series={data.dailySeries} currency={data.currency} />
+                <DailyChart
+                  series={data.dailySeries}
+                  currency={data.currency}
+                  emptyLabel={t("analytics.noPaymentsRange")}
+                />
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">By route</CardTitle>
-                <CardDescription>Cash and online per destination</CardDescription>
+                <CardTitle className="text-base">{t("analytics.byRoute")}</CardTitle>
+                <CardDescription>{t("analytics.byRouteHint")}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-2">
                 {data.byRoute.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
-                    No payments in this period.
+                    {t("analytics.noPaymentsPeriod")}
                   </p>
                 ) : (
                   data.byRoute.map((row) => (
@@ -247,8 +286,7 @@ export function DriverAnalyticsView() {
                             {row.routeLabel}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {row.tripCount} trip
-                            {row.tripCount === 1 ? "" : "s"}
+                            {plural(t, "analytics.tripCount", row.tripCount)}
                           </p>
                         </div>
                         <p className="shrink-0 text-sm font-semibold tabular-nums">
@@ -257,16 +295,14 @@ export function DriverAnalyticsView() {
                       </div>
                       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                         <span>
-                          Cash:{" "}
-                          <span className="font-medium tabular-nums text-foreground">
-                            {row.cashCollectedLabel}
-                          </span>
+                          {t("analytics.cashLabel", {
+                            amount: row.cashCollectedLabel,
+                          })}
                         </span>
                         <span>
-                          Online:{" "}
-                          <span className="font-medium tabular-nums text-foreground">
-                            {row.onlineCollectedLabel}
-                          </span>
+                          {t("analytics.onlineLabel", {
+                            amount: row.onlineCollectedLabel,
+                          })}
                         </span>
                       </div>
                     </div>

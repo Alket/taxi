@@ -11,10 +11,17 @@ export function AdminThemeToggle({
   className,
   variant = "outline",
   showLabel = false,
+  labels,
 }: {
   className?: string
   variant?: "outline" | "ghost" | "secondary"
   showLabel?: boolean
+  labels?: {
+    light: string
+    dark: string
+    toLight: string
+    toDark: string
+  }
 }) {
   const { resolvedTheme, setTheme } = useTheme()
   const [mounted, setMounted] = React.useState(false)
@@ -24,6 +31,10 @@ export function AdminThemeToggle({
   }, [])
 
   const isDark = mounted && resolvedTheme === "dark"
+  const lightLabel = labels?.light ?? "Light mode"
+  const darkLabel = labels?.dark ?? "Dark mode"
+  const toLight = labels?.toLight ?? "Switch to light mode"
+  const toDark = labels?.toDark ?? "Switch to dark mode"
 
   return (
     <Button
@@ -36,14 +47,12 @@ export function AdminThemeToggle({
           : "size-10 touch-manipulation sm:size-8",
         className,
       )}
-      aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+      aria-label={isDark ? toLight : toDark}
       onClick={() => setTheme(isDark ? "light" : "dark")}
       disabled={!mounted}
     >
       {isDark ? <SunIcon /> : <MoonIcon />}
-      {showLabel ? (
-        <span>{isDark ? "Light mode" : "Dark mode"}</span>
-      ) : null}
+      {showLabel ? <span>{isDark ? lightLabel : darkLabel}</span> : null}
     </Button>
   )
 }

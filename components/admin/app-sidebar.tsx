@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
+import useSWR from "swr"
 import {
   BarChart3,
   Bell,
@@ -32,7 +33,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { useAdminSession } from "@/hooks/use-admin-session"
-import { apiPost } from "@/lib/api"
+import { apiPost, fetcher } from "@/lib/api"
 import {
   ADMIN_ROLE_LABELS,
   initialsFromName,
@@ -57,6 +58,12 @@ export function AppSidebar() {
   const router = useRouter()
   const { isMobile, setOpenMobile } = useSidebar()
   const { user, isLoading, isAdmin } = useAdminSession()
+  const { data: publicSettings } = useSWR<{ companyName?: string }>(
+    "/api/settings/public",
+    fetcher,
+  )
+  const companyName =
+    publicSettings?.companyName?.trim() || "Transfer Ops"
 
   async function handleLogout() {
     await apiPost("/api/admin/logout")
@@ -84,8 +91,8 @@ export function AppSidebar() {
           <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-sidebar-primary text-sidebar-primary-foreground sm:size-9 sm:rounded-lg">
             <Plane className="size-5" />
           </div>
-          <div className="flex flex-col leading-tight">
-            <span className="text-sm font-semibold">Transfer Ops</span>
+          <div className="flex min-w-0 flex-col leading-tight">
+            <span className="truncate text-sm font-semibold">{companyName}</span>
             <span className="text-xs text-sidebar-foreground/60">
               {roleLabel ? `${roleLabel} console` : "Admin Console"}
             </span>

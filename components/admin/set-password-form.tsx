@@ -8,6 +8,7 @@ import { mutate } from "swr"
 
 import { apiPost } from "@/lib/api"
 import { useAdminSession } from "@/hooks/use-admin-session"
+import type { AdminUser } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -21,6 +22,19 @@ import {
 import { AdminThemeToggle } from "@/components/admin/theme-toggle"
 import { Skeleton } from "@/components/ui/skeleton"
 
+function RedirectingCard() {
+  return (
+    <Card className="w-full max-w-sm">
+      <CardContent className="flex flex-col gap-3 py-8">
+        <Skeleton className="mx-auto size-11 rounded-xl" />
+        <Skeleton className="mx-auto h-5 w-40" />
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-full" />
+      </CardContent>
+    </Card>
+  )
+}
+
 export function SetPasswordForm() {
   const router = useRouter()
   const { user, isLoading } = useAdminSession()
@@ -28,6 +42,7 @@ export function SetPasswordForm() {
   const [password, setPassword] = React.useState("")
   const [confirm, setConfirm] = React.useState("")
   const [pending, setPending] = React.useState(false)
+  const [completed, setCompleted] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
 
   React.useEffect(() => {
@@ -36,7 +51,7 @@ export function SetPasswordForm() {
   }, [user])
 
   React.useEffect(() => {
-    if (isLoading) return
+    if (isLoading || completed || pending) return
     if (!user) {
       router.replace("/admin/login")
       return
@@ -44,7 +59,7 @@ export function SetPasswordForm() {
     if (!user.requiresPasswordReset) {
       router.replace("/admin")
     }
-  }, [isLoading, user, router])
+  }, [isLoading, user, router, completed, pending])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -59,34 +74,25 @@ export function SetPasswordForm() {
     setPending(true)
     setError(null)
     try {
-      await apiPost("/api/admin/set-password", {
+      const res = await apiPost<{ user: AdminUser }>("/api/admin/set-password", {
         password,
         name: name.trim() || undefined,
       })
-      await mutate("/api/admin/me")
+      // Seed session cache, then hard-navigate so the set-password card cannot stick.
+      await mutate("/api/admin/me", { user: res.user }, { revalidate: false })
+      setCompleted(true)
       toast.success("Password saved. Welcome aboard.")
-      router.push("/admin")
-      router.refresh()
+      window.location.assign("/admin")
     } catch (err) {
       const message = (err as Error).message
       setError(message)
       toast.error(message)
-    } finally {
       setPending(false)
     }
   }
 
-  if (isLoading || !user?.requiresPasswordReset) {
-    return (
-      <Card className="w-full max-w-sm">
-        <CardContent className="flex flex-col gap-3 py-8">
-          <Skeleton className="mx-auto size-11 rounded-xl" />
-          <Skeleton className="mx-auto h-5 w-40" />
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-10 w-full" />
-        </CardContent>
-      </Card>
-    )
+  if (isLoading || completed || !user?.requiresPasswordReset) {
+    return <RedirectingCard />
   }
 
   return (
@@ -104,7 +110,7 @@ export function SetPasswordForm() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form onSubmit={(e) => void handleSubmit(e)} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="name">Display name</Label>
             <Input

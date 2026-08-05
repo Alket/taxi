@@ -6,12 +6,15 @@ import { Loader2Icon } from "lucide-react"
 
 import { apiPost } from "@/lib/api"
 import { AdminThemeToggle } from "@/components/admin/theme-toggle"
+import { DriverLanguageSwitcher } from "@/components/driver/driver-language-switcher"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { useDriverT } from "@/lib/i18n/driver"
 
 export default function DriverLoginPage() {
   const router = useRouter()
+  const t = useDriverT()
   const [phone, setPhone] = React.useState("")
   const [pin, setPin] = React.useState("")
   const [error, setError] = React.useState<string | null>(null)
@@ -26,7 +29,7 @@ export default function DriverLoginPage() {
       router.push("/driver")
       router.refresh()
     } catch (err) {
-      setError((err as Error).message || "Login failed.")
+      setError((err as Error).message || t("login.failed"))
     } finally {
       setPending(false)
     }
@@ -34,20 +37,26 @@ export default function DriverLoginPage() {
 
   return (
     <div className="relative mx-auto flex min-h-dvh w-full max-w-sm flex-col justify-center gap-6 px-4 py-10">
-      <div className="absolute top-4 right-4">
-        <AdminThemeToggle />
+      <div className="absolute top-4 right-4 flex items-center gap-2">
+        <DriverLanguageSwitcher size="sm" />
+        <AdminThemeToggle
+          labels={{
+            light: t("theme.light"),
+            dark: t("theme.dark"),
+            toLight: t("theme.toLight"),
+            toDark: t("theme.toDark"),
+          }}
+        />
       </div>
 
       <div className="text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">Driver login</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Sign in with your phone number and dashboard PIN.
-        </p>
+        <h1 className="text-2xl font-semibold tracking-tight">{t("login.title")}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{t("login.subtitle")}</p>
       </div>
 
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="phone">Phone</Label>
+          <Label htmlFor="phone">{t("login.phone")}</Label>
           <Input
             id="phone"
             type="tel"
@@ -59,7 +68,7 @@ export default function DriverLoginPage() {
           />
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="pin">PIN</Label>
+          <Label htmlFor="pin">{t("login.pin")}</Label>
           <Input
             id="pin"
             type="password"
@@ -83,10 +92,10 @@ export default function DriverLoginPage() {
           {pending ? (
             <>
               <Loader2Icon className="animate-spin" data-icon="inline-start" />
-              Signing in…
+              {t("login.signingIn")}
             </>
           ) : (
-            "Sign in"
+            t("login.submit")
           )}
         </Button>
       </form>

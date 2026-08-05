@@ -45,6 +45,14 @@ import {
 } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { apiPatch, apiPost, fetcher } from "@/lib/api"
+import {
+  DRIVER_INTL_LOCALE,
+  useDriverLocale,
+  useDriverT,
+  type DriverLocale,
+  type DriverMessageKey,
+} from "@/lib/i18n/driver"
+import { APP_TIMEZONE } from "@/lib/timezone"
 import type { BookingStatus, Driver, PaymentStatus } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
@@ -105,7 +113,48 @@ type DashboardPayload = {
   }
 }
 
-function monthOptions(from: Date, count = 12) {
+type Translate = (
+  key: DriverMessageKey | string,
+  vars?: Record<string, string | number>,
+) => string
+
+function plural(
+  t: Translate,
+  key: string,
+  count: number,
+  vars?: Record<string, string | number>,
+) {
+  const resolved = count === 1 ? key : `${key}_other`
+  return t(resolved, { count, ...vars })
+}
+
+function formatPickupLabel(iso: string, locale: DriverLocale) {
+  return new Intl.DateTimeFormat(DRIVER_INTL_LOCALE[locale], {
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: APP_TIMEZONE,
+  }).format(new Date(iso))
+}
+
+function statusLabel(t: Translate, status: BookingStatus) {
+  return t(`status.${status}`)
+}
+
+function cashHintLabel(
+  t: Translate,
+  cashAmount: number,
+  paymentStatus: PaymentStatus,
+) {
+  if (cashAmount <= 0) return t("cash.nothing")
+  if (paymentStatus === "deposit_paid") return t("cash.balance")
+  return t("cash.full")
+}
+
+function monthOptions(from: Date, locale: DriverLocale, count = 12) {
   const options: { value: string; label: string; year: number; month: number }[] =
     []
   for (let i = 0; i < count; i++) {
@@ -116,7 +165,7 @@ function monthOptions(from: Date, count = 12) {
       value: `${year}-${month}`,
       year,
       month,
-      label: new Intl.DateTimeFormat("en-GB", {
+      label: new Intl.DateTimeFormat(DRIVER_INTL_LOCALE[locale], {
         month: "long",
         year: "numeric",
       }).format(d),
@@ -129,8 +178,10 @@ export function DriverDashboardView() {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const t = useDriverT()
+  const locale = useDriverLocale()
   const now = React.useMemo(() => new Date(), [])
-  const months = React.useMemo(() => monthOptions(now), [now])
+  const months = React.useMemo(() => monthOptions(now, locale), [now, locale])
   const [monthKey, setMonthKey] = React.useState(
     `${now.getFullYear()}-${now.getMonth() + 1}`,
   )
@@ -158,9 +209,6 @@ export function DriverDashboardView() {
   React.useEffect(() => {
     if (focusBookingId) setFocusedTripId(focusBookingId)
   }, [focusBookingId])
-
-  // When a push notification is clicked while the PWA is already open.
-  // Handled globally by PushNotificationClickHandler in the driver layout.
 
   const today = data?.today ?? []
   const upcoming = data?.upcoming ?? []
@@ -199,9 +247,9 @@ export function DriverDashboardView() {
       toast.success(
         trip.nextStatus === "arrived"
           ? trip.cashToCollect > 0
-            ? "Marked Arrived — collect cash, then confirm Cash Paid."
-            : "Marked Arrived — passenger on board."
-          : "Trip completed.",
+            ? t("trips.toastArrivedCash")
+            : t("trips.toastArrived")
+          : t("trips.toastCompleted"),
       )
       await mutate()
     } catch (err) {
@@ -216,7 +264,7 @@ export function DriverDashboardView() {
     try {
       await apiPost(`/api/driver/bookings/${trip.id}/cash-paid`)
       toast.success(
-        `Cash paid recorded — ${trip.cashToCollectLabel}. You can mark the trip completed.`,
+        t("trips.toastCashPaid", { amount: trip.cashToCollectLabel }),
       )
       await mutate()
     } catch (err) {
@@ -232,9 +280,7 @@ export function DriverDashboardView() {
       await apiPost(`/api/driver/bookings/${trip.id}/respond`, { action })
       if (action === "reject") setRejectTrip(null)
       toast.success(
-        action === "accept"
-          ? "Trip accepted. You can mark Arrived when you are there."
-          : "Trip rejected. Ops can assign another driver.",
+        action === "accept" ? t("trips.toastAccepted") : t("trips.toastRejected"),
       )
       await mutate()
     } catch (err) {
@@ -251,11 +297,11 @@ export function DriverDashboardView() {
   return (
     <div className="flex min-h-dvh flex-col">
       <DriverPageHeader
-        title={me?.driver.name ?? "Trips"}
+        title={me?.driver.name ?? t("trips.title")}
         description={
           me?.driver.plateNumber
-            ? `Plate ${me.driver.plateNumber}`
-            : "Your assigned transfers"
+            ? t("trips.plate", { plate: me.driver.plateNumber })
+            : t("trips.assigned")
         }
       />
 
@@ -269,11 +315,13 @@ export function DriverDashboardView() {
               aria-expanded={cashOpen}
             >
               <div className="min-w-0">
-                <CardTitle className="text-base">Cash & balances</CardTitle>
+                <CardTitle className="text-base">{t("trips.cashBalances")}</CardTitle>
                 <CardDescription className="mt-0.5">
                   {outstanding
-                    ? `${outstanding.cashToCollectLabel} to collect`
-                    : "What you need to collect now"}
+                    ? t("trips.cashToCollectSuffix", {
+                        amount: outstanding.cashToCollectLabel,
+                      })
+                    : t("trips.cashBalancesHint")}
                 </CardDescription>
               </div>
               <ChevronDownIcon
@@ -295,25 +343,24 @@ export function DriverDashboardView() {
                 <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
                   <div className="rounded-lg border bg-amber-500/5 p-3">
                     <p className="text-[11px] tracking-wide text-muted-foreground uppercase">
-                      Cash to collect
+                      {t("trips.cashToCollect")}
                     </p>
                     <p className="mt-1 text-2xl font-semibold tabular-nums">
                       {outstanding.cashToCollectLabel}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      Ready on arrived trips
+                      {t("trips.readyOnArrived")}
                     </p>
                   </div>
                   <div className="rounded-lg border p-3">
                     <p className="text-[11px] tracking-wide text-muted-foreground uppercase">
-                      Unpaid balances
+                      {t("trips.unpaidBalances")}
                     </p>
                     <p className="mt-1 text-2xl font-semibold tabular-nums">
                       {outstanding.unpaidBalancesLabel}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {outstanding.unpaidTripCount} active trip
-                      {outstanding.unpaidTripCount === 1 ? "" : "s"} with cash due
+                      {plural(t, "trips.unpaidTripCount", outstanding.unpaidTripCount)}
                     </p>
                   </div>
                 </div>
@@ -330,11 +377,15 @@ export function DriverDashboardView() {
                 aria-expanded={revenueOpen}
               >
                 <div className="min-w-0">
-                  <CardTitle className="text-base">Revenue this month</CardTitle>
+                  <CardTitle className="text-base">
+                    {t("trips.revenueMonth")}
+                  </CardTitle>
                   <CardDescription className="mt-0.5">
                     {revenue
-                      ? `${revenue.totalLabel} · ${revenue.completedTrips} trip${revenue.completedTrips === 1 ? "" : "s"}`
-                      : "Completed trip totals"}
+                      ? plural(t, "trips.revenueSummary", revenue.completedTrips, {
+                          amount: revenue.totalLabel,
+                        })
+                      : t("trips.completedTotals")}
                   </CardDescription>
                 </div>
                 <ChevronDownIcon
@@ -394,7 +445,7 @@ export function DriverDashboardView() {
                   <div className="rounded-lg border bg-muted/30 p-3">
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-[11px] tracking-wide text-muted-foreground uppercase">
-                        Trip totals
+                        {t("trips.tripTotals")}
                       </p>
                       <TrendingUpIcon className="size-4 text-primary" />
                     </div>
@@ -402,14 +453,13 @@ export function DriverDashboardView() {
                       {revenue.totalLabel}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {revenue.completedTrips} completed trip
-                      {revenue.completedTrips === 1 ? "" : "s"}
+                      {plural(t, "trips.completedTrips", revenue.completedTrips)}
                     </p>
                   </div>
                   <div className="rounded-lg border p-3">
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-[11px] tracking-wide text-muted-foreground uppercase">
-                        Cash collected
+                        {t("trips.cashCollected")}
                       </p>
                       <WalletIcon className="size-4 text-muted-foreground" />
                     </div>
@@ -417,7 +467,7 @@ export function DriverDashboardView() {
                       {revenue.cashCollectedLabel}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      From completed trips
+                      {t("trips.fromCompleted")}
                     </p>
                   </div>
                 </div>
@@ -437,7 +487,7 @@ export function DriverDashboardView() {
         ) : error ? (
           <Card className="border-destructive/30 bg-destructive/5">
             <CardContent className="pt-6 text-sm text-destructive">
-              {(error as Error).message || "Could not load trips."}
+              {(error as Error).message || t("trips.loadError")}
             </CardContent>
           </Card>
         ) : (
@@ -448,19 +498,19 @@ export function DriverDashboardView() {
           >
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="today">
-                Today
+                {t("trips.tabToday")}
                 <span className="ml-1 tabular-nums text-muted-foreground">
                   ({today.length})
                 </span>
               </TabsTrigger>
               <TabsTrigger value="upcoming">
-                Upcoming
+                {t("trips.tabUpcoming")}
                 <span className="ml-1 tabular-nums text-muted-foreground">
                   ({upcoming.length})
                 </span>
               </TabsTrigger>
               <TabsTrigger value="history">
-                History
+                {t("trips.tabHistory")}
                 <span className="ml-1 tabular-nums text-muted-foreground">
                   ({history.length})
                 </span>
@@ -469,7 +519,7 @@ export function DriverDashboardView() {
 
             <TabsContent value="today" className="mt-0">
               <TripList
-                empty="No trips scheduled for today."
+                empty={t("trips.emptyToday")}
                 trips={today}
                 pendingId={pendingId}
                 focusedTripId={focusedTripId}
@@ -482,7 +532,7 @@ export function DriverDashboardView() {
             </TabsContent>
             <TabsContent value="upcoming" className="mt-0">
               <TripList
-                empty="No upcoming trips after today."
+                empty={t("trips.emptyUpcoming")}
                 trips={upcoming}
                 pendingId={pendingId}
                 focusedTripId={focusedTripId}
@@ -495,7 +545,7 @@ export function DriverDashboardView() {
             </TabsContent>
             <TabsContent value="history" className="mt-0">
               <TripList
-                empty="No past trips yet."
+                empty={t("trips.emptyHistory")}
                 trips={history}
                 pendingId={pendingId}
                 focusedTripId={focusedTripId}
@@ -520,16 +570,17 @@ export function DriverDashboardView() {
         <AlertDialogContent className="max-w-[calc(100%-2rem)] sm:max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Reject trip {rejectTrip?.referenceCode}?
+              {t("trips.rejectTitle", {
+                code: rejectTrip?.referenceCode ?? "",
+              })}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              It will go back to ops for reassignment. You will no longer see
-              this trip on your list.
+              {t("trips.rejectDescription")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={pendingId === rejectTrip?.id}>
-              Keep trip
+              {t("trips.keepTrip")}
             </AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
@@ -546,10 +597,10 @@ export function DriverDashboardView() {
                     className="animate-spin"
                     data-icon="inline-start"
                   />
-                  Rejecting…
+                  {t("trips.rejecting")}
                 </>
               ) : (
-                "Reject trip"
+                t("trips.rejectTrip")
               )}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -632,9 +683,14 @@ function TripCard({
   onReject: () => void
   onFocused?: () => void
 }) {
+  const t = useDriverT()
+  const locale = useDriverLocale()
   const cardRef = React.useRef<HTMLLIElement>(null)
   const [detailsOpen, setDetailsOpen] = React.useState(focused)
   const showDetails = !readOnly || detailsOpen || focused
+  const pickupLabel = formatPickupLabel(trip.pickupDateTime, locale)
+  const tripStatus = statusLabel(t, trip.status)
+  const hint = cashHintLabel(t, trip.cashToCollect, trip.paymentStatus)
 
   React.useEffect(() => {
     if (!focused) return
@@ -668,12 +724,10 @@ function TripCard({
                 {trip.referenceCode}
               </p>
               <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium">
-                {trip.statusLabel}
+                {tripStatus}
               </span>
             </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {trip.pickupLabel}
-            </p>
+            <p className="mt-1 text-xs text-muted-foreground">{pickupLabel}</p>
             <p className="mt-1.5 truncate text-sm font-medium">
               {trip.pickupAddress}
               <span className="mx-1.5 text-muted-foreground">→</span>
@@ -696,10 +750,10 @@ function TripCard({
             <p className="font-mono text-sm font-semibold">
               {trip.referenceCode}
             </p>
-            <p className="text-xs text-muted-foreground">{trip.pickupLabel}</p>
+            <p className="text-xs text-muted-foreground">{pickupLabel}</p>
           </div>
           <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium">
-            {trip.statusLabel}
+            {tripStatus}
           </span>
         </div>
       )}
@@ -716,14 +770,14 @@ function TripCard({
             <div className="flex gap-2">
               <MapPinIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
               <div className="min-w-0">
-                <p className="text-xs text-muted-foreground">Pickup</p>
+                <p className="text-xs text-muted-foreground">{t("trips.pickup")}</p>
                 <p className="break-words font-medium">{trip.pickupAddress}</p>
               </div>
             </div>
             <div className="flex gap-2">
               <MapPinIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
               <div className="min-w-0">
-                <p className="text-xs text-muted-foreground">Drop-off</p>
+                <p className="text-xs text-muted-foreground">{t("trips.dropoff")}</p>
                 <p className="break-words font-medium">{trip.dropoffAddress}</p>
               </div>
             </div>
@@ -738,13 +792,13 @@ function TripCard({
           >
             <BanknoteIcon className="mt-0.5 size-4 shrink-0" />
             <div className="min-w-0">
-              <p className="text-xs text-muted-foreground">{trip.cashHint}</p>
+              <p className="text-xs text-muted-foreground">{hint}</p>
               <p className="text-base font-semibold tabular-nums">
                 {trip.cashToCollectLabel}
               </p>
               <p className="text-[11px] text-muted-foreground">
-                Trip total {trip.totalPriceLabel}
-                {trip.depositPaid > 0 ? ` · Deposit paid online` : ""}
+                {t("trips.tripTotal", { amount: trip.totalPriceLabel })}
+                {trip.depositPaid > 0 ? ` · ${t("trips.depositPaid")}` : ""}
               </p>
             </div>
           </div>
@@ -752,11 +806,16 @@ function TripCard({
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1">
               <UsersIcon className="size-3.5" />
-              {trip.passengerCount} pax · {trip.luggageCount} bags
+              {t("trips.paxBags", {
+                pax: trip.passengerCount,
+                bags: trip.luggageCount,
+              })}
             </span>
-            <span>PIN {trip.pickupPin}</span>
-            {trip.flightNumber ? <span>Flight {trip.flightNumber}</span> : null}
-            {trip.meetAndGreet ? <span>Meet & greet</span> : null}
+            <span>{t("trips.pin", { pin: trip.pickupPin })}</span>
+            {trip.flightNumber ? (
+              <span>{t("trips.flight", { flight: trip.flightNumber })}</span>
+            ) : null}
+            {trip.meetAndGreet ? <span>{t("trips.meetGreet")}</span> : null}
             <span>{trip.customerName}</span>
           </div>
 
@@ -766,7 +825,9 @@ function TripCard({
                 <div className="flex items-start gap-2 rounded-lg border bg-muted/40 px-3 py-2">
                   <ArmchairIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                   <div className="min-w-0">
-                    <p className="text-xs text-muted-foreground">Child seats</p>
+                    <p className="text-xs text-muted-foreground">
+                      {t("trips.childSeats")}
+                    </p>
                     <p className="text-sm font-medium break-words">
                       {trip.childSeats}
                     </p>
@@ -778,7 +839,7 @@ function TripCard({
                   <MessageSquareIcon className="mt-0.5 size-4 shrink-0 text-sky-700 dark:text-sky-300" />
                   <div className="min-w-0">
                     <p className="text-xs text-muted-foreground">
-                      Passenger comment
+                      {t("trips.passengerComment")}
                     </p>
                     <p className="text-sm font-medium break-words">
                       {trip.driverNotes}
@@ -794,8 +855,7 @@ function TripCard({
               {trip.needsResponse ? (
                 <>
                   <p className="text-xs text-muted-foreground">
-                    Ops assigned this trip — accept to continue, or reject to send
-                    it back.
+                    {t("trips.needsResponse")}
                   </p>
                   <div className="grid grid-cols-2 gap-2">
                     <Button
@@ -811,10 +871,10 @@ function TripCard({
                             className="animate-spin"
                             data-icon="inline-start"
                           />
-                          Updating…
+                          {t("trips.updating")}
                         </>
                       ) : (
-                        "Accept"
+                        t("trips.accept")
                       )}
                     </Button>
                     <Button
@@ -825,7 +885,7 @@ function TripCard({
                       disabled={pending}
                       onClick={onReject}
                     >
-                      Reject
+                      {t("trips.reject")}
                     </Button>
                   </div>
                 </>
@@ -845,12 +905,12 @@ function TripCard({
                         className="animate-spin"
                         data-icon="inline-start"
                       />
-                      Updating…
+                      {t("trips.updating")}
                     </>
                   ) : (
                     <>
                       <BanknoteIcon data-icon="inline-start" />
-                      Cash Paid
+                      {t("trips.cashPaid")}
                     </>
                   )}
                 </Button>
@@ -871,12 +931,12 @@ function TripCard({
                         className="animate-spin"
                         data-icon="inline-start"
                       />
-                      Updating…
+                      {t("trips.updating")}
                     </>
                   ) : trip.nextStatus === "arrived" ? (
-                    "Mark Arrived"
+                    t("trips.markArrived")
                   ) : (
-                    "Mark Completed"
+                    t("trips.markCompleted")
                   )}
                 </Button>
               ) : null}

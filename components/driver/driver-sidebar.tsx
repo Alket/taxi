@@ -12,6 +12,7 @@ import {
 
 import { AdminThemeToggle } from "@/components/admin/theme-toggle"
 import { StaffNotificationManager } from "@/components/admin/staff-notifications"
+import { DriverLanguageSwitcher } from "@/components/driver/driver-language-switcher"
 import {
   Sidebar,
   SidebarContent,
@@ -26,12 +27,8 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { apiPost, fetcher } from "@/lib/api"
+import { useDriverT } from "@/lib/i18n/driver"
 import type { Driver } from "@/lib/types"
-
-const navItems = [
-  { title: "Trips", url: "/driver", icon: CalendarClock },
-  { title: "Analytics", url: "/driver/analytics", icon: BarChart3 },
-]
 
 function driverInitials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean)
@@ -43,9 +40,15 @@ function driverInitials(name: string) {
 export function DriverSidebar() {
   const pathname = usePathname()
   const router = useRouter()
+  const t = useDriverT()
   const { isMobile, setOpenMobile } = useSidebar()
   const { data } = useSWR<{ driver: Driver }>("/api/driver/me", fetcher)
   const driver = data?.driver
+
+  const navItems = [
+    { title: t("nav.trips"), url: "/driver", icon: CalendarClock },
+    { title: t("nav.analytics"), url: "/driver/analytics", icon: BarChart3 },
+  ]
 
   async function handleLogout() {
     await apiPost("/api/driver/logout").catch(() => {})
@@ -65,9 +68,11 @@ export function DriverSidebar() {
             <CarFront className="size-5" />
           </div>
           <div className="flex min-w-0 flex-col leading-tight">
-            <span className="truncate text-sm font-semibold">Driver Portal</span>
+            <span className="truncate text-sm font-semibold">
+              {t("sidebar.portal")}
+            </span>
             <span className="truncate text-xs text-sidebar-foreground/60">
-              {driver?.name ?? "Your trips"}
+              {driver?.name ?? t("sidebar.yourTrips")}
             </span>
           </div>
         </div>
@@ -75,7 +80,7 @@ export function DriverSidebar() {
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Menu</SidebarGroupLabel>
+          <SidebarGroupLabel>{t("nav.menu")}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="gap-1">
               {navItems.map((item) => {
@@ -108,11 +113,11 @@ export function DriverSidebar() {
         <div className="flex flex-col gap-2 rounded-xl bg-sidebar-accent/50 p-2.5">
           <div className="flex items-center gap-2.5 px-0.5">
             <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-sidebar-primary/20 text-xs font-semibold text-sidebar-foreground">
-              {driverInitials(driver?.name ?? "Driver")}
+              {driverInitials(driver?.name ?? t("sidebar.driver"))}
             </div>
             <div className="flex min-w-0 flex-1 flex-col leading-tight">
               <span className="truncate text-sm font-medium">
-                {driver?.name ?? "Driver"}
+                {driver?.name ?? t("sidebar.driver")}
               </span>
               <span className="truncate font-mono text-xs text-sidebar-foreground/60">
                 {driver?.plateNumber ?? "—"}
@@ -125,16 +130,28 @@ export function DriverSidebar() {
               showLabel
               variant="ghost"
               className="flex-1 hover:bg-sidebar-accent"
+              labels={{
+                light: t("theme.light"),
+                dark: t("theme.dark"),
+                toLight: t("theme.toLight"),
+                toDark: t("theme.toDark"),
+              }}
             />
           </div>
+          <div className="flex items-center justify-between gap-2 px-0.5">
+            <span className="text-xs text-sidebar-foreground/60">
+              {t("lang.label")}
+            </span>
+            <DriverLanguageSwitcher size="sm" />
+          </div>
           <SidebarMenuButton
-            tooltip="Log out"
+            tooltip={t("sidebar.logout")}
             className="h-10 w-full touch-manipulation justify-start gap-2 px-2.5 hover:bg-sidebar-accent"
             onClick={() => void handleLogout()}
-            aria-label="Log out"
+            aria-label={t("sidebar.logout")}
           >
             <LogOut />
-            <span>Log out</span>
+            <span>{t("sidebar.logout")}</span>
           </SidebarMenuButton>
         </div>
       </SidebarFooter>

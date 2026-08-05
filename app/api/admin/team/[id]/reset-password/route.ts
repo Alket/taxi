@@ -103,6 +103,7 @@ export async function POST(_request: Request, context: RouteContext) {
     user: serializeAdminUser(updated),
     emailSent,
     emailError: emailSent ? undefined : emailError,
-    ...(emailSent ? {} : { temporaryPassword }),
+    // Always return once to the admin who reset — for on-screen copy backup.
+    temporaryPassword,
   })
 }

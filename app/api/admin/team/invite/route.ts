@@ -100,7 +100,9 @@ export async function POST(request: Request) {
       user: serializeAdminUser(user),
       emailSent,
       emailError: emailSent ? undefined : emailError,
-      ...(emailSent ? {} : { temporaryPassword }),
+      // Always return once to the inviting admin so they can copy a backup.
+      // Never logged; only exposed on this authenticated admin-only response.
+      temporaryPassword,
     },
     { status: 201 },
   )
