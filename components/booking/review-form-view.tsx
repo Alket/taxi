@@ -216,16 +216,16 @@ export function ReviewFormView() {
         <div className="rounded-xl border bg-card p-5 text-center">
           <p className="font-medium">
             {done
-              ? "Thank you for your feedback"
+              ? "Thank you for your feedback."
               : "Review already submitted"}
           </p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {done
-              ? "Your review is pending moderation and is not public yet."
-              : payload.reviewStatus === "approved"
+          {!done ? (
+            <p className="mt-2 text-sm text-muted-foreground">
+              {payload.reviewStatus === "approved"
                 ? "Your review for this trip is already on file."
                 : "You already left feedback for this booking."}
-          </p>
+            </p>
+          ) : null}
           <p className="mt-3 font-mono text-sm">{payload.booking.referenceCode}</p>
         </div>
       ) : (

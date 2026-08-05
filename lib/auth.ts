@@ -136,7 +136,7 @@ export async function requireAdmin(
  */
 export async function requireCanDelete(): Promise<NextResponse | null> {
   return requireAdmin(
-    "Your account cannot delete bookings, drivers, or pricing. Ask an admin.",
+    "Your account cannot delete bookings, drivers, pricing, or reviews. Ask an admin.",
   )
 }
 

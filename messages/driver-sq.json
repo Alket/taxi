@@ -58,6 +58,7 @@
   "trips.depositPaid": "Depozita e paguar online",
   "trips.paxBags": "{pax} pasagjerë · {bags} bagazhe",
   "trips.pin": "PIN {pin}",
+  "trips.pickupPin": "PIN i nisjes",
   "trips.flight": "Fluturimi {flight}",
   "trips.meetGreet": "Takim & mirëseardhje",
   "trips.childSeats": "Ndenjëse fëmijësh",
@@ -77,6 +78,7 @@
   "trips.toastRejected": "Udhëtimi u refuzua. Operacionet mund të caktojnë një shofer tjetër.",
 
   "cash.nothing": "Asgjë për t’u mbledhur (paguar online)",
+  "cash.collected": "Paratë u morën në cash",
   "cash.balance": "Mblidhni bilancin në cash",
   "cash.full": "Mblidhni shumën e plotë në cash",
 

@@ -9,14 +9,26 @@ import {
   ClockIcon,
   InboxIcon,
   StarIcon,
+  Trash2Icon,
   XIcon,
 } from "lucide-react"
 
 import { PageHeader } from "@/components/admin/page-header"
 import { PanelCard } from "@/components/settings/shared"
-import { apiPatch, fetcher } from "@/lib/api"
+import { apiDelete, apiPatch, fetcher } from "@/lib/api"
 import { formatDateTime } from "@/lib/format"
+import { useAdminSession } from "@/hooks/use-admin-session"
 import { useIsMobile } from "@/hooks/use-mobile"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -113,6 +125,7 @@ function StatusBadge({ status }: { status: ReviewStatus }) {
 }
 
 function ReviewList({ status }: { status: ReviewStatus | "all" }) {
+  const { canDelete } = useAdminSession()
   const query =
     status === "all"
       ? "/api/admin/reviews"
@@ -122,6 +135,7 @@ function ReviewList({ status }: { status: ReviewStatus | "all" }) {
     fetcher,
   )
   const [pendingId, setPendingId] = React.useState<string | null>(null)
+  const [deleting, setDeleting] = React.useState<AdminReview | null>(null)
   const reviews = data?.reviews ?? []
 
   async function moderate(id: string, next: "approved" | "rejected") {
@@ -131,6 +145,21 @@ function ReviewList({ status }: { status: ReviewStatus | "all" }) {
       toast.success(
         next === "approved" ? "Review approved." : "Review rejected.",
       )
+      await mutate()
+    } catch (err) {
+      toast.error((err as Error).message)
+    } finally {
+      setPendingId(null)
+    }
+  }
+
+  async function remove() {
+    if (!deleting) return
+    setPendingId(deleting.id)
+    try {
+      await apiDelete(`/api/admin/reviews/${deleting.id}`)
+      toast.success(`Review for ${deleting.booking.referenceCode} deleted.`)
+      setDeleting(null)
       await mutate()
     } catch (err) {
       toast.error((err as Error).message)
@@ -173,10 +202,7 @@ function ReviewList({ status }: { status: ReviewStatus | "all" }) {
     <>
       <ul className="flex flex-col gap-3 md:hidden">
         {reviews.map((review) => (
-          <li
-            key={review.id}
-            className="rounded-xl border bg-muted/20 p-4"
-          >
+          <li key={review.id} className="rounded-xl border bg-muted/20 p-4">
             <div className="flex items-start justify-between gap-2">
               <div>
                 <p className="font-mono text-sm font-semibold">
@@ -217,29 +243,43 @@ function ReviewList({ status }: { status: ReviewStatus | "all" }) {
                 ) : null}
               </div>
             )}
-            {review.status === "pending" ? (
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <Button
-                  size="sm"
-                  className="h-10 touch-manipulation"
-                  disabled={pendingId === review.id}
-                  onClick={() => void moderate(review.id, "approved")}
-                >
-                  <CheckIcon data-icon="inline-start" />
-                  Approve
-                </Button>
+            <div className="mt-3 flex flex-col gap-2">
+              {review.status === "pending" ? (
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    size="sm"
+                    className="h-10 touch-manipulation"
+                    disabled={pendingId === review.id}
+                    onClick={() => void moderate(review.id, "approved")}
+                  >
+                    <CheckIcon data-icon="inline-start" />
+                    Approve
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-10 touch-manipulation"
+                    disabled={pendingId === review.id}
+                    onClick={() => void moderate(review.id, "rejected")}
+                  >
+                    <XIcon data-icon="inline-start" />
+                    Reject
+                  </Button>
+                </div>
+              ) : null}
+              {canDelete ? (
                 <Button
                   size="sm"
                   variant="outline"
-                  className="h-10 touch-manipulation"
+                  className="h-10 touch-manipulation text-destructive hover:text-destructive"
                   disabled={pendingId === review.id}
-                  onClick={() => void moderate(review.id, "rejected")}
+                  onClick={() => setDeleting(review)}
                 >
-                  <XIcon data-icon="inline-start" />
-                  Reject
+                  <Trash2Icon data-icon="inline-start" />
+                  Delete
                 </Button>
-              </div>
-            ) : null}
+              ) : null}
+            </div>
           </li>
         ))}
       </ul>
@@ -303,33 +343,81 @@ function ReviewList({ status }: { status: ReviewStatus | "all" }) {
                   <StatusBadge status={review.status} />
                 </TableCell>
                 <TableCell className="pr-4 text-right align-top">
-                  {review.status === "pending" ? (
-                    <div className="inline-flex gap-1">
-                      <Button
-                        size="sm"
-                        disabled={pendingId === review.id}
-                        onClick={() => void moderate(review.id, "approved")}
-                      >
-                        Approve
-                      </Button>
+                  <div className="inline-flex flex-wrap justify-end gap-1">
+                    {review.status === "pending" ? (
+                      <>
+                        <Button
+                          size="sm"
+                          disabled={pendingId === review.id}
+                          onClick={() => void moderate(review.id, "approved")}
+                        >
+                          Approve
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={pendingId === review.id}
+                          onClick={() => void moderate(review.id, "rejected")}
+                        >
+                          Reject
+                        </Button>
+                      </>
+                    ) : null}
+                    {canDelete ? (
                       <Button
                         size="sm"
                         variant="outline"
+                        className="text-destructive hover:text-destructive"
                         disabled={pendingId === review.id}
-                        onClick={() => void moderate(review.id, "rejected")}
+                        onClick={() => setDeleting(review)}
+                        aria-label={`Delete review ${review.booking.referenceCode}`}
                       >
-                        Reject
+                        <Trash2Icon />
                       </Button>
-                    </div>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">—</span>
-                  )}
+                    ) : review.status !== "pending" ? (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    ) : null}
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </div>
+
+      <AlertDialog
+        open={deleting !== null}
+        onOpenChange={(open) => {
+          if (!open && pendingId === null) setDeleting(null)
+        }}
+      >
+        <AlertDialogContent className="max-w-[calc(100%-2rem)] sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Delete review for {deleting?.booking.referenceCode}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes the review. Driver ratings will be
+              recalculated. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={pendingId === deleting?.id}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={!deleting || pendingId === deleting.id}
+              onClick={(e) => {
+                e.preventDefault()
+                void remove()
+              }}
+            >
+              Delete review
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }
@@ -389,9 +477,7 @@ export function ReviewsView() {
             {TABS.map((t) => (
               <TabsContent key={t.value} value={t.value}>
                 <PanelCard title={t.title} description={t.description}>
-                  <ReviewList
-                    status={t.value as ReviewStatus | "all"}
-                  />
+                  <ReviewList status={t.value as ReviewStatus | "all"} />
                 </PanelCard>
               </TabsContent>
             ))}

@@ -8,12 +8,11 @@ import {
   BanknoteIcon,
   CheckCircle2Icon,
   ChevronDownIcon,
+  KeyRoundIcon,
   Loader2Icon,
   MapPinIcon,
   MessageSquareIcon,
-  TrendingUpIcon,
   UsersIcon,
-  WalletIcon,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -36,13 +35,6 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { apiPatch, apiPost, fetcher } from "@/lib/api"
 import {
@@ -82,6 +74,8 @@ type DriverTrip = {
   paymentStatus: PaymentStatus
   cashToCollect: number
   cashToCollectLabel: string
+  cashCollected: boolean
+  hadOnlineDeposit: boolean
   cashHint: string
   canMarkCashPaid: boolean
   needsResponse: boolean
@@ -99,17 +93,6 @@ type DashboardPayload = {
     unpaidBalances: number
     unpaidBalancesLabel: string
     unpaidTripCount: number
-  }
-  revenue: {
-    year: number
-    month: number
-    monthLabel: string
-    completedTrips: number
-    total: number
-    totalLabel: string
-    cashCollected: number
-    cashCollectedLabel: string
-    currency: string
   }
 }
 
@@ -148,30 +131,13 @@ function cashHintLabel(
   t: Translate,
   cashAmount: number,
   paymentStatus: PaymentStatus,
+  cashCollected: boolean,
 ) {
-  if (cashAmount <= 0) return t("cash.nothing")
+  if (cashAmount <= 0) {
+    return cashCollected ? t("cash.collected") : t("cash.nothing")
+  }
   if (paymentStatus === "deposit_paid") return t("cash.balance")
   return t("cash.full")
-}
-
-function monthOptions(from: Date, locale: DriverLocale, count = 12) {
-  const options: { value: string; label: string; year: number; month: number }[] =
-    []
-  for (let i = 0; i < count; i++) {
-    const d = new Date(from.getFullYear(), from.getMonth() - i, 1)
-    const year = d.getFullYear()
-    const month = d.getMonth() + 1
-    options.push({
-      value: `${year}-${month}`,
-      year,
-      month,
-      label: new Intl.DateTimeFormat(DRIVER_INTL_LOCALE[locale], {
-        month: "long",
-        year: "numeric",
-      }).format(d),
-    })
-  }
-  return options
 }
 
 export function DriverDashboardView() {
@@ -179,27 +145,19 @@ export function DriverDashboardView() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const t = useDriverT()
-  const locale = useDriverLocale()
-  const now = React.useMemo(() => new Date(), [])
-  const months = React.useMemo(() => monthOptions(now, locale), [now, locale])
-  const [monthKey, setMonthKey] = React.useState(
-    `${now.getFullYear()}-${now.getMonth() + 1}`,
-  )
-  const selected = months.find((m) => m.value === monthKey) ?? months[0]!
 
   const focusBookingId =
     searchParams.get("bookingId") ?? searchParams.get("booking")
 
   const { data: me } = useSWR<{ driver: Driver }>("/api/driver/me", fetcher)
   const { data, isLoading, mutate, error } = useSWR<DashboardPayload>(
-    `/api/driver/bookings?year=${selected.year}&month=${selected.month}`,
+    "/api/driver/bookings",
     fetcher,
     { refreshInterval: 15_000 },
   )
 
   const [pendingId, setPendingId] = React.useState<string | null>(null)
   const [cashOpen, setCashOpen] = React.useState(false)
-  const [revenueOpen, setRevenueOpen] = React.useState(false)
   const [tab, setTab] = React.useState("today")
   const [rejectTrip, setRejectTrip] = React.useState<DriverTrip | null>(null)
   const [focusedTripId, setFocusedTripId] = React.useState<string | null>(
@@ -214,7 +172,6 @@ export function DriverDashboardView() {
   const upcoming = data?.upcoming ?? []
   const history = data?.history ?? []
   const outstanding = data?.outstanding
-  const revenue = data?.revenue
 
   React.useEffect(() => {
     if (!focusedTripId || !data) return
@@ -306,175 +263,66 @@ export function DriverDashboardView() {
       />
 
       <div className="flex flex-1 flex-col gap-5 p-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:gap-6 sm:p-4 md:p-6">
-        <div className="grid gap-3 lg:grid-cols-2 lg:gap-4">
-          <Card className="gap-0 py-0">
-            <button
-              type="button"
-              className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left touch-manipulation md:cursor-default md:pointer-events-none"
-              onClick={() => setCashOpen((open) => !open)}
-              aria-expanded={cashOpen}
-            >
-              <div className="min-w-0">
-                <CardTitle className="text-base">{t("trips.cashBalances")}</CardTitle>
-                <CardDescription className="mt-0.5">
-                  {outstanding
-                    ? t("trips.cashToCollectSuffix", {
-                        amount: outstanding.cashToCollectLabel,
-                      })
-                    : t("trips.cashBalancesHint")}
-                </CardDescription>
-              </div>
-              <ChevronDownIcon
-                className={cn(
-                  "size-5 shrink-0 text-muted-foreground transition-transform md:hidden",
-                  cashOpen && "rotate-180",
-                )}
-              />
-            </button>
-            <CardContent
-              className={cn(
-                "border-t px-4 pb-4 pt-3",
-                cashOpen ? "block" : "hidden md:block",
-              )}
-            >
-              {isLoading && !outstanding ? (
-                <Skeleton className="h-20 w-full" />
-              ) : outstanding ? (
-                <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
-                  <div className="rounded-lg border bg-amber-500/5 p-3">
-                    <p className="text-[11px] tracking-wide text-muted-foreground uppercase">
-                      {t("trips.cashToCollect")}
-                    </p>
-                    <p className="mt-1 text-2xl font-semibold tabular-nums">
-                      {outstanding.cashToCollectLabel}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {t("trips.readyOnArrived")}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border p-3">
-                    <p className="text-[11px] tracking-wide text-muted-foreground uppercase">
-                      {t("trips.unpaidBalances")}
-                    </p>
-                    <p className="mt-1 text-2xl font-semibold tabular-nums">
-                      {outstanding.unpaidBalancesLabel}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {plural(t, "trips.unpaidTripCount", outstanding.unpaidTripCount)}
-                    </p>
-                  </div>
-                </div>
-              ) : null}
-            </CardContent>
-          </Card>
-
-          <Card className="gap-0 py-0">
-            <div className="flex items-center gap-2 px-4 py-3">
-              <button
-                type="button"
-                className="flex min-w-0 flex-1 items-center justify-between gap-3 text-left touch-manipulation md:cursor-default md:pointer-events-none"
-                onClick={() => setRevenueOpen((open) => !open)}
-                aria-expanded={revenueOpen}
-              >
-                <div className="min-w-0">
-                  <CardTitle className="text-base">
-                    {t("trips.revenueMonth")}
-                  </CardTitle>
-                  <CardDescription className="mt-0.5">
-                    {revenue
-                      ? plural(t, "trips.revenueSummary", revenue.completedTrips, {
-                          amount: revenue.totalLabel,
-                        })
-                      : t("trips.completedTotals")}
-                  </CardDescription>
-                </div>
-                <ChevronDownIcon
-                  className={cn(
-                    "size-5 shrink-0 text-muted-foreground transition-transform md:hidden",
-                    revenueOpen && "rotate-180",
-                  )}
-                />
-              </button>
-              <Select
-                value={monthKey}
-                onValueChange={(value) => {
-                  if (value) setMonthKey(value)
-                }}
-              >
-                <SelectTrigger size="sm" className="hidden w-[11.5rem] shrink-0 md:flex">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {months.map((m) => (
-                    <SelectItem key={m.value} value={m.value}>
-                      {m.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+        <Card className="gap-0 py-0">
+          <button
+            type="button"
+            className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left touch-manipulation md:cursor-default md:pointer-events-none"
+            onClick={() => setCashOpen((open) => !open)}
+            aria-expanded={cashOpen}
+          >
+            <div className="min-w-0">
+              <CardTitle className="text-base">{t("trips.cashBalances")}</CardTitle>
+              <CardDescription className="mt-0.5">
+                {outstanding
+                  ? t("trips.cashToCollectSuffix", {
+                      amount: outstanding.cashToCollectLabel,
+                    })
+                  : t("trips.cashBalancesHint")}
+              </CardDescription>
             </div>
-            <CardContent
+            <ChevronDownIcon
               className={cn(
-                "border-t px-4 pb-4 pt-3",
-                revenueOpen ? "block" : "hidden md:block",
+                "size-5 shrink-0 text-muted-foreground transition-transform md:hidden",
+                cashOpen && "rotate-180",
               )}
-            >
-              <div className="mb-3 md:hidden">
-                <Select
-                  value={monthKey}
-                  onValueChange={(value) => {
-                    if (value) setMonthKey(value)
-                  }}
-                >
-                  <SelectTrigger size="sm" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {months.map((m) => (
-                      <SelectItem key={m.value} value={m.value}>
-                        {m.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {isLoading && !revenue ? (
-                <Skeleton className="h-20 w-full" />
-              ) : revenue ? (
-                <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
-                  <div className="rounded-lg border bg-muted/30 p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-[11px] tracking-wide text-muted-foreground uppercase">
-                        {t("trips.tripTotals")}
-                      </p>
-                      <TrendingUpIcon className="size-4 text-primary" />
-                    </div>
-                    <p className="mt-1 text-2xl font-semibold tabular-nums">
-                      {revenue.totalLabel}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {plural(t, "trips.completedTrips", revenue.completedTrips)}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-[11px] tracking-wide text-muted-foreground uppercase">
-                        {t("trips.cashCollected")}
-                      </p>
-                      <WalletIcon className="size-4 text-muted-foreground" />
-                    </div>
-                    <p className="mt-1 text-2xl font-semibold tabular-nums">
-                      {revenue.cashCollectedLabel}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {t("trips.fromCompleted")}
-                    </p>
-                  </div>
+            />
+          </button>
+          <CardContent
+            className={cn(
+              "border-t px-4 pb-4 pt-3",
+              cashOpen ? "block" : "hidden md:block",
+            )}
+          >
+            {isLoading && !outstanding ? (
+              <Skeleton className="h-20 w-full" />
+            ) : outstanding ? (
+              <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
+                <div className="rounded-lg border bg-amber-500/5 p-3">
+                  <p className="text-[11px] tracking-wide text-muted-foreground uppercase">
+                    {t("trips.cashToCollect")}
+                  </p>
+                  <p className="mt-1 text-2xl font-semibold tabular-nums">
+                    {outstanding.cashToCollectLabel}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {t("trips.readyOnArrived")}
+                  </p>
                 </div>
-              ) : null}
-            </CardContent>
-          </Card>
-        </div>
+                <div className="rounded-lg border p-3">
+                  <p className="text-[11px] tracking-wide text-muted-foreground uppercase">
+                    {t("trips.unpaidBalances")}
+                  </p>
+                  <p className="mt-1 text-2xl font-semibold tabular-nums">
+                    {outstanding.unpaidBalancesLabel}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {plural(t, "trips.unpaidTripCount", outstanding.unpaidTripCount)}
+                  </p>
+                </div>
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
 
         {isLoading &&
         today.length === 0 &&
@@ -690,7 +538,12 @@ function TripCard({
   const showDetails = !readOnly || detailsOpen || focused
   const pickupLabel = formatPickupLabel(trip.pickupDateTime, locale)
   const tripStatus = statusLabel(t, trip.status)
-  const hint = cashHintLabel(t, trip.cashToCollect, trip.paymentStatus)
+  const hint = cashHintLabel(
+    t,
+    trip.cashToCollect,
+    trip.paymentStatus,
+    trip.cashCollected,
+  )
 
   React.useEffect(() => {
     if (!focused) return
@@ -725,6 +578,9 @@ function TripCard({
               </p>
               <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium">
                 {tripStatus}
+              </span>
+              <span className="rounded-md border border-primary/25 bg-primary/10 px-2 py-0.5 font-mono text-sm font-bold tracking-wider tabular-nums text-foreground">
+                {t("trips.pin", { pin: trip.pickupPin })}
               </span>
             </div>
             <p className="mt-1 text-xs text-muted-foreground">{pickupLabel}</p>
@@ -766,6 +622,20 @@ function TripCard({
             !readOnly && "pt-3",
           )}
         >
+          <div className="flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/10 px-3 py-3">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
+              <KeyRoundIcon className="size-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-medium tracking-wide text-primary uppercase">
+                {t("trips.pickupPin")}
+              </p>
+              <p className="font-mono text-2xl font-bold tracking-[0.2em] tabular-nums text-foreground sm:text-3xl">
+                {trip.pickupPin}
+              </p>
+            </div>
+          </div>
+
           <div className="flex flex-col gap-1.5 text-sm">
             <div className="flex gap-2">
               <MapPinIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
@@ -798,7 +668,9 @@ function TripCard({
               </p>
               <p className="text-[11px] text-muted-foreground">
                 {t("trips.tripTotal", { amount: trip.totalPriceLabel })}
-                {trip.depositPaid > 0 ? ` · ${t("trips.depositPaid")}` : ""}
+                {trip.hadOnlineDeposit
+                  ? ` · ${t("trips.depositPaid")}`
+                  : ""}
               </p>
             </div>
           </div>
@@ -811,7 +683,6 @@ function TripCard({
                 bags: trip.luggageCount,
               })}
             </span>
-            <span>{t("trips.pin", { pin: trip.pickupPin })}</span>
             {trip.flightNumber ? (
               <span>{t("trips.flight", { flight: trip.flightNumber })}</span>
             ) : null}

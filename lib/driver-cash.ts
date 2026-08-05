@@ -33,8 +33,14 @@ export function cashToCollect(args: {
 export function cashCollectLabel(args: {
   cashAmount: number
   paymentStatus: PaymentStatus
+  /** True when the remaining balance was recorded as cash (driver/manual). */
+  cashCollected?: boolean
 }): string {
-  if (args.cashAmount <= 0) return "Nothing to collect (paid online)"
+  if (args.cashAmount <= 0) {
+    return args.cashCollected
+      ? "Cash collected"
+      : "Nothing to collect (paid online)"
+  }
   if (args.paymentStatus === "deposit_paid") return "Collect balance in cash"
   return "Collect full amount in cash"
 }

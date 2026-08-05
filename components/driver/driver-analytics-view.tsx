@@ -4,6 +4,7 @@ import * as React from "react"
 import useSWR from "swr"
 import {
   BanknoteIcon,
+  TrendingUpIcon,
   WalletIcon,
 } from "lucide-react"
 
@@ -17,6 +18,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { fetcher } from "@/lib/api"
 import {
@@ -27,7 +35,13 @@ import {
   toDateInputValue,
 } from "@/lib/dashboard"
 import { formatMoney } from "@/lib/format"
-import { useDriverT, type DriverMessageKey } from "@/lib/i18n/driver"
+import {
+  DRIVER_INTL_LOCALE,
+  useDriverLocale,
+  useDriverT,
+  type DriverLocale,
+  type DriverMessageKey,
+} from "@/lib/i18n/driver"
 import type { DriverAnalyticsReport } from "@/lib/types"
 
 type DatePreset = {
@@ -35,6 +49,18 @@ type DatePreset = {
   labelKey: string
   from: string
   to: string
+}
+
+type MonthlyRevenue = {
+  year: number
+  month: number
+  monthLabel: string
+  completedTrips: number
+  total: number
+  totalLabel: string
+  cashCollected: number
+  cashCollectedLabel: string
+  currency: string
 }
 
 type Translate = (
@@ -69,6 +95,26 @@ function buildPresets(now = new Date()): DatePreset[] {
     },
     { id: "30d", labelKey: "analytics.preset30d", from: last30, to: today },
   ]
+}
+
+function monthOptions(from: Date, locale: DriverLocale, count = 12) {
+  const options: { value: string; label: string; year: number; month: number }[] =
+    []
+  for (let i = 0; i < count; i++) {
+    const d = new Date(from.getFullYear(), from.getMonth() - i, 1)
+    const year = d.getFullYear()
+    const month = d.getMonth() + 1
+    options.push({
+      value: `${year}-${month}`,
+      year,
+      month,
+      label: new Intl.DateTimeFormat(DRIVER_INTL_LOCALE[locale], {
+        month: "long",
+        year: "numeric",
+      }).format(d),
+    })
+  }
+  return options
 }
 
 function DailyChart({
@@ -114,9 +160,17 @@ function DailyChart({
 
 export function DriverAnalyticsView() {
   const t = useDriverT()
+  const locale = useDriverLocale()
   const presets = React.useMemo(() => buildPresets(), [])
   const [dateFrom, setDateFrom] = React.useState(presets[2]!.from)
   const [dateTo, setDateTo] = React.useState(presets[2]!.to)
+
+  const now = React.useMemo(() => new Date(), [])
+  const months = React.useMemo(() => monthOptions(now, locale), [now, locale])
+  const [monthKey, setMonthKey] = React.useState(
+    `${now.getFullYear()}-${now.getMonth() + 1}`,
+  )
+  const selected = months.find((m) => m.value === monthKey) ?? months[0]!
 
   React.useEffect(() => {
     if (dateFrom && dateTo && dateFrom > dateTo) {
@@ -132,6 +186,14 @@ export function DriverAnalyticsView() {
   }, [dateFrom, dateTo])
 
   const { data, isLoading, error } = useSWR<DriverAnalyticsReport>(query, fetcher)
+  const {
+    data: revenue,
+    isLoading: revenueLoading,
+    error: revenueError,
+  } = useSWR<MonthlyRevenue>(
+    `/api/driver/revenue?year=${selected.year}&month=${selected.month}`,
+    fetcher,
+  )
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -312,6 +374,80 @@ export function DriverAnalyticsView() {
             </Card>
           </>
         ) : null}
+
+        <Card className="gap-0 py-0">
+          <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <CardTitle className="text-base">
+                {t("trips.revenueMonth")}
+              </CardTitle>
+              <CardDescription className="mt-0.5">
+                {revenue
+                  ? plural(t, "trips.revenueSummary", revenue.completedTrips, {
+                      amount: revenue.totalLabel,
+                    })
+                  : t("trips.completedTotals")}
+              </CardDescription>
+            </div>
+            <Select
+              value={monthKey}
+              onValueChange={(value) => {
+                if (value) setMonthKey(value)
+              }}
+            >
+              <SelectTrigger size="sm" className="w-full sm:w-[11.5rem]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {months.map((m) => (
+                  <SelectItem key={m.value} value={m.value}>
+                    {m.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <CardContent className="border-t px-4 pb-4 pt-3">
+            {revenueError ? (
+              <p className="text-sm text-destructive">
+                {(revenueError as Error).message || t("analytics.loadError")}
+              </p>
+            ) : revenueLoading && !revenue ? (
+              <Skeleton className="h-20 w-full" />
+            ) : revenue ? (
+              <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
+                <div className="rounded-lg border bg-muted/30 p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[11px] tracking-wide text-muted-foreground uppercase">
+                      {t("trips.tripTotals")}
+                    </p>
+                    <TrendingUpIcon className="size-4 text-primary" />
+                  </div>
+                  <p className="mt-1 text-2xl font-semibold tabular-nums">
+                    {revenue.totalLabel}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {plural(t, "trips.completedTrips", revenue.completedTrips)}
+                  </p>
+                </div>
+                <div className="rounded-lg border p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[11px] tracking-wide text-muted-foreground uppercase">
+                      {t("trips.cashCollected")}
+                    </p>
+                    <WalletIcon className="size-4 text-muted-foreground" />
+                  </div>
+                  <p className="mt-1 text-2xl font-semibold tabular-nums">
+                    {revenue.cashCollectedLabel}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {t("trips.fromCompleted")}
+                  </p>
+                </div>
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
       </div>
     </div>
   )

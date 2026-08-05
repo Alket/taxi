@@ -58,6 +58,7 @@
   "trips.depositPaid": "Deposit paid online",
   "trips.paxBags": "{pax} pax · {bags} bags",
   "trips.pin": "PIN {pin}",
+  "trips.pickupPin": "Pickup PIN",
   "trips.flight": "Flight {flight}",
   "trips.meetGreet": "Meet & greet",
   "trips.childSeats": "Child seats",
@@ -77,6 +78,7 @@
   "trips.toastRejected": "Trip rejected. Ops can assign another driver.",
 
   "cash.nothing": "Nothing to collect (paid online)",
+  "cash.collected": "Cash collected",
   "cash.balance": "Collect balance in cash",
   "cash.full": "Collect full amount in cash",
 
