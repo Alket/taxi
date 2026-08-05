@@ -401,8 +401,11 @@ function BookingManagePanel({
           {booking.status !== "cancelled" && booking.status !== "completed" ? (
             <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
               {booking.cancellable
-                ? tr("myBooking.cancelForfeit")
-                : tr("myBooking.cancelTooLate")}{" "}
+                ? booking.cashOnArrival
+                  ? null
+                  : tr("myBooking.cancelForfeit")
+                : tr("myBooking.cancelTooLate")}
+              {booking.cancellable && !booking.cashOnArrival ? " " : null}
               {booking.editable
                 ? tr("myBooking.editUntilAssigned")
                 : tr("myBooking.editTooLate")}
@@ -603,7 +606,11 @@ function CancelBookingDialog({
         email,
         reference: booking.referenceCode,
       })
-      toast.success(tr("myBooking.cancelSuccess"))
+      toast.success(
+        booking.cashOnArrival
+          ? tr("myBooking.cancelCashSuccess")
+          : tr("myBooking.cancelSuccess"),
+      )
       onCancelled(res.booking)
     } catch (err) {
       toast.error((err as Error).message)
@@ -617,7 +624,11 @@ function CancelBookingDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{tr("myBooking.cancelTitle")}</DialogTitle>
-          <DialogDescription>{tr("myBooking.cancelDesc")}</DialogDescription>
+          <DialogDescription>
+            {booking.cashOnArrival
+              ? tr("myBooking.cancelCashDesc")
+              : tr("myBooking.cancelDesc")}
+          </DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <DialogClose render={<Button variant="outline" />}>

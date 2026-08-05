@@ -85,9 +85,7 @@ function pricingForTier(tier: number, vehicleType: VehicleType) {
 
   const multipliers: Record<VehicleType, number> = {
     sedan: 1,
-    comfort: 1.28,
     minivan: 1.55,
-    premium: 1.85,
   }
 
   const multiplier = multipliers[vehicleType]
@@ -144,7 +142,7 @@ async function main() {
     createdZones.map((zone) => [zone.name, zone]),
   )
 
-  const vehicleTypes: VehicleType[] = ["sedan", "comfort", "minivan", "premium"]
+  const vehicleTypes: VehicleType[] = ["sedan", "minivan"]
   for (const zone of zones) {
     const dbZone = zoneByName[zone.name]
     for (const vehicleType of vehicleTypes) {
@@ -186,7 +184,7 @@ async function main() {
         vehicleMake: "Skoda",
         vehicleModel: "Superb",
         plateNumber: "TR 118 CK",
-        vehicleType: "comfort",
+        vehicleType: "sedan",
         languages: ["Albanian", "English", "German"],
         vetted: true,
         active: true,
@@ -231,7 +229,7 @@ async function main() {
         vehicleMake: "Mercedes-Benz",
         vehicleModel: "S-Class",
         plateNumber: "TR 701 PM",
-        vehicleType: "premium",
+        vehicleType: "sedan",
         languages: ["Albanian", "English", "French"],
         vetted: true,
         active: true,
@@ -255,6 +253,10 @@ async function main() {
       infantCarrierPrice: 10,
       childSeatPrice: 12,
       boosterSeatPrice: 8,
+      sedanSeats: 3,
+      sedanLuggage: 2,
+      minivanSeats: 6,
+      minivanLuggage: 6,
       stripeEnabled: true,
       paypalEnabled: true,
       cashOnArrivalEnabled: false,
@@ -334,7 +336,7 @@ async function main() {
       flightStatus: "landed" as FlightStatus,
       passengerCount: 3,
       luggageCount: 4,
-      vehicleType: "comfort" as VehicleType,
+      vehicleType: "sedan" as VehicleType,
       totalPrice: 96,
       depositPaid: 28.8,
       balanceDue: 67.2,
@@ -360,7 +362,7 @@ async function main() {
       flightStatus: "scheduled" as FlightStatus,
       passengerCount: 1,
       luggageCount: 2,
-      vehicleType: "premium" as VehicleType,
+      vehicleType: "sedan" as VehicleType,
       totalPrice: 78,
       depositPaid: 23.4,
       balanceDue: 54.6,
@@ -384,7 +386,7 @@ async function main() {
       flightStatus: "on_time" as FlightStatus,
       passengerCount: 2,
       luggageCount: 2,
-      vehicleType: "comfort" as VehicleType,
+      vehicleType: "sedan" as VehicleType,
       totalPrice: 145,
       depositPaid: 43.5,
       balanceDue: 101.5,
@@ -459,7 +461,7 @@ async function main() {
       flightStatus: "cancelled" as FlightStatus,
       passengerCount: 2,
       luggageCount: 3,
-      vehicleType: "premium" as VehicleType,
+      vehicleType: "sedan" as VehicleType,
       totalPrice: 165,
       depositPaid: 49.5,
       balanceDue: 115.5,
@@ -508,7 +510,7 @@ async function main() {
       flightStatus: "landed" as FlightStatus,
       passengerCount: 3,
       luggageCount: 4,
-      vehicleType: "comfort" as VehicleType,
+      vehicleType: "sedan" as VehicleType,
       totalPrice: 58,
       depositPaid: 17.4,
       balanceDue: 40.6,

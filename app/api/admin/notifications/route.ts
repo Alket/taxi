@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 
-import { requireStaffSession } from "@/lib/auth"
+import { requireAdmin, requireStaffSession } from "@/lib/auth"
 import { prisma } from "@/lib/db"
 import { serializeStaffNotification } from "@/lib/staff-notifications"
 
@@ -48,4 +48,16 @@ export async function PATCH(request: Request) {
   })
 
   return NextResponse.json({ marked: result.count })
+}
+
+/** Permanently delete all admin inbox notifications. Full admins only. */
+export async function DELETE() {
+  const denied = await requireAdmin()
+  if (denied) return denied
+
+  const result = await prisma.staffNotification.deleteMany({
+    where: { audience: "admin" },
+  })
+
+  return NextResponse.json({ deleted: result.count })
 }

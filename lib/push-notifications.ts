@@ -1,7 +1,11 @@
 import webpush from "web-push"
 
 import { prisma } from "@/lib/db"
-import { recordStaffNotification } from "@/lib/staff-notifications"
+import { takeRateLimit } from "@/lib/rate-limit"
+import {
+  recordCoalescedStaffNotification,
+  recordStaffNotification,
+} from "@/lib/staff-notifications"
 
 export type PushAudience = "admin" | "driver"
 
@@ -374,5 +378,74 @@ export function notifyAdminsTripCompleted(args: {
     body,
     url,
     tag: `completed-${args.bookingId}`,
+  }).catch(() => {})
+}
+
+/** At most one Web Push per booking for date_change in this window. */
+const DATE_CHANGE_PUSH_WINDOW_MS = 10 * 60 * 1000
+
+export function notifyAdminsDateChanged(args: {
+  bookingId: string
+  referenceCode: string
+  customerName?: string
+  previousPickupLabel: string
+  newPickupLabel: string
+}) {
+  const customer = args.customerName ? ` · ${args.customerName}` : ""
+  const title = "Pickup time changed"
+  const body = `${args.referenceCode}${customer}\n${args.previousPickupLabel} → ${args.newPickupLabel}`
+  const url = `/admin/bookings?bookingId=${args.bookingId}`
+
+  // Coalesce unread inbox rows so rapid re-edits update one alert.
+  recordCoalescedStaffNotification({
+    audience: "admin",
+    type: "date_change",
+    title,
+    body,
+    url,
+    bookingId: args.bookingId,
+  })
+
+  const pushOk = takeRateLimit(
+    `admin-push:date-change:${args.bookingId}`,
+    1,
+    DATE_CHANGE_PUSH_WINDOW_MS,
+  )
+  if (!pushOk.ok) return
+
+  void sendStaffPush("admin", {
+    title,
+    body,
+    url,
+    tag: `date-change-${args.bookingId}`,
+  }).catch(() => {})
+}
+
+export function notifyAdminsBookingCancelled(args: {
+  bookingId: string
+  referenceCode: string
+  customerName?: string
+  pickupAddress: string
+  dropoffAddress: string
+}) {
+  const customer = args.customerName ? ` · ${args.customerName}` : ""
+  const title = "Booking cancelled"
+  const body = `${args.referenceCode}${customer}\n${args.pickupAddress} → ${args.dropoffAddress}`
+  const url = `/admin/bookings?bookingId=${args.bookingId}`
+
+  recordStaffNotification({
+    audience: "admin",
+    type: "booking_cancelled",
+    title,
+    body,
+    url,
+    bookingId: args.bookingId,
+  })
+
+  void sendStaffPush("admin", {
+    title,
+    body,
+    url,
+    tag: `cancelled-${args.bookingId}`,
   }).catch(() => {})
 }

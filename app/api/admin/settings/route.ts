@@ -148,6 +148,34 @@ export async function PATCH(request: Request) {
       )
     }
 
+    if (body.sedanSeats !== undefined) {
+      data.sedanSeats = clampNumber(body.sedanSeats, 1, 20, current.sedanSeats ?? 3)
+    }
+    if (body.sedanLuggage !== undefined) {
+      data.sedanLuggage = clampNumber(
+        body.sedanLuggage,
+        0,
+        30,
+        current.sedanLuggage ?? 2,
+      )
+    }
+    if (body.minivanSeats !== undefined) {
+      data.minivanSeats = clampNumber(
+        body.minivanSeats,
+        1,
+        20,
+        current.minivanSeats ?? 6,
+      )
+    }
+    if (body.minivanLuggage !== undefined) {
+      data.minivanLuggage = clampNumber(
+        body.minivanLuggage,
+        0,
+        30,
+        current.minivanLuggage ?? 6,
+      )
+    }
+
     if (typeof body.stripeEnabled === "boolean") {
       data.stripeEnabled = body.stripeEnabled
     }

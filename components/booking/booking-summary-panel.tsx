@@ -33,7 +33,7 @@ import {
 } from "@/lib/store/booking-store"
 import type { Direction, VehicleType } from "@/lib/types"
 import { cn } from "@/lib/utils"
-import { round2 } from "@/lib/vehicles"
+import { round2, partyStepperLimits, clampPartyToLimits, DEFAULT_VEHICLE_CAPACITIES } from "@/lib/vehicles"
 import {
   formatHeroDateLabel,
   HeroDateTimePicker,
@@ -64,14 +64,13 @@ const SUMMARY_IMAGE_FALLBACK =
 
 const VEHICLE_LABELS: Record<string, string> = {
   sedan: "Sedan",
-  comfort: "Comfort",
   minivan: "Minivan",
-  premium: "Premium",
 }
 
 type SummaryConfig = ChildSeatPrices & {
   airports?: AirportWithCoords[]
   zones?: ServiceZonePlace[]
+  vehicleCapacities?: import("@/lib/vehicles").VehicleCapacityConfig
 }
 
 type QuoteResponse = {
@@ -200,6 +199,9 @@ function SummaryEditDialog({
   const { data: config } = useSWR<SummaryConfig>("/api/booking/config", fetcher)
   const airports = config?.airports ?? []
   const zones = config?.zones ?? []
+  const { maxPassengers, maxLuggage } = partyStepperLimits(
+    config?.vehicleCapacities ?? DEFAULT_VEHICLE_CAPACITIES,
+  )
 
   const [draftAirport, setDraftAirport] = React.useState<string | null>(null)
   const [draftZoneId, setDraftZoneId] = React.useState<string | null>(null)
@@ -216,12 +218,16 @@ function SummaryEditDialog({
 
   React.useEffect(() => {
     if (!open) return
+    const clamped = clampPartyToLimits(passengerCount, luggageCount, {
+      maxPassengers,
+      maxLuggage,
+    })
     setDraftAirport(selectedAirportIata)
     setDraftZoneId(selectedZoneId)
     setDraftDateTime(pickupDateTime)
     setDraftReturnDateTime(returnDateTime)
-    setDraftPassengers(passengerCount)
-    setDraftLuggage(luggageCount)
+    setDraftPassengers(clamped.passengerCount)
+    setDraftLuggage(clamped.luggageCount)
     setCalendarOpen(false)
     setReturnCalendarOpen(false)
     setError(null)
@@ -233,6 +239,8 @@ function SummaryEditDialog({
     returnDateTime,
     passengerCount,
     luggageCount,
+    maxPassengers,
+    maxLuggage,
   ])
 
   function onDraftPickupChange(iso: string) {
@@ -347,10 +355,7 @@ function SummaryEditDialog({
         const quoted = Object.values(vehicleQuotes)
         if (quoted.length > 0) {
           const preferred =
-            vehicleQuotes.sedan ??
-            vehicleQuotes.comfort ??
-            vehicleQuotes.minivan ??
-            vehicleQuotes.premium
+            vehicleQuotes.sedan ?? vehicleQuotes.minivan
           const selectedType = (
             Object.entries(vehicleQuotes).find(
               ([, quote]) => quote === preferred,
@@ -584,14 +589,14 @@ function SummaryEditDialog({
                 label="Passengers"
                 value={draftPassengers}
                 min={1}
-                max={8}
+                max={maxPassengers}
                 onChange={setDraftPassengers}
               />
               <HeroStyleStepper
                 label="Luggage pieces"
                 value={draftLuggage}
                 min={0}
-                max={10}
+                max={maxLuggage}
                 onChange={setDraftLuggage}
               />
             </div>
@@ -676,6 +681,8 @@ export function BookingSummaryContent() {
   const boosterCount = useBookingStore((s) => s.boosterCount)
   const createdBookingId = useBookingStore((s) => s.createdBookingId)
   const selectedZoneId = useBookingStore((s) => s.selectedZoneId)
+  const checkoutMethod = useBookingStore((s) => s.checkoutMethod)
+  const isCashCheckout = checkoutMethod === "cash"
 
   const { data: config } = useSWR<SummaryConfig>("/api/booking/config", fetcher)
   const seatPrices: ChildSeatPrices = {
@@ -821,10 +828,12 @@ export function BookingSummaryContent() {
           </div>
         </div>
 
-        <p className="text-[10px] leading-tight text-muted-foreground">
-          Cancelling forfeits the deposit — no refund. Remaining balance is
-          never charged. No hidden fees.
-        </p>
+        {!isCashCheckout ? (
+          <p className="text-[10px] leading-tight text-muted-foreground">
+            Cancelling forfeits the deposit — no refund. Remaining balance is
+            never charged. No hidden fees.
+          </p>
+        ) : null}
       </div>
 
       <div className="mt-4 rounded-xl border bg-brand-surface p-5 shadow-sm">

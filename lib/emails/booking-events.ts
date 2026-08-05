@@ -6,6 +6,7 @@ import {
   isMailConfigured,
   sendMail,
 } from "@/lib/mail"
+import { takeRateLimit } from "@/lib/rate-limit"
 import {
   getSettings,
   resolveAdminNotificationEmail,
@@ -205,13 +206,30 @@ async function logAndSend(input: {
 function baseCustomerRows(booking: BookingEmailRow): string {
   return [
     detailRow("Reference", booking.referenceCode),
+    booking.pickupPin ? detailRow("Pickup PIN", booking.pickupPin) : "",
     detailRow("Pickup", booking.pickupAddress),
     detailRow("Drop-off", booking.dropoffAddress),
     detailRow("When", formatWhen(booking.pickupDateTime)),
     booking.flightNumber ? detailRow("Flight", booking.flightNumber) : "",
     detailRow("Vehicle", vehicleLabel(booking.vehicleType)),
     detailRow("Passengers", String(booking.passengerCount)),
+    detailRow("Luggage", String(booking.luggageCount)),
   ].join("")
+}
+
+/** Plain-text trip details — same fields as baseCustomerRows. */
+function baseCustomerTextLines(booking: BookingEmailRow): string[] {
+  return [
+    `Reference: ${booking.referenceCode}`,
+    booking.pickupPin ? `Pickup PIN: ${booking.pickupPin}` : null,
+    `Pickup: ${booking.pickupAddress}`,
+    `Drop-off: ${booking.dropoffAddress}`,
+    `When: ${formatWhen(booking.pickupDateTime)}`,
+    booking.flightNumber ? `Flight: ${booking.flightNumber}` : null,
+    `Vehicle: ${vehicleLabel(booking.vehicleType)}`,
+    `Passengers: ${booking.passengerCount}`,
+    `Luggage: ${booking.luggageCount}`,
+  ].filter((line): line is string => Boolean(line))
 }
 
 function priceRows(booking: BookingEmailRow): string {
@@ -273,10 +291,7 @@ export async function sendCustomerBookingConfirmation(
       "",
       `Your transfer with ${company} is confirmed.`,
       "",
-      `Reference: ${booking.referenceCode}`,
-      `Pickup: ${booking.pickupAddress}`,
-      `Drop-off: ${booking.dropoffAddress}`,
-      `When: ${formatWhen(booking.pickupDateTime)}`,
+      ...baseCustomerTextLines(booking),
       `Total: ${money(Number(booking.totalPrice), booking.currency)}`,
       `Paid: ${money(Number(booking.depositPaid), booking.currency)}`,
       `Balance due: ${money(Number(booking.balanceDue), booking.currency)}`,
@@ -351,9 +366,7 @@ export async function sendAdminNewBooking(
       `New booking ${booking.referenceCode}`,
       "",
       `Customer: ${booking.customer.name} (${booking.customer.email}, ${booking.customer.phone})`,
-      `Pickup: ${booking.pickupAddress}`,
-      `Drop-off: ${booking.dropoffAddress}`,
-      `When: ${formatWhen(booking.pickupDateTime)}`,
+      ...baseCustomerTextLines(booking),
       `Total: ${money(Number(booking.totalPrice), booking.currency)}`,
       "",
       `Open: ${link}`,
@@ -505,6 +518,23 @@ export async function notifyBookingCancelled(
     sendCustomerCancellation(bookingId),
     sendAdminCancellation(bookingId),
   ])
+
+  try {
+    const booking = await loadBooking(bookingId)
+    if (!booking) return
+    const { notifyAdminsBookingCancelled } = await import(
+      "@/lib/push-notifications"
+    )
+    notifyAdminsBookingCancelled({
+      bookingId: booking.id,
+      referenceCode: booking.referenceCode,
+      customerName: booking.customer.name,
+      pickupAddress: booking.pickupAddress,
+      dropoffAddress: booking.dropoffAddress,
+    })
+  } catch (error) {
+    console.error("[notify] admin cancel inbox failed:", error)
+  }
 }
 
 export async function sendCustomerDateChange(
@@ -619,14 +649,42 @@ export async function sendAdminDateChange(
   }
 }
 
+/** At most one admin email per booking for date_change in this window. */
+const DATE_CHANGE_ADMIN_MAIL_WINDOW_MS = 10 * 60 * 1000
+
 export async function notifyBookingDateChanged(
   bookingId: string,
   previousPickup: Date,
 ): Promise<void> {
+  const adminMailOk = takeRateLimit(
+    `admin-mail:date-change:${bookingId}`,
+    1,
+    DATE_CHANGE_ADMIN_MAIL_WINDOW_MS,
+  )
+
   await Promise.all([
     sendCustomerDateChange(bookingId, previousPickup),
-    sendAdminDateChange(bookingId, previousPickup),
+    adminMailOk.ok
+      ? sendAdminDateChange(bookingId, previousPickup)
+      : Promise.resolve({ sent: false as const }),
   ])
+
+  try {
+    const booking = await loadBooking(bookingId)
+    if (!booking) return
+    const { notifyAdminsDateChanged } = await import(
+      "@/lib/push-notifications"
+    )
+    notifyAdminsDateChanged({
+      bookingId: booking.id,
+      referenceCode: booking.referenceCode,
+      customerName: booking.customer.name,
+      previousPickupLabel: formatWhen(previousPickup),
+      newPickupLabel: formatWhen(booking.pickupDateTime),
+    })
+  } catch (error) {
+    console.error("[notify] admin date-change inbox failed:", error)
+  }
 }
 
 export async function sendCustomerDriverAssigned(
@@ -655,7 +713,9 @@ export async function sendCustomerDriverAssigned(
       "",
       `Pickup: ${formatWhen(booking.pickupDateTime)}`,
       `${booking.pickupAddress} → ${booking.dropoffAddress}`,
-      booking.pickupPin ? `Meet pin: ${booking.pickupPin}` : null,
+      booking.pickupPin ? `Pickup PIN: ${booking.pickupPin}` : null,
+      `Passengers: ${booking.passengerCount}`,
+      `Luggage: ${booking.luggageCount}`,
       "",
       `Manage: ${manageBookingUrl()}`,
       supportLine(settings),
@@ -677,8 +737,7 @@ export async function sendCustomerDriverAssigned(
         (vehicle ? detailRow("Vehicle", vehicle) : "") +
         (d.plateNumber ? detailRow("Plate", d.plateNumber) : "") +
         detailRow("Best contact", contact) +
-        baseCustomerRows(booking) +
-        (booking.pickupPin ? detailRow("Meet pin", booking.pickupPin) : ""),
+        baseCustomerRows(booking),
       cta: { href: manageBookingUrl(), label: "Manage booking" },
       footer: supportLine(settings),
     })
@@ -715,10 +774,7 @@ export async function sendCustomerPickupReminder(
       `Hi ${booking.customer.name},`,
       "",
       `Reminder: your transfer ${booking.referenceCode} is coming up.`,
-      `When: ${formatWhen(booking.pickupDateTime)}`,
-      `Pickup: ${booking.pickupAddress}`,
-      `Drop-off: ${booking.dropoffAddress}`,
-      booking.pickupPin ? `Meet pin: ${booking.pickupPin}` : null,
+      ...baseCustomerTextLines(booking),
       booking.driver
         ? `Driver: ${booking.driver.name} · ${booking.driver.phone}`
         : null,
@@ -738,7 +794,6 @@ export async function sendCustomerPickupReminder(
       introHtml: `Hi ${escapeHtml(booking.customer.name)}, this is a friendly reminder for booking <strong>${escapeHtml(booking.referenceCode)}</strong>. Please be ready a few minutes early.`,
       rowsHtml:
         baseCustomerRows(booking) +
-        (booking.pickupPin ? detailRow("Meet pin", booking.pickupPin) : "") +
         (booking.driver
           ? detailRow(
               "Driver",

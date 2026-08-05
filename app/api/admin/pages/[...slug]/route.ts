@@ -9,9 +9,11 @@ import {
   PAGE_SECTION_TYPES,
   deleteAdminPage,
   parseSections,
+  preserveDestinationMetaKeys,
   resolvePageContentForAdmin,
   resolvePageDefinition,
   serializePageContent,
+  setDestinationFeatured,
 } from "@/lib/page-content"
 
 type RouteContext = {
@@ -39,6 +41,10 @@ const updateSchema = z.object({
   description: z.string().trim().max(2000).optional(),
   ogImage: z.string().trim().max(2000).optional(),
   sections: z.array(sectionSchema).max(200).optional(),
+})
+
+const featuredToggleSchema = z.object({
+  featured: z.boolean(),
 })
 
 function slugFromParams(parts: string[]) {
@@ -77,6 +83,41 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 
   const body = await request.json().catch(() => ({}))
+
+  // Homepage feature star — admin-only, destinations only (no other fields).
+  const featuredOnly =
+    body &&
+    typeof body === "object" &&
+    !Array.isArray(body) &&
+    Object.keys(body as object).length === 1 &&
+    "featured" in (body as object)
+  if (featuredOnly) {
+    const featuredParsed = featuredToggleSchema.safeParse(body)
+    if (!featuredParsed.success) {
+      return NextResponse.json({ error: "Invalid featured payload." }, {
+        status: 400,
+      })
+    }
+    try {
+      const result = await setDestinationFeatured(
+        slug,
+        featuredParsed.data.featured,
+      )
+      revalidatePath("/")
+      revalidatePath("/destinations")
+      revalidatePath("/admin/pages")
+      return NextResponse.json(result)
+    } catch (error) {
+      return NextResponse.json(
+        {
+          error:
+            (error as Error).message || "Could not update featured status.",
+        },
+        { status: 400 },
+      )
+    }
+  }
+
   const parsed = updateSchema.safeParse(body)
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid page payload." }, { status: 400 })
@@ -93,14 +134,21 @@ export async function PATCH(request: Request, context: RouteContext) {
           where: { slug_locale: { slug, locale: DEFAULT_LOCALE } },
         })
 
+  const previousSections = existing
+    ? parseSections(existing.sections)
+    : english
+      ? parseSections(english.sections)
+      : def.defaults.sections
+
   let nextSections =
     parsed.data.sections != null
-      ? parseSections(parsed.data.sections)
-      : existing
-        ? parseSections(existing.sections)
-        : english
-          ? parseSections(english.sections)
-          : def.defaults.sections
+      ? slug.startsWith("destinations/")
+        ? preserveDestinationMetaKeys(
+            parseSections(parsed.data.sections),
+            previousSections,
+          )
+        : parseSections(parsed.data.sections)
+      : previousSections
 
   const existingOgImage = existing?.ogImage?.trim() || ""
   const englishOgImage = english?.ogImage?.trim() || ""

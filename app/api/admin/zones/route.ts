@@ -5,15 +5,14 @@ import { requireAdmin, requireStaffSession } from "@/lib/auth"
 import { prisma } from "@/lib/db"
 import { serializeZone } from "@/lib/pricing-admin"
 import type { VehicleType } from "@/lib/types"
+import { VEHICLE_TYPE_VALUES } from "@/lib/vehicles"
 
-const VEHICLE_TYPES: VehicleType[] = ["sedan", "comfort", "minivan", "premium"]
+const VEHICLE_TYPES: VehicleType[] = [...VEHICLE_TYPE_VALUES]
 
 /** Same relative tiers as seed — used when a zone is created without custom fares. */
 const VEHICLE_MULTIPLIERS: Record<VehicleType, number> = {
   sedan: 1,
-  comfort: 1.28,
   minivan: 1.55,
-  premium: 1.85,
 }
 
 const createZoneSchema = z.object({

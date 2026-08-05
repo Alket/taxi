@@ -38,6 +38,9 @@ export function serializeManagedBooking(booking: LookupBookingRecord) {
   const cancellable = !isBookingLockedForCancel(booking.status)
   const editable =
     booking.status === "pending" || booking.status === "confirmed"
+  const cashOnArrival = (booking.notes?.toLowerCase() ?? "").includes(
+    "cash on arrival",
+  )
 
   return {
     id: booking.id,
@@ -66,6 +69,7 @@ export function serializeManagedBooking(booking: LookupBookingRecord) {
     paymentStatusLabel: PAYMENT_STATUS_LABELS[booking.paymentStatus],
     cancelledAt: booking.cancelledAt?.toISOString() ?? null,
     cancellationOutcome: booking.cancellationOutcome,
+    cashOnArrival,
     cancellable,
     editable,
     customer: {

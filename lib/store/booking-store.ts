@@ -15,12 +15,7 @@ export const BOOKING_STEPS = [
   { id: 2 as const, key: "payment", label: "Payment" },
 ] as const
 
-export const VEHICLE_TYPES: VehicleType[] = [
-  "sedan",
-  "comfort",
-  "minivan",
-  "premium",
-]
+export const VEHICLE_TYPES: VehicleType[] = ["sedan", "minivan"]
 
 export type BookingLocation = {
   address: string
@@ -85,6 +80,8 @@ export type BookingState = {
   createdReferenceCode: string | null
   createdDepositAmount: number | null
   createdCurrency: string | null
+  /** Selected checkout method on payment step (drives cash vs deposit copy). */
+  checkoutMethod: "card" | "paypal" | "cash" | null
 }
 
 type BookingActions = {
@@ -146,6 +143,7 @@ export const initialBookingState: BookingState = {
   createdReferenceCode: null,
   createdDepositAmount: null,
   createdCurrency: null,
+  checkoutMethod: null,
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/

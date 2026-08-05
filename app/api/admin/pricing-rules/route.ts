@@ -4,12 +4,13 @@ import { z } from "zod"
 import { requireAdmin, requireCanDelete, requireStaffSession } from "@/lib/auth"
 import { prisma } from "@/lib/db"
 import { serializePricingRule } from "@/lib/pricing-admin"
+import { vehicleTypeSchema } from "@/lib/vehicles"
 
 const positiveMoney = z.coerce.number().positive()
 
 const createRuleSchema = z.object({
   zoneId: z.string().min(1),
-  vehicleType: z.enum(["sedan", "comfort", "minivan", "premium"]),
+  vehicleType: vehicleTypeSchema,
   baseFare: positiveMoney,
   perKmRate: positiveMoney,
   minFare: positiveMoney,

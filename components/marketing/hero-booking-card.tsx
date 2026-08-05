@@ -37,6 +37,7 @@ import {
   pickupLeadTimeMessage,
 } from "@/lib/pickup-lead-time"
 import { autoSelectVehiclePatch } from "@/lib/vehicles"
+import { usePartyCapacityLimits } from "@/hooks/use-party-capacity-limits"
 import { localePath } from "@/lib/i18n/locales"
 import { useLocale, useT } from "@/lib/i18n/use-locale"
 import { cn } from "@/lib/utils"
@@ -63,6 +64,7 @@ import {
 type BookingConfig = {
   airports: AirportWithCoords[]
   zones: ServiceZonePlace[]
+  vehicleCapacities?: import("@/lib/vehicles").VehicleCapacityConfig
 }
 
 function airportLocation(airport: AirportWithCoords): BookingLocation {
@@ -199,6 +201,7 @@ export function HeroBookingCard() {
   const { data: config } = useSWR<BookingConfig>("/api/booking/config", fetcher)
   const airports = config?.airports ?? []
   const zones = config?.zones ?? []
+  const { maxPassengers, maxLuggage, capacities } = usePartyCapacityLimits()
 
   const destinationLocation =
     direction === "dest_to_airport"
@@ -460,6 +463,8 @@ export function HeroBookingCard() {
           latest.luggageCount,
           latest.vehicleQuotes,
           latest.isRoundTrip,
+          0,
+          capacities,
         ),
         startedFromHero: true,
       })
@@ -775,14 +780,14 @@ export function HeroBookingCard() {
                         label={tr("book.passengers")}
                         value={passengerCount}
                         min={1}
-                        max={8}
+                        max={maxPassengers}
                         onChange={(n) => patch({ passengerCount: n })}
                       />
                       <Stepper
                         label={tr("book.luggage")}
                         value={luggageCount}
                         min={0}
-                        max={10}
+                        max={maxLuggage}
                         onChange={(n) => patch({ luggageCount: n })}
                       />
                     </div>
@@ -819,14 +824,14 @@ export function HeroBookingCard() {
               label={tr("book.passengers")}
               value={passengerCount}
               min={1}
-              max={8}
+              max={maxPassengers}
               onChange={(n) => patch({ passengerCount: n })}
             />
             <Stepper
               label={tr("book.luggage")}
               value={luggageCount}
               min={0}
-              max={10}
+              max={maxLuggage}
               onChange={(n) => patch({ luggageCount: n })}
             />
           </div>

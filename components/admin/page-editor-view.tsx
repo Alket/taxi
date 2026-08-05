@@ -96,7 +96,10 @@ function newAttractionItem(): PageSection {
 function splitSections(sections: PageSection[]) {
   return {
     content: sections.filter(
-      (s) => s.type !== "faq_item" && s.type !== "attraction",
+      (s) =>
+        s.type !== "faq_item" &&
+        s.type !== "attraction" &&
+        !s.key.startsWith("_"),
     ),
     attractions: sections.filter((s) => s.type === "attraction"),
     faqs: sections.filter((s) => s.type === "faq_item"),

@@ -8,9 +8,10 @@ import {
   UncoveredDestinationError,
 } from "@/lib/pricing"
 import { getBookingPolicy } from "@/lib/settings"
+import { vehicleTypeSchema } from "@/lib/vehicles"
 
 const querySchema = z.object({
-  vehicleType: z.enum(["sedan", "comfort", "minivan", "premium"]),
+  vehicleType: vehicleTypeSchema,
   zoneId: z.string().min(1),
 })
 

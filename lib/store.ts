@@ -125,11 +125,10 @@ const zones: Zone[] = [
 
 const pricingRules: PricingRule[] = [
   { id: "pr_01", zoneId: "zone_01", zoneName: "City Center", vehicleType: "sedan", baseFare: 25, perKmRate: 1.8, minFare: 40, currency: CURRENCY },
-  { id: "pr_02", zoneId: "zone_01", zoneName: "City Center", vehicleType: "premium", baseFare: 35, perKmRate: 2.2, minFare: 55, currency: CURRENCY },
   { id: "pr_03", zoneId: "zone_01", zoneName: "City Center", vehicleType: "minivan", baseFare: 45, perKmRate: 2.6, minFare: 70, currency: CURRENCY },
   { id: "pr_04", zoneId: "zone_02", zoneName: "Airport District", vehicleType: "sedan", baseFare: 20, perKmRate: 1.6, minFare: 35, currency: CURRENCY },
   { id: "pr_05", zoneId: "zone_02", zoneName: "Airport District", vehicleType: "minivan", baseFare: 40, perKmRate: 2.4, minFare: 65, currency: CURRENCY },
-  { id: "pr_06", zoneId: "zone_04", zoneName: "Lakeside", vehicleType: "premium", baseFare: 55, perKmRate: 2.8, minFare: 90, currency: CURRENCY },
+  { id: "pr_06", zoneId: "zone_04", zoneName: "Lakeside", vehicleType: "sedan", baseFare: 55, perKmRate: 2.8, minFare: 90, currency: CURRENCY },
 ]
 
 function driverSnapshot(d: Driver) {
@@ -214,7 +213,7 @@ const bookings: Booking[] = [
     flightStatus: "landed",
     passengerCount: 3,
     luggageCount: 4,
-    vehicleType: "premium",
+    vehicleType: "sedan",
     totalPrice: 145,
     depositAmount: 43.5,
     depositPaid: 43.5,
@@ -278,7 +277,7 @@ const bookings: Booking[] = [
     flightStatus: "landed",
     passengerCount: 2,
     luggageCount: 2,
-    vehicleType: "premium",
+    vehicleType: "sedan",
     totalPrice: 96,
     depositAmount: 28.8,
     depositPaid: 28.8,
@@ -374,7 +373,7 @@ const bookings: Booking[] = [
     flightStatus: "cancelled",
     passengerCount: 2,
     luggageCount: 3,
-    vehicleType: "premium",
+    vehicleType: "sedan",
     totalPrice: 110,
     depositAmount: 33,
     depositPaid: 33,
@@ -443,6 +442,10 @@ const settings: Settings = {
   infantCarrierPrice: 10,
   childSeatPrice: 12,
   boosterSeatPrice: 8,
+  sedanSeats: 3,
+  sedanLuggage: 2,
+  minivanSeats: 6,
+  minivanLuggage: 6,
   stripeEnabled: true,
   paypalEnabled: true,
   cashOnArrivalEnabled: false,

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 
 import { withAirportCoords } from "@/lib/airports"
 import { getSettingsRow, parseAirports } from "@/lib/settings"
+import { vehicleCapacitiesFromSettingsRow } from "@/lib/vehicles"
 
 /**
  * Public settings for the customer booking flow.
@@ -21,6 +22,7 @@ export async function GET() {
       infantCarrierPrice: Number(row.infantCarrierPrice ?? 0),
       childSeatPrice: Number(row.childSeatPrice ?? 0),
       boosterSeatPrice: Number(row.boosterSeatPrice ?? 0),
+      vehicleCapacities: vehicleCapacitiesFromSettingsRow(row),
       stripeEnabled: row.stripeEnabled ?? true,
       paypalEnabled: row.paypalEnabled ?? true,
       cashOnArrivalEnabled: row.cashOnArrivalEnabled ?? false,

@@ -11,6 +11,7 @@ import {
   Pencil,
   Plus,
   RotateCcw,
+  Star,
   Trash2,
 } from "lucide-react"
 
@@ -37,7 +38,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { apiDelete, apiPost, fetcher } from "@/lib/api"
+import { apiDelete, apiPatch, apiPost, fetcher } from "@/lib/api"
 import { slugifyDestinationId } from "@/lib/destinations"
 import { PageHeader } from "@/components/admin/page-header"
 
@@ -51,6 +52,8 @@ type AdminPageRow = {
   canDelete: boolean
   canReset: boolean
   isCustomDestination: boolean
+  isDestination: boolean
+  featured: boolean
 }
 
 function PageRowActions({
@@ -58,11 +61,15 @@ function PageRowActions({
   layout,
   onDelete,
   onReset,
+  onToggleFeatured,
+  featuring,
 }: {
   page: AdminPageRow
   layout: "mobile" | "desktop"
   onDelete: () => void
   onReset: () => void
+  onToggleFeatured: () => void
+  featuring: boolean
 }) {
   const isMobile = layout === "mobile"
   return (
@@ -73,6 +80,41 @@ function PageRowActions({
           : "flex flex-wrap items-center justify-end gap-1"
       }
     >
+      {page.isDestination ? (
+        <Button
+          variant="outline"
+          size="sm"
+          className={
+            isMobile
+              ? "h-10 touch-manipulation justify-center"
+              : page.featured
+                ? "border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-950/40"
+                : undefined
+          }
+          disabled={featuring}
+          title={
+            page.featured
+              ? "Remove from homepage"
+              : "Show on homepage"
+          }
+          aria-label={
+            page.featured
+              ? "Remove from homepage"
+              : "Show on homepage"
+          }
+          aria-pressed={page.featured}
+          onClick={onToggleFeatured}
+        >
+          <Star
+            className={
+              page.featured
+                ? "size-3.5 fill-amber-400 text-amber-500"
+                : "size-3.5"
+            }
+          />
+          {page.featured ? "Featured" : "Feature"}
+        </Button>
+      ) : null}
       <Button
         variant="outline"
         size="sm"
@@ -152,6 +194,7 @@ export function PagesListView() {
     mode: "delete" | "reset"
   } | null>(null)
   const [acting, setActing] = React.useState(false)
+  const [featuringSlug, setFeaturingSlug] = React.useState<string | null>(null)
 
   function resetCreateForm() {
     setName("")
@@ -161,6 +204,27 @@ export function PagesListView() {
     setDescription("")
     setBadge("New")
     setPriceFrom("€—")
+  }
+
+  async function toggleFeatured(page: AdminPageRow) {
+    if (!page.isDestination || featuringSlug) return
+    setFeaturingSlug(page.slug)
+    try {
+      const res = await apiPatch<{ featured: boolean }>(
+        `/api/admin/pages/${page.slug}`,
+        { featured: !page.featured },
+      )
+      toast.success(
+        res.featured
+          ? "Shown on homepage."
+          : "Removed from homepage.",
+      )
+      await mutate()
+    } catch (err) {
+      toast.error((err as Error).message)
+    } finally {
+      setFeaturingSlug(null)
+    }
   }
 
   async function createDestination() {
@@ -211,7 +275,7 @@ export function PagesListView() {
     <>
       <PageHeader
         title="Pages"
-        description="Edit marketing copy, images, FAQs, and SEO for each site page."
+        description="Edit marketing copy, images, FAQs, and SEO. Star destinations to feature them on the homepage."
         actions={
           <Button
             size="sm"
@@ -249,15 +313,23 @@ export function PagesListView() {
                         <p className="truncate text-[15px] font-semibold">
                           {page.label}
                         </p>
-                        <span
-                          className={
-                            page.fromDatabase
-                              ? "shrink-0 text-[11px] font-medium text-emerald-700 dark:text-emerald-400"
-                              : "shrink-0 text-[11px] text-muted-foreground"
-                          }
-                        >
-                          {page.fromDatabase ? "Customized" : "Defaults"}
-                        </span>
+                        <div className="flex shrink-0 items-center gap-2">
+                          {page.isDestination && page.featured ? (
+                            <Star
+                              className="size-3.5 fill-amber-400 text-amber-500"
+                              aria-label="Featured on homepage"
+                            />
+                          ) : null}
+                          <span
+                            className={
+                              page.fromDatabase
+                                ? "text-[11px] font-medium text-emerald-700 dark:text-emerald-400"
+                                : "text-[11px] text-muted-foreground"
+                            }
+                          >
+                            {page.fromDatabase ? "Customized" : "Defaults"}
+                          </span>
+                        </div>
                       </div>
                       <p className="mt-0.5 truncate text-xs text-muted-foreground">
                         {page.path}
@@ -273,6 +345,8 @@ export function PagesListView() {
                   <PageRowActions
                     page={page}
                     layout="mobile"
+                    featuring={featuringSlug === page.slug}
+                    onToggleFeatured={() => void toggleFeatured(page)}
                     onDelete={() =>
                       setPendingAction({ page, mode: "delete" })
                     }
@@ -313,7 +387,15 @@ export function PagesListView() {
                       <div className="flex items-start gap-2">
                         <FileText className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                         <div>
-                          <p className="font-medium">{page.label}</p>
+                          <p className="font-medium">
+                            {page.label}
+                            {page.isDestination && page.featured ? (
+                              <Star
+                                className="ml-1.5 inline size-3.5 fill-amber-400 text-amber-500 align-[-2px]"
+                                aria-label="Featured on homepage"
+                              />
+                            ) : null}
+                          </p>
                           <p className="text-xs text-muted-foreground">
                             {page.path}
                             {page.isCustomDestination ? " · custom" : null}
@@ -339,6 +421,8 @@ export function PagesListView() {
                       <PageRowActions
                         page={page}
                         layout="desktop"
+                        featuring={featuringSlug === page.slug}
+                        onToggleFeatured={() => void toggleFeatured(page)}
                         onDelete={() =>
                           setPendingAction({ page, mode: "delete" })
                         }

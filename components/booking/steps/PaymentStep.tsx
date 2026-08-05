@@ -36,7 +36,7 @@ import { bypassBookingLeaveGuard } from "@/hooks/use-booking-leave-guard"
 import { useBookingFieldFocusListener } from "@/hooks/use-booking-field-focus"
 import { focusBookingTerms } from "@/lib/booking-field-focus"
 import { useBookingStore } from "@/lib/store/booking-store"
-import { getVehicleCatalog, round2 } from "@/lib/vehicles"
+import { getVehicleCatalog, round2, DEFAULT_VEHICLE_CAPACITIES } from "@/lib/vehicles"
 import { cn } from "@/lib/utils"
 import {
   buildBookingStripeAppearance,
@@ -56,6 +56,7 @@ type PublicSettings = {
   cashOnArrivalEnabled?: boolean
   depositPaymentEnabled?: boolean
   fullPaymentEnabled?: boolean
+  vehicleCapacities?: import("@/lib/vehicles").VehicleCapacityConfig
 }
 
 type CreateBookingResponse = {
@@ -105,7 +106,16 @@ function Recap() {
   const meetAndGreet = useBookingStore((s) => s.meetAndGreet)
   const customer = useBookingStore((s) => s.customer)
 
-  const vehicle = vehicleType ? getVehicleCatalog(vehicleType) : null
+  const { data: capacityConfig } = useSWR<{
+    vehicleCapacities?: import("@/lib/vehicles").VehicleCapacityConfig
+  }>("/api/booking/config", fetcher)
+
+  const vehicle = vehicleType
+    ? getVehicleCatalog(
+        vehicleType,
+        capacityConfig?.vehicleCapacities ?? DEFAULT_VEHICLE_CAPACITIES,
+      )
+    : null
   const seatParts = [
     infantCarrierCount > 0 ? `Infant carrier ×${infantCarrierCount}` : null,
     childSeatCount > 0 ? `Child seat ×${childSeatCount}` : null,
@@ -660,6 +670,10 @@ export function PaymentStep() {
     }
   }, [checkoutMethod, selectedMethod])
 
+  React.useEffect(() => {
+    patch({ checkoutMethod: selectedMethod })
+  }, [selectedMethod, patch])
+
   // Create pending booking, then Stripe intent only if card payments are on.
   React.useEffect(() => {
     let cancelled = false
@@ -1058,8 +1072,9 @@ export function PaymentStep() {
           >
             booking terms and cancellation policy
           </a>
-          . Cancelling forfeits the deposit paid — it is not refunded. The
-          remaining balance is never charged.
+          {selectedMethod === "cash"
+            ? "."
+            : ". Cancelling forfeits the deposit paid — it is not refunded. The remaining balance is never charged."}
         </span>
       </label>
       {termsInvalid && !termsAccepted ? (

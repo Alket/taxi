@@ -18,6 +18,10 @@ import type { AirportWithCoords } from "@/lib/airports"
 import { resolveAirportLocation } from "@/lib/airports"
 import { DIRECTION_LABELS, VEHICLE_LABELS } from "@/lib/format"
 import type { Direction, VehicleType } from "@/lib/types"
+import {
+  DEFAULT_VEHICLE_CAPACITIES,
+  partyStepperLimits,
+} from "@/lib/vehicles"
 import type { ServiceZonePlace } from "@/components/booking/zone-place-select"
 import {
   Sheet,
@@ -54,6 +58,7 @@ type QuoteResponse = {
 type BookingConfig = {
   airports: AirportWithCoords[]
   zones: ServiceZonePlace[]
+  vehicleCapacities?: import("@/lib/vehicles").VehicleCapacityConfig
 }
 
 type Endpoint = {
@@ -165,6 +170,9 @@ export function NewBookingSheet({
 
   const airports = config?.airports ?? []
   const zones = config?.zones ?? []
+  const { maxPassengers, maxLuggage } = partyStepperLimits(
+    config?.vehicleCapacities ?? DEFAULT_VEHICLE_CAPACITIES,
+  )
 
   const airportItems = React.useMemo(
     () =>
@@ -274,8 +282,14 @@ export function NewBookingSheet({
     if (pCount === null || pCount <= 0) {
       return toast.error("Passenger count must be > 0.")
     }
+    if (pCount > maxPassengers) {
+      return toast.error(`Passengers must be at most ${maxPassengers}.`)
+    }
     if (lCount === null || lCount < 0) {
       return toast.error("Luggage count must be >= 0.")
+    }
+    if (lCount > maxLuggage) {
+      return toast.error(`Luggage must be at most ${maxLuggage}.`)
     }
 
     const payload = {
@@ -580,6 +594,7 @@ export function NewBookingSheet({
                       <Input
                         type="number"
                         min={1}
+                        max={maxPassengers}
                         inputMode="numeric"
                         className="h-11 text-base md:h-9 md:text-sm"
                         value={passengerCount}
@@ -594,6 +609,7 @@ export function NewBookingSheet({
                       <Input
                         type="number"
                         min={0}
+                        max={maxLuggage}
                         inputMode="numeric"
                         className="h-11 text-base md:h-9 md:text-sm"
                         value={luggageCount}

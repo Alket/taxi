@@ -24,7 +24,13 @@ import {
   type LatLng,
 } from "@/lib/pricing"
 import { getBookingPolicy } from "@/lib/settings"
-import { computeTripTotal, round2 } from "@/lib/vehicles"
+import {
+  assertVehicleFitsParty,
+  computeTripTotal,
+  round2,
+  vehicleCapacitiesFromSettingsRow,
+  vehicleTypeSchema,
+} from "@/lib/vehicles"
 
 export const bookingCreateSchema = z.object({
   customer: z.object({
@@ -43,13 +49,13 @@ export const bookingCreateSchema = z.object({
   pickupDateTime: z.string().min(1),
   returnDateTime: z.string().optional().nullable(),
   flightNumber: bookingFlightNumberSchema,
-  passengerCount: z.coerce.number().int().min(1).max(30),
-  luggageCount: z.coerce.number().int().min(0).max(50),
+  passengerCount: z.coerce.number().int().min(1).max(20),
+  luggageCount: z.coerce.number().int().min(0).max(30),
   infantCarrierCount: z.coerce.number().int().min(0).max(4).optional().default(0),
   childSeatCount: z.coerce.number().int().min(0).max(4).optional().default(0),
   boosterCount: z.coerce.number().int().min(0).max(4).optional().default(0),
   driverNotes: z.string().trim().max(500).optional().nullable(),
-  vehicleType: z.enum(["sedan", "comfort", "minivan", "premium"]),
+  vehicleType: vehicleTypeSchema,
   /** Active pricing zone selected as the non-airport destination. */
   zoneId: z.string().min(1),
   isRoundTrip: z.boolean().default(false),
@@ -124,7 +130,23 @@ export async function createBookingsFromInput(
     infantCarrierPrice,
     childSeatPrice,
     boosterSeatPrice,
+    sedanSeats,
+    sedanLuggage,
+    minivanSeats,
+    minivanLuggage,
   } = policy
+  const vehicleCapacities = vehicleCapacitiesFromSettingsRow({
+    sedanSeats,
+    sedanLuggage,
+    minivanSeats,
+    minivanLuggage,
+  })
+  assertVehicleFitsParty(
+    input.vehicleType,
+    input.passengerCount,
+    input.luggageCount,
+    vehicleCapacities,
+  )
   const seatPrices = {
     infantCarrierPrice,
     childSeatPrice,

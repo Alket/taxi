@@ -6,10 +6,11 @@ import {
   UncoveredDestinationError,
 } from "@/lib/pricing"
 import type { VehicleType } from "@/lib/types"
+import { vehicleTypeSchema } from "@/lib/vehicles"
 
 const bodySchema = z.object({
   direction: z.enum(["airport_to_dest", "dest_to_airport"]).optional(),
-  vehicleType: z.enum(["sedan", "comfort", "minivan", "premium"]),
+  vehicleType: vehicleTypeSchema,
   zoneId: z.string().min(1),
 })
 

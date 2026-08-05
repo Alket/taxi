@@ -82,9 +82,7 @@ export const FLIGHT_STATUS_LABELS: Record<FlightStatus, string> = {
 
 export const VEHICLE_LABELS: Record<VehicleType, string> = {
   sedan: "Sedan",
-  comfort: "Comfort",
   minivan: "Minivan",
-  premium: "Premium",
 }
 
 export const DIRECTION_LABELS: Record<Direction, string> = {

@@ -1,27 +1,41 @@
 "use client"
 
 import * as React from "react"
-import useSWR from "swr"
+import useSWR, { useSWRConfig } from "swr"
 import {
   BellIcon,
+  CalendarClockIcon,
   CheckCheckIcon,
   CircleDollarSignIcon,
   FlagIcon,
   InboxIcon,
   MapPinIcon,
+  Trash2Icon,
   UserXIcon,
   CalendarPlusIcon,
+  BanIcon,
 } from "lucide-react"
 import { toast } from "sonner"
 
-import { apiPatch, fetcher } from "@/lib/api"
+import { apiDelete, apiPatch, fetcher } from "@/lib/api"
 import { formatDateTime } from "@/lib/format"
 import { cn } from "@/lib/utils"
+import { useAdminSession } from "@/hooks/use-admin-session"
 import { PageHeader } from "@/components/admin/page-header"
 import { BookingDetail } from "@/components/bookings/booking-detail"
 import { Button } from "@/components/ui/button"
 import { Empty, EmptyDescription, EmptyTitle } from "@/components/ui/empty"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 type StaffNotificationItem = {
   id: string
@@ -49,10 +63,14 @@ function TypeIcon({ type }: { type: string }) {
   if (type === "trip_completed") return <FlagIcon className={className} />
   if (type === "payment") return <CircleDollarSignIcon className={className} />
   if (type === "new_booking") return <CalendarPlusIcon className={className} />
+  if (type === "date_change") return <CalendarClockIcon className={className} />
+  if (type === "booking_cancelled") return <BanIcon className={className} />
   return <BellIcon className={className} />
 }
 
 export function NotificationsView() {
+  const { isAdmin } = useAdminSession()
+  const { mutate: mutateMatching } = useSWRConfig()
   const { data, isLoading, mutate } = useSWR<NotificationsPayload>(
     "/api/admin/notifications?limit=80",
     fetcher,
@@ -60,6 +78,8 @@ export function NotificationsView() {
   )
   const [filter, setFilter] = React.useState<"all" | "unread">("all")
   const [pending, setPending] = React.useState(false)
+  const [clearOpen, setClearOpen] = React.useState(false)
+  const [clearing, setClearing] = React.useState(false)
   const [selectedBookingId, setSelectedBookingId] = React.useState<
     string | null
   >(null)
@@ -71,18 +91,46 @@ export function NotificationsView() {
   }, [data?.notifications, filter])
 
   const unreadCount = data?.unreadCount ?? 0
+  const totalCount = data?.notifications.length ?? 0
+
+  async function refreshNotificationCaches() {
+    await mutateMatching(
+      (key) =>
+        typeof key === "string" && key.startsWith("/api/admin/notifications"),
+    )
+  }
 
   async function markAllRead() {
     if (unreadCount === 0) return
     setPending(true)
     try {
       await apiPatch("/api/admin/notifications")
-      await mutate()
+      await refreshNotificationCaches()
       toast.success("All notifications marked as read")
     } catch (err) {
       toast.error((err as Error).message)
     } finally {
       setPending(false)
+    }
+  }
+
+  async function clearAllNotifications() {
+    setClearing(true)
+    try {
+      const res = await apiDelete<{ deleted: number }>(
+        "/api/admin/notifications",
+      )
+      setClearOpen(false)
+      await refreshNotificationCaches()
+      toast.success(
+        res.deleted === 0
+          ? "Inbox already empty"
+          : `Cleared ${res.deleted} notification${res.deleted === 1 ? "" : "s"}`,
+      )
+    } catch (err) {
+      toast.error((err as Error).message)
+    } finally {
+      setClearing(false)
     }
   }
 
@@ -110,15 +158,30 @@ export function NotificationsView() {
         title="Notifications"
         description="Booking alerts and driver responses for your ops team."
         actions={
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={pending || unreadCount === 0}
-            onClick={() => void markAllRead()}
-          >
-            <CheckCheckIcon data-icon="inline-start" />
-            Mark all read
-          </Button>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-10 w-full touch-manipulation sm:h-8 sm:w-auto"
+              disabled={pending || unreadCount === 0}
+              onClick={() => void markAllRead()}
+            >
+              <CheckCheckIcon data-icon="inline-start" />
+              Mark all read
+            </Button>
+            {isAdmin ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-10 w-full touch-manipulation text-destructive hover:bg-destructive/10 hover:text-destructive sm:h-8 sm:w-auto"
+                disabled={clearing || (totalCount === 0 && unreadCount === 0)}
+                onClick={() => setClearOpen(true)}
+              >
+                <Trash2Icon data-icon="inline-start" />
+                Clear notifications
+              </Button>
+            ) : null}
+          </div>
         }
       />
 
@@ -220,6 +283,31 @@ export function NotificationsView() {
           void mutate()
         }}
       />
+
+      <AlertDialog open={clearOpen} onOpenChange={setClearOpen}>
+        <AlertDialogContent className="max-w-[calc(100%-2rem)] sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear all notifications?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently deletes every admin inbox notification. Driver
+              notifications are not affected. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={clearing}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={clearing}
+              onClick={(e) => {
+                e.preventDefault()
+                void clearAllNotifications()
+              }}
+            >
+              {clearing ? "Clearing…" : "Clear notifications"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

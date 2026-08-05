@@ -30,7 +30,7 @@ export default async function HomePage() {
   const locale = await getRequestLocale()
   const [page, destinations] = await Promise.all([
     resolvePageContent("home", locale),
-    resolveDestinationCards(locale),
+    resolveDestinationCards(locale, { featuredOnly: true }),
   ])
   const copy = await resolveHomeMarketingCopy(page?.sections ?? [])
   return (

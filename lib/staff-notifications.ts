@@ -10,6 +10,8 @@ export type StaffNotificationType =
   | "cash_paid"
   | "trip_completed"
   | "new_review"
+  | "date_change"
+  | "booking_cancelled"
 
 export type CreateStaffNotificationInput = {
   audience: "admin" | "driver"
@@ -37,10 +39,52 @@ export async function createStaffNotification(
   })
 }
 
+/**
+ * Prefer updating an unread row for the same booking+type so repeated
+ * customer edits (e.g. date_change) do not flood the admin inbox.
+ */
+export async function createOrCoalesceStaffNotification(
+  input: CreateStaffNotificationInput,
+) {
+  if (input.bookingId) {
+    const existing = await prisma.staffNotification.findFirst({
+      where: {
+        audience: input.audience,
+        type: input.type,
+        bookingId: input.bookingId,
+        ownerId: input.ownerId ?? null,
+        readAt: null,
+      },
+      orderBy: { createdAt: "desc" },
+    })
+    if (existing) {
+      return prisma.staffNotification.update({
+        where: { id: existing.id },
+        data: {
+          title: input.title,
+          body: input.body,
+          url: input.url,
+          createdAt: new Date(),
+        },
+      })
+    }
+  }
+  return createStaffNotification(input)
+}
+
 /** Fire-and-forget inbox write (never blocks booking flows). */
 export function recordStaffNotification(input: CreateStaffNotificationInput) {
   void createStaffNotification(input).catch((err) => {
     console.error("[staff-notifications] failed to persist", err)
+  })
+}
+
+/** Fire-and-forget coalesced inbox write (never blocks booking flows). */
+export function recordCoalescedStaffNotification(
+  input: CreateStaffNotificationInput,
+) {
+  void createOrCoalesceStaffNotification(input).catch((err) => {
+    console.error("[staff-notifications] failed to persist (coalesce)", err)
   })
 }
 

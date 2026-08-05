@@ -122,6 +122,10 @@ export function serializeSettings(
     infantCarrierPrice: Number(row.infantCarrierPrice ?? 0),
     childSeatPrice: Number(row.childSeatPrice ?? 0),
     boosterSeatPrice: Number(row.boosterSeatPrice ?? 0),
+    sedanSeats: row.sedanSeats ?? 3,
+    sedanLuggage: row.sedanLuggage ?? 2,
+    minivanSeats: row.minivanSeats ?? 6,
+    minivanLuggage: row.minivanLuggage ?? 6,
     stripeEnabled: row.stripeEnabled ?? true,
     paypalEnabled: row.paypalEnabled ?? true,
     cashOnArrivalEnabled: row.cashOnArrivalEnabled ?? false,
@@ -189,6 +193,10 @@ export async function getSettingsRow() {
       infantCarrierPrice: 0,
       childSeatPrice: 0,
       boosterSeatPrice: 0,
+      sedanSeats: 3,
+      sedanLuggage: 2,
+      minivanSeats: 6,
+      minivanLuggage: 6,
       stripeEnabled: true,
       paypalEnabled: true,
       cashOnArrivalEnabled: false,
@@ -223,6 +231,10 @@ export async function getBookingPolicy() {
     infantCarrierPrice: Number(row.infantCarrierPrice ?? 0),
     childSeatPrice: Number(row.childSeatPrice ?? 0),
     boosterSeatPrice: Number(row.boosterSeatPrice ?? 0),
+    sedanSeats: row.sedanSeats ?? 3,
+    sedanLuggage: row.sedanLuggage ?? 2,
+    minivanSeats: row.minivanSeats ?? 6,
+    minivanLuggage: row.minivanLuggage ?? 6,
   }
 }
 

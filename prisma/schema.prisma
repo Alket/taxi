@@ -48,9 +48,7 @@ enum PaymentStatus {
 
 enum VehicleType {
   sedan
-  comfort
   minivan
-  premium
 }
 
 enum PaymentProvider {
@@ -353,6 +351,11 @@ model Settings {
   infantCarrierPrice          Decimal          @default(0) @db.Decimal(10, 2)
   childSeatPrice              Decimal          @default(0) @db.Decimal(10, 2)
   boosterSeatPrice            Decimal          @default(0) @db.Decimal(10, 2)
+  /** Max passengers / bags for vehicle auto-select and booking validation. */
+  sedanSeats                  Int              @default(3)
+  sedanLuggage                Int              @default(2)
+  minivanSeats                Int              @default(6)
+  minivanLuggage              Int              @default(6)
   stripeEnabled               Boolean          @default(true)
   paypalEnabled               Boolean          @default(true)
   cashOnArrivalEnabled        Boolean          @default(false)

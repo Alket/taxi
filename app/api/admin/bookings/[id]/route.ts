@@ -8,7 +8,13 @@ import {
   serializeBookingDetail,
 } from "@/lib/bookings"
 import { prisma } from "@/lib/db"
-import { round2 } from "@/lib/vehicles"
+import { getBookingPolicy } from "@/lib/settings"
+import {
+  assertVehicleFitsParty,
+  round2,
+  vehicleCapacitiesFromSettingsRow,
+  vehicleTypeSchema,
+} from "@/lib/vehicles"
 
 const updateBookingSchema = z
   .object({
@@ -16,9 +22,9 @@ const updateBookingSchema = z
     dropoffAddress: z.string().trim().min(1).max(400).optional(),
     pickupDateTime: z.string().min(1).optional(),
     flightNumber: z.string().trim().max(40).optional(),
-    passengerCount: z.coerce.number().int().min(1).max(30).optional(),
-    luggageCount: z.coerce.number().int().min(0).max(50).optional(),
-    vehicleType: z.enum(["sedan", "comfort", "minivan", "premium"]).optional(),
+    passengerCount: z.coerce.number().int().min(1).max(20).optional(),
+    luggageCount: z.coerce.number().int().min(0).max(30).optional(),
+    vehicleType: vehicleTypeSchema.optional(),
     totalPrice: z.coerce.number().min(0).optional(),
     depositAmount: z.coerce.number().min(0).optional(),
     notes: z.string().trim().max(2000).optional().nullable(),
@@ -118,6 +124,27 @@ export async function PATCH(request: Request, context: RouteContext) {
     data.balanceDue = round2(
       Math.max(0, nextTotal - Number(existing.depositPaid)),
     )
+  }
+
+  if (
+    parsed.data.vehicleType !== undefined ||
+    parsed.data.passengerCount !== undefined ||
+    parsed.data.luggageCount !== undefined
+  ) {
+    try {
+      const policy = await getBookingPolicy()
+      assertVehicleFitsParty(
+        parsed.data.vehicleType ?? existing.vehicleType,
+        parsed.data.passengerCount ?? existing.passengerCount,
+        parsed.data.luggageCount ?? existing.luggageCount,
+        vehicleCapacitiesFromSettingsRow(policy),
+      )
+    } catch (error) {
+      return NextResponse.json(
+        { error: (error as Error).message || "Party does not fit this vehicle." },
+        { status: 400 },
+      )
+    }
   }
 
   const updated = await prisma.booking.update({

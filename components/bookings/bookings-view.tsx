@@ -7,6 +7,7 @@ import {
   ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  ArrowUpDownIcon,
   CircleDollarSignIcon,
   ListFilterIcon,
   SearchIcon,
@@ -44,13 +45,6 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
   Table,
   TableBody,
   TableCell,
@@ -71,10 +65,6 @@ const SORT_OPTIONS = [
 ] as const
 
 type SortValue = (typeof SORT_OPTIONS)[number]["value"]
-
-const SORT_ITEMS = Object.fromEntries(
-  SORT_OPTIONS.map((o) => [o.value, o.label]),
-)
 
 function isSortValue(value: string | null): value is SortValue {
   return SORT_OPTIONS.some((o) => o.value === value)
@@ -310,29 +300,17 @@ export function BookingsView() {
                 </Button>
               ) : null}
             </div>
-            <div className="sm:ml-auto sm:w-52">
-              <Select
+            <div className="sm:ml-auto sm:w-56">
+              <AdminFilterSelectField
+                label="Sort"
                 value={sort}
-                onValueChange={(value) => {
+                onChange={(value) => {
                   if (isSortValue(value)) setSort(value)
                 }}
-                items={SORT_ITEMS}
-              >
-                <SelectTrigger
-                  className="h-10 w-full md:h-8"
-                  size="default"
-                  aria-label="Sort bookings"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {SORT_OPTIONS.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>
-                      {o.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                options={[...SORT_OPTIONS]}
+                icon={ArrowUpDownIcon}
+                allValue="pickup_asc"
+              />
             </div>
           </div>
 

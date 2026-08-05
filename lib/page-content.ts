@@ -406,9 +406,17 @@ export function destinationIdFromSlug(slug: string): string | null {
 }
 
 const HIDDEN_STATUS_KEY = "_status"
+const FEATURED_STATUS_KEY = "_featured"
 
 export function isDestinationHidden(sections: PageSection[]): boolean {
   return sectionValue(sections, HIDDEN_STATUS_KEY).trim().toLowerCase() === "hidden"
+}
+
+export function isDestinationFeatured(sections: PageSection[]): boolean {
+  return (
+    sectionValue(sections, FEATURED_STATUS_KEY).trim().toLowerCase() ===
+    "featured"
+  )
 }
 
 function withHiddenStatus(sections: PageSection[]): PageSection[] {
@@ -417,6 +425,35 @@ function withHiddenStatus(sections: PageSection[]): PageSection[] {
     ...without,
     section("text", HIDDEN_STATUS_KEY, { body: "hidden" }),
   ]
+}
+
+function withFeaturedStatus(sections: PageSection[]): PageSection[] {
+  const without = sections.filter((s) => s.key !== FEATURED_STATUS_KEY)
+  return [
+    ...without,
+    section("text", FEATURED_STATUS_KEY, { body: "featured" }),
+  ]
+}
+
+function withoutFeaturedStatus(sections: PageSection[]): PageSection[] {
+  return sections.filter((s) => s.key !== FEATURED_STATUS_KEY)
+}
+
+/** Keep soft-hide / homepage-star meta when the editor saves visible sections. */
+export function preserveDestinationMetaKeys(
+  next: PageSection[],
+  previous: PageSection[],
+): PageSection[] {
+  let sections = next.filter(
+    (s) => s.key !== HIDDEN_STATUS_KEY && s.key !== FEATURED_STATUS_KEY,
+  )
+  if (isDestinationFeatured(previous)) {
+    sections = withFeaturedStatus(sections)
+  }
+  if (isDestinationHidden(previous)) {
+    sections = withHiddenStatus(sections)
+  }
+  return sections
 }
 
 function pageDefinitionFromRow(row: {
@@ -715,6 +752,9 @@ export type AdminPageListItem = {
   /** Clear DB overrides and restore code defaults. */
   canReset: boolean
   isCustomDestination: boolean
+  /** Destination pages only — homepage carousel star. */
+  isDestination: boolean
+  featured: boolean
 }
 
 export async function listAdminPages(): Promise<AdminPageListItem[]> {
@@ -735,10 +775,8 @@ export async function listAdminPages(): Promise<AdminPageListItem[]> {
   const builtIn = PAGE_DEFINITIONS.map((def) => {
     const row = bySlug.get(def.slug)
     const isDestination = isDestinationSlug(def.slug)
-    const hidden =
-      isDestination && row
-        ? isDestinationHidden(parseSections(row.sections))
-        : false
+    const sections = row ? parseSections(row.sections) : []
+    const hidden = isDestination && row ? isDestinationHidden(sections) : false
     if (hidden) return null
     return {
       slug: def.slug,
@@ -750,6 +788,8 @@ export async function listAdminPages(): Promise<AdminPageListItem[]> {
       canDelete: isDestination,
       canReset: !isDestination && Boolean(row),
       isCustomDestination: false,
+      isDestination,
+      featured: isDestination && row ? isDestinationFeatured(sections) : false,
     }
   }).filter((item): item is NonNullable<typeof item> => Boolean(item))
 
@@ -761,6 +801,7 @@ export async function listAdminPages(): Promise<AdminPageListItem[]> {
     })
     .map((row) => {
       const def = pageDefinitionFromRow(row)
+      const sections = parseSections(row.sections)
       return {
         slug: row.slug,
         label: row.label || def.label,
@@ -771,6 +812,8 @@ export async function listAdminPages(): Promise<AdminPageListItem[]> {
         canDelete: true,
         canReset: false,
         isCustomDestination: true,
+        isDestination: true,
+        featured: isDestinationFeatured(sections),
       }
     })
 
@@ -838,6 +881,7 @@ function destinationFromPage(
 /** Destination cards for the homepage carousel (CMS with code fallbacks). */
 export async function resolveDestinationCards(
   localeInput?: string | null,
+  options?: { featuredOnly?: boolean },
 ): Promise<Destination[]> {
   const locale = normalizeLocale(localeInput)
   const builtInCards = (
@@ -845,10 +889,15 @@ export async function resolveDestinationCards(
       DESTINATIONS.map(async (dest) => {
         const page = await resolvePageContent(`destinations/${dest.id}`, locale)
         if (!page) return null
-        return destinationFromPage(dest.id, page, dest)
+        return {
+          card: destinationFromPage(dest.id, page, dest),
+          featured: isDestinationFeatured(page.sections),
+        }
       }),
     )
-  ).filter((card): card is Destination => Boolean(card))
+  ).filter(
+    (item): item is { card: Destination; featured: boolean } => Boolean(item),
+  )
 
   const builtInIds = new Set(DESTINATIONS.map((d) => d.id))
   const customRows = await prisma.pageContent.findMany({
@@ -872,13 +921,32 @@ export async function resolveDestinationCards(
       if (!id || builtInIds.has(id)) return null
       const page = serializePageContent(row)
       if (isDestinationHidden(page.sections)) return null
-      // Prefer localized; if we only have EN for a custom slug that's fine.
       if (row.locale !== locale && row.locale !== DEFAULT_LOCALE) return null
-      return destinationFromPage(id, page)
+      const enRow =
+        row.locale === DEFAULT_LOCALE
+          ? row
+          : customRows.find(
+              (r) => r.slug === row.slug && r.locale === DEFAULT_LOCALE,
+            )
+      return {
+        card: destinationFromPage(id, page),
+        featured: isDestinationFeatured(
+          enRow ? parseSections(enRow.sections) : page.sections,
+        ),
+      }
     })
-    .filter((card): card is Destination => Boolean(card))
+    .filter(
+      (item): item is { card: Destination; featured: boolean } => Boolean(item),
+    )
 
-  const cards = [...builtInCards, ...customCards]
+  let selected = [...builtInCards, ...customCards]
+  if (options?.featuredOnly) {
+    const featured = selected.filter((item) => item.featured)
+    // Until at least one destination is starred, keep showing all (safe rollout).
+    if (featured.length > 0) selected = featured
+  }
+
+  const cards = selected.map((item) => item.card)
   const byUrl = await mediaMetaByUrls(cards.map((card) => card.image))
   return cards.map((card) => {
     const meta = byUrl.get(card.image)
@@ -887,6 +955,57 @@ export async function resolveDestinationCards(
       imageAlt: resolveMediaAlt(meta, card.name),
     }
   })
+}
+
+/**
+ * Toggle homepage feature star for a destination page.
+ * Upserts EN PageContent so built-ins without a row can be starred.
+ */
+export async function setDestinationFeatured(
+  slug: string,
+  featured: boolean,
+): Promise<{ featured: boolean }> {
+  if (!isDestinationSlug(slug)) {
+    throw new Error("Only destination pages can be featured.")
+  }
+
+  const def = await resolvePageDefinition(slug)
+  if (!def) {
+    throw new Error("Unknown destination.")
+  }
+
+  const existing = await prisma.pageContent.findUnique({
+    where: { slug_locale: { slug, locale: DEFAULT_LOCALE } },
+  })
+  const baseSections = existing
+    ? parseSections(existing.sections)
+    : def.defaults.sections
+
+  if (existing && isDestinationHidden(baseSections)) {
+    throw new Error("This destination is deleted.")
+  }
+
+  const nextSections = featured
+    ? withFeaturedStatus(baseSections)
+    : withoutFeaturedStatus(baseSections)
+
+  await prisma.pageContent.upsert({
+    where: { slug_locale: { slug, locale: DEFAULT_LOCALE } },
+    create: {
+      slug,
+      locale: DEFAULT_LOCALE,
+      label: def.label,
+      title: def.defaults.title,
+      description: def.defaults.description,
+      ogImage: def.defaults.ogImage,
+      sections: nextSections,
+    },
+    update: {
+      sections: nextSections,
+    },
+  })
+
+  return { featured }
 }
 
 export async function resolveDestination(

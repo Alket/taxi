@@ -7,13 +7,23 @@ import {
 } from "@/lib/managed-booking"
 import { prisma } from "@/lib/db"
 import { getBookingPolicy } from "@/lib/settings"
-import { round2 } from "@/lib/vehicles"
+import { takeRateLimit } from "@/lib/rate-limit"
+import {
+  assertVehicleFitsParty,
+  round2,
+  vehicleCapacitiesFromSettingsRow,
+  vehicleTypeSchema,
+} from "@/lib/vehicles"
+
+/** Caps public pickup-time churn that would spam ops alerts. */
+const PUBLIC_DATE_EDIT_LIMIT = 8
+const PUBLIC_DATE_EDIT_WINDOW_MS = 30 * 60 * 1000
 
 const bodySchema = z.object({
   email: z.string().email(),
   pickupDateTime: z.string().optional(),
-  passengerCount: z.coerce.number().int().min(1).max(30).optional(),
-  vehicleType: z.enum(["sedan", "comfort", "minivan", "premium"]).optional(),
+  passengerCount: z.coerce.number().int().min(1).max(20).optional(),
+  vehicleType: vehicleTypeSchema.optional(),
 })
 
 /**
@@ -76,6 +86,26 @@ export async function PATCH(
   const vehicleType = parsed.data.vehicleType ?? booking.vehicleType
   if (parsed.data.vehicleType) {
     data.vehicleType = parsed.data.vehicleType
+  }
+
+  if (
+    parsed.data.passengerCount !== undefined ||
+    parsed.data.vehicleType !== undefined
+  ) {
+    try {
+      const policy = await getBookingPolicy()
+      assertVehicleFitsParty(
+        vehicleType,
+        parsed.data.passengerCount ?? booking.passengerCount,
+        booking.luggageCount,
+        vehicleCapacitiesFromSettingsRow(policy),
+      )
+    } catch (error) {
+      return NextResponse.json(
+        { error: (error as Error).message || "Party does not fit this vehicle." },
+        { status: 400 },
+      )
+    }
   }
 
   if (data.pickupDateTime) {
@@ -145,7 +175,45 @@ export async function PATCH(
     return NextResponse.json({ error: "No changes provided." }, { status: 400 })
   }
 
+  const previousPickup = booking.pickupDateTime
+  const dateChanged =
+    data.pickupDateTime instanceof Date &&
+    previousPickup.getTime() !== (data.pickupDateTime as Date).getTime()
+
+  if (dateChanged) {
+    const limited = takeRateLimit(
+      `public-date-edit:${id}`,
+      PUBLIC_DATE_EDIT_LIMIT,
+      PUBLIC_DATE_EDIT_WINDOW_MS,
+    )
+    if (!limited.ok) {
+      return NextResponse.json(
+        {
+          error: `You've changed the pickup time too many times. Try again in ${limited.retryAfterSec}s.`,
+        },
+        {
+          status: 429,
+          headers: { "Retry-After": String(limited.retryAfterSec) },
+        },
+      )
+    }
+  }
+
   await prisma.booking.update({ where: { id }, data })
+
+  if (dateChanged) {
+    try {
+      const { notifyBookingDateChanged } = await import(
+        "@/lib/emails/booking-events"
+      )
+      // Emails + admin inbox/push — never block the customer response.
+      void notifyBookingDateChanged(id, previousPickup).catch((err) => {
+        console.error("[bookings] date-change notify failed:", err)
+      })
+    } catch {
+      // never block edit
+    }
+  }
 
   const updated = await findBookingForLookup(booking.referenceCode, email)
   return NextResponse.json({

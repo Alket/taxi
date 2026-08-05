@@ -17,6 +17,7 @@ import { formatMoney } from "@/lib/format"
 import { useBookingStore } from "@/lib/store/booking-store"
 import { cn } from "@/lib/utils"
 import { useAutoSelectVehicle } from "@/hooks/use-auto-select-vehicle"
+import { usePartyCapacityLimits } from "@/hooks/use-party-capacity-limits"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -103,6 +104,7 @@ export function TripOptions() {
 
   const { data: config } = useSWR<BookingConfig>("/api/booking/config", fetcher)
   const discountPercent = config?.roundTripDiscountPercent ?? 0
+  const { maxPassengers, maxLuggage } = usePartyCapacityLimits()
 
   useAutoSelectVehicle(discountPercent)
 
@@ -144,7 +146,7 @@ export function TripOptions() {
             label="Passengers"
             value={passengerCount}
             min={1}
-            max={8}
+            max={maxPassengers}
             onChange={(next) => patch({ passengerCount: next })}
           />
           <Stepper
@@ -152,7 +154,7 @@ export function TripOptions() {
             label="Luggage"
             value={luggageCount}
             min={0}
-            max={10}
+            max={maxLuggage}
             onChange={(next) => patch({ luggageCount: next })}
           />
         </div>

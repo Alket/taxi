@@ -26,7 +26,7 @@ export type BookingStatus =
   | "completed"
   | "cancelled"
 
-export type VehicleType = "sedan" | "comfort" | "minivan" | "premium"
+export type VehicleType = "sedan" | "minivan"
 
 export interface Customer {
   name: string
@@ -303,6 +303,11 @@ export interface Settings {
   infantCarrierPrice: number
   childSeatPrice: number
   boosterSeatPrice: number
+  /** Max passengers for Sedan (booking auto-select + validation). */
+  sedanSeats: number
+  sedanLuggage: number
+  minivanSeats: number
+  minivanLuggage: number
   stripeEnabled: boolean
   paypalEnabled: boolean
   cashOnArrivalEnabled: boolean
