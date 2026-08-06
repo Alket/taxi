@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import useSWR from "swr"
 import { toast } from "sonner"
 import {
+  Download,
   ExternalLink,
   FileText,
   Pencil,
@@ -13,6 +14,7 @@ import {
   RotateCcw,
   Star,
   Trash2,
+  Upload,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -195,6 +197,9 @@ export function PagesListView() {
   } | null>(null)
   const [acting, setActing] = React.useState(false)
   const [featuringSlug, setFeaturingSlug] = React.useState<string | null>(null)
+  const [exporting, setExporting] = React.useState(false)
+  const [importing, setImporting] = React.useState(false)
+  const importInputRef = React.useRef<HTMLInputElement>(null)
 
   function resetCreateForm() {
     setName("")
@@ -204,6 +209,67 @@ export function PagesListView() {
     setDescription("")
     setBadge("New")
     setPriceFrom("€—")
+  }
+
+  async function exportI18nPack() {
+    setExporting(true)
+    try {
+      const res = await fetch("/api/admin/pages/i18n-pack", {
+        headers: { "ngrok-skip-browser-warning": "true" },
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error || `Export failed (${res.status})`)
+      }
+      const blob = await res.blob()
+      const disposition = res.headers.get("Content-Disposition") || ""
+      const match = disposition.match(/filename="([^"]+)"/)
+      const filename = match?.[1] || "landed-pages-i18n.json"
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = filename
+      a.click()
+      URL.revokeObjectURL(url)
+      toast.success("Translation pack downloaded.")
+    } catch (err) {
+      toast.error((err as Error).message)
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  async function onImportFile(file: File | null) {
+    if (!file) return
+    setImporting(true)
+    try {
+      const text = await file.text()
+      const pack = JSON.parse(text) as unknown
+      const res = await apiPost<{
+        ok: boolean
+        created: number
+        updated: number
+        skipped: number
+        pages: number
+        locales: number
+        errors?: string[]
+        warning?: string
+      }>("/api/admin/pages/i18n-pack", { pack })
+      const extra =
+        res.errors && res.errors.length > 0
+          ? ` (${res.errors.slice(0, 2).join("; ")})`
+          : ""
+      toast.success(
+        `Imported ${res.pages} pages — ${res.updated} updated, ${res.created} created, ${res.skipped} skipped.${extra}`,
+      )
+      if (res.warning) toast.message(res.warning)
+      await mutate()
+    } catch (err) {
+      toast.error((err as Error).message)
+    } finally {
+      setImporting(false)
+      if (importInputRef.current) importInputRef.current.value = ""
+    }
   }
 
   async function toggleFeatured(page: AdminPageRow) {
@@ -277,14 +343,45 @@ export function PagesListView() {
         title="Pages"
         description="Edit marketing copy, images, FAQs, and SEO. Star destinations to feature them on the homepage."
         actions={
-          <Button
-            size="sm"
-            className="h-10 w-full touch-manipulation sm:h-8 sm:w-auto"
-            onClick={() => setCreateOpen(true)}
-          >
-            <Plus className="size-3.5" />
-            Add destination
-          </Button>
+          <div className="flex w-full items-center gap-2 sm:w-auto">
+            <input
+              ref={importInputRef}
+              type="file"
+              accept="application/json,.json"
+              className="hidden"
+              onChange={(e) => void onImportFile(e.target.files?.[0] ?? null)}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-10 flex-1 touch-manipulation sm:h-8 sm:flex-none sm:w-auto"
+              disabled={exporting || importing}
+              onClick={() => void exportI18nPack()}
+            >
+              <Download className="size-3.5" />
+              {exporting ? "Exporting…" : "Export translations"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-10 flex-1 touch-manipulation sm:h-8 sm:flex-none sm:w-auto"
+              disabled={exporting || importing}
+              onClick={() => importInputRef.current?.click()}
+            >
+              <Upload className="size-3.5" />
+              {importing ? "Importing…" : "Import translations"}
+            </Button>
+            <Button
+              size="sm"
+              className="h-10 flex-1 touch-manipulation sm:h-8 sm:flex-none sm:w-auto"
+              onClick={() => setCreateOpen(true)}
+            >
+              <Plus className="size-3.5" />
+              Add destination
+            </Button>
+          </div>
         }
       />
       <div className="flex flex-col gap-5 p-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:gap-6 sm:p-4 md:p-6">
