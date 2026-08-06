@@ -84,9 +84,11 @@ export async function PATCH(request: Request, context: RouteContext) {
     return NextResponse.json(
       {
         error:
-          existing.status === "cancelled"
-            ? "Cancelled bookings cannot be edited."
-            : "This booking can no longer be edited after the driver has arrived.",
+          existing.status === "pending"
+            ? "Confirm the booking before editing trip details."
+            : existing.status === "cancelled"
+              ? "Cancelled bookings cannot be edited."
+              : "This booking can no longer be edited after the driver has arrived.",
       },
       { status: 409 },
     )

@@ -139,9 +139,11 @@ export function DriverAssign({
             bookingDriver={booking.driver}
           />
           <p className="mt-2 text-xs text-muted-foreground">
-            {booking.status === "cancelled"
-              ? "Driver assignment is locked after booking cancelled."
-              : "Driver assignment is locked after the driver has arrived."}
+            {booking.status === "pending"
+              ? "Confirm the booking before assigning a driver."
+              : booking.status === "cancelled"
+                ? "Driver assignment is locked after booking cancelled."
+                : "Driver assignment is locked after the driver has arrived."}
           </p>
         </div>
       ) : hasAssignedDriver && !editing ? (

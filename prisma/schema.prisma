@@ -37,6 +37,14 @@ enum CancellationOutcome {
   deposit_forfeited
 }
 
+/** How the booker relates to the traveler when booking for someone else. */
+enum BookerRelation {
+  family_friend
+  travel_agent
+  colleague
+  prefer_not_to_say
+}
+
 enum PaymentStatus {
   unpaid
   deposit_paid
@@ -194,6 +202,13 @@ model Booking {
   isRoundTrip           Boolean       @default(false)
   roundTripId           String?
   notes                 String?
+  /** True when the Customer (booker) is booking for a different traveler. */
+  bookedForOther        Boolean       @default(false)
+  passengerName         String?
+  passengerEmail        String?
+  passengerPhone        String?
+  passengerNoEmail      Boolean       @default(false)
+  bookerRelation        BookerRelation?
   customerId            String
   driverId              String?
   zoneId                String?

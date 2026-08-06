@@ -16,6 +16,11 @@ import {
   type DetailsFormValues,
 } from "@/lib/booking-details"
 import {
+  BOOKER_RELATION_LABELS,
+  BOOKER_RELATION_VALUES,
+  type BookerRelation,
+} from "@/lib/booker-relation"
+import {
   CHILD_SEAT_OPTIONS,
   type ChildSeatKey,
   type ChildSeatPrices,
@@ -23,6 +28,8 @@ import {
 import { formatMoney } from "@/lib/format"
 import { useBookingStore } from "@/lib/store/booking-store"
 import { useBookingFieldFocusListener } from "@/hooks/use-booking-field-focus"
+import { useT } from "@/lib/i18n/use-locale"
+import { cn } from "@/lib/utils"
 import { CountryCodeSelect } from "@/components/booking/country-code-select"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -99,11 +106,48 @@ function CheckboxText({
   )
 }
 
+/** Clickable text beside radios — avoids Label htmlFor focus scroll-to-top. */
+function RadioText({
+  onSelect,
+  children,
+  className,
+}: {
+  onSelect: () => void
+  children: React.ReactNode
+  className?: string
+}) {
+  return (
+    <button
+      type="button"
+      className={
+        className ??
+        "min-w-0 flex-1 cursor-pointer text-left text-sm font-bold text-brand"
+      }
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={onSelect}
+    >
+      {children}
+    </button>
+  )
+}
+
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null
+  return <p className="text-xs text-red-500">{message}</p>
+}
+
 export function DetailsStep() {
+  const t = useT()
   const isRoundTrip = useBookingStore((s) => s.isRoundTrip)
   const returnDateTime = useBookingStore((s) => s.returnDateTime)
   const flightNumber = useBookingStore((s) => s.flightNumber)
   const customer = useBookingStore((s) => s.customer)
+  const bookedForOther = useBookingStore((s) => s.bookedForOther)
+  const passengerName = useBookingStore((s) => s.passengerName)
+  const passengerEmail = useBookingStore((s) => s.passengerEmail)
+  const passengerPhone = useBookingStore((s) => s.passengerPhone)
+  const passengerNoEmail = useBookingStore((s) => s.passengerNoEmail)
+  const bookerRelation = useBookingStore((s) => s.bookerRelation)
   const infantCarrierCount = useBookingStore((s) => s.infantCarrierCount)
   const childSeatCount = useBookingStore((s) => s.childSeatCount)
   const boosterCount = useBookingStore((s) => s.boosterCount)
@@ -124,7 +168,6 @@ export function DetailsStep() {
   const childSeats =
     seatCounts.infantCarrier + seatCounts.childSeat + seatCounts.booster > 0
 
-  const [isMainPassenger, setIsMainPassenger] = React.useState("true")
   const [seatsEnabled, setSeatsEnabled] = React.useState(childSeats)
   const [notesEnabled, setNotesEnabled] = React.useState(
     Boolean(driverNotes.trim()),
@@ -144,19 +187,29 @@ export function DetailsStep() {
   )
 
   const phoneParts = splitPhone(customer.phone)
+  const passengerPhoneParts = splitPhone(passengerPhone)
 
   const form = useForm<DetailsFormValues>({
     resolver: zodResolver(schema),
-    mode: "onChange",
+    // Only show errors after the user touches a field (or Continue focuses it).
+    mode: "onTouched",
+    reValidateMode: "onChange",
     defaultValues: {
       pickupDateTime: toLocalInputValue(
         useBookingStore.getState().pickupDateTime,
       ),
       flightNumber: flightNumber || "",
+      bookedForOther,
       name: customer.name,
       email: customer.email,
       phoneCountryCode: phoneParts.countryCode,
       phoneNational: phoneParts.national,
+      passengerName,
+      passengerEmail,
+      passengerNoEmail,
+      passengerPhoneCountryCode: passengerPhoneParts.countryCode,
+      passengerPhoneNational: passengerPhoneParts.national,
+      bookerRelation,
       whatsappOptIn: customer.whatsappOptIn,
     },
   })
@@ -166,8 +219,13 @@ export function DetailsStep() {
     control,
     watch,
     trigger,
+    setValue,
+    clearErrors,
     formState: { errors },
   } = form
+
+  const watchedBookedForOther = watch("bookedForOther")
+  const watchedPassengerNoEmail = watch("passengerNoEmail")
 
   React.useEffect(() => {
     const subscription = watch((values) => {
@@ -175,25 +233,45 @@ export function DetailsStep() {
         values.phoneCountryCode && values.phoneNational
           ? joinPhone(values.phoneCountryCode, values.phoneNational)
           : ""
+      const forOther = Boolean(values.bookedForOther)
+      const noEmail = Boolean(values.passengerNoEmail)
+      const pPhone =
+        forOther &&
+        values.passengerPhoneCountryCode &&
+        values.passengerPhoneNational
+          ? joinPhone(
+              values.passengerPhoneCountryCode,
+              values.passengerPhoneNational,
+            )
+          : ""
 
       patch({
         flightNumber: normalizeFlightNumber(
           (values.flightNumber ?? "").toString(),
         ),
+        bookedForOther: forOther,
         customer: {
           name: (values.name ?? "").toString(),
           email: (values.email ?? "").toString(),
           phone,
           whatsappOptIn: Boolean(values.whatsappOptIn),
         },
+        passengerName: forOther
+          ? (values.passengerName ?? "").toString()
+          : "",
+        passengerEmail:
+          forOther && !noEmail
+            ? (values.passengerEmail ?? "").toString()
+            : "",
+        passengerPhone: forOther ? pPhone : "",
+        passengerNoEmail: forOther ? noEmail : false,
+        bookerRelation: forOther
+          ? ((values.bookerRelation as BookerRelation | null) ?? null)
+          : null,
       })
     })
     return () => subscription.unsubscribe()
   }, [watch, patch])
-
-  React.useEffect(() => {
-    void trigger()
-  }, [trigger])
 
   useBookingFieldFocusListener("flightNumber", () => {
     void trigger("flightNumber")
@@ -207,10 +285,48 @@ export function DetailsStep() {
   useBookingFieldFocusListener("phone", () => {
     void trigger(["phoneCountryCode", "phoneNational"])
   })
+  useBookingFieldFocusListener("passengerName", () => {
+    void trigger("passengerName")
+  })
+  useBookingFieldFocusListener("passengerEmail", () => {
+    void trigger("passengerEmail")
+  })
+  useBookingFieldFocusListener("passengerPhone", () => {
+    void trigger(["passengerPhoneCountryCode", "passengerPhoneNational"])
+  })
+  useBookingFieldFocusListener("bookerRelation", () => {
+    void trigger("bookerRelation")
+  })
+
+  function setBookedForOther(next: boolean) {
+    setValue("bookedForOther", next, { shouldValidate: false })
+    if (!next) {
+      setValue("passengerName", "", { shouldValidate: false })
+      setValue("passengerEmail", "", { shouldValidate: false })
+      setValue("passengerNoEmail", false, { shouldValidate: false })
+      setValue("passengerPhoneNational", "", { shouldValidate: false })
+      setValue("bookerRelation", null, { shouldValidate: false })
+      clearErrors([
+        "passengerName",
+        "passengerEmail",
+        "passengerPhoneNational",
+        "passengerPhoneCountryCode",
+        "bookerRelation",
+      ])
+    } else {
+      clearErrors([
+        "passengerName",
+        "passengerEmail",
+        "passengerPhoneNational",
+        "passengerPhoneCountryCode",
+        "bookerRelation",
+      ])
+    }
+  }
 
   return (
     <form
-      className="flex max-w-xl flex-col gap-8"
+      className="flex w-full flex-col gap-8"
       onSubmit={(e) => e.preventDefault()}
     >
       <div className="flex flex-col gap-2" data-booking-field="flightNumber">
@@ -231,52 +347,230 @@ export function DetailsStep() {
           <SearchIcon className="absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted-foreground" />
         </div>
         <p className="text-[11px] text-muted-foreground">
-          Adding your flight number lets us track delays automatically and
-          adjust your pickup time.
+          {t("book.flightNumberHint")}
         </p>
       </div>
 
       <RadioGroup
-        value={isMainPassenger}
+        value={watchedBookedForOther ? "false" : "true"}
         onValueChange={(value) => {
-          if (value != null) setIsMainPassenger(String(value))
+          if (value == null) return
+          setBookedForOther(value === "false")
         }}
         className="flex flex-col gap-3"
       >
         <div className="flex items-center gap-3">
           <RadioGroupItem
             value="true"
-            id="p-main"
             className="data-checked:border-brand-accent data-checked:text-brand-accent"
+            onMouseDown={(e) => e.preventDefault()}
           />
-          <Label
-            htmlFor="p-main"
-            className="text-sm font-bold text-brand"
-          >
+          <RadioText onSelect={() => setBookedForOther(false)}>
             I&apos;m the main passenger
-          </Label>
+          </RadioText>
         </div>
         <div className="flex items-center gap-3">
           <RadioGroupItem
             value="false"
-            id="p-other"
             className="data-checked:border-brand-accent data-checked:text-brand-accent"
+            onMouseDown={(e) => e.preventDefault()}
           />
-          <Label
-            htmlFor="p-other"
-            className="text-sm font-bold text-brand"
-          >
+          <RadioText onSelect={() => setBookedForOther(true)}>
             This booking is for another person
-          </Label>
+          </RadioText>
         </div>
       </RadioGroup>
 
-      <div className="flex flex-col gap-5">
-        <div className="flex flex-col gap-2" data-booking-field="name">
-          <Label
-            htmlFor="name"
-            className="text-sm font-bold text-brand"
+      {watchedBookedForOther ? (
+        <div className="flex flex-col gap-5 rounded-xl border border-border bg-brand-surface/40 p-4">
+          <div>
+            <p className="text-sm font-bold text-brand">Passenger details</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Who will be traveling on this transfer
+            </p>
+          </div>
+
+          <div
+            className="flex flex-col gap-2"
+            data-booking-field="passengerName"
           >
+            <Label
+              htmlFor="passengerName"
+              className="text-sm font-bold text-brand"
+            >
+              Passenger&apos;s full name
+            </Label>
+            <Input
+              id="passengerName"
+              placeholder="Enter passenger's full name"
+              aria-invalid={errors.passengerName ? true : undefined}
+              className="h-12 border-border shadow-none transition-all focus:border-brand-accent focus:ring-0"
+              {...register("passengerName")}
+            />
+            <FieldError message={errors.passengerName?.message} />
+          </div>
+
+          <div
+            className="flex flex-col gap-2"
+            data-booking-field="passengerEmail"
+          >
+            <Label
+              htmlFor="passengerEmail"
+              className="text-sm font-bold text-brand"
+            >
+              Passenger&apos;s email
+            </Label>
+            <Input
+              id="passengerEmail"
+              type="email"
+              placeholder="Enter passenger's email"
+              disabled={watchedPassengerNoEmail}
+              aria-invalid={errors.passengerEmail ? true : undefined}
+              className={cn(
+                "h-12 border-border shadow-none transition-all focus:border-brand-accent focus:ring-0",
+                watchedPassengerNoEmail && "opacity-50",
+              )}
+              {...register("passengerEmail")}
+            />
+            <div className="flex items-start gap-3 pt-1">
+              <Controller
+                control={control}
+                name="passengerNoEmail"
+                render={({ field }) => (
+                  <>
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={(checked) => {
+                        const on = Boolean(checked)
+                        field.onChange(on)
+                        if (on) {
+                          setValue("passengerEmail", "", {
+                            shouldValidate: false,
+                          })
+                          clearErrors("passengerEmail")
+                        }
+                      }}
+                      className="mt-0.5 border-border data-checked:border-brand-accent data-checked:bg-brand-accent"
+                    />
+                    <CheckboxText
+                      onToggle={() => {
+                        const on = !field.value
+                        field.onChange(on)
+                        if (on) {
+                          setValue("passengerEmail", "", {
+                            shouldValidate: false,
+                          })
+                          clearErrors("passengerEmail")
+                        }
+                      }}
+                      className="min-w-0 flex-1 cursor-pointer text-left text-sm font-semibold text-brand"
+                    >
+                      Passenger doesn&apos;t have an email
+                    </CheckboxText>
+                  </>
+                )}
+              />
+            </div>
+            <FieldError message={errors.passengerEmail?.message} />
+          </div>
+
+          <div
+            className="flex flex-col gap-2"
+            data-booking-field="passengerPhone"
+          >
+            <Label
+              htmlFor="passengerPhone"
+              className="text-sm font-bold text-brand"
+            >
+              Passenger&apos;s phone number
+            </Label>
+            <div className="flex gap-2">
+              <Controller
+                control={control}
+                name="passengerPhoneCountryCode"
+                render={({ field }) => (
+                  <CountryCodeSelect
+                    value={field.value || "+355"}
+                    onChange={field.onChange}
+                  />
+                )}
+              />
+              <Input
+                id="passengerPhone"
+                type="tel"
+                placeholder="e.g. 66 123 4567"
+                aria-invalid={
+                  errors.passengerPhoneCountryCode ||
+                  errors.passengerPhoneNational
+                    ? true
+                    : undefined
+                }
+                className="h-12 flex-1 border-border shadow-none transition-all focus:border-brand-accent focus:ring-0"
+                {...register("passengerPhoneNational")}
+              />
+            </div>
+            <FieldError
+              message={
+                errors.passengerPhoneCountryCode?.message ||
+                errors.passengerPhoneNational?.message
+              }
+            />
+          </div>
+
+          <div
+            className="flex flex-col gap-3"
+            data-booking-field="bookerRelation"
+          >
+            <Label className="text-sm font-bold text-brand">
+              Your relation with passenger
+            </Label>
+            <Controller
+              control={control}
+              name="bookerRelation"
+              render={({ field }) => (
+                <RadioGroup
+                  value={field.value ?? ""}
+                  onValueChange={(value) => {
+                    if (value == null || value === "") return
+                    field.onChange(value as BookerRelation)
+                  }}
+                  className="flex flex-col gap-2.5"
+                >
+                  {BOOKER_RELATION_VALUES.map((value) => (
+                    <div key={value} className="flex items-center gap-3">
+                      <RadioGroupItem
+                        value={value}
+                        className="data-checked:border-brand-accent data-checked:text-brand-accent"
+                        onMouseDown={(e) => e.preventDefault()}
+                      />
+                      <RadioText
+                        className="min-w-0 flex-1 cursor-pointer text-left text-sm font-semibold text-brand"
+                        onSelect={() => field.onChange(value)}
+                      >
+                        {BOOKER_RELATION_LABELS[value]}
+                      </RadioText>
+                    </div>
+                  ))}
+                </RadioGroup>
+              )}
+            />
+            <FieldError message={errors.bookerRelation?.message} />
+          </div>
+        </div>
+      ) : null}
+
+      <div className="flex flex-col gap-5">
+        {watchedBookedForOther ? (
+          <div>
+            <p className="text-sm font-bold text-brand">Your details</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Booking contact for confirmation and updates
+            </p>
+          </div>
+        ) : null}
+
+        <div className="flex flex-col gap-2" data-booking-field="name">
+          <Label htmlFor="name" className="text-sm font-bold text-brand">
             Your full name
           </Label>
           <Input
@@ -286,16 +580,11 @@ export function DetailsStep() {
             className="h-12 border-border shadow-none transition-all focus:border-brand-accent focus:ring-0"
             {...register("name")}
           />
-          {errors.name && (
-            <p className="text-xs text-red-500">{errors.name.message}</p>
-          )}
+          <FieldError message={errors.name?.message} />
         </div>
 
         <div className="flex flex-col gap-2" data-booking-field="email">
-          <Label
-            htmlFor="email"
-            className="text-sm font-bold text-brand"
-          >
+          <Label htmlFor="email" className="text-sm font-bold text-brand">
             Your email
           </Label>
           <Input
@@ -306,16 +595,11 @@ export function DetailsStep() {
             className="h-12 border-border shadow-none transition-all focus:border-brand-accent focus:ring-0"
             {...register("email")}
           />
-          {errors.email && (
-            <p className="text-xs text-red-500">{errors.email.message}</p>
-          )}
+          <FieldError message={errors.email?.message} />
         </div>
 
         <div className="flex flex-col gap-2" data-booking-field="phone">
-          <Label
-            htmlFor="phone"
-            className="text-sm font-bold text-brand"
-          >
+          <Label htmlFor="phone" className="text-sm font-bold text-brand">
             Your phone number
           </Label>
           <div className="flex gap-2">
@@ -334,18 +618,20 @@ export function DetailsStep() {
               type="tel"
               placeholder="e.g. 66 123 4567"
               aria-invalid={
-                errors.phoneCountryCode || errors.phoneNational ? true : undefined
+                errors.phoneCountryCode || errors.phoneNational
+                  ? true
+                  : undefined
               }
               className="h-12 flex-1 border-border shadow-none transition-all focus:border-brand-accent focus:ring-0"
               {...register("phoneNational")}
             />
           </div>
-          {(errors.phoneCountryCode || errors.phoneNational) && (
-            <p className="text-xs text-red-500">
-              {errors.phoneCountryCode?.message ||
-                errors.phoneNational?.message}
-            </p>
-          )}
+          <FieldError
+            message={
+              errors.phoneCountryCode?.message ||
+              errors.phoneNational?.message
+            }
+          />
         </div>
 
         <div className="flex items-start gap-3 rounded-xl border border-border px-3.5 py-3">

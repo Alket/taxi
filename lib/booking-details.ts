@@ -8,6 +8,10 @@ import {
   isPickupTooSoon,
   pickupLeadTimeMessage,
 } from "@/lib/pickup-lead-time"
+import {
+  bookerRelationSchema,
+  type BookerRelation,
+} from "@/lib/booker-relation"
 import { z } from "zod"
 
 /** IATA (2-char) or ICAO (3-letter) airline code + 1–4 digits, optional suffix (e.g. LH1445, EAF654, U2123). */
@@ -118,6 +122,25 @@ export const bookingFlightNumberSchema = z
     "Use a format like LH1445 or EAF654.",
   )
 
+export const bookingPassengerNameSchema = z
+  .string()
+  .trim()
+  .min(2, "Enter the passenger's full name.")
+  .max(80, "Name is too long.")
+
+export const bookingPassengerEmailSchema = z
+  .string()
+  .trim()
+  .email("Enter a valid passenger email.")
+  .max(320)
+
+const phoneNationalSchema = z
+  .string()
+  .trim()
+  .min(6, "Enter a valid phone number.")
+  .max(15, "Phone number is too long.")
+  .regex(/^\d[\d\s-]*$/, "Phone number should contain digits only.")
+
 export function createDetailsSchema(options: {
   isRoundTrip: boolean
   returnDateTime: string | null
@@ -145,36 +168,102 @@ export function createDetailsSchema(options: {
           },
           "Use a format like LH1445 or EAF654.",
         ),
+      bookedForOther: z.boolean(),
+      // Booker (always required)
       name: bookingCustomerNameSchema,
       email: bookingCustomerEmailSchema,
       phoneCountryCode: z.string().min(2, "Select a country code."),
-      phoneNational: z
-        .string()
-        .trim()
-        .min(6, "Enter a valid phone number.")
-        .max(15, "Phone number is too long.")
-        .regex(/^\d[\d\s-]*$/, "Phone number should contain digits only."),
+      phoneNational: phoneNationalSchema,
+      // Passenger (validated when bookedForOther)
+      passengerName: z.string().trim().max(80),
+      passengerEmail: z.string().trim().max(320),
+      passengerNoEmail: z.boolean(),
+      passengerPhoneCountryCode: z.string().min(1),
+      passengerPhoneNational: z.string().trim().max(15),
+      bookerRelation: bookerRelationSchema.nullable(),
       whatsappOptIn: z.boolean(),
     })
     .superRefine((data, ctx) => {
-      if (!options.isRoundTrip || !options.returnDateTime) return
+      if (options.isRoundTrip && options.returnDateTime) {
+        const pickup = new Date(data.pickupDateTime).getTime()
+        const ret = new Date(options.returnDateTime).getTime()
+        if (!Number.isNaN(pickup) && !Number.isNaN(ret) && ret <= pickup) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["pickupDateTime"],
+            message:
+              "Return pickup (from Step 2) must be after this outbound pickup.",
+          })
+        }
+      }
 
-      const pickup = new Date(data.pickupDateTime).getTime()
-      const ret = new Date(options.returnDateTime).getTime()
-      if (Number.isNaN(pickup) || Number.isNaN(ret)) return
+      if (!data.bookedForOther) return
 
-      if (ret <= pickup) {
+      const passengerName = bookingPassengerNameSchema.safeParse(
+        data.passengerName,
+      )
+      if (!passengerName.success) {
         ctx.addIssue({
           code: "custom",
-          path: ["pickupDateTime"],
+          path: ["passengerName"],
           message:
-            "Return pickup (from Step 2) must be after this outbound pickup.",
+            passengerName.error.issues[0]?.message ??
+            "Enter the passenger's full name.",
+        })
+      }
+
+      if (!data.passengerNoEmail) {
+        const passengerEmail = bookingPassengerEmailSchema.safeParse(
+          data.passengerEmail,
+        )
+        if (!passengerEmail.success) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["passengerEmail"],
+            message:
+              passengerEmail.error.issues[0]?.message ??
+              "Enter a valid passenger email.",
+          })
+        }
+      }
+
+      const passengerPhone = phoneNationalSchema.safeParse(
+        data.passengerPhoneNational,
+      )
+      if (!passengerPhone.success) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["passengerPhoneNational"],
+          message:
+            passengerPhone.error.issues[0]?.message ??
+            "Enter a valid passenger phone number.",
+        })
+      }
+
+      if (
+        !data.passengerPhoneCountryCode ||
+        data.passengerPhoneCountryCode.length < 2
+      ) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["passengerPhoneCountryCode"],
+          message: "Select a country code.",
+        })
+      }
+
+      if (!data.bookerRelation) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["bookerRelation"],
+          message: "Select your relation with the passenger.",
         })
       }
     })
 }
 
 export type DetailsFormValues = z.infer<ReturnType<typeof createDetailsSchema>>
+
+export type { BookerRelation }
 
 export function resolvePhoneCountryOption(
   countryCode: string,

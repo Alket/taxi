@@ -36,7 +36,6 @@ import { AdminFilterSelectField } from "@/components/admin/filter-select-field"
 import { DirectionIndicator } from "@/components/admin/direction-indicator"
 import {
   BookingStatusBadge,
-  FlightStatusBadge,
   PaymentStatusBadge,
 } from "@/components/admin/status-badges"
 import { BookingDetail } from "@/components/bookings/booking-detail"
@@ -458,12 +457,13 @@ export function BookingsView() {
                       </span>
                     </TableCell>
                     <TableCell>
-                      <div className="flex flex-col items-start gap-1">
+                      {b.flightNumber ? (
                         <span className="font-mono text-xs">
                           {b.flightNumber}
                         </span>
-                        <FlightStatusBadge status={b.flightStatus} />
-                      </div>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {VEHICLE_LABELS[b.vehicleType]}

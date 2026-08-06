@@ -88,6 +88,7 @@
   "book.benefit2Desc": "We handpick the friendliest professional drivers",
   "book.benefit3Title": "Always on time",
   "book.benefit3Desc": "Our drivers monitor the flights in case of delays",
+  "book.flightNumberHint": "Adding your flight number allows us to track delays and adjust your pickup time accordingly.",
   "myBooking.backHome": "Back to home",
   "myBooking.title": "My booking",
   "myBooking.hero": "Look up your transfer with the reference code and email from your confirmation. No account needed.",

@@ -729,6 +729,23 @@ export function PaymentStep() {
               zoneId: store.selectedZoneId,
               isRoundTrip: store.isRoundTrip,
               meetAndGreet: store.meetAndGreet,
+              bookedForOther: store.bookedForOther,
+              passengerName: store.bookedForOther
+                ? store.passengerName.trim() || null
+                : null,
+              passengerEmail:
+                store.bookedForOther && !store.passengerNoEmail
+                  ? store.passengerEmail.trim() || null
+                  : null,
+              passengerPhone: store.bookedForOther
+                ? store.passengerPhone.trim() || null
+                : null,
+              passengerNoEmail: store.bookedForOther
+                ? store.passengerNoEmail
+                : false,
+              bookerRelation: store.bookedForOther
+                ? store.bookerRelation
+                : null,
             }),
           )
 

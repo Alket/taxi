@@ -7,6 +7,7 @@ import {
   normalizeFlightNumber,
 } from "@/lib/booking-details"
 import type { Direction, VehicleType } from "@/lib/types"
+import type { BookerRelation } from "@/lib/booker-relation"
 
 export type BookingStep = 1 | 2
 
@@ -69,6 +70,13 @@ export type BookingState = {
   quoteStatus: QuoteStatus
   quoteError: string | null
   customer: BookingCustomerDraft
+  /** When true, customer is the booker and passenger* holds the traveler. */
+  bookedForOther: boolean
+  passengerName: string
+  passengerEmail: string
+  passengerPhone: string
+  passengerNoEmail: boolean
+  bookerRelation: BookerRelation | null
   currentStep: BookingStep
   /**
    * True when the customer continued from the homepage hero form.
@@ -137,6 +145,12 @@ export const initialBookingState: BookingState = {
   quoteStatus: "idle",
   quoteError: null,
   customer: initialCustomer(),
+  bookedForOther: false,
+  passengerName: "",
+  passengerEmail: "",
+  passengerPhone: "",
+  passengerNoEmail: false,
+  bookerRelation: null,
   currentStep: 1,
   startedFromHero: false,
   createdBookingId: null,
@@ -209,6 +223,28 @@ function isDetailsComplete(state: BookingState) {
   if (!name.trim() || name.trim().length < 2) return false
   if (!email.trim() || !EMAIL_RE.test(email.trim())) return false
   if (!phone.trim() || phone.replace(/\D/g, "").length < 8) return false
+
+  if (state.bookedForOther) {
+    if (!state.passengerName.trim() || state.passengerName.trim().length < 2) {
+      return false
+    }
+    if (!state.passengerNoEmail) {
+      if (
+        !state.passengerEmail.trim() ||
+        !EMAIL_RE.test(state.passengerEmail.trim())
+      ) {
+        return false
+      }
+    }
+    if (
+      !state.passengerPhone.trim() ||
+      state.passengerPhone.replace(/\D/g, "").length < 8
+    ) {
+      return false
+    }
+    if (!state.bookerRelation) return false
+  }
+
   return true
 }
 

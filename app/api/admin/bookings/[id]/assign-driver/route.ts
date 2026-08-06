@@ -37,7 +37,9 @@ export async function PATCH(
     return NextResponse.json(
       {
         error:
-          "Driver assignment is not allowed after the driver has arrived.",
+          booking.status === "pending"
+            ? "Confirm the booking before assigning a driver."
+            : "Driver assignment is not allowed after the driver has arrived.",
       },
       { status: 409 },
     )
@@ -70,8 +72,7 @@ export async function PATCH(
     )
   }
 
-  const shouldAssignStatus =
-    booking.status === "pending" || booking.status === "confirmed"
+  const shouldAssignStatus = booking.status === "confirmed"
 
   await prisma.$transaction(async (tx) => {
     await tx.booking.update({

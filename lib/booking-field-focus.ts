@@ -9,6 +9,10 @@ export type BookingFieldId =
   | "name"
   | "email"
   | "phone"
+  | "passengerName"
+  | "passengerEmail"
+  | "passengerPhone"
+  | "bookerRelation"
   | "flightNumber"
   | "terms"
 

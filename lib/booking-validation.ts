@@ -122,5 +122,40 @@ export function getFirstInvalidBookingField(
     return { field: "phone", message: "Enter a valid phone number." }
   }
 
+  if (state.bookedForOther) {
+    if (!state.passengerName.trim() || state.passengerName.trim().length < 2) {
+      return {
+        field: "passengerName",
+        message: "Enter the passenger's full name.",
+      }
+    }
+    if (!state.passengerNoEmail) {
+      if (
+        !state.passengerEmail.trim() ||
+        !EMAIL_RE.test(state.passengerEmail.trim())
+      ) {
+        return {
+          field: "passengerEmail",
+          message: "Enter a valid passenger email.",
+        }
+      }
+    }
+    if (
+      !state.passengerPhone.trim() ||
+      state.passengerPhone.replace(/\D/g, "").length < 8
+    ) {
+      return {
+        field: "passengerPhone",
+        message: "Enter a valid passenger phone number.",
+      }
+    }
+    if (!state.bookerRelation) {
+      return {
+        field: "bookerRelation",
+        message: "Select your relation with the passenger.",
+      }
+    }
+  }
+
   return null
 }

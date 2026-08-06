@@ -107,6 +107,12 @@ function serializeBookingBase(
         ? serializeTimeline(booking.statusEvents)
         : [],
     notes: booking.notes ?? undefined,
+    bookedForOther: booking.bookedForOther,
+    passengerName: booking.passengerName ?? null,
+    passengerEmail: booking.passengerEmail ?? null,
+    passengerPhone: booking.passengerPhone ?? null,
+    passengerNoEmail: booking.passengerNoEmail,
+    bookerRelation: booking.bookerRelation ?? null,
   }
 }
 

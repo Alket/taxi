@@ -681,8 +681,6 @@ export function BookingSummaryContent() {
   const boosterCount = useBookingStore((s) => s.boosterCount)
   const createdBookingId = useBookingStore((s) => s.createdBookingId)
   const selectedZoneId = useBookingStore((s) => s.selectedZoneId)
-  const checkoutMethod = useBookingStore((s) => s.checkoutMethod)
-  const isCashCheckout = checkoutMethod === "cash"
 
   const { data: config } = useSWR<SummaryConfig>("/api/booking/config", fetcher)
   const seatPrices: ChildSeatPrices = {
@@ -827,13 +825,6 @@ export function BookingSummaryContent() {
             {displayTotal != null ? formatMoney(displayTotal) : "—"}
           </div>
         </div>
-
-        {!isCashCheckout ? (
-          <p className="text-[10px] leading-tight text-muted-foreground">
-            Cancelling forfeits the deposit — no refund. Remaining balance is
-            never charged. No hidden fees.
-          </p>
-        ) : null}
       </div>
 
       <div className="mt-4 rounded-xl border bg-brand-surface p-5 shadow-sm">

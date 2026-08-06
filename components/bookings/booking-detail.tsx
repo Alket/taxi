@@ -20,6 +20,7 @@ import {
 
 import { apiDelete, apiPatch, apiPost, fetcher } from "@/lib/api"
 import { toLocalInputValue } from "@/lib/booking-details"
+import { BOOKER_RELATION_LABELS } from "@/lib/booker-relation"
 import {
   parseBookingNotes,
   type BookingNoteTone,
@@ -40,7 +41,6 @@ import { DirectionIndicator } from "@/components/admin/direction-indicator"
 import { AdminDateTimeField } from "@/components/admin/date-field"
 import {
   BookingStatusBadge,
-  FlightStatusBadge,
   PaymentStatusBadge,
 } from "@/components/admin/status-badges"
 import { DriverAssign } from "@/components/bookings/driver-assign"
@@ -197,7 +197,11 @@ function RouteBlock({ booking }: { booking: Booking }) {
     <section className="flex flex-col gap-3">
       <div className="flex items-center gap-3">
         <DirectionIndicator direction={booking.direction} />
-        <FlightStatusBadge status={booking.flightStatus} />
+        {booking.flightNumber ? (
+          <span className="font-mono text-xs text-muted-foreground">
+            {booking.flightNumber}
+          </span>
+        ) : null}
       </div>
       <ol className="flex flex-col gap-3">
         <li className="flex gap-3">
@@ -339,25 +343,73 @@ function BookingNotesBlock({
 
 function CustomerBlock({ booking }: { booking: Booking }) {
   const { customer } = booking
+  const forOther = booking.bookedForOther
   return (
-    <section className="flex flex-col gap-2">
-      <SectionLabel icon={UsersIcon}>Customer</SectionLabel>
-      <p className="text-sm font-medium">{customer.name}</p>
-      <div className="flex flex-col gap-1.5">
-        <a
-          href={`mailto:${customer.email}`}
-          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <MailIcon className="size-3.5" />
-          {customer.email}
-        </a>
-        <a
-          href={`tel:${customer.phone}`}
-          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <PhoneIcon className="size-3.5" />
-          {customer.phone}
-        </a>
+    <section className="flex flex-col gap-4">
+      {forOther ? (
+        <div className="flex flex-col gap-2 rounded-lg border bg-muted/30 p-3">
+          <SectionLabel icon={UsersIcon}>Passenger</SectionLabel>
+          <p className="text-sm font-medium">
+            {booking.passengerName || "—"}
+          </p>
+          <div className="flex flex-col gap-1.5">
+            {booking.passengerNoEmail ? (
+              <span className="text-sm text-muted-foreground">
+                No email provided
+              </span>
+            ) : booking.passengerEmail ? (
+              <a
+                href={`mailto:${booking.passengerEmail}`}
+                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+              >
+                <MailIcon className="size-3.5" />
+                {booking.passengerEmail}
+              </a>
+            ) : null}
+            {booking.passengerPhone ? (
+              <a
+                href={`tel:${booking.passengerPhone}`}
+                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+              >
+                <PhoneIcon className="size-3.5" />
+                {booking.passengerPhone}
+              </a>
+            ) : null}
+            {booking.bookerRelation ? (
+              <p className="text-xs text-muted-foreground">
+                Relation:{" "}
+                {
+                  BOOKER_RELATION_LABELS[
+                    booking.bookerRelation as keyof typeof BOOKER_RELATION_LABELS
+                  ]
+                }
+              </p>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="flex flex-col gap-2">
+        <SectionLabel icon={UsersIcon}>
+          {forOther ? "Booked by" : "Customer"}
+        </SectionLabel>
+        <p className="text-sm font-medium">{customer.name}</p>
+        <div className="flex flex-col gap-1.5">
+          <a
+            href={`mailto:${customer.email}`}
+            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+          >
+            <MailIcon className="size-3.5" />
+            {customer.email}
+          </a>
+          <a
+            href={`tel:${customer.phone}`}
+            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+          >
+            <PhoneIcon className="size-3.5" />
+            {customer.phone}
+          </a>
+        </div>
       </div>
     </section>
   )
@@ -802,7 +854,16 @@ function EditBookingSection({
     })
   }, [open, booking])
 
-  if (isBookingLockedForEdit(booking.status)) return null
+  if (isBookingLockedForEdit(booking.status)) {
+    if (booking.status === "pending") {
+      return (
+        <p className="rounded-lg border bg-muted/30 px-3 py-2.5 text-center text-xs text-muted-foreground">
+          Confirm the booking before editing trip details.
+        </p>
+      )
+    }
+    return null
+  }
 
   async function save() {
     setPending(true)

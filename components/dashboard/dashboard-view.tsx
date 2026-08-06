@@ -28,7 +28,6 @@ import { PageHeader } from "@/components/admin/page-header"
 import { DirectionIndicator } from "@/components/admin/direction-indicator"
 import {
   BookingStatusBadge,
-  FlightStatusBadge,
 } from "@/components/admin/status-badges"
 import { BookingDetail } from "@/components/bookings/booking-detail"
 import { Button } from "@/components/ui/button"
@@ -254,7 +253,6 @@ export function DashboardView() {
                             Unassigned
                           </span>
                           <BookingStatusBadge status={b.status} />
-                          <FlightStatusBadge status={b.flightStatus} />
                           <span className="text-xs text-muted-foreground">
                             {VEHICLE_LABELS[b.vehicleType]}
                           </span>

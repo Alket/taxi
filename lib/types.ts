@@ -42,6 +42,12 @@ export interface BookingDriver {
 
 export type CancellationOutcome = "free_cancellation" | "deposit_forfeited"
 
+export type BookerRelation =
+  | "family_friend"
+  | "travel_agent"
+  | "colleague"
+  | "prefer_not_to_say"
+
 export interface StatusEvent {
   status: BookingStatus
   timestamp: string | null
@@ -91,6 +97,12 @@ export interface Booking {
   createdAt: string
   timeline: StatusEvent[]
   notes?: string
+  bookedForOther: boolean
+  passengerName: string | null
+  passengerEmail: string | null
+  passengerPhone: string | null
+  passengerNoEmail: boolean
+  bookerRelation: BookerRelation | null
 }
 
 export interface BookingDetail extends Booking {

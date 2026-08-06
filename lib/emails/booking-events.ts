@@ -1,3 +1,7 @@
+import {
+  BOOKER_RELATION_LABELS,
+  type BookerRelation,
+} from "@/lib/booker-relation"
 import type { NotificationType } from "@prisma/client"
 
 import { prisma } from "@/lib/db"
@@ -65,6 +69,12 @@ const bookingSelect = {
   paymentStatus: true,
   cancellationOutcome: true,
   notes: true,
+  bookedForOther: true,
+  passengerName: true,
+  passengerEmail: true,
+  passengerPhone: true,
+  passengerNoEmail: true,
+  bookerRelation: true,
   customerId: true,
   driverId: true,
   customer: {
@@ -102,6 +112,12 @@ type BookingEmailRow = {
   paymentStatus: string
   cancellationOutcome: string | null
   notes: string | null
+  bookedForOther: boolean
+  passengerName: string | null
+  passengerEmail: string | null
+  passengerPhone: string | null
+  passengerNoEmail: boolean
+  bookerRelation: string | null
   customerId: string
   driverId: string | null
   customer: {
@@ -203,6 +219,48 @@ async function logAndSend(input: {
   }
 }
 
+function passengerEmailRows(booking: BookingEmailRow): string {
+  if (!booking.bookedForOther) return ""
+  const relation =
+    booking.bookerRelation &&
+    booking.bookerRelation in BOOKER_RELATION_LABELS
+      ? BOOKER_RELATION_LABELS[booking.bookerRelation as BookerRelation]
+      : null
+  return [
+    detailRow("Passenger", booking.passengerName || "—"),
+    booking.passengerNoEmail
+      ? detailRow("Passenger email", "Not provided")
+      : booking.passengerEmail
+        ? detailRow("Passenger email", booking.passengerEmail)
+        : "",
+    booking.passengerPhone
+      ? detailRow("Passenger phone", booking.passengerPhone)
+      : "",
+    relation ? detailRow("Booker relation", relation) : "",
+  ].join("")
+}
+
+function passengerEmailTextLines(booking: BookingEmailRow): string[] {
+  if (!booking.bookedForOther) return []
+  const relation =
+    booking.bookerRelation &&
+    booking.bookerRelation in BOOKER_RELATION_LABELS
+      ? BOOKER_RELATION_LABELS[booking.bookerRelation as BookerRelation]
+      : null
+  return [
+    `Passenger: ${booking.passengerName || "—"}`,
+    booking.passengerNoEmail
+      ? "Passenger email: Not provided"
+      : booking.passengerEmail
+        ? `Passenger email: ${booking.passengerEmail}`
+        : null,
+    booking.passengerPhone
+      ? `Passenger phone: ${booking.passengerPhone}`
+      : null,
+    relation ? `Booker relation: ${relation}` : null,
+  ].filter((line): line is string => Boolean(line))
+}
+
 function baseCustomerRows(booking: BookingEmailRow): string {
   return [
     detailRow("Reference", booking.referenceCode),
@@ -214,6 +272,7 @@ function baseCustomerRows(booking: BookingEmailRow): string {
     detailRow("Vehicle", vehicleLabel(booking.vehicleType)),
     detailRow("Passengers", String(booking.passengerCount)),
     detailRow("Luggage", String(booking.luggageCount)),
+    passengerEmailRows(booking),
   ].join("")
 }
 
@@ -229,6 +288,7 @@ function baseCustomerTextLines(booking: BookingEmailRow): string[] {
     `Vehicle: ${vehicleLabel(booking.vehicleType)}`,
     `Passengers: ${booking.passengerCount}`,
     `Luggage: ${booking.luggageCount}`,
+    ...passengerEmailTextLines(booking),
   ].filter((line): line is string => Boolean(line))
 }
 
@@ -241,10 +301,12 @@ function priceRows(booking: BookingEmailRow): string {
 }
 
 function adminCustomerRows(booking: BookingEmailRow): string {
+  const bookerLabel = booking.bookedForOther ? "Booker" : "Customer"
   return [
-    detailRow("Customer", booking.customer.name),
+    detailRow(bookerLabel, booking.customer.name),
     detailRow("Email", booking.customer.email),
     detailRow("Phone", booking.customer.phone),
+    passengerEmailRows(booking),
   ].join("")
 }
 

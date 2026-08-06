@@ -6,8 +6,14 @@ import {
   bookingCustomerNameSchema,
   bookingCustomerPhoneSchema,
   bookingFlightNumberSchema,
+  bookingPassengerEmailSchema,
+  bookingPassengerNameSchema,
   normalizeFlightNumber,
 } from "@/lib/booking-details"
+import {
+  bookerRelationSchema,
+  type BookerRelation,
+} from "@/lib/booker-relation"
 import {
   computeChildSeatTotal,
   formatChildSeatNotes,
@@ -32,43 +38,105 @@ import {
   vehicleTypeSchema,
 } from "@/lib/vehicles"
 
-export const bookingCreateSchema = z.object({
-  customer: z.object({
-    name: bookingCustomerNameSchema,
-    email: bookingCustomerEmailSchema,
-    phone: bookingCustomerPhoneSchema,
-    whatsappOptIn: z.boolean().optional().default(true),
-  }),
-  direction: z.enum(["airport_to_dest", "dest_to_airport"]),
-  pickupAddress: z.string().min(1).max(400),
-  pickupLat: z.coerce.number(),
-  pickupLng: z.coerce.number(),
-  dropoffAddress: z.string().min(1).max(400),
-  dropoffLat: z.coerce.number(),
-  dropoffLng: z.coerce.number(),
-  pickupDateTime: z.string().min(1),
-  returnDateTime: z.string().optional().nullable(),
-  flightNumber: bookingFlightNumberSchema,
-  passengerCount: z.coerce.number().int().min(1).max(20),
-  luggageCount: z.coerce.number().int().min(0).max(30),
-  infantCarrierCount: z.coerce.number().int().min(0).max(4).optional().default(0),
-  childSeatCount: z.coerce.number().int().min(0).max(4).optional().default(0),
-  boosterCount: z.coerce.number().int().min(0).max(4).optional().default(0),
-  driverNotes: z.string().trim().max(500).optional().nullable(),
-  vehicleType: vehicleTypeSchema,
-  /** Active pricing zone selected as the non-airport destination. */
-  zoneId: z.string().min(1),
-  isRoundTrip: z.boolean().default(false),
-  meetAndGreet: z.boolean().default(false),
-  /** Admin manual bookings only — mark the full fare as already paid. */
-  markAsPaid: z.boolean().optional().default(false),
-  /**
-   * Marks bookings created from the public /book flow as unpaid pending
-   * checkouts. Admins should treat `paymentStatus=unpaid` + this note as
-   * potentially abandoned until deposit is paid (periodic cleanup recommended).
-   */
-  source: z.enum(["admin", "public"]).optional().default("admin"),
-})
+export const bookingCreateSchema = z
+  .object({
+    customer: z.object({
+      name: bookingCustomerNameSchema,
+      email: bookingCustomerEmailSchema,
+      phone: bookingCustomerPhoneSchema,
+      whatsappOptIn: z.boolean().optional().default(true),
+    }),
+    direction: z.enum(["airport_to_dest", "dest_to_airport"]),
+    pickupAddress: z.string().min(1).max(400),
+    pickupLat: z.coerce.number(),
+    pickupLng: z.coerce.number(),
+    dropoffAddress: z.string().min(1).max(400),
+    dropoffLat: z.coerce.number(),
+    dropoffLng: z.coerce.number(),
+    pickupDateTime: z.string().min(1),
+    returnDateTime: z.string().optional().nullable(),
+    flightNumber: bookingFlightNumberSchema,
+    passengerCount: z.coerce.number().int().min(1).max(20),
+    luggageCount: z.coerce.number().int().min(0).max(30),
+    infantCarrierCount: z.coerce
+      .number()
+      .int()
+      .min(0)
+      .max(4)
+      .optional()
+      .default(0),
+    childSeatCount: z.coerce.number().int().min(0).max(4).optional().default(0),
+    boosterCount: z.coerce.number().int().min(0).max(4).optional().default(0),
+    driverNotes: z.string().trim().max(500).optional().nullable(),
+    vehicleType: vehicleTypeSchema,
+    /** Active pricing zone selected as the non-airport destination. */
+    zoneId: z.string().min(1),
+    isRoundTrip: z.boolean().default(false),
+    meetAndGreet: z.boolean().default(false),
+    /** Admin manual bookings only — mark the full fare as already paid. */
+    markAsPaid: z.boolean().optional().default(false),
+    /**
+     * Marks bookings created from the public /book flow as unpaid pending
+     * checkouts. Admins should treat `paymentStatus=unpaid` + this note as
+     * potentially abandoned until deposit is paid (periodic cleanup recommended).
+     */
+    source: z.enum(["admin", "public"]).optional().default("admin"),
+    bookedForOther: z.boolean().optional().default(false),
+    passengerName: z.string().trim().max(80).optional().nullable(),
+    passengerEmail: z.string().trim().max(320).optional().nullable(),
+    passengerPhone: z.string().trim().max(50).optional().nullable(),
+    passengerNoEmail: z.boolean().optional().default(false),
+    bookerRelation: bookerRelationSchema.optional().nullable(),
+  })
+  .superRefine((data, ctx) => {
+    if (!data.bookedForOther) return
+
+    const name = bookingPassengerNameSchema.safeParse(data.passengerName ?? "")
+    if (!name.success) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["passengerName"],
+        message:
+          name.error.issues[0]?.message ?? "Enter the passenger's full name.",
+      })
+    }
+
+    if (!data.passengerNoEmail) {
+      const email = bookingPassengerEmailSchema.safeParse(
+        data.passengerEmail ?? "",
+      )
+      if (!email.success) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["passengerEmail"],
+          message:
+            email.error.issues[0]?.message ??
+            "Enter a valid passenger email.",
+        })
+      }
+    }
+
+    const phone = bookingCustomerPhoneSchema.safeParse(
+      data.passengerPhone ?? "",
+    )
+    if (!phone.success) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["passengerPhone"],
+        message:
+          phone.error.issues[0]?.message ??
+          "Enter a valid passenger phone number.",
+      })
+    }
+
+    if (!data.bookerRelation) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["bookerRelation"],
+        message: "Select your relation with the passenger.",
+      })
+    }
+  })
 
 export type BookingCreateInput = z.infer<typeof bookingCreateSchema>
 
@@ -226,8 +294,34 @@ export async function createBookingsFromInput(
 
     const driverNotes = input.driverNotes?.trim() ?? ""
 
+    const bookedForOther = Boolean(input.bookedForOther)
+    const passengerName = bookedForOther
+      ? (input.passengerName?.trim() || null)
+      : null
+    const passengerNoEmail = bookedForOther
+      ? Boolean(input.passengerNoEmail)
+      : false
+    const passengerEmail =
+      bookedForOther && !passengerNoEmail && input.passengerEmail?.trim()
+        ? input.passengerEmail.trim().toLowerCase()
+        : null
+    const passengerPhone = bookedForOther
+      ? (input.passengerPhone?.trim() || null)
+      : null
+    const bookerRelation: BookerRelation | null =
+      bookedForOther && input.bookerRelation ? input.bookerRelation : null
+
     const noteParts: string[] = []
-    if (input.meetAndGreet) noteParts.push("Meet & greet requested.")
+    if (input.meetAndGreet) {
+      noteParts.push(
+        passengerName
+          ? `Meet & greet requested for ${passengerName}.`
+          : "Meet & greet requested.",
+      )
+    }
+    if (bookedForOther && passengerName) {
+      noteParts.push(`Passenger: ${passengerName}.`)
+    }
     if (seatNotes) noteParts.push(seatNotes)
     if (driverNotes) noteParts.push(`Driver notes: ${driverNotes}`)
     if (input.source === "public") {
@@ -273,6 +367,12 @@ export async function createBookingsFromInput(
         meetAndGreet: input.meetAndGreet,
         isRoundTrip,
         roundTripId,
+        bookedForOther,
+        passengerName,
+        passengerEmail,
+        passengerPhone,
+        passengerNoEmail,
+        bookerRelation,
         customerId: customer.id,
         zoneId: zone.id,
         statusEvents: {
