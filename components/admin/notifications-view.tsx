@@ -158,7 +158,7 @@ export function NotificationsView() {
         title="Notifications"
         description="Booking alerts and driver responses for your ops team."
         actions={
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+          <div className="flex w-full items-center gap-2 sm:w-auto">
             <Button
               variant="outline"
               size="sm"
