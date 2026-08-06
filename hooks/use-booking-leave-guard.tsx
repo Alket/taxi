@@ -129,8 +129,11 @@ export function useBookingLeaveGuard(enabled: boolean) {
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Stay</AlertDialogCancel>
+          <AlertDialogCancel className="h-11 rounded-full border border-border bg-brand-page px-5 text-sm font-bold text-brand shadow-none hover:bg-muted">
+            Stay
+          </AlertDialogCancel>
           <AlertDialogAction
+            className="h-11 rounded-full bg-brand-accent px-5 text-sm font-extrabold text-white shadow-none hover:bg-brand-accent-hover"
             onClick={() => {
               if (!pendingHref) return
               const href = pendingHref

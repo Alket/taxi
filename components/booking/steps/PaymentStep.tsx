@@ -17,6 +17,13 @@ import {
   ChevronDownIcon,
   BanknoteIcon,
   CheckIcon,
+  CalendarIcon,
+  CarIcon,
+  PlaneIcon,
+  UsersIcon,
+  UserIcon,
+  BabyIcon,
+  ArrowLeftRightIcon,
   type LucideIcon,
 } from "lucide-react"
 import useSWR from "swr"
@@ -112,9 +119,9 @@ function Recap() {
 
   const vehicle = vehicleType
     ? getVehicleCatalog(
-        vehicleType,
-        capacityConfig?.vehicleCapacities ?? DEFAULT_VEHICLE_CAPACITIES,
-      )
+      vehicleType,
+      capacityConfig?.vehicleCapacities ?? DEFAULT_VEHICLE_CAPACITIES,
+    )
     : null
   const seatParts = [
     infantCarrierCount > 0 ? `Infant carrier ×${infantCarrierCount}` : null,
@@ -129,82 +136,159 @@ function Recap() {
       : "View trip details"
   const pickupPreview = pickupDateTime ? formatDateTime(pickupDateTime) : null
 
+  const tiles: {
+    icon: LucideIcon
+    label: string
+    value: string
+  }[] = [
+      {
+        icon: CalendarIcon,
+        label: isRoundTrip ? "Outbound" : "Pickup",
+        value: pickupDateTime ? formatDateTime(pickupDateTime) : "—",
+      },
+      ...(isRoundTrip
+        ? [
+          {
+            icon: CalendarIcon,
+            label: "Return",
+            value: returnDateTime ? formatDateTime(returnDateTime) : "—",
+          },
+        ]
+        : []),
+      {
+        icon: ArrowLeftRightIcon,
+        label: "Direction",
+        value:
+          direction === "airport_to_dest"
+            ? "Airport → Destination"
+            : "Destination → Airport",
+      },
+      {
+        icon: CarIcon,
+        label: "Vehicle",
+        value: `${vehicle?.label ?? vehicleType}${meetAndGreet ? " · Meet & greet" : ""}`,
+      },
+      {
+        icon: UsersIcon,
+        label: "Party",
+        value: `${passengerCount} passenger${passengerCount === 1 ? "" : "s"}, ${luggageCount} bag${luggageCount === 1 ? "" : "s"}`,
+      },
+      ...(flightNumber
+        ? [{ icon: PlaneIcon, label: "Flight", value: flightNumber }]
+        : []),
+      ...(seatParts.length > 0
+        ? [{ icon: BabyIcon, label: "Child seats", value: seatParts.join(" · ") }]
+        : []),
+      {
+        icon: UserIcon,
+        label: "Contact",
+        value: `${customer.name} · ${customer.email}`,
+      },
+    ]
+
   return (
-    <div className="rounded-xl border bg-muted/20 text-sm">
+    <div className="overflow-hidden rounded-xl border">
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
-        className="flex w-full items-start justify-between gap-3 p-4 text-left md:pointer-events-none md:cursor-default"
+        className="flex w-full items-start justify-between gap-3 px-4 py-4 text-left touch-manipulation"
       >
         <div className="min-w-0 flex-1">
-          <h3 className="text-sm font-bold text-brand">Trip recap</h3>
-          <p className="mt-1 truncate text-xs text-muted-foreground md:hidden">
-            {routePreview}
-            {pickupPreview ? ` · ${pickupPreview}` : ""}
+          <p className="text-[11px] font-extrabold tracking-[0.14em] text-brand-accent uppercase">
+            Trip recap
           </p>
+          <p className="mt-1.5 truncate text-sm font-extrabold text-brand">
+            {routePreview}
+          </p>
+          {pickupPreview ? (
+            <p className="mt-0.5 truncate text-xs text-muted-foreground">
+              {pickupPreview}
+            </p>
+          ) : null}
         </div>
-        <ChevronDownIcon
-          className={cn(
-            "mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform md:hidden",
-            open && "rotate-180",
-          )}
-          aria-hidden
-        />
+        <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full border border-border bg-brand-page text-muted-foreground">
+          <ChevronDownIcon
+            className={cn(
+              "size-4 transition-transform duration-200",
+              open && "rotate-180",
+            )}
+            aria-hidden
+          />
+        </span>
       </button>
-      <dl
+
+      <div
         className={cn(
-          "grid gap-2.5 border-t px-4 pb-4 pt-3 md:block",
-          open ? "block" : "hidden md:block",
+          "border-t border-border/70",
+          open ? "block" : "hidden",
         )}
       >
-        <RecapRow
-          label="Route"
-          value={`${pickup.address} → ${dropoff.address}`}
-        />
-        <RecapRow
-          label="Direction"
-          value={
-            direction === "airport_to_dest"
-              ? "Airport → Destination"
-              : "Destination → Airport"
-          }
-        />
-        <RecapRow
-          label="Pickup"
-          value={pickupDateTime ? formatDateTime(pickupDateTime) : "—"}
-        />
-        {isRoundTrip && (
-          <RecapRow
-            label="Return"
-            value={returnDateTime ? formatDateTime(returnDateTime) : "—"}
-          />
-        )}
-        {flightNumber && <RecapRow label="Flight" value={flightNumber} />}
-        <RecapRow
-          label="Vehicle"
-          value={`${vehicle?.label ?? vehicleType}${meetAndGreet ? " · Meet & greet" : ""}`}
-        />
-        <RecapRow
-          label="Party"
-          value={`${passengerCount} passenger${passengerCount === 1 ? "" : "s"}, ${luggageCount} bag${luggageCount === 1 ? "" : "s"}`}
-        />
-        {seatParts.length > 0 && (
-          <RecapRow label="Child seats" value={seatParts.join(" · ")} />
-        )}
-        <RecapRow label="Contact" value={`${customer.name} · ${customer.email}`} />
-      </dl>
+        <div className="bg-brand-page/70 px-4 py-4">
+          <div className="flex gap-3">
+            <div className="flex w-3 shrink-0 flex-col items-center pt-1.5">
+              <span className="size-2.5 rounded-full bg-brand-accent shadow-[0_0_0_3px_color-mix(in_srgb,var(--brand-accent)_22%,transparent)]" />
+              <span className="my-1 w-px flex-1 bg-border" />
+              <span className="size-2.5 rounded-full border-2 border-brand-accent bg-brand-surface" />
+            </div>
+            <div className="flex min-w-0 flex-1 flex-col gap-3.5">
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+                  Pickup
+                </p>
+                <p className="mt-0.5 text-sm font-semibold leading-snug text-brand">
+                  {pickup.address || "—"}
+                </p>
+              </div>
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+                  Drop-off
+                </p>
+                <p className="mt-0.5 text-sm font-semibold leading-snug text-brand">
+                  {dropoff.address || "—"}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <dl className="grid gap-px border-t border-border/70 bg-border/50 sm:grid-cols-2">
+          {tiles.map((tile) => (
+            <RecapTile
+              key={`${tile.label}-${tile.value}`}
+              icon={tile.icon}
+              label={tile.label}
+              value={tile.value}
+            />
+          ))}
+        </dl>
+      </div>
     </div>
   )
 }
 
-function RecapRow({ label, value }: { label: string; value: string }) {
+function RecapTile({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: LucideIcon
+  label: string
+  value: string
+}) {
   return (
-    <div className="grid gap-0.5 sm:grid-cols-[7rem_1fr] sm:gap-3">
-      <dt className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-        {label}
-      </dt>
-      <dd className="min-w-0 break-words text-brand">{value}</dd>
+    <div className="flex items-start gap-3 bg-brand-surface px-4 py-3.5">
+      <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-page text-brand-accent">
+        <Icon className="size-3.5" aria-hidden />
+      </span>
+      <div className="min-w-0">
+        <dt className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+          {label}
+        </dt>
+        <dd className="mt-0.5 break-words text-sm font-semibold leading-snug text-brand">
+          {value}
+        </dd>
+      </div>
     </div>
   )
 }
@@ -1069,7 +1153,7 @@ export function PaymentStep() {
         className={cn(
           "flex items-start gap-3 rounded-xl border border-border px-3.5 py-3 text-sm transition-all duration-300",
           termsInvalid &&
-            "border-destructive bg-destructive/5 ring-2 ring-destructive/40",
+          "border-destructive bg-destructive/5 ring-2 ring-destructive/40",
         )}
       >
         <input
