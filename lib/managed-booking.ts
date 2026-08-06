@@ -4,7 +4,7 @@ import {
   PAYMENT_STATUS_LABELS,
   VEHICLE_LABELS,
 } from "@/lib/format"
-import { isBookingLockedForCancel } from "@/lib/booking-status"
+import { isPublicSelfServiceOpen } from "@/lib/booking-status"
 import type { Direction, VehicleType } from "@/lib/types"
 
 export async function findBookingForLookup(reference: string, email: string) {
@@ -34,10 +34,10 @@ export type LookupBookingRecord = NonNullable<
 >
 
 export function serializeManagedBooking(booking: LookupBookingRecord) {
-  // Self-service cancel until the driver has arrived; deposit is always forfeited.
-  const cancellable = !isBookingLockedForCancel(booking.status)
-  const editable =
-    booking.status === "pending" || booking.status === "confirmed"
+  // Self-service cancel/edit until a driver is assigned; deposit is always forfeited on cancel.
+  const selfServiceOpen = isPublicSelfServiceOpen(booking)
+  const cancellable = selfServiceOpen
+  const editable = selfServiceOpen
   const cashOnArrival = (booking.notes?.toLowerCase() ?? "").includes(
     "cash on arrival",
   )

@@ -495,14 +495,16 @@ function BookingManagePanel({
                   </div>
                 ) : (
                   <>
-                    <div className="flex justify-between gap-3">
-                      <span className="text-muted-foreground">
-                        {tr("myBooking.depositPaid")}
-                      </span>
-                      <span className="font-semibold tabular-nums text-brand">
-                        {formatMoney(booking.depositPaid, booking.currency)}
-                      </span>
-                    </div>
+                    {!booking.cashOnArrival ? (
+                      <div className="flex justify-between gap-3">
+                        <span className="text-muted-foreground">
+                          {tr("myBooking.depositPaid")}
+                        </span>
+                        <span className="font-semibold tabular-nums text-brand">
+                          {formatMoney(booking.depositPaid, booking.currency)}
+                        </span>
+                      </div>
+                    ) : null}
                     <div className="flex justify-between gap-3">
                       <span className="text-muted-foreground">
                         {tr("myBooking.balanceDue")}

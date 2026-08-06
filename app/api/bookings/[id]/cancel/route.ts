@@ -6,7 +6,10 @@ import {
   findBookingForLookup,
   serializeManagedBooking,
 } from "@/lib/managed-booking"
-import { isBookingLockedForCancel } from "@/lib/booking-status"
+import {
+  isPublicSelfServiceOpen,
+  publicSelfServiceWhere,
+} from "@/lib/booking-status"
 import { prisma } from "@/lib/db"
 
 const bodySchema = z.object({
@@ -16,8 +19,8 @@ const bodySchema = z.object({
 
 /**
  * Public cancel — requires email matching the booking.
- * Customer-initiated cancellations always forfeit the deposit (no refund).
- * The unpaid balance is never charged.
+ * Allowed only before a driver is assigned. Deposit is always forfeited (no refund).
+ * The unpaid balance is never charged. Admin cancel remains available longer.
  */
 export async function PATCH(
   request: Request,
@@ -58,13 +61,13 @@ export async function PATCH(
       { status: 409 },
     )
   }
-  if (isBookingLockedForCancel(booking.status)) {
+  if (!isPublicSelfServiceOpen(booking)) {
     return NextResponse.json(
       {
         error:
           booking.status === "completed"
             ? "Completed bookings cannot be cancelled."
-            : "This booking cannot be cancelled after the driver has arrived. Please contact support if you need help.",
+            : "This booking cannot be cancelled online after a driver is assigned. Please contact support if you need help.",
       },
       { status: 409 },
     )
@@ -73,9 +76,9 @@ export async function PATCH(
   const cancellationOutcome: CancellationOutcome = "deposit_forfeited"
   const cancelledAt = new Date()
 
-  await prisma.$transaction(async (tx) => {
-    await tx.booking.update({
-      where: { id },
+  const applied = await prisma.$transaction(async (tx) => {
+    const result = await tx.booking.updateMany({
+      where: publicSelfServiceWhere(id),
       data: {
         status: "cancelled",
         cancelledAt,
@@ -83,6 +86,7 @@ export async function PATCH(
         // Keep payment status as-is — deposit is forfeited, not refunded.
       },
     })
+    if (result.count === 0) return false
 
     await tx.bookingStatusEvent.create({
       data: {
@@ -91,7 +95,18 @@ export async function PATCH(
         timestamp: cancelledAt,
       },
     })
+    return true
   })
+
+  if (!applied) {
+    return NextResponse.json(
+      {
+        error:
+          "This booking cannot be cancelled online after a driver is assigned. Please contact support if you need help.",
+      },
+      { status: 409 },
+    )
+  }
 
   const updated = await findBookingForLookup(booking.referenceCode, email)
 

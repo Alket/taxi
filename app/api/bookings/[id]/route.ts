@@ -5,6 +5,10 @@ import {
   findBookingForLookup,
   serializeManagedBooking,
 } from "@/lib/managed-booking"
+import {
+  isPublicSelfServiceOpen,
+  publicSelfServiceWhere,
+} from "@/lib/booking-status"
 import { prisma } from "@/lib/db"
 import { getBookingPolicy } from "@/lib/settings"
 import { takeRateLimit } from "@/lib/rate-limit"
@@ -54,7 +58,7 @@ export async function PATCH(
     )
   }
 
-  if (booking.status !== "pending" && booking.status !== "confirmed") {
+  if (!isPublicSelfServiceOpen(booking)) {
     return NextResponse.json(
       {
         error:
@@ -199,7 +203,19 @@ export async function PATCH(
     }
   }
 
-  await prisma.booking.update({ where: { id }, data })
+  const result = await prisma.booking.updateMany({
+    where: publicSelfServiceWhere(id),
+    data,
+  })
+  if (result.count === 0) {
+    return NextResponse.json(
+      {
+        error:
+          "This booking can no longer be edited once a driver is assigned.",
+      },
+      { status: 409 },
+    )
+  }
 
   if (dateChanged) {
     try {

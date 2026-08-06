@@ -32,6 +32,27 @@ export function isBookingLockedForCancel(status: BookingStatus): boolean {
   return isTripInProgressOrDone(status)
 }
 
+/**
+ * Customer self-service on /my-booking (cancel + edit pickup).
+ * Locked once a driver is assigned — admin cancel remains available longer.
+ */
+export function isPublicSelfServiceOpen(booking: {
+  status: BookingStatus
+  driverId: string | null
+}): boolean {
+  if (booking.driverId) return false
+  return booking.status === "pending" || booking.status === "confirmed"
+}
+
+/** Prisma `where` for atomic public cancel/edit — closes TOCTOU vs driver assign. */
+export function publicSelfServiceWhere(id: string) {
+  return {
+    id,
+    driverId: null as string | null,
+    status: { in: ["pending", "confirmed"] as BookingStatus[] },
+  }
+}
+
 function isTripInProgressOrDone(status: BookingStatus): boolean {
   return (
     status === "arrived" ||

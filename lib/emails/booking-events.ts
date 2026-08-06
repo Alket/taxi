@@ -293,11 +293,25 @@ function baseCustomerTextLines(booking: BookingEmailRow): string[] {
 }
 
 function priceRows(booking: BookingEmailRow): string {
+  const cashOnArrival = isCashOnArrivalBooking(booking)
   return [
     detailRow("Total", money(Number(booking.totalPrice), booking.currency)),
-    detailRow("Paid", money(Number(booking.depositPaid), booking.currency)),
+    cashOnArrival
+      ? ""
+      : detailRow("Paid", money(Number(booking.depositPaid), booking.currency)),
     detailRow("Balance due", money(Number(booking.balanceDue), booking.currency)),
   ].join("")
+}
+
+function priceTextLines(booking: BookingEmailRow): string[] {
+  const cashOnArrival = isCashOnArrivalBooking(booking)
+  return [
+    `Total: ${money(Number(booking.totalPrice), booking.currency)}`,
+    cashOnArrival
+      ? null
+      : `Paid: ${money(Number(booking.depositPaid), booking.currency)}`,
+    `Balance due: ${money(Number(booking.balanceDue), booking.currency)}`,
+  ].filter((line): line is string => Boolean(line))
 }
 
 function adminCustomerRows(booking: BookingEmailRow): string {
@@ -354,9 +368,7 @@ export async function sendCustomerBookingConfirmation(
       `Your transfer with ${company} is confirmed.`,
       "",
       ...baseCustomerTextLines(booking),
-      `Total: ${money(Number(booking.totalPrice), booking.currency)}`,
-      `Paid: ${money(Number(booking.depositPaid), booking.currency)}`,
-      `Balance due: ${money(Number(booking.balanceDue), booking.currency)}`,
+      ...priceTextLines(booking),
       "",
       ...(cashOnArrival
         ? [
@@ -902,9 +914,7 @@ export async function sendCustomerCompletedReceipt(
       "",
       `Route: ${booking.pickupAddress} → ${booking.dropoffAddress}`,
       `When: ${formatWhen(booking.pickupDateTime)}`,
-      `Total: ${money(Number(booking.totalPrice), booking.currency)}`,
-      `Paid: ${money(Number(booking.depositPaid), booking.currency)}`,
-      `Balance due: ${money(Number(booking.balanceDue), booking.currency)}`,
+      ...priceTextLines(booking),
       `Payment status: ${paymentStatusLabel(booking.paymentStatus)}`,
       "",
       supportLine(settings),
