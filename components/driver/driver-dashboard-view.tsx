@@ -194,6 +194,11 @@ export function DriverDashboardView() {
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
   }
 
+  function clearTripFocus() {
+    setFocusedTripId(null)
+    clearFocusFromUrl()
+  }
+
   async function advance(trip: DriverTrip) {
     if (!trip.nextStatus) return
     setPendingId(trip.id)
@@ -375,7 +380,7 @@ export function DriverDashboardView() {
                 onCashPaid={markCashPaid}
                 onRespond={respond}
                 onRejectRequest={requestReject}
-                onFocused={() => clearFocusFromUrl()}
+                onFocused={() => clearTripFocus()}
               />
             </TabsContent>
             <TabsContent value="upcoming" className="mt-0">
@@ -388,7 +393,7 @@ export function DriverDashboardView() {
                 onCashPaid={markCashPaid}
                 onRespond={respond}
                 onRejectRequest={requestReject}
-                onFocused={() => clearFocusFromUrl()}
+                onFocused={() => clearTripFocus()}
               />
             </TabsContent>
             <TabsContent value="history" className="mt-0">
@@ -401,7 +406,7 @@ export function DriverDashboardView() {
                 onCashPaid={markCashPaid}
                 onRespond={respond}
                 onRejectRequest={requestReject}
-                onFocused={() => clearFocusFromUrl()}
+                onFocused={() => clearTripFocus()}
                 readOnly
               />
             </TabsContent>
@@ -536,7 +541,7 @@ function TripCard({
   const cardRef = React.useRef<HTMLLIElement>(null)
   // Today/Upcoming start expanded; History starts collapsed.
   const [detailsOpen, setDetailsOpen] = React.useState(!readOnly || focused)
-  const showDetails = detailsOpen || focused
+
   const pickupLabel = formatPickupLabel(trip.pickupDateTime, locale)
   const tripStatus = statusLabel(t, trip.status)
   const hint = cashHintLabel(
@@ -568,8 +573,11 @@ function TripCard({
       <button
         type="button"
         className="flex w-full items-start justify-between gap-3 p-4 text-left touch-manipulation"
-        onClick={() => setDetailsOpen((open) => !open)}
-        aria-expanded={showDetails}
+        onClick={() => {
+          setDetailsOpen((open) => !open)
+          if (focused) onFocused?.()
+        }}
+        aria-expanded={detailsOpen}
       >
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -599,12 +607,12 @@ function TripCard({
         <ChevronDownIcon
           className={cn(
             "mt-0.5 size-5 shrink-0 text-muted-foreground transition-transform",
-            showDetails && "rotate-180",
+            detailsOpen && "rotate-180",
           )}
         />
       </button>
 
-      {showDetails ? (
+      {detailsOpen ? (
         <div className="flex flex-col gap-3 border-t p-4 pt-3">
           <div className="flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/10 px-3 py-3">
             <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
