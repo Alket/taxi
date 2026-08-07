@@ -314,11 +314,26 @@ function SectionFields({
             </div>
           </div>
           <div className="flex flex-col gap-1.5 sm:col-span-2">
-            <Label className="text-xs text-muted-foreground">Alt text</Label>
+            <Label className="text-xs text-muted-foreground">
+              Alt text
+              {section.key.includes("hero") ? (
+                <span className="ml-1 font-semibold text-destructive">
+                  (required for SEO)
+                </span>
+              ) : null}
+            </Label>
             <Input
               value={section.alt ?? ""}
               onChange={(e) => onChange({ ...section, alt: e.target.value })}
+              aria-required={section.key.includes("hero")}
             />
+            {section.key.includes("hero") && section.src && !section.alt ? (
+              <p className="text-xs text-destructive">
+                Describe this hero image (e.g. destination + "airport
+                transfer") so search engines and screen readers understand
+                it.
+              </p>
+            ) : null}
           </div>
           {section.src ? (
             // eslint-disable-next-line @next/next/no-img-element

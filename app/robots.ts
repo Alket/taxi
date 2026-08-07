@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next"
 
+import { getAppBaseUrl } from "@/lib/mail"
 import { getSettings } from "@/lib/settings"
 
 /**
@@ -30,5 +31,6 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
       allow: "/",
       disallow: ["/admin/", "/api/", "/driver/"],
     },
+    sitemap: `${getAppBaseUrl().replace(/\/+$/, "")}/sitemap.xml`,
   }
 }

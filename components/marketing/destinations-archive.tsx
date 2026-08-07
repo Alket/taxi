@@ -1,3 +1,4 @@
+import Image from "next/image"
 import Link from "next/link"
 import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react"
 
@@ -125,11 +126,14 @@ export function DestinationsArchive({
   return (
     <div>
       <section className="relative isolate -mt-24 h-[min(52svh,28rem)] min-h-[20rem] overflow-hidden md:h-[min(48svh,32rem)]">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+        <Image
           src={heroImage}
-          alt=""
-          className="absolute inset-0 size-full object-cover object-center"
+          alt={t(locale, "nav.destinations")}
+          fill
+          priority
+          fetchPriority="high"
+          sizes="100vw"
+          className="object-cover object-center"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-brand-panel via-brand-panel/55 to-brand-panel/25" />
         <div className="absolute inset-0 bg-gradient-to-r from-brand-panel/50 via-transparent to-transparent" />

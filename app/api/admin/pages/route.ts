@@ -7,6 +7,7 @@ import {
   createDestinationPage,
   listAdminPages,
 } from "@/lib/page-content"
+import { revalidateAllLocales } from "@/lib/revalidate-locales"
 
 const createSchema = z.object({
   name: z.string().trim().min(1).max(120),
@@ -42,8 +43,8 @@ export async function POST(request: Request) {
 
   try {
     const page = await createDestinationPage(parsed.data)
-    revalidatePath("/")
-    revalidatePath("/destinations")
+    revalidateAllLocales("/")
+    revalidateAllLocales("/destinations")
     revalidatePath("/destinations/[slug]", "page")
     revalidatePath("/admin/pages")
     return NextResponse.json({ page }, { status: 201 })

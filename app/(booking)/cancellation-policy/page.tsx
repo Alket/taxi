@@ -10,7 +10,9 @@ import {
   sectionValue,
 } from "@/lib/page-content"
 
-export const dynamic = "force-dynamic"
+// CMS content rarely changes; ISR + on-demand revalidation (admin save →
+// revalidatePath) keeps this fast without re-querying the DB on every hit.
+export const revalidate = 3600
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getRequestLocale()

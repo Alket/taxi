@@ -1,16 +1,20 @@
 import type { Metadata } from "next"
+import Image from "next/image"
+import Link from "next/link"
 import { notFound } from "next/navigation"
 
 import { HashLink } from "@/components/marketing/hash-link"
 import { DestinationAttractionsSection } from "@/components/marketing/destination-attractions-section"
 import { DestinationsSection } from "@/components/marketing/destinations-section"
+import { JsonLd } from "@/components/marketing/json-ld"
 import { MarketingContainer } from "@/components/marketing/marketing-container"
 import { TestimonialsSection } from "@/components/marketing/testimonials-section"
 import { getRequestLocale } from "@/lib/i18n/get-locale"
-import { localePath } from "@/lib/i18n/locales"
+import { localePath, localizedAlternates } from "@/lib/i18n/locales"
 import { t } from "@/lib/i18n/t"
 import {
   attractionsFromSections,
+  listAdminPages,
   pageMetadataFields,
   resolveDestination,
   resolveDestinationCards,
@@ -18,13 +22,30 @@ import {
   sectionHeading,
   sectionValue,
 } from "@/lib/page-content"
+import {
+  buildBreadcrumbJsonLd,
+  buildTouristDestinationJsonLd,
+} from "@/lib/structured-data"
 
 type PageProps = {
   params: Promise<{ slug: string }>
 }
 
-/** CMS images/copy must stay fresh after admin edits. */
-export const dynamic = "force-dynamic"
+// CMS content rarely changes; ISR + on-demand revalidation (admin save →
+// revalidatePath) keeps this fast without re-querying the DB on every hit.
+export const revalidate = 3600
+
+/** Pre-render every known destination (built-in + custom) at build time. */
+export async function generateStaticParams() {
+  try {
+    const pages = await listAdminPages()
+    return pages
+      .filter((page) => page.isDestination)
+      .map((page) => ({ slug: page.slug.replace(/^destinations\//, "") }))
+  } catch {
+    return []
+  }
+}
 
 export async function generateMetadata({
   params,
@@ -36,8 +57,9 @@ export async function generateMetadata({
   const destination = await resolveDestination(slug, locale)
   if (!destination) return { title: "Destination" }
   return {
-    title: destination.name,
+    title: `${destination.name} Airport Transfer`,
     description: destination.description,
+    alternates: localizedAlternates(`/destinations/${slug}`, locale),
   }
 }
 
@@ -76,27 +98,81 @@ export default async function DestinationPage({ params }: PageProps) {
     t(locale, "destinations.attractionsHeading")
   const attractions = attractionsFromSections(sections)
 
+  const routeHeading =
+    sectionHeading(sections, "route.heading") || `Getting to ${name}`
+  const routeDistance = sectionValue(sections, "route.distance")
+  const routeDuration = sectionValue(sections, "route.duration")
+  const routeWhyBook = sectionValue(sections, "route.whyBook")
+  const hasRouteContent = Boolean(
+    routeDistance || routeDuration || routeWhyBook,
+  )
+
   const reviewKeyword = destination.reviewKeywords[0] ?? destination.name
   const moreDestinations = destinationCards.filter(
     (d) => d.id !== destination.id,
   )
 
+  const destinationsLabel = t(locale, "nav.destinations") || "Destinations"
+  const homeLabel = t(locale, "nav.home") || "Home"
+  const breadcrumbJsonLd = buildBreadcrumbJsonLd([
+    { name: homeLabel, url: localePath("/", locale) },
+    { name: destinationsLabel, url: localePath("/destinations", locale) },
+    { name, url: localePath(`/destinations/${slug}`, locale) },
+  ])
+  const touristDestinationJsonLd = buildTouristDestinationJsonLd({
+    name,
+    description,
+    image,
+    url: localePath(`/destinations/${slug}`, locale),
+  })
+
   return (
     <>
+      <JsonLd data={breadcrumbJsonLd} />
+      <JsonLd data={touristDestinationJsonLd} />
       <section className="relative isolate -mt-24 h-[60vh] min-h-[60vh] overflow-hidden">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+        <Image
           src={image}
           alt={imageAlt}
-          className="absolute inset-0 size-full object-cover object-center"
+          fill
+          priority
+          fetchPriority="high"
+          sizes="100vw"
+          className="object-cover object-center"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-brand-panel/90 via-brand-panel/40 to-brand-panel/20" />
         <MarketingContainer className="relative z-10 flex h-full flex-col justify-end py-12 pb-[max(4rem,env(safe-area-inset-bottom))] text-white">
+          <nav aria-label="Breadcrumb" className="mb-2">
+            <ol className="flex flex-wrap items-center gap-1.5 text-xs font-semibold text-white/80">
+              <li>
+                <Link href={localePath("/", locale)} className="hover:text-white">
+                  {homeLabel}
+                </Link>
+              </li>
+              <li aria-hidden className="text-white/50">
+                /
+              </li>
+              <li>
+                <Link
+                  href={localePath("/destinations", locale)}
+                  className="hover:text-white"
+                >
+                  {destinationsLabel}
+                </Link>
+              </li>
+              <li aria-hidden className="text-white/50">
+                /
+              </li>
+              <li aria-current="page" className="text-white">
+                {name}
+              </li>
+            </ol>
+          </nav>
           <p className="text-xs font-extrabold tracking-widest text-white uppercase">
             {region}
           </p>
           <h1 className="mt-2 font-brand text-4xl font-extrabold tracking-tight sm:text-5xl">
-            {name}
+            {name} Airport Transfer
           </h1>
           <p className="mt-3 max-w-xl text-base text-white/85">{description}</p>
           <HashLink
@@ -107,6 +183,47 @@ export default async function DestinationPage({ params }: PageProps) {
           </HashLink>
         </MarketingContainer>
       </section>
+
+      {hasRouteContent ? (
+        <section className="py-12 md:py-16">
+          <MarketingContainer>
+            <h2 className="font-brand text-2xl font-extrabold tracking-tight text-brand sm:text-3xl">
+              {routeHeading}
+            </h2>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              {routeDistance || routeDuration ? (
+                <dl className="grid gap-3 rounded-2xl border border-border bg-brand-surface p-5 sm:grid-cols-2">
+                  {routeDistance ? (
+                    <div>
+                      <dt className="text-xs font-bold tracking-wide text-muted-foreground uppercase">
+                        Distance
+                      </dt>
+                      <dd className="mt-1 text-sm font-semibold text-brand">
+                        {routeDistance}
+                      </dd>
+                    </div>
+                  ) : null}
+                  {routeDuration ? (
+                    <div>
+                      <dt className="text-xs font-bold tracking-wide text-muted-foreground uppercase">
+                        Travel time
+                      </dt>
+                      <dd className="mt-1 text-sm font-semibold text-brand">
+                        {routeDuration}
+                      </dd>
+                    </div>
+                  ) : null}
+                </dl>
+              ) : null}
+              {routeWhyBook ? (
+                <p className="rounded-2xl border border-border bg-brand-surface p-5 text-sm leading-relaxed text-muted-foreground sm:col-span-1">
+                  {routeWhyBook}
+                </p>
+              ) : null}
+            </div>
+          </MarketingContainer>
+        </section>
+      ) : null}
 
       <DestinationAttractionsSection
         heading={attractionsHeading}

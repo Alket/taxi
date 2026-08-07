@@ -4,11 +4,13 @@ import { z } from "zod"
 
 import { requireAdmin } from "@/lib/auth"
 import { LOCALES, isLocale, type Locale } from "@/lib/i18n/locales"
+import { listAdminPages } from "@/lib/page-content"
 import {
   I18N_MAX_BODY_BYTES,
   exportPageI18nPack,
   importPageI18nPack,
 } from "@/lib/page-content-i18n-pack"
+import { revalidateAllLocales } from "@/lib/revalidate-locales"
 
 /**
  * GET  — download a translation pack (all pages + destinations × locales).
@@ -83,16 +85,18 @@ export async function POST(request: Request) {
       locales: locales.length > 0 ? locales : [...LOCALES],
     })
 
-    revalidatePath("/")
-    for (const locale of LOCALES) {
-      if (locale !== "en") revalidatePath(`/${locale}`)
-    }
+    revalidateAllLocales("/")
+    revalidateAllLocales("/destinations")
+    revalidateAllLocales("/cancellation-policy")
+    revalidateAllLocales("/privacy-policy")
+    revalidateAllLocales("/terms")
+    revalidateAllLocales("/cookies")
     revalidatePath("/admin/pages")
-    revalidatePath("/destinations")
-    revalidatePath("/cancellation-policy")
-    revalidatePath("/privacy-policy")
-    revalidatePath("/terms")
-    revalidatePath("/cookies")
+
+    const pages = await listAdminPages().catch(() => [])
+    for (const page of pages) {
+      if (page.isDestination) revalidateAllLocales(page.path)
+    }
 
     return NextResponse.json({
       ok: true,

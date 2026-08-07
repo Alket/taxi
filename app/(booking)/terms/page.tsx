@@ -10,7 +10,12 @@ import {
   sectionValue,
 } from "@/lib/page-content"
 
-export const dynamic = "force-dynamic"
+// CMS content rarely changes; ISR + on-demand revalidation (admin save →
+// revalidatePath) keeps this fast without re-querying the DB on every hit.
+// Note: reading locale via headers()/cookies() in getRequestLocale() still
+// forces Next to render this per-request today (Dynamic API opt-out), so
+// this mainly documents intent until locale detection moves to the URL.
+export const revalidate = 3600
 
 const SLUG = "terms"
 

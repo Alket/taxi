@@ -1,6 +1,12 @@
 import { prisma } from "@/lib/db"
 import { DESTINATIONS, type Destination, slugifyDestinationId } from "@/lib/destinations"
-import { DEFAULT_LOCALE, type Locale, isLocale } from "@/lib/i18n/locales"
+import {
+  DEFAULT_LOCALE,
+  type Locale,
+  isLocale,
+  localePath,
+  localizedAlternates,
+} from "@/lib/i18n/locales"
 import {
   resolveMediaAlt,
 } from "@/lib/media-shared"
@@ -60,14 +66,18 @@ function section(
   return { id: newId(), type, key, ...fields }
 }
 
+/** Used when a page has no CMS-set `ogImage` — keeps social share cards from being blank. */
+export const DEFAULT_OG_IMAGE =
+  "https://www.welcomepickups.com/wp-content/themes/welcomepickups_new/images/conversion-v2/hero_photo_desktop_2.jpg"
+
 const HOME_DEFAULTS: PageDefinition["defaults"] = {
-  title: "Albania Transfers · Airport transfers",
+  title: "Tirana Airport Transfer · Albania Transfers",
   description:
-    "Book reliable airport transfers across Albania. Fixed prices, vetted drivers, clear cancellation terms.",
-  ogImage: "",
+    "Book a reliable Tirana Airport transfer and rides across Albania. Fixed prices, vetted drivers, clear cancellation terms.",
+  ogImage: DEFAULT_OG_IMAGE,
   sections: [
     section("heading", "hero.heading", {
-      heading: "Arrive. Discover.\nExperience.",
+      heading: "Tirana Airport Transfer,\nMade Simple.",
       level: 1,
     }),
     section("text", "hero.text", {
@@ -356,6 +366,61 @@ const COOKIES_DEFAULTS: PageDefinition["defaults"] = {
   ],
 }
 
+/** Route-specific copy (distance/time from Tirana Airport + why-book blurb) for built-in destinations. */
+const DESTINATION_ROUTE_INFO: Record<
+  string,
+  { distance: string; duration: string; whyBook: string }
+> = {
+  tirana: {
+    distance: "17 km from Tirana International Airport (TIA)",
+    duration: "≈ 20–25 minutes by car",
+    whyBook:
+      "The shortest airport run on our network — ideal for city breaks, business trips, or a quick overnight before heading further afield. Fixed pricing means no meter surprises after a long flight.",
+  },
+  durres: {
+    distance: "35 km from Tirana International Airport (TIA)",
+    duration: "≈ 35–40 minutes by car",
+    whyBook:
+      "A straight, mostly-highway run to Albania's main port city — popular with cruise passengers and beach-goers heading straight from the plane to the sand.",
+  },
+  vlore: {
+    distance: "≈ 145 km from Tirana International Airport (TIA)",
+    duration: "≈ 2 hours by car",
+    whyBook:
+      "Your gateway to the Albanian Riviera. Skip the bus transfers and connections — go direct from arrivals to your hotel along the coast in one comfortable ride.",
+  },
+  sarande: {
+    distance: "≈ 230 km from Tirana International Airport (TIA)",
+    duration: "≈ 3.5–4 hours by car",
+    whyBook:
+      "One of our longest and most-booked routes, favoured by travellers connecting onward to Corfu. A fixed price and a driver who knows the coastal road beats a chain of buses.",
+  },
+  ksamil: {
+    distance: "≈ 240 km from Tirana International Airport (TIA)",
+    duration: "≈ 4 hours by car",
+    whyBook:
+      "Direct door-to-door service to the islands' turquoise coves — no changing vehicles in Sarandë, no waiting around, just one booking for the whole journey.",
+  },
+  berat: {
+    distance: "≈ 120 km from Tirana International Airport (TIA)",
+    duration: "≈ 2 hours by car",
+    whyBook:
+      "A comfortable, scenic ride straight to the UNESCO old town — perfect for travellers who want to start sightseeing the same day they land.",
+  },
+  shkoder: {
+    distance: "≈ 100 km from Tirana International Airport (TIA)",
+    duration: "≈ 1.5 hours by car",
+    whyBook:
+      "The fastest way north — ideal if you're continuing on to the Albanian Alps, Lake Shkodër, or across the border into Montenegro.",
+  },
+  theth: {
+    distance: "≈ 175 km from Tirana International Airport (TIA)",
+    duration: "≈ 3–3.5 hours by car (mountain road)",
+    whyBook:
+      "Theth's mountain road isn't for every rental car — our drivers know the route well, so you arrive relaxed and ready to hike, not white-knuckled from the drive.",
+  },
+}
+
 function destinationDefaults(slug: string): PageDefinition | null {
   const dest = DESTINATIONS.find((d) => d.id === slug)
   if (!dest) return null
@@ -363,6 +428,7 @@ function destinationDefaults(slug: string): PageDefinition | null {
 }
 
 export function destinationDefinitionFromMeta(dest: Destination): PageDefinition {
+  const route = DESTINATION_ROUTE_INFO[dest.id]
   return {
     slug: `destinations/${dest.id}`,
     label: `Destination · ${dest.name}`,
@@ -378,6 +444,19 @@ export function destinationDefinitionFromMeta(dest: Destination): PageDefinition
         section("image", "hero", { src: dest.image, alt: dest.name }),
         section("text", "badge", { body: dest.badge }),
         section("text", "priceFrom", { body: dest.priceFrom }),
+        section("heading", "route.heading", {
+          heading: `Getting to ${dest.name}`,
+          level: 2,
+        }),
+        section("text", "route.distance", {
+          body: route?.distance ?? "",
+        }),
+        section("text", "route.duration", {
+          body: route?.duration ?? "",
+        }),
+        section("text", "route.whyBook", {
+          body: route?.whyBook ?? "",
+        }),
         section("heading", "attractions.heading", {
           heading: "Top attractions",
           level: 2,
@@ -820,14 +899,34 @@ export async function listAdminPages(): Promise<AdminPageListItem[]> {
   return [...builtIn, ...custom]
 }
 
+/** Public path for a CMS slug (`home` → `/`, `destinations/x` → `/destinations/x`). */
+export function pathForSlug(slug: string): string {
+  return slug === "home" ? "/" : `/${slug}`
+}
+
 export function pageMetadataFields(page: PageContentRecord) {
+  const path = pathForSlug(page.slug)
+  const ogImage = page.ogImage || DEFAULT_OG_IMAGE
+
   return {
     title: page.title,
     description: page.description,
+    alternates: localizedAlternates(
+      path,
+      (page.locale as Locale) || DEFAULT_LOCALE,
+    ),
     openGraph: {
       title: page.title,
       description: page.description,
-      ...(page.ogImage ? { images: [{ url: page.ogImage }] } : {}),
+      images: [
+        { url: ogImage, width: 1200, height: 630, alt: page.title },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image" as const,
+      title: page.title,
+      description: page.description,
+      images: [ogImage],
     },
   }
 }

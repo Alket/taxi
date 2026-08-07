@@ -5,6 +5,7 @@ import { z } from "zod"
 import { requireAdmin } from "@/lib/auth"
 import { prisma } from "@/lib/db"
 import { DEFAULT_LOCALE, isLocale, type Locale } from "@/lib/i18n/locales"
+import { revalidateAllLocales } from "@/lib/revalidate-locales"
 import {
   PAGE_SECTION_TYPES,
   deleteAdminPage,
@@ -103,8 +104,8 @@ export async function PATCH(request: Request, context: RouteContext) {
         slug,
         featuredParsed.data.featured,
       )
-      revalidatePath("/")
-      revalidatePath("/destinations")
+      revalidateAllLocales("/")
+      revalidateAllLocales("/destinations")
       revalidatePath("/admin/pages")
       return NextResponse.json(result)
     } catch (error) {
@@ -225,10 +226,10 @@ export async function PATCH(request: Request, context: RouteContext) {
     },
   })
 
-  revalidatePath("/")
-  revalidatePath(def.path)
+  revalidateAllLocales("/")
+  revalidateAllLocales(def.path)
   if (slug.startsWith("destinations/")) {
-    revalidatePath("/destinations")
+    revalidateAllLocales("/destinations")
     revalidatePath("/destinations/[slug]", "page")
   }
 
@@ -244,15 +245,16 @@ export async function DELETE(_request: Request, context: RouteContext) {
   const slug = slugFromParams((await context.params).slug)
   try {
     const result = await deleteAdminPage(slug)
-    revalidatePath("/")
-    revalidatePath("/destinations")
+    revalidateAllLocales("/")
+    revalidateAllLocales("/destinations")
     revalidatePath("/destinations/[slug]", "page")
     revalidatePath("/admin/pages")
-    if (slug === "home") revalidatePath("/")
-    if (slug === "cancellation-policy") revalidatePath("/cancellation-policy")
-    if (slug === "privacy-policy") revalidatePath("/privacy-policy")
-    if (slug === "terms") revalidatePath("/terms")
-    if (slug === "cookies") revalidatePath("/cookies")
+    if (slug === "home") revalidateAllLocales("/")
+    if (slug === "cancellation-policy")
+      revalidateAllLocales("/cancellation-policy")
+    if (slug === "privacy-policy") revalidateAllLocales("/privacy-policy")
+    if (slug === "terms") revalidateAllLocales("/terms")
+    if (slug === "cookies") revalidateAllLocales("/cookies")
     return NextResponse.json(result)
   } catch (error) {
     return NextResponse.json(

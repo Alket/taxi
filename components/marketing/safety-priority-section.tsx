@@ -1,3 +1,5 @@
+import Image from "next/image"
+
 import {
   MarketingContainer,
   MARKETING_SECTION_TITLE,
@@ -31,12 +33,12 @@ export function SafetyPrioritySection({ copy }: { copy: SafetyCopy }) {
               className="group flex flex-col"
             >
               <div className="relative mb-4 aspect-[16/10] w-full overflow-hidden rounded-2xl bg-muted shadow-md sm:mb-6 sm:rounded-3xl">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                <Image
                   src={image}
                   alt={alt}
-                  className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  loading="lazy"
+                  fill
+                  sizes="(min-width: 768px) 50vw, 100vw"
+                  className="object-cover transition-transform duration-500 group-hover:scale-105"
                 />
               </div>
               <h3 className="mb-2 text-xl font-extrabold text-brand md:mb-3 md:text-2xl">

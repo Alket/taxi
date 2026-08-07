@@ -1,7 +1,8 @@
 "use client"
 
 import * as React from "react"
-import { usePathname, useRouter } from "next/navigation"
+import Link from "next/link"
+import { usePathname } from "next/navigation"
 import { CheckIcon, ChevronDownIcon } from "lucide-react"
 
 import {
@@ -26,7 +27,6 @@ export function LanguageSwitcher({
   className,
   variant = "pill",
 }: LanguageSwitcherProps) {
-  const router = useRouter()
   const pathname = usePathname() || "/"
   const rootRef = React.useRef<HTMLDivElement>(null)
   const [open, setOpen] = React.useState(false)
@@ -38,16 +38,15 @@ export function LanguageSwitcher({
     short: LOCALE_LABELS[active].short,
   }
 
-  function navigateToLocale(next: Locale) {
-    const base = stripLocalePrefix(pathname)
-    const query =
-      typeof window !== "undefined"
-        ? window.location.search.replace(/^\?/, "")
-        : ""
-    const withQuery = query ? `${base}?${query}` : base
+  const basePath = stripLocalePrefix(pathname)
+
+  /** Real `href` per locale (query-string preserved client-side on click below). */
+  function hrefForLocale(code: Locale) {
+    return localePath(basePath, code)
+  }
+
+  function onSelectLocale(next: Locale) {
     setClientLocale(next)
-    router.push(localePath(withQuery, next))
-    router.refresh()
     setOpen(false)
   }
 
@@ -79,10 +78,10 @@ export function LanguageSwitcher({
     return (
       <div className={cn("flex flex-wrap gap-1.5", className)}>
         {LOCALES.map((code) => (
-          <button
+          <Link
             key={code}
-            type="button"
-            onClick={() => navigateToLocale(code)}
+            href={hrefForLocale(code)}
+            onClick={() => onSelectLocale(code)}
             className={cn(
               "rounded-full px-2.5 py-1 text-xs font-bold tracking-wide transition-colors",
               active === code
@@ -91,7 +90,7 @@ export function LanguageSwitcher({
             )}
           >
             {LOCALE_LABELS[code].short}
-          </button>
+          </Link>
         ))}
       </div>
     )
@@ -134,12 +133,12 @@ export function LanguageSwitcher({
             {LOCALES.map((code) => {
               const selected = active === code
               return (
-                <button
+                <Link
                   key={code}
-                  type="button"
+                  href={hrefForLocale(code)}
                   role="option"
                   aria-selected={selected}
-                  onClick={() => navigateToLocale(code)}
+                  onClick={() => onSelectLocale(code)}
                   className={cn(
                     "flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition-colors",
                     selected
@@ -163,7 +162,7 @@ export function LanguageSwitcher({
                   {selected ? (
                     <CheckIcon className="size-4 shrink-0 text-primary" />
                   ) : null}
-                </button>
+                </Link>
               )
             })}
           </div>

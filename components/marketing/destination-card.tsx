@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import Link from "next/link"
 
 import type { Destination } from "@/lib/destinations"
@@ -28,13 +29,14 @@ export function DestinationCard({
       )}
     >
       <div className="absolute inset-0 bg-muted">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+        <Image
           src={destination.image}
           alt={destination.imageAlt || destination.name}
-          className="size-full object-cover transition-transform duration-500 [@media(hover:hover)]:group-hover:scale-105"
-          loading={priority ? "eager" : "lazy"}
-          draggable={false}
+          fill
+          priority={priority}
+          fetchPriority={priority ? "high" : "auto"}
+          sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+          className="object-cover transition-transform duration-500 [@media(hover:hover)]:group-hover:scale-105"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-brand-panel/90 via-brand-panel/25 to-transparent" />
       </div>

@@ -6,19 +6,30 @@ import {
   DestinationsArchive,
 } from "@/components/marketing/destinations-archive"
 import { getRequestLocale } from "@/lib/i18n/get-locale"
-import { localePath } from "@/lib/i18n/locales"
+import { localePath, localizedAlternates } from "@/lib/i18n/locales"
 import { resolveDestinationCards } from "@/lib/page-content"
 
-export const dynamic = "force-dynamic"
-
-export const metadata: Metadata = {
-  title: "Destinations",
-  description:
-    "Browse airport transfer destinations across Albania — cities, coasts, and mountain escapes with fixed prices.",
-}
+// CMS content rarely changes; ISR + on-demand revalidation (admin save →
+// revalidatePath) keeps this fast without re-querying the DB on every hit.
+export const revalidate = 3600
 
 type PageProps = {
   searchParams: Promise<{ page?: string }>
+}
+
+export async function generateMetadata({
+  searchParams,
+}: PageProps): Promise<Metadata> {
+  const locale = await getRequestLocale()
+  const { page: pageParam } = await searchParams
+  const path = pageParam ? `/destinations?page=${pageParam}` : "/destinations"
+
+  return {
+    title: "Albania Airport Transfer Destinations",
+    description:
+      "Browse airport transfer destinations across Albania — cities, coasts, and mountain escapes with fixed prices.",
+    alternates: localizedAlternates(path, locale),
+  }
 }
 
 export default async function DestinationsArchivePage({

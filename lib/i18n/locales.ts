@@ -60,6 +60,19 @@ export function stripLocalePrefix(pathname: string): string {
   return pathname.startsWith("/") ? pathname : `/${pathname}`
 }
 
+/** Build `alternates.canonical` + `alternates.languages` for a given path/locale (hreflang). */
+export function localizedAlternates(path: string, locale: Locale) {
+  const languages: Record<string, string> = {}
+  for (const code of LOCALES) {
+    languages[code] = localePath(path, code)
+  }
+  languages["x-default"] = localePath(path, DEFAULT_LOCALE)
+  return {
+    canonical: localePath(path, locale),
+    languages,
+  }
+}
+
 /** Detect locale from a pathname (`/it/foo` → it, `/foo` → en). */
 export function localeFromPathname(pathname: string): Locale {
   const first = pathname.split("/").filter(Boolean)[0]

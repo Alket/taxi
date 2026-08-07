@@ -4,13 +4,20 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 import { Toaster } from "@/components/ui/sonner"
 import { AppThemeProvider } from "@/components/admin/theme-provider"
 import { getRequestLocale } from "@/lib/i18n/get-locale"
+import { getAppBaseUrl } from "@/lib/mail"
+import { DEFAULT_OG_IMAGE } from "@/lib/page-content"
 import { getSettings } from "@/lib/settings"
 import "./globals.css"
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" })
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+})
 const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
   variable: "--font-jetbrains-mono",
+  display: "swap",
 })
 
 /**
@@ -73,13 +80,16 @@ export async function generateMetadata(): Promise<Metadata> {
         ? "image/webp"
         : "image/png"
 
+  const description =
+    "Book airport transfers across Albania, or manage operations from the admin console."
+
   return {
+    metadataBase: new URL(getAppBaseUrl()),
     title: {
       default: brand,
       template: `%s · ${brand}`,
     },
-    description:
-      "Book airport transfers across Albania, or manage operations from the admin console.",
+    description,
     manifest: "/manifest.webmanifest",
     icons: {
       icon: [{ url: favicon, type }],
@@ -90,6 +100,17 @@ export async function generateMetadata(): Promise<Metadata> {
       capable: true,
       title: brand,
       statusBarStyle: "default",
+    },
+    openGraph: {
+      siteName: brand,
+      title: brand,
+      description,
+      images: [
+        { url: DEFAULT_OG_IMAGE, width: 1200, height: 630, alt: brand },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
     },
     robots: indexingEnabled
       ? { index: true, follow: true }
