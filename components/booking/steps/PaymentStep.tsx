@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
 import {
   Elements,
@@ -32,6 +33,7 @@ import { toast } from "sonner"
 import { apiPost, fetcher } from "@/lib/api"
 import { navigateToBookingConfirmation } from "@/lib/navigate-to-confirmation"
 import { normalizePaymentOption } from "@/lib/payment-options"
+import { clearPokOrderId, rememberPokOrderId } from "@/lib/pok-order-storage"
 import type { PaymentOption } from "@/lib/types"
 import { createPublicBookingOnce } from "@/lib/public-booking-create"
 import {
@@ -60,6 +62,7 @@ type PublicSettings = {
   depositPercentage?: number
   stripeEnabled?: boolean
   paypalEnabled?: boolean
+  pokEnabled?: boolean
   cashOnArrivalEnabled?: boolean
   depositPaymentEnabled?: boolean
   fullPaymentEnabled?: boolean
@@ -86,6 +89,25 @@ type CreateIntentResponse = {
   referenceCode: string
   publishableKey: string | null
 }
+
+type PokOrderResponse = {
+  orderId: string
+  environment: "staging" | "production"
+  paymentOption: PaymentOption
+  chargeAmount: number
+  currency: string
+  bookingId: string
+  referenceCode: string
+}
+
+/** POK's card form ships its own CSS and touches `window` — browser only. */
+const PokCheckoutForm = dynamic(
+  () => import("@/components/booking/pok-checkout-form"),
+  {
+    ssr: false,
+    loading: () => <Skeleton className="h-64 w-full rounded-xl" />,
+  },
+)
 
 let stripePromise: Promise<Stripe | null> | null = null
 
@@ -329,7 +351,7 @@ function PaymentOptionCard({
   )
 }
 
-type CheckoutMethod = "card" | "paypal" | "cash"
+type CheckoutMethod = "card" | "paypal" | "pok" | "cash"
 
 type CheckoutMethodOption = {
   id: CheckoutMethod
@@ -686,6 +708,11 @@ export function PaymentStep() {
   const [paypalError, setPaypalError] = React.useState<string | null>(null)
   const [cashPending, setCashPending] = React.useState(false)
   const [cashError, setCashError] = React.useState<string | null>(null)
+  const [pokOrder, setPokOrder] = React.useState<PokOrderResponse | null>(null)
+  const [pokLoading, setPokLoading] = React.useState(false)
+  const [pokConfirming, setPokConfirming] = React.useState(false)
+  const [pokError, setPokError] = React.useState<string | null>(null)
+  const pokRequestRef = React.useRef<string | null>(null)
   const [termsInvalid, setTermsInvalid] = React.useState(false)
 
   useBookingFieldFocusListener("terms")
@@ -702,6 +729,7 @@ export function PaymentStep() {
   const depositPercentage = settings?.depositPercentage ?? 30
   const stripeEnabled = settings?.stripeEnabled ?? true
   const paypalEnabled = settings?.paypalEnabled ?? true
+  const pokEnabled = settings?.pokEnabled ?? false
   const cashOnArrivalEnabled = settings?.cashOnArrivalEnabled ?? false
   const depositPaymentEnabled = settings?.depositPaymentEnabled ?? true
   const fullPaymentEnabled = settings?.fullPaymentEnabled ?? true
@@ -710,6 +738,7 @@ export function PaymentStep() {
     intent?.publishableKey || process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
   const showStripe = stripeEnabled && Boolean(intent && publishableKey)
   const showPaypal = paypalEnabled
+  const showPok = pokEnabled
   const showCash = cashOnArrivalEnabled
 
   const availableMethods = React.useMemo(() => {
@@ -731,6 +760,14 @@ export function PaymentStep() {
         icon: CreditCardIcon,
       })
     }
+    if (showPok) {
+      methods.push({
+        id: "pok",
+        label: "POK",
+        description: "Pay by card through POK",
+        icon: CreditCardIcon,
+      })
+    }
     if (showCash) {
       methods.push({
         id: "cash",
@@ -740,7 +777,7 @@ export function PaymentStep() {
       })
     }
     return methods
-  }, [showStripe, showPaypal, showCash])
+  }, [showStripe, showPaypal, showPok, showCash])
 
   const selectedMethod =
     checkoutMethod && availableMethods.some((m) => m.id === checkoutMethod)
@@ -987,6 +1024,72 @@ export function PaymentStep() {
     }
   }
 
+  // POK orders carry the amount, so create one when the customer picks POK and
+  // replace it whenever they switch between deposit and full payment.
+  React.useEffect(() => {
+    const bookingId = store.createdBookingId
+    if (selectedMethod !== "pok" || !bookingId) return
+    // Keyed on what we asked for, not on what POK returned — the server may
+    // normalize the option, and comparing against that would loop forever.
+    const requestKey = `${bookingId}:${paymentOption}`
+    if (pokRequestRef.current === requestKey) return
+    pokRequestRef.current = requestKey
+
+    let cancelled = false
+    setPokLoading(true)
+    setPokError(null)
+    void (async () => {
+      try {
+        const order = await apiPost<PokOrderResponse>(
+          "/api/payments/pok/create-order",
+          { bookingId, paymentOption },
+        )
+        if (cancelled) return
+        setPokOrder(order)
+        rememberPokOrderId(order.orderId)
+      } catch (err) {
+        if (cancelled) return
+        const error = err as Error & { code?: string }
+        setPokOrder(null)
+        // Allow a retry when the customer re-selects POK or switches amount.
+        pokRequestRef.current = null
+        if (error.code === "POK_UNAVAILABLE" || error.code === "METHOD_DISABLED") {
+          setPokError("POK is not available right now.")
+        } else if (error.code === "SESSION_EXPIRED") {
+          setPokError("This payment session has expired. Please start again.")
+        } else {
+          setPokError(error.message || "Could not start POK checkout.")
+        }
+      } finally {
+        if (!cancelled) setPokLoading(false)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [selectedMethod, paymentOption, store.createdBookingId])
+
+  async function confirmPokPayment() {
+    if (!pokOrder) return
+    setPokConfirming(true)
+    setPokError(null)
+    try {
+      const res = await apiPost<{ referenceCode: string }>(
+        "/api/payments/pok/confirm",
+        { orderId: pokOrder.orderId },
+      )
+      clearPokOrderId()
+      navigateToBookingConfirmation(res.referenceCode)
+    } catch (err) {
+      setPokConfirming(false)
+      setPokError(
+        (err as Error).message ||
+          "We could not confirm your POK payment. Contact support before paying again.",
+      )
+    }
+  }
+
   async function confirmCashOnArrival() {
     if (!store.createdBookingId) return
     if (!termsAccepted) {
@@ -1052,7 +1155,7 @@ export function PaymentStep() {
     )
   }
 
-  if (stripeEnabled && !intent && !showPaypal && !showCash) {
+  if (stripeEnabled && !intent && !showPaypal && !showPok && !showCash) {
     return (
       <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm">
         Card payments could not be initialized. Check Stripe configuration or
@@ -1061,7 +1164,7 @@ export function PaymentStep() {
     )
   }
 
-  if (!showStripe && !showPaypal && !showCash) {
+  if (!showStripe && !showPaypal && !showPok && !showCash) {
     return (
       <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm">
         <p className="font-medium text-destructive">No payment methods available</p>
@@ -1075,7 +1178,10 @@ export function PaymentStep() {
   const currency = intent?.currency ?? store.createdCurrency ?? "EUR"
   const depositValue = store.createdDepositAmount ?? 0
   const tripTotal = store.quotedPrice ?? depositValue
-  const payingOnline = selectedMethod === "card" || selectedMethod === "paypal"
+  const payingOnline =
+    selectedMethod === "card" ||
+    selectedMethod === "paypal" ||
+    selectedMethod === "pok"
   const chargeNow = paymentOption === "full" ? tripTotal : depositValue
   const balanceDue = round2(Math.max(0, tripTotal - chargeNow))
   const referenceCode =
@@ -1189,7 +1295,9 @@ export function PaymentStep() {
           methods={availableMethods}
           value={selectedMethod}
           onChange={setCheckoutMethod}
-          disabled={paypalPending || cashPending || switchingIntent}
+          disabled={
+            paypalPending || cashPending || pokConfirming || switchingIntent
+          }
         />
       ) : null}
 
@@ -1279,6 +1387,59 @@ export function PaymentStep() {
                 You&apos;ll return here after approving the payment on PayPal.
               </p>
             )}
+          </div>
+        ) : null}
+
+        {selectedMethod === "pok" && showPok ? (
+          <div
+            className={cn(
+              "flex min-w-0 flex-col gap-3 rounded-2xl border border-border/80 bg-brand-surface p-4",
+              !termsAccepted && "opacity-70",
+            )}
+          >
+            <div className="flex items-center gap-2">
+              <CreditCardIcon className="size-4 text-brand-accent" />
+              <p className="text-sm font-bold text-brand">Pay with POK</p>
+            </div>
+
+            {!termsAccepted ? (
+              <p className="text-sm text-muted-foreground">
+                Accept the booking terms above to enter your card details.
+              </p>
+            ) : pokLoading || switchingIntent ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2Icon className="size-4 animate-spin" />
+                Preparing POK checkout…
+              </div>
+            ) : pokConfirming ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2Icon className="size-4 animate-spin" />
+                Confirming your payment…
+              </div>
+            ) : pokOrder ? (
+              <PokCheckoutForm
+                key={pokOrder.orderId}
+                orderId={pokOrder.orderId}
+                environment={pokOrder.environment}
+                initialState={{
+                  email: store.customer.email,
+                  holdersName: store.customer.name,
+                }}
+                onPaid={() => void confirmPokPayment()}
+                onFailed={() =>
+                  setPokError(
+                    "The payment could not be completed. Check your card details and try again.",
+                  )
+                }
+              />
+            ) : null}
+
+            {pokError && <p className="text-sm text-destructive">{pokError}</p>}
+
+            <p className="text-xs text-muted-foreground">
+              You&apos;ll be charged {formatMoney(chargeNow, currency)} by POK.
+              Card details are entered directly with POK — we never see them.
+            </p>
           </div>
         ) : null}
 

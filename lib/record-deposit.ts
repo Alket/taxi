@@ -21,11 +21,12 @@ export async function recordBookingPayment({
   paymentOption = "deposit",
   gatewayAmount,
   claimPaypalOrderId,
+  claimPokOrderId,
   paidAt = new Date(),
 }: {
   bookingId: string
   paymentIntentId: string
-  provider: "stripe" | "paypal"
+  provider: "stripe" | "paypal" | "pok"
   paymentOption?: PaymentOption
   /** Actual amount confirmed by the payment provider (major currency units). */
   gatewayAmount?: number
@@ -35,6 +36,8 @@ export async function recordBookingPayment({
    * it, returns { alreadyRecorded: true } without mutating bookings again.
    */
   claimPaypalOrderId?: string
+  /** Same as `claimPaypalOrderId`, for a PokOrderIntent. */
+  claimPokOrderId?: string
   paidAt?: Date
 }) {
   const booking = await prisma.booking.findUnique({ where: { id: bookingId } })
@@ -64,6 +67,16 @@ export async function recordBookingPayment({
     if (claimPaypalOrderId) {
       const claimed = await tx.paypalOrderIntent.updateMany({
         where: { orderId: claimPaypalOrderId, status: "created" },
+        data: { status: "captured" },
+      })
+      if (claimed.count === 0) {
+        return { alreadyRecorded: true as const }
+      }
+    }
+
+    if (claimPokOrderId) {
+      const claimed = await tx.pokOrderIntent.updateMany({
+        where: { orderId: claimPokOrderId, status: "created" },
         data: { status: "captured" },
       })
       if (claimed.count === 0) {
@@ -185,7 +198,7 @@ export async function recordBookingPayment({
 export async function recordDepositPaid(args: {
   bookingId: string
   paymentIntentId: string
-  provider: "stripe" | "paypal"
+  provider: "stripe" | "paypal" | "pok"
   gatewayAmount?: number
   paidAt?: Date
 }) {

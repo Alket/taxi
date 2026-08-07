@@ -86,12 +86,12 @@ export function MediaLibraryView() {
     if (!selected) return
     setSaving(true)
     try {
-      const data = await apiPatch<{ asset: MediaAssetDto }>(
+      await apiPatch<{ asset: MediaAssetDto }>(
         `/api/admin/media/${selected.id}`,
         { title, description, alt },
       )
-      setSelected(data.asset)
       await mutate()
+      setSelected(null)
       toast.success("Media updated")
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Save failed")

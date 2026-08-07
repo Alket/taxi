@@ -25,6 +25,7 @@ export async function GET() {
       vehicleCapacities: vehicleCapacitiesFromSettingsRow(row),
       stripeEnabled: row.stripeEnabled ?? true,
       paypalEnabled: row.paypalEnabled ?? true,
+      pokEnabled: row.pokEnabled ?? false,
       cashOnArrivalEnabled: row.cashOnArrivalEnabled ?? false,
       depositPaymentEnabled: row.depositPaymentEnabled ?? true,
       fullPaymentEnabled: row.fullPaymentEnabled ?? true,

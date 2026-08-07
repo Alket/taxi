@@ -89,7 +89,7 @@ export type BookingState = {
   createdDepositAmount: number | null
   createdCurrency: string | null
   /** Selected checkout method on payment step (drives cash vs deposit copy). */
-  checkoutMethod: "card" | "paypal" | "cash" | null
+  checkoutMethod: "card" | "paypal" | "pok" | "cash" | null
 }
 
 type BookingActions = {

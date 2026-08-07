@@ -62,6 +62,7 @@ enum VehicleType {
 enum PaymentProvider {
   stripe
   paypal
+  pok
   manual
 }
 
@@ -224,6 +225,7 @@ model Booking {
   flightStatusEvents FlightStatusEvent[]
   notificationLogs   NotificationLog[]
   paypalOrderIntents PaypalOrderIntent[]
+  pokOrderIntents    PokOrderIntent[]
 
   @@index([status])
   @@index([paymentStatus])
@@ -238,6 +240,27 @@ model Booking {
 model PaypalOrderIntent {
   id             String   @id @default(cuid())
   /** PayPal checkout order id (token). */
+  orderId        String   @unique
+  bookingId      String
+  /** "deposit" | "full" */
+  paymentOption  String
+  expectedAmount Decimal  @db.Decimal(10, 2)
+  currency       String
+  /** created | captured */
+  status         String   @default("created")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+  @@index([status])
+}
+
+/** Server-side POK checkout intent — binds sdkOrderId → booking/option/amount. */
+model PokOrderIntent {
+  id             String   @id @default(cuid())
+  /** POK sdk order id. */
   orderId        String   @unique
   bookingId      String
   /** "deposit" | "full" */
@@ -373,6 +396,7 @@ model Settings {
   minivanLuggage              Int              @default(6)
   stripeEnabled               Boolean          @default(true)
   paypalEnabled               Boolean          @default(true)
+  pokEnabled                  Boolean          @default(false)
   cashOnArrivalEnabled        Boolean          @default(false)
   /** Let customers pay just the deposit online. */
   depositPaymentEnabled       Boolean          @default(true)
@@ -392,6 +416,14 @@ model Settings {
   paypalSandboxSecret         String           @default("")
   paypalLiveClientId          String           @default("")
   paypalLiveSecret            String           @default("")
+  /** POK environment: "test" (staging) or "live" (production). */
+  pokMode                     String           @default("test")
+  pokStagingKeyId             String           @default("")
+  pokStagingKeySecret         String           @default("")
+  pokStagingMerchantId        String           @default("")
+  pokLiveKeyId                String           @default("")
+  pokLiveKeySecret            String           @default("")
+  pokLiveMerchantId           String           @default("")
   /** Outbound email (nodemailer). Empty host → fall back to SMTP_* env vars. */
   smtpHost                    String           @default("")
   smtpPort                    Int              @default(465)

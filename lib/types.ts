@@ -322,6 +322,7 @@ export interface Settings {
   minivanLuggage: number
   stripeEnabled: boolean
   paypalEnabled: boolean
+  pokEnabled: boolean
   cashOnArrivalEnabled: boolean
   depositPaymentEnabled: boolean
   fullPaymentEnabled: boolean
@@ -343,6 +344,14 @@ export interface Settings {
   paypalLiveClientId: string
   paypalSandboxSecretSet: boolean
   paypalLiveSecretSet: boolean
+  /** POK: key ids and merchant ids are returned; key secrets are flags only. */
+  pokMode: PaymentMode
+  pokStagingKeyId: string
+  pokStagingMerchantId: string
+  pokStagingKeySecretSet: boolean
+  pokLiveKeyId: string
+  pokLiveMerchantId: string
+  pokLiveKeySecretSet: boolean
   /** SMTP host/user/from are returned; password is a flag only. */
   smtpHost: string
   smtpPort: number

@@ -326,7 +326,7 @@ export function AnalyticsView() {
             <SummaryCard
               label="Online collected"
               value={data.summary.onlineCollectedLabel}
-              hint="Stripe + PayPal"
+              hint="Stripe + PayPal + POK"
               icon={WalletIcon}
             />
             <SummaryCard

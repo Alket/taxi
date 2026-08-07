@@ -21,11 +21,14 @@ type LanguageSwitcherProps = {
   className?: string
   /** Compact pill for header; chips for mobile menus. */
   variant?: "pill" | "chips"
+  /** Called after a locale is picked (e.g. to close a parent mobile menu). */
+  onNavigate?: () => void
 }
 
 export function LanguageSwitcher({
   className,
   variant = "pill",
+  onNavigate,
 }: LanguageSwitcherProps) {
   const pathname = usePathname() || "/"
   const rootRef = React.useRef<HTMLDivElement>(null)
@@ -48,6 +51,7 @@ export function LanguageSwitcher({
   function onSelectLocale(next: Locale) {
     setClientLocale(next)
     setOpen(false)
+    onNavigate?.()
   }
 
   React.useEffect(() => {

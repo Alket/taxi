@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { MenuIcon, XIcon } from "lucide-react"
@@ -15,7 +15,32 @@ import { cn } from "@/lib/utils"
 
 export function SiteHeader({ className }: { className?: string }) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const headerRef = useRef<HTMLElement>(null)
   const locale = useLocale()
+
+  useEffect(() => {
+    if (!menuOpen) return
+
+    function onPointerDown(event: MouseEvent | TouchEvent) {
+      const target = event.target as Node | null
+      if (headerRef.current && target && !headerRef.current.contains(target)) {
+        setMenuOpen(false)
+      }
+    }
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setMenuOpen(false)
+    }
+
+    document.addEventListener("mousedown", onPointerDown)
+    document.addEventListener("touchstart", onPointerDown)
+    document.addEventListener("keydown", onKeyDown)
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown)
+      document.removeEventListener("touchstart", onPointerDown)
+      document.removeEventListener("keydown", onKeyDown)
+    }
+  }, [menuOpen])
 
   const nav = [
     { href: localePath("/#book", locale), label: t(locale, "nav.book") },
@@ -28,7 +53,7 @@ export function SiteHeader({ className }: { className?: string }) {
   ] as const
 
   return (
-    <header className={cn("sticky top-4 z-50", className)}>
+    <header ref={headerRef} className={cn("sticky top-4 z-50", className)}>
       <MarketingContainer>
         <div className="relative grid h-20 grid-cols-[1fr_auto] items-center gap-4 rounded-full border border-border bg-white px-6 shadow-lg sm:px-8">
           {/* Left: logo */}
@@ -172,7 +197,11 @@ export function SiteHeader({ className }: { className?: string }) {
                   <p className="mb-2 px-2 text-[10px] font-bold tracking-[0.14em] text-muted-foreground uppercase">
                     {t(locale, "lang.label")}
                   </p>
-                  <LanguageSwitcher variant="chips" className="px-2" />
+                  <LanguageSwitcher
+                    variant="chips"
+                    className="px-2"
+                    onNavigate={() => setMenuOpen(false)}
+                  />
                 </div>
               </nav>
             </div>

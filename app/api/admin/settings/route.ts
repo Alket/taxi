@@ -182,6 +182,9 @@ export async function PATCH(request: Request) {
     if (typeof body.paypalEnabled === "boolean") {
       data.paypalEnabled = body.paypalEnabled
     }
+    if (typeof body.pokEnabled === "boolean") {
+      data.pokEnabled = body.pokEnabled
+    }
     if (typeof body.cashOnArrivalEnabled === "boolean") {
       data.cashOnArrivalEnabled = body.cashOnArrivalEnabled
     }
@@ -214,6 +217,35 @@ export async function PATCH(request: Request) {
       body.paypalLiveSecret.trim().length > 0
     ) {
       data.paypalLiveSecret = body.paypalLiveSecret.trim()
+    }
+
+    if (body.pokMode === "live" || body.pokMode === "test") {
+      data.pokMode = body.pokMode
+    }
+    if (typeof body.pokStagingKeyId === "string") {
+      data.pokStagingKeyId = body.pokStagingKeyId.trim()
+    }
+    if (typeof body.pokStagingMerchantId === "string") {
+      data.pokStagingMerchantId = body.pokStagingMerchantId.trim()
+    }
+    if (typeof body.pokLiveKeyId === "string") {
+      data.pokLiveKeyId = body.pokLiveKeyId.trim()
+    }
+    if (typeof body.pokLiveMerchantId === "string") {
+      data.pokLiveMerchantId = body.pokLiveMerchantId.trim()
+    }
+    // Key secrets are write-only and stored encrypted; blank keeps the current one.
+    if (
+      typeof body.pokStagingKeySecret === "string" &&
+      body.pokStagingKeySecret.trim().length > 0
+    ) {
+      data.pokStagingKeySecret = encryptSecret(body.pokStagingKeySecret.trim())
+    }
+    if (
+      typeof body.pokLiveKeySecret === "string" &&
+      body.pokLiveKeySecret.trim().length > 0
+    ) {
+      data.pokLiveKeySecret = encryptSecret(body.pokLiveKeySecret.trim())
     }
 
     if (body.stripeMode === "live" || body.stripeMode === "test") {

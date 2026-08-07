@@ -75,6 +75,7 @@ export function PaymentsPanel({
 }) {
   const [stripeEnabled, setStripeEnabled] = React.useState(settings.stripeEnabled)
   const [paypalEnabled, setPaypalEnabled] = React.useState(settings.paypalEnabled)
+  const [pokEnabled, setPokEnabled] = React.useState(settings.pokEnabled)
   const [cashOnArrivalEnabled, setCashOnArrivalEnabled] = React.useState(
     settings.cashOnArrivalEnabled,
   )
@@ -89,28 +90,33 @@ export function PaymentsPanel({
   React.useEffect(() => {
     setStripeEnabled(settings.stripeEnabled)
     setPaypalEnabled(settings.paypalEnabled)
+    setPokEnabled(settings.pokEnabled)
     setCashOnArrivalEnabled(settings.cashOnArrivalEnabled)
     setDepositPaymentEnabled(settings.depositPaymentEnabled)
     setFullPaymentEnabled(settings.fullPaymentEnabled)
   }, [
     settings.stripeEnabled,
     settings.paypalEnabled,
+    settings.pokEnabled,
     settings.cashOnArrivalEnabled,
     settings.depositPaymentEnabled,
     settings.fullPaymentEnabled,
   ])
 
   const anyLive =
-    settings.stripeMode === "live" || settings.paypalMode === "live"
+    settings.stripeMode === "live" ||
+    settings.paypalMode === "live" ||
+    settings.pokMode === "live"
   const noneEnabled =
-    !stripeEnabled && !paypalEnabled && !cashOnArrivalEnabled
-  const anyOnline = stripeEnabled || paypalEnabled
+    !stripeEnabled && !paypalEnabled && !pokEnabled && !cashOnArrivalEnabled
+  const anyOnline = stripeEnabled || paypalEnabled || pokEnabled
   const noAmountOption = !depositPaymentEnabled && !fullPaymentEnabled
 
   async function updateMethod(
     key:
       | "stripeEnabled"
       | "paypalEnabled"
+      | "pokEnabled"
       | "cashOnArrivalEnabled"
       | "depositPaymentEnabled"
       | "fullPaymentEnabled",
@@ -120,6 +126,7 @@ export function PaymentsPanel({
     const previousByKey: Record<typeof key, boolean> = {
       stripeEnabled,
       paypalEnabled,
+      pokEnabled,
       cashOnArrivalEnabled,
       depositPaymentEnabled,
       fullPaymentEnabled,
@@ -153,8 +160,8 @@ export function PaymentsPanel({
           <div className="flex flex-col gap-0.5">
             <span className="text-sm font-medium">Live payment mode is active</span>
             <span className="text-xs">
-              Stripe or PayPal is in live mode. Online charges will move real
-              money until you switch back to test/sandbox.
+              Stripe, PayPal or POK is in live mode. Online charges will move
+              real money until you switch back to test/sandbox.
             </span>
           </div>
         </div>
@@ -199,6 +206,17 @@ export function PaymentsPanel({
       {paypalEnabled && (
         <PaypalConfig settings={settings} onSaved={onSaved} />
       )}
+
+      <MethodRow
+        title="POK"
+        description="Card payments via POK Payments (Albania)"
+        enabled={pokEnabled}
+        pending={pendingKey === "pokEnabled"}
+        onToggle={(next) => void updateMethod("pokEnabled", next, setPokEnabled)}
+        trailing={<ModeBadge mode={settings.pokMode} testLabel="Staging" />}
+      />
+
+      {pokEnabled && <PokConfig settings={settings} onSaved={onSaved} />}
 
       <MethodRow
         title="Cash on arrival"
@@ -271,8 +289,9 @@ export function PaymentsPanel({
       )}
 
       <p className="text-xs text-muted-foreground">
-        Stripe and PayPal can each be switched between Test/Sandbox and Live
-        below. Secrets are write-only — leave blank to keep the saved value.
+        Stripe, PayPal and POK can each be switched between Test/Sandbox and
+        Live below. Secrets are write-only — leave blank to keep the saved
+        value.
       </p>
     </PanelCard>
   )
@@ -473,6 +492,200 @@ function StripeConfig({
         </span>
         <Button size="sm" onClick={() => void saveCredentials()} disabled={pending}>
           {pending ? "Saving…" : "Save Stripe credentials"}
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+function PokConfig({
+  settings,
+  onSaved,
+}: {
+  settings: Settings
+  onSaved: () => void
+}) {
+  const [mode, setMode] = React.useState<PaymentMode>(settings.pokMode)
+  const [stagingKeyId, setStagingKeyId] = React.useState(settings.pokStagingKeyId)
+  const [stagingMerchantId, setStagingMerchantId] = React.useState(
+    settings.pokStagingMerchantId,
+  )
+  const [liveKeyId, setLiveKeyId] = React.useState(settings.pokLiveKeyId)
+  const [liveMerchantId, setLiveMerchantId] = React.useState(
+    settings.pokLiveMerchantId,
+  )
+  const [keySecret, setKeySecret] = React.useState("")
+  const [pending, setPending] = React.useState(false)
+
+  React.useEffect(() => {
+    setMode(settings.pokMode)
+    setStagingKeyId(settings.pokStagingKeyId)
+    setStagingMerchantId(settings.pokStagingMerchantId)
+    setLiveKeyId(settings.pokLiveKeyId)
+    setLiveMerchantId(settings.pokLiveMerchantId)
+    setKeySecret("")
+  }, [
+    settings.pokMode,
+    settings.pokStagingKeyId,
+    settings.pokStagingMerchantId,
+    settings.pokLiveKeyId,
+    settings.pokLiveMerchantId,
+  ])
+
+  const isLive = mode === "live"
+  const keyId = isLive ? liveKeyId : stagingKeyId
+  const setKeyId = isLive ? setLiveKeyId : setStagingKeyId
+  const merchantId = isLive ? liveMerchantId : stagingMerchantId
+  const setMerchantId = isLive ? setLiveMerchantId : setStagingMerchantId
+  const secretSet = isLive
+    ? settings.pokLiveKeySecretSet
+    : settings.pokStagingKeySecretSet
+  const configured =
+    Boolean(keyId.trim()) &&
+    Boolean(merchantId.trim()) &&
+    (secretSet || Boolean(keySecret.trim()))
+
+  async function changeMode(nextLive: boolean) {
+    const nextMode: PaymentMode = nextLive ? "live" : "test"
+    const previous = mode
+    setMode(nextMode)
+    try {
+      await apiPatch("/api/admin/settings", { pokMode: nextMode })
+      toast.success(
+        nextLive ? "POK switched to Live." : "POK switched to Staging.",
+      )
+      onSaved()
+    } catch (err) {
+      setMode(previous)
+      toast.error((err as Error).message)
+    }
+  }
+
+  async function saveCredentials() {
+    setPending(true)
+    try {
+      const payload: Record<string, string> = { pokMode: mode }
+      if (isLive) {
+        payload.pokLiveKeyId = liveKeyId.trim()
+        payload.pokLiveMerchantId = liveMerchantId.trim()
+        if (keySecret.trim()) payload.pokLiveKeySecret = keySecret.trim()
+      } else {
+        payload.pokStagingKeyId = stagingKeyId.trim()
+        payload.pokStagingMerchantId = stagingMerchantId.trim()
+        if (keySecret.trim()) payload.pokStagingKeySecret = keySecret.trim()
+      }
+      await apiPatch("/api/admin/settings", payload)
+      toast.success("POK credentials saved.")
+      setKeySecret("")
+      onSaved()
+    } catch (err) {
+      toast.error((err as Error).message)
+    } finally {
+      setPending(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-4 rounded-lg border bg-muted/20 px-3.5 py-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <span className="text-sm font-medium">POK configuration</span>
+          <span className="text-xs text-muted-foreground">
+            Choose the environment and enter the API credentials from your POK
+            dashboard.
+          </span>
+        </div>
+        <div className="flex items-center gap-2.5">
+          <span className="text-xs text-muted-foreground">Staging</span>
+          <Switch
+            checked={isLive}
+            onCheckedChange={(next) => void changeMode(next)}
+            aria-label="Toggle POK live mode"
+          />
+          <span className="text-xs font-medium text-warning">Live</span>
+        </div>
+      </div>
+
+      {isLive && (
+        <div className="flex items-start gap-2.5 rounded-md border border-warning/40 bg-warning/12 px-3 py-2 text-warning">
+          <AlertTriangleIcon className="mt-0.5 size-4 shrink-0" />
+          <span className="text-xs">
+            Live mode charges real cards. Use the production credentials from
+            the POK dashboard — staging keys fail with 401 on the live host.
+          </span>
+        </div>
+      )}
+
+      <Field
+        label={`${isLive ? "Live" : "Staging"} key ID`}
+        htmlFor="pokKeyId"
+        hint="From POK dashboard → API credentials."
+      >
+        <Input
+          id="pokKeyId"
+          value={keyId}
+          onChange={(e) => setKeyId(e.target.value)}
+          placeholder="Key ID"
+          autoComplete="off"
+          spellCheck={false}
+        />
+      </Field>
+
+      <Field
+        label={`${isLive ? "Live" : "Staging"} key secret`}
+        htmlFor="pokKeySecret"
+        hint={
+          secretSet
+            ? "A key secret is saved. Leave blank to keep it, or enter a new one to replace."
+            : "Stored encrypted and never shown again."
+        }
+      >
+        <Input
+          id="pokKeySecret"
+          type="password"
+          value={keySecret}
+          onChange={(e) => setKeySecret(e.target.value)}
+          placeholder={secretSet ? "•••••••• (saved)" : "Enter key secret"}
+          autoComplete="off"
+          spellCheck={false}
+        />
+      </Field>
+
+      <Field
+        label={`${isLive ? "Live" : "Staging"} merchant ID`}
+        htmlFor="pokMerchantId"
+        hint="Must belong to the same credential pair, or POK returns 403."
+      >
+        <Input
+          id="pokMerchantId"
+          value={merchantId}
+          onChange={(e) => setMerchantId(e.target.value)}
+          placeholder="Merchant ID"
+          autoComplete="off"
+          spellCheck={false}
+        />
+      </Field>
+
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="inline-flex items-center gap-1.5 text-xs">
+          {configured ? (
+            <>
+              <CheckCircle2Icon className="size-3.5 text-success" />
+              <span className="text-muted-foreground">
+                {isLive ? "Live" : "Staging"} credentials configured
+              </span>
+            </>
+          ) : (
+            <>
+              <AlertTriangleIcon className="size-3.5 text-warning" />
+              <span className="text-muted-foreground">
+                {isLive ? "Live" : "Staging"} not fully configured
+              </span>
+            </>
+          )}
+        </span>
+        <Button size="sm" onClick={() => void saveCredentials()} disabled={pending}>
+          {pending ? "Saving…" : "Save POK credentials"}
         </Button>
       </div>
     </div>

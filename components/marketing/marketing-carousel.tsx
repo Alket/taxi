@@ -68,7 +68,17 @@ export function MarketingCarousel({
 }) {
   return (
     <div className={cn("overflow-hidden", viewportClassName)} ref={emblaRef}>
-      <div className={cn("flex touch-pan-y gap-4 md:gap-5", className)}>
+      <div
+        className={cn(
+          // Pre-promote this track to its own GPU compositing layer so the
+          // very first frame of Embla's translate3d animation is already
+          // composited. Without this, mobile browsers (esp. Safari) can
+          // promote the layer a frame late, which shows up as a small hitch
+          // right as the slide starts moving on "next"/swipe.
+          "flex touch-pan-y gap-4 [backface-visibility:hidden] will-change-transform md:gap-5",
+          className,
+        )}
+      >
         {children}
       </div>
     </div>

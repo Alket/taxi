@@ -20,6 +20,7 @@ import type { AnalyticsReport, VehicleType } from "@/lib/types"
 const PROVIDER_LABELS: Record<string, string> = {
   stripe: "Stripe",
   paypal: "PayPal",
+  pok: "POK",
   manual: "Cash",
 }
 
