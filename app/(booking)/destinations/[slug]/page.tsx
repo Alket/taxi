@@ -14,7 +14,6 @@ import { localePath, localizedAlternates } from "@/lib/i18n/locales"
 import { t } from "@/lib/i18n/t"
 import {
   attractionsFromSections,
-  listAdminPages,
   pageMetadataFields,
   resolveDestination,
   resolveDestinationCards,
@@ -31,21 +30,13 @@ type PageProps = {
   params: Promise<{ slug: string }>
 }
 
-// CMS content rarely changes; ISR + on-demand revalidation (admin save →
-// revalidatePath) keeps this fast without re-querying the DB on every hit.
-export const revalidate = 3600
-
-/** Pre-render every known destination (built-in + custom) at build time. */
-export async function generateStaticParams() {
-  try {
-    const pages = await listAdminPages()
-    return pages
-      .filter((page) => page.isDestination)
-      .map((page) => ({ slug: page.slug.replace(/^destinations\//, "") }))
-  } catch {
-    return []
-  }
-}
+/**
+ * Locale comes from middleware via cookies()/headers() (getRequestLocale).
+ * That makes this route dynamic — do NOT pair it with generateStaticParams /
+ * ISR, or production serves a static shell that 500s when headers are read
+ * (seen on /destinations/[slug] while /destinations stayed healthy).
+ */
+export const dynamic = "force-dynamic"
 
 export async function generateMetadata({
   params,
@@ -84,11 +75,12 @@ export default async function DestinationPage({ params }: PageProps) {
   const heroSrc = sectionValue(sections, "hero", "src")
   const image =
     [heroSrc, page?.ogImage ?? "", destination.image].find((url) =>
-      url.startsWith("/uploads/"),
+      Boolean(url && url.startsWith("/uploads/")),
     ) ||
     heroSrc ||
     page?.ogImage ||
-    destination.image
+    destination.image ||
+    "/marketing/logo.svg"
   const imageAlt = sectionValue(sections, "hero", "alt") || name
   const priceFrom =
     sectionValue(sections, "priceFrom") || destination.priceFrom
