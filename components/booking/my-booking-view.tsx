@@ -374,9 +374,8 @@ function BookingManagePanel({
               {booking.editable && (
                 <Button
                   type="button"
-                  size="sm"
                   variant="outline"
-                  className="rounded-full font-bold"
+                  className="h-11 rounded-full border border-border bg-brand-page px-5 text-sm font-bold text-brand shadow-none hover:bg-muted"
                   onClick={() => setEditOpen(true)}
                 >
                   <CalendarIcon data-icon="inline-start" />
@@ -386,9 +385,7 @@ function BookingManagePanel({
               {booking.cancellable && (
                 <Button
                   type="button"
-                  size="sm"
-                  variant="destructive"
-                  className="rounded-full font-bold"
+                  className="h-11 rounded-full bg-destructive px-5 text-sm font-extrabold text-white shadow-none hover:bg-destructive/90"
                   onClick={() => setCancelOpen(true)}
                 >
                   <XIcon data-icon="inline-start" />
@@ -632,13 +629,20 @@ function CancelBookingDialog({
               : tr("myBooking.cancelDesc")}
           </DialogDescription>
         </DialogHeader>
-        <DialogFooter>
-          <DialogClose render={<Button variant="outline" />}>
+        <DialogFooter className="gap-2 sm:gap-2">
+          <DialogClose
+            render={
+              <Button
+                variant="outline"
+                className="h-11 rounded-full border border-border bg-brand-page px-5 text-sm font-bold text-brand shadow-none hover:bg-muted"
+              />
+            }
+          >
             {tr("myBooking.keepBooking")}
           </DialogClose>
           <Button
-            variant="destructive"
             disabled={pending}
+            className="h-11 rounded-full bg-destructive px-5 text-sm font-extrabold text-white shadow-none hover:bg-destructive/90"
             onClick={() => void confirmCancel()}
           >
             {pending
@@ -744,11 +748,22 @@ function EditBookingDialog({
           />
         </div>
 
-        <DialogFooter>
-          <DialogClose render={<Button variant="outline" />}>
+        <DialogFooter className="gap-2 sm:gap-2">
+          <DialogClose
+            render={
+              <Button
+                variant="outline"
+                className="h-11 rounded-full border border-border bg-brand-page px-5 text-sm font-bold text-brand shadow-none hover:bg-muted"
+              />
+            }
+          >
             {tr("myBooking.cancel")}
           </DialogClose>
-          <Button disabled={pending || !pickupDateTime} onClick={() => void save()}>
+          <Button
+            disabled={pending || !pickupDateTime}
+            className="h-11 rounded-full bg-brand-accent px-5 text-sm font-extrabold text-white shadow-none hover:bg-brand-accent-hover disabled:opacity-50"
+            onClick={() => void save()}
+          >
             {pending ? tr("myBooking.saving") : tr("myBooking.saveDate")}
           </Button>
         </DialogFooter>
