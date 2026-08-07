@@ -13,6 +13,7 @@ import {
   MIN_PICKUP_LEAD_LABEL,
 } from "@/lib/pickup-lead-time"
 import { APP_TIMEZONE } from "@/lib/format"
+import { useT } from "@/lib/i18n/use-locale"
 import {
   getZonedWallTime,
   zonedWallTimeToIso,
@@ -77,6 +78,7 @@ function CalendarPanel({
   open: boolean
   layout: "dropdown" | "sheet"
 }) {
+  const tr = useT()
   const initialWall = getZonedWallTime(value ? new Date(value) : earliest)
   const [view, setView] = React.useState(
     () => new Date(initialWall.year, initialWall.month - 1, 1),
@@ -236,7 +238,7 @@ function CalendarPanel({
           sheet && "mt-auto shrink-0",
         )}
       >
-        <span className="text-sm font-bold text-brand">Time</span>
+        <span className="text-sm font-bold text-brand">{tr("book.time")}</span>
         <div className="flex items-center gap-1.5">
           <select
             className="h-10 rounded-lg border border-border bg-muted px-2 text-base font-bold text-brand outline-none focus:border-brand-accent sm:h-8 md:text-xs"
@@ -268,7 +270,7 @@ function CalendarPanel({
       </div>
 
       <p className="mt-2 text-[11px] font-semibold text-muted-foreground">
-        Bookings need at least {MIN_PICKUP_LEAD_LABEL} notice.
+        {tr("book.minNotice", { lead: MIN_PICKUP_LEAD_LABEL })}
       </p>
 
       <Button

@@ -650,7 +650,7 @@ export function DetailsStep() {
               {tr("book.meetAndGreet")}
             </span>
             <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
-              Driver waits inside arrivals with a name sign
+              {tr("book.meetAndGreetDesc")}
             </span>
           </CheckboxText>
         </div>

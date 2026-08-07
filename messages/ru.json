@@ -324,5 +324,10 @@
   "confirm.pendingBody": "Deposit due: {amount}. Keep your PIN and reference code — you'll need them to manage the trip.",
   "confirm.loading": "Загрузка подтверждения…",
   "confirm.dirAirportToDest": "Airport → Destination",
-  "confirm.dirDestToAirport": "Destination → Airport"
+  "confirm.dirDestToAirport": "Destination → Airport",
+  "book.time": "Время",
+  "book.minNotice": "Бронирование требует минимум {lead} заранее.",
+  "book.typeToSearch": "Введите для поиска",
+  "book.noMatchingPlaces": "Нет подходящих мест",
+  "book.meetAndGreetDesc": "Водитель ждёт в зоне прилёта с табличкой с именем"
 }

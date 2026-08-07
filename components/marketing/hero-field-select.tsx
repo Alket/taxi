@@ -3,9 +3,10 @@
 import * as React from "react"
 import { MapPinIcon, SearchIcon } from "lucide-react"
 
-import { cn } from "@/lib/utils"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock"
+import { useT } from "@/lib/i18n/use-locale"
+import { cn } from "@/lib/utils"
 import {
   Combobox,
   ComboboxContent,
@@ -46,6 +47,7 @@ export function HeroFieldSelect({
   sheetTitle?: string
   onAfterSelect?: () => void
 }) {
+  const tr = useT()
   const isMobile = useIsMobile()
   const [sheetOpen, setSheetOpen] = React.useState(false)
   const [query, setQuery] = React.useState("")
@@ -102,7 +104,7 @@ export function HeroFieldSelect({
           >
             <SheetHeader className="shrink-0 border-b border-border px-4 py-3 pr-14">
               <SheetTitle className="text-base font-bold text-brand">
-                {sheetTitle ?? "Choose destination"}
+                {sheetTitle ?? tr("book.chooseDestination")}
               </SheetTitle>
             </SheetHeader>
 
@@ -112,7 +114,7 @@ export function HeroFieldSelect({
                 <Input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Type to search"
+                  placeholder={tr("book.typeToSearch")}
                   autoFocus
                   className="h-11 rounded-xl border-border bg-muted/40 pl-9 text-base font-semibold"
                 />
@@ -123,7 +125,7 @@ export function HeroFieldSelect({
               {filtered.length === 0 ? (
                 <div className="flex flex-col items-center gap-1.5 px-4 py-10 text-sm text-muted-foreground">
                   <SearchIcon className="size-5 opacity-50" />
-                  No matching places
+                  {tr("book.noMatchingPlaces")}
                 </div>
               ) : (
                 <ul className="flex flex-col gap-0.5">
@@ -209,12 +211,12 @@ export function HeroFieldSelect({
         <div className="border-b border-border/70 px-3 py-2.5">
           <p className="flex items-center gap-2 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
             <SearchIcon className="size-3.5" />
-            Type to search
+            {tr("book.typeToSearch")}
           </p>
         </div>
         <ComboboxEmpty className="flex-col items-center gap-1.5 px-4 py-6">
           <SearchIcon className="size-5 opacity-50" />
-          No matching places
+          {tr("book.noMatchingPlaces")}
         </ComboboxEmpty>
         <ComboboxList className="max-h-64 p-1.5">
           {(item: HeroFieldOption) => (

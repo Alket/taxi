@@ -324,5 +324,10 @@
   "confirm.pendingBody": "Deposit due: {amount}. Keep your PIN and reference code — you'll need them to manage the trip.",
   "confirm.loading": "Loading your confirmation…",
   "confirm.dirAirportToDest": "Airport → Destination",
-  "confirm.dirDestToAirport": "Destination → Airport"
+  "confirm.dirDestToAirport": "Destination → Airport",
+  "book.time": "Time",
+  "book.minNotice": "Bookings need at least {lead} notice.",
+  "book.typeToSearch": "Type to search",
+  "book.noMatchingPlaces": "No matching places",
+  "book.meetAndGreetDesc": "Driver waits inside arrivals with a name sign"
 }

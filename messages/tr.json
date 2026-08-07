@@ -324,5 +324,10 @@
   "confirm.pendingBody": "Deposit due: {amount}. Keep your PIN and reference code — you'll need them to manage the trip.",
   "confirm.loading": "Onay yükleniyor…",
   "confirm.dirAirportToDest": "Airport → Destination",
-  "confirm.dirDestToAirport": "Destination → Airport"
+  "confirm.dirDestToAirport": "Destination → Airport",
+  "book.time": "Saat",
+  "book.minNotice": "Rezervasyonlar için en az {lead} önceden bildirim gerekir.",
+  "book.typeToSearch": "Aramak için yazın",
+  "book.noMatchingPlaces": "Eşleşen yer yok",
+  "book.meetAndGreetDesc": "Şoför varışta isim tabelasıyla bekler"
 }

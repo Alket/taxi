@@ -324,5 +324,10 @@
   "confirm.pendingBody": "Deposito da pagare: {amount}. Conserva PIN e codice di riferimento.",
   "confirm.loading": "Caricamento conferma…",
   "confirm.dirAirportToDest": "Aeroporto → Destinazione",
-  "confirm.dirDestToAirport": "Destinazione → Aeroporto"
+  "confirm.dirDestToAirport": "Destinazione → Aeroporto",
+  "book.time": "Ora",
+  "book.minNotice": "Le prenotazioni richiedono almeno {lead} di preavviso.",
+  "book.typeToSearch": "Digita per cercare",
+  "book.noMatchingPlaces": "Nessun luogo corrispondente",
+  "book.meetAndGreetDesc": "L'autista ti aspetta in arrivi con un cartello nominativo"
 }
