@@ -16,6 +16,7 @@ import {
   type VehicleQuote,
 } from "@/lib/store/booking-store"
 import type { Direction, VehicleType } from "@/lib/types"
+import { useT } from "@/lib/i18n/use-locale"
 import { cn } from "@/lib/utils"
 import {
   ZonePlaceSelect,
@@ -86,6 +87,7 @@ async function fetchVehicleQuote(body: {
 }
 
 export function RouteStep() {
+  const tr = useT()
   const direction = useBookingStore((s) => s.direction)
   const selectedAirportIata = useBookingStore((s) => s.selectedAirportIata)
   const selectedZoneIdFromStore = useBookingStore((s) => s.selectedZoneId)
@@ -211,7 +213,7 @@ export function RouteStep() {
       if (err.status === 404 || err.code === "OUTSIDE_SERVICE_AREA") {
         continue
       }
-      networkError = err.message || "Could not load prices."
+      networkError = err.message || tr("book.couldNotLoadPrices")
     }
 
     const quoted = Object.values(vehicleQuotes)
@@ -245,7 +247,7 @@ export function RouteStep() {
       quotedPrice: null,
       vehicleType: null,
     })
-  }, [patch])
+  }, [patch, tr])
 
   // Auto-quote once a destination zone is selected.
   React.useEffect(() => {
@@ -309,7 +311,7 @@ export function RouteStep() {
 
   useBookingFieldFocusListener("destination")
   useBookingFieldFocusListener("pickupDateTime", (message) => {
-    setPickupDateError(message ?? "Select pickup date & time.")
+    setPickupDateError(message ?? tr("book.selectPickupDateTime"))
     setCalendarOpen(true)
   })
   useBookingFieldFocusListener("quote")
@@ -344,15 +346,15 @@ export function RouteStep() {
               <DirectionButton
                 active={direction === "airport_to_dest"}
                 icon={PlaneLandingIcon}
-                title="Airport → My destination"
-                description="Landing? We'll pick you up at arrivals."
+                title={tr("book.airportToDest")}
+                description={tr("book.airportToDestDesc")}
                 onClick={() => setDirection("airport_to_dest")}
               />
               <DirectionButton
                 active={direction === "dest_to_airport"}
                 icon={PlaneTakeoffIcon}
-                title="My destination → Airport"
-                description="Heading out? We'll take you to departures."
+                title={tr("book.destToAirport")}
+                description={tr("book.destToAirportDesc")}
                 onClick={() => setDirection("dest_to_airport")}
               />
             </div>
@@ -370,7 +372,7 @@ export function RouteStep() {
                 }}
               >
                 <SelectTrigger id="airport" className="w-full focus:ring-brand-accent focus:border-brand-accent">
-                  <SelectValue placeholder="Select airport" />
+                  <SelectValue placeholder={tr("book.selectAirportPlaceholder")} />
                 </SelectTrigger>
                 <SelectContent variant="brand">
                   {airports.map((airport) => (
@@ -398,10 +400,10 @@ export function RouteStep() {
             <ZonePlaceSelect
               label={
                 direction === "dest_to_airport"
-                  ? "Pickup address"
-                  : "Destination address"
+                  ? tr("book.pickupAddress")
+                  : tr("book.destinationAddress")
               }
-              placeholder="Select a service area"
+              placeholder={tr("book.selectServiceArea")}
               zones={zones}
               value={selectedZoneId}
               loading={!config}
@@ -415,7 +417,7 @@ export function RouteStep() {
               htmlFor="pickupDateTime"
               className="text-sm font-bold text-brand"
             >
-              Pickup date & time
+              {tr("book.pickupTime")}
             </Label>
             <div className="relative">
               <HeroDateTimePicker
@@ -468,7 +470,7 @@ export function RouteStep() {
           data-booking-field="quote"
           className="rounded-lg border bg-muted/20 px-3 py-3 text-sm text-muted-foreground"
         >
-          Loading prices…
+          {tr("book.gettingPrices")}
         </div>
       )}
 
@@ -487,7 +489,7 @@ export function RouteStep() {
           className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-3 text-sm"
         >
           <p className="font-medium text-foreground">
-            We don&apos;t currently cover this destination
+            {tr("book.notCovered")}
           </p>
           <p className="mt-1 text-muted-foreground">
             Contact us at{" "}
@@ -507,9 +509,9 @@ export function RouteStep() {
           data-booking-field="quote"
           className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-3 text-sm"
         >
-          <p className="font-medium text-destructive">Couldn&apos;t load prices</p>
+          <p className="font-medium text-destructive">{tr("book.couldNotLoadPrices")}</p>
           <p className="mt-1 text-muted-foreground">
-            {quoteError || "Something went wrong while quoting this route."}
+            {quoteError || tr("book.quoteFailedGeneric")}
           </p>
           <Button
             type="button"

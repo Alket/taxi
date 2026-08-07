@@ -1,7 +1,10 @@
 import { BookingConfirmingScreen } from "@/components/booking/booking-confirming-screen"
+import { getRequestLocale } from "@/lib/i18n/get-locale"
+import { t } from "@/lib/i18n/t"
 
-export default function BookingConfirmationLoading() {
+export default async function ConfirmationLoading() {
+  const locale = await getRequestLocale()
   return (
-    <BookingConfirmingScreen message="Loading your confirmation…" />
+    <BookingConfirmingScreen message={t(locale, "confirm.loading")} />
   )
 }

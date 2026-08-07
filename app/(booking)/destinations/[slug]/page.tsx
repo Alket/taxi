@@ -55,9 +55,11 @@ export async function generateMetadata({
   const page = await resolvePageContent(`destinations/${slug}`, locale)
   if (page) return pageMetadataFields(page)
   const destination = await resolveDestination(slug, locale)
-  if (!destination) return { title: "Destination" }
+  if (!destination) return { title: t(locale, "nav.destinations") }
   return {
-    title: `${destination.name} Airport Transfer`,
+    title: t(locale, "destinations.airportTransfer", {
+      name: destination.name,
+    }),
     description: destination.description,
     alternates: localizedAlternates(`/destinations/${slug}`, locale),
   }
@@ -99,7 +101,8 @@ export default async function DestinationPage({ params }: PageProps) {
   const attractions = attractionsFromSections(sections)
 
   const routeHeading =
-    sectionHeading(sections, "route.heading") || `Getting to ${name}`
+    sectionHeading(sections, "route.heading") ||
+    t(locale, "destinations.gettingTo", { name })
   const routeDistance = sectionValue(sections, "route.distance")
   const routeDuration = sectionValue(sections, "route.duration")
   const routeWhyBook = sectionValue(sections, "route.whyBook")
@@ -172,7 +175,7 @@ export default async function DestinationPage({ params }: PageProps) {
             {region}
           </p>
           <h1 className="mt-2 font-brand text-4xl font-extrabold tracking-tight sm:text-5xl">
-            {name} Airport Transfer
+            {t(locale, "destinations.airportTransfer", { name })}
           </h1>
           <p className="mt-3 max-w-xl text-base text-white/85">{description}</p>
           <HashLink
@@ -196,7 +199,7 @@ export default async function DestinationPage({ params }: PageProps) {
                   {routeDistance ? (
                     <div>
                       <dt className="text-xs font-bold tracking-wide text-muted-foreground uppercase">
-                        Distance
+                        {t(locale, "destinations.distance")}
                       </dt>
                       <dd className="mt-1 text-sm font-semibold text-brand">
                         {routeDistance}
@@ -206,7 +209,7 @@ export default async function DestinationPage({ params }: PageProps) {
                   {routeDuration ? (
                     <div>
                       <dt className="text-xs font-bold tracking-wide text-muted-foreground uppercase">
-                        Travel time
+                        {t(locale, "destinations.travelTime")}
                       </dt>
                       <dd className="mt-1 text-sm font-semibold text-brand">
                         {routeDuration}

@@ -9,16 +9,14 @@ import {
   ShieldAlertIcon,
 } from "lucide-react"
 
-import { prisma } from "@/lib/db"
-import {
-  DIRECTION_LABELS,
-  formatDateTime,
-  formatMoney,
-  VEHICLE_LABELS,
-} from "@/lib/format"
-import type { Direction, VehicleType } from "@/lib/types"
 import { CopyableReference } from "@/components/booking/copyable-reference"
 import { Separator } from "@/components/ui/separator"
+import { prisma } from "@/lib/db"
+import { formatDateTime, formatMoney, VEHICLE_LABELS } from "@/lib/format"
+import { getRequestLocale } from "@/lib/i18n/get-locale"
+import { type Locale, localePath } from "@/lib/i18n/locales"
+import { t } from "@/lib/i18n/t"
+import type { Direction, VehicleType } from "@/lib/types"
 
 type PageProps = {
   params: Promise<{ referenceCode: string }>
@@ -27,12 +25,12 @@ type PageProps = {
 type ConfirmationView = {
   referenceCode: string
   pickupPin: string
-  directionLabel: string
+  direction: Direction
   pickupAddress: string
   dropoffAddress: string
   pickupDateTime: string
   flightNumber: string | null
-  vehicleLabel: string
+  vehicleType: VehicleType
   passengerCount: number
   luggageCount: number
   meetAndGreet: boolean
@@ -92,12 +90,12 @@ async function loadConfirmation(
   return {
     referenceCode: booking.referenceCode,
     pickupPin: booking.pickupPin,
-    directionLabel: DIRECTION_LABELS[booking.direction as Direction],
+    direction: booking.direction as Direction,
     pickupAddress: booking.pickupAddress,
     dropoffAddress: booking.dropoffAddress,
     pickupDateTime: booking.pickupDateTime.toISOString(),
     flightNumber: booking.flightNumber?.trim() || null,
-    vehicleLabel: VEHICLE_LABELS[booking.vehicleType as VehicleType],
+    vehicleType: booking.vehicleType as VehicleType,
     passengerCount: booking.passengerCount,
     luggageCount: booking.luggageCount,
     meetAndGreet: booking.meetAndGreet,
@@ -113,6 +111,12 @@ async function loadConfirmation(
   }
 }
 
+function directionLabel(locale: Locale, direction: Direction) {
+  return direction === "dest_to_airport"
+    ? t(locale, "confirm.dirDestToAirport")
+    : t(locale, "confirm.dirAirportToDest")
+}
+
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="grid gap-0.5 sm:grid-cols-[8rem_1fr] sm:gap-3">
@@ -124,50 +128,61 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
   )
 }
 
-function NotFoundState({ referenceCode }: { referenceCode: string }) {
+function NotFoundState({
+  referenceCode,
+  locale,
+}: {
+  referenceCode: string
+  locale: Locale
+}) {
   return (
     <div className="mx-auto flex w-full max-w-lg flex-col items-center gap-5 px-4 py-16 text-center md:px-6">
       <AlertCircleIcon className="size-12 text-muted-foreground" />
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
-          Booking not found
+          {t(locale, "confirm.notFoundTitle")}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          We couldn&apos;t find a booking with reference{" "}
-          <span className="font-mono text-foreground">{referenceCode}</span>.
-          Check the code and try again, or look up your trip below.
+          {t(locale, "confirm.notFoundBody", { code: referenceCode })}
         </p>
       </div>
       <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-center">
         <Link
-          href="/my-booking"
+          href={localePath("/my-booking", locale)}
           className="inline-flex h-10 w-full items-center justify-center rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/80 sm:h-9 sm:w-auto"
         >
-          Look up my booking
+          {t(locale, "confirm.manage")}
         </Link>
         <Link
-          href="/"
+          href={localePath("/", locale)}
           className="inline-flex h-10 w-full items-center justify-center rounded-lg border px-3 text-sm font-medium hover:bg-muted sm:h-9 sm:w-auto"
         >
-          Book a transfer
+          {t(locale, "cta.bookTransfer")}
         </Link>
       </div>
     </div>
   )
 }
 
-function PendingPaymentState({ booking }: { booking: ConfirmationView }) {
+function PendingPaymentState({
+  booking,
+  locale,
+}: {
+  booking: ConfirmationView
+  locale: Locale
+}) {
   return (
     <div className="mx-auto flex w-full max-w-lg flex-col gap-6 px-4 py-10 md:px-6">
       <div className="flex flex-col items-center gap-3 text-center">
         <ClockIcon className="size-12 text-amber-600" />
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">
-            Payment pending
+            {t(locale, "confirm.pendingTitle")}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            We have your booking, but the deposit hasn&apos;t been confirmed
-            yet. If you just paid, this usually updates within a minute.
+            {t(locale, "confirm.pendingBody", {
+              amount: formatMoney(booking.depositAmount, booking.currency),
+            })}
           </p>
         </div>
       </div>
@@ -178,58 +193,84 @@ function PendingPaymentState({ booking }: { booking: ConfirmationView }) {
       />
 
       <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-950 dark:text-amber-100">
-        Deposit due:{" "}
+        {t(locale, "confirm.depositDue")}:{" "}
         <span className="font-semibold tabular-nums">
           {formatMoney(booking.depositAmount, booking.currency)}
         </span>
-        . Keep your PIN and reference code — you&apos;ll need them to manage the
-        trip.
       </div>
 
-      <TripSummary booking={booking} />
+      <TripSummary booking={booking} locale={locale} />
 
       <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-center">
         <Link
-          href="/my-booking"
+          href={localePath("/my-booking", locale)}
           className="inline-flex h-10 w-full items-center justify-center rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/80 sm:h-9 sm:w-auto"
         >
-          Manage my booking
+          {t(locale, "confirm.manage")}
         </Link>
         <Link
-          href="/"
+          href={localePath("/", locale)}
           className="inline-flex h-10 w-full items-center justify-center rounded-lg border px-3 text-sm font-medium hover:bg-muted sm:h-9 sm:w-auto"
         >
-          Book another transfer
+          {t(locale, "confirm.bookAnother")}
         </Link>
       </div>
     </div>
   )
 }
 
-function TripSummary({ booking }: { booking: ConfirmationView }) {
+function TripSummary({
+  booking,
+  locale,
+}: {
+  booking: ConfirmationView
+  locale: Locale
+}) {
+  const vehicleBits = [
+    VEHICLE_LABELS[booking.vehicleType],
+    booking.meetAndGreet ? t(locale, "confirm.meetGreet") : null,
+    booking.isRoundTrip ? t(locale, "confirm.roundTrip") : null,
+  ].filter(Boolean)
+
+  const partyKey =
+    booking.passengerCount === 1
+      ? "confirm.partyValueOne"
+      : "confirm.partyValue"
+
   return (
     <div className="rounded-xl border bg-card p-5">
-      <h2 className="text-sm font-semibold">Trip summary</h2>
+      <h2 className="text-sm font-semibold">
+        {t(locale, "confirm.tripSummary")}
+      </h2>
       <dl className="mt-4 flex flex-col gap-3">
-        <SummaryRow label="Direction" value={booking.directionLabel} />
         <SummaryRow
-          label="Route"
+          label={t(locale, "confirm.direction")}
+          value={directionLabel(locale, booking.direction)}
+        />
+        <SummaryRow
+          label={t(locale, "confirm.route")}
           value={`${booking.pickupAddress} → ${booking.dropoffAddress}`}
         />
         <SummaryRow
-          label="Pickup"
+          label={t(locale, "confirm.pickup")}
           value={formatDateTime(booking.pickupDateTime)}
         />
-        {booking.flightNumber && (
-          <SummaryRow label="Flight" value={booking.flightNumber} />
-        )}
+        {booking.flightNumber ? (
+          <SummaryRow
+            label={t(locale, "confirm.flight")}
+            value={booking.flightNumber}
+          />
+        ) : null}
         <SummaryRow
-          label="Vehicle"
-          value={`${booking.vehicleLabel}${booking.meetAndGreet ? " · Meet & greet" : ""}${booking.isRoundTrip ? " · Round trip" : ""}`}
+          label={t(locale, "confirm.vehicle")}
+          value={vehicleBits.join(" · ")}
         />
         <SummaryRow
-          label="Party"
-          value={`${booking.passengerCount} passenger${booking.passengerCount === 1 ? "" : "s"}, ${booking.luggageCount} bag${booking.luggageCount === 1 ? "" : "s"}`}
+          label={t(locale, "confirm.party")}
+          value={t(locale, partyKey, {
+            passengers: booking.passengerCount,
+            bags: booking.luggageCount,
+          })}
         />
       </dl>
 
@@ -237,14 +278,18 @@ function TripSummary({ booking }: { booking: ConfirmationView }) {
 
       <div className="flex flex-col gap-2 text-sm">
         <div className="flex items-center justify-between gap-3">
-          <span className="text-muted-foreground">Trip total</span>
+          <span className="text-muted-foreground">
+            {t(locale, "confirm.tripTotal")}
+          </span>
           <span className="font-medium tabular-nums">
             {formatMoney(booking.totalPrice, booking.currency)}
           </span>
         </div>
         {booking.cashOnArrival ? (
           <div className="flex items-center justify-between gap-3">
-            <span className="text-muted-foreground">Pay on arrival</span>
+            <span className="text-muted-foreground">
+              {t(locale, "confirm.payOnArrival")}
+            </span>
             <span className="font-medium tabular-nums">
               {formatMoney(
                 booking.balanceDue || booking.totalPrice,
@@ -255,7 +300,9 @@ function TripSummary({ booking }: { booking: ConfirmationView }) {
         ) : booking.paymentStatus === "fully_paid" ||
           booking.paymentStatus === "paid" ? (
           <div className="flex items-center justify-between gap-3">
-            <span className="text-muted-foreground">Paid in full</span>
+            <span className="text-muted-foreground">
+              {t(locale, "confirm.paidInFull")}
+            </span>
             <span className="font-medium tabular-nums">
               {formatMoney(
                 booking.depositPaid || booking.totalPrice,
@@ -267,7 +314,9 @@ function TripSummary({ booking }: { booking: ConfirmationView }) {
           <>
             <div className="flex items-center justify-between gap-3">
               <span className="text-muted-foreground">
-                {booking.paymentSucceeded ? "Deposit paid" : "Deposit due"}
+                {booking.paymentSucceeded
+                  ? t(locale, "confirm.depositPaid")
+                  : t(locale, "confirm.depositDue")}
               </span>
               <span className="font-medium tabular-nums">
                 {formatMoney(
@@ -279,7 +328,9 @@ function TripSummary({ booking }: { booking: ConfirmationView }) {
               </span>
             </div>
             <div className="flex items-center justify-between gap-3">
-              <span className="text-muted-foreground">Balance after trip</span>
+              <span className="text-muted-foreground">
+                {t(locale, "confirm.balanceAfter")}
+              </span>
               <span className="font-semibold tabular-nums">
                 {formatMoney(booking.balanceDue, booking.currency)}
               </span>
@@ -291,37 +342,43 @@ function TripSummary({ booking }: { booking: ConfirmationView }) {
   )
 }
 
-function WhatHappensNext({ hasFlight }: { hasFlight: boolean }) {
+function WhatHappensNext({
+  hasFlight,
+  locale,
+}: {
+  hasFlight: boolean
+  locale: Locale
+}) {
   const steps = [
     {
       icon: BellIcon,
-      title: "Confirmation on the way",
-      body: "You'll get an email with your PIN, reference code, and trip details.",
+      title: t(locale, "confirm.nextEmailTitle"),
+      body: t(locale, "confirm.nextEmailBody"),
     },
     {
       icon: CarIcon,
-      title: "Driver assignment",
-      body: "We'll assign a vetted driver before pickup and share their name, phone, and vehicle plate. Show your PIN at pickup.",
+      title: t(locale, "confirm.nextDriverTitle"),
+      body: t(locale, "confirm.nextDriverBody"),
     },
     ...(hasFlight
       ? [
-        {
-          icon: PlaneIcon,
-          title: "Flight tracking",
-          body: "We monitor your flight and adjust pickup if it lands early or late.",
-        },
-      ]
+          {
+            icon: PlaneIcon,
+            title: t(locale, "confirm.nextFlightTitle"),
+            body: t(locale, "confirm.nextFlightBody"),
+          },
+        ]
       : []),
     {
       icon: ShieldAlertIcon,
-      title: "Cancellation policy",
-      body: "Cancelling forfeits the deposit paid — it is not refunded. The remaining balance is never charged.",
+      title: t(locale, "confirm.nextCancelTitle"),
+      body: t(locale, "confirm.nextCancelBody"),
     },
   ]
 
   return (
     <div className="rounded-xl border bg-card p-5">
-      <h2 className="text-sm font-semibold">What happens next</h2>
+      <h2 className="text-sm font-semibold">{t(locale, "confirm.whatNext")}</h2>
       <ol className="mt-4 flex flex-col gap-4">
         {steps.map((step) => (
           <li key={step.title} className="flex gap-3">
@@ -342,6 +399,7 @@ function WhatHappensNext({ hasFlight }: { hasFlight: boolean }) {
 }
 
 export default async function BookingConfirmationPage({ params }: PageProps) {
+  const locale = await getRequestLocale()
   const { referenceCode: raw } = await params
   const referenceCode = raw?.trim().toUpperCase() || ""
 
@@ -350,11 +408,16 @@ export default async function BookingConfirmationPage({ params }: PageProps) {
     : null
 
   if (!booking) {
-    return <NotFoundState referenceCode={referenceCode || "—"} />
+    return (
+      <NotFoundState
+        referenceCode={referenceCode || "—"}
+        locale={locale}
+      />
+    )
   }
 
   if (!booking.paymentSucceeded && !booking.cashOnArrival) {
-    return <PendingPaymentState booking={booking} />
+    return <PendingPaymentState booking={booking} locale={locale} />
   }
 
   return (
@@ -363,12 +426,12 @@ export default async function BookingConfirmationPage({ params }: PageProps) {
         <CheckCircle2Icon className="size-12 text-emerald-600" />
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">
-            Booking confirmed
+            {t(locale, "confirm.title")}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {booking.cashOnArrival
-              ? "Trip reserved. Save your unique PIN and show it to your driver at pickup. Pay the full amount in cash on arrival."
-              : "Deposit received. Save your unique PIN and show it to your driver at pickup."}
+              ? t(locale, "confirm.cashBody")
+              : t(locale, "confirm.depositBody")}
           </p>
         </div>
       </div>
@@ -378,33 +441,36 @@ export default async function BookingConfirmationPage({ params }: PageProps) {
         pickupPin={booking.pickupPin}
       />
 
-      <TripSummary booking={booking} />
+      <TripSummary booking={booking} locale={locale} />
 
-      <WhatHappensNext hasFlight={Boolean(booking.flightNumber)} />
+      <WhatHappensNext
+        hasFlight={Boolean(booking.flightNumber)}
+        locale={locale}
+      />
 
       <p className="text-center text-xs text-muted-foreground">
-        Cancelling forfeits your deposit.{" "}
+        {t(locale, "confirm.cancelNote")}{" "}
         <Link
-          href="/cancellation-policy"
+          href={localePath("/cancellation-policy", locale)}
           className="underline underline-offset-2 hover:text-foreground"
         >
-          Read the cancellation policy
+          {t(locale, "confirm.readPolicy")}
         </Link>
         .
       </p>
 
       <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-center">
         <Link
-          href="/my-booking"
+          href={localePath("/my-booking", locale)}
           className="inline-flex h-10 w-full items-center justify-center rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/80 sm:h-9 sm:w-auto"
         >
-          Manage my booking
+          {t(locale, "confirm.manage")}
         </Link>
         <Link
-          href="/"
+          href={localePath("/", locale)}
           className="inline-flex h-10 w-full items-center justify-center rounded-lg border px-3 text-sm font-medium hover:bg-muted sm:h-9 sm:w-auto"
         >
-          Book another transfer
+          {t(locale, "confirm.bookAnother")}
         </Link>
       </div>
     </div>

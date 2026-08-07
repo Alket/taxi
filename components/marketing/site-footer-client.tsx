@@ -153,7 +153,7 @@ export function SiteFooterClient({
                 FOOTER_EASE,
                 "hover:opacity-80",
               )}
-              aria-label={`${companyName} Homepage`}
+              aria-label={tr("footer.homepageAria", { company: companyName })}
             >
               <Image
                 src="/marketing/logo.svg"
@@ -170,7 +170,7 @@ export function SiteFooterClient({
 
           <nav
             className="grid grid-cols-1 gap-8 sm:grid-cols-3 sm:gap-10"
-            aria-label="Footer Navigation"
+            aria-label={tr("footer.navAria")}
           >
             <div className="flex flex-col gap-3">
               <span className="mb-1 text-xs font-bold tracking-[0.08em] text-muted-foreground/80 uppercase">
@@ -237,7 +237,7 @@ export function SiteFooterClient({
                   rel="noopener noreferrer"
                 >
                   <WhatsAppIcon className="text-white" />
-                  <span>WhatsApp</span>
+                  <span>{tr("footer.whatsapp")}</span>
                 </a>
               ) : null}
             </div>
@@ -247,7 +247,8 @@ export function SiteFooterClient({
         <div className="flex flex-col-reverse flex-wrap items-start justify-between gap-5 border-t border-border pt-8 sm:flex-row sm:items-center">
           <div className="flex flex-col gap-2">
             <p className="m-0 text-[13px] text-muted-foreground/80">
-              &copy; {year} {companyName}. Tirana, Albania. {tr("footer.rights")}
+              &copy; {year} {companyName}. {tr("footer.location")}{" "}
+              {tr("footer.rights")}
             </p>
             <button
               type="button"
@@ -259,24 +260,36 @@ export function SiteFooterClient({
           </div>
 
           <div className="flex gap-3">
-            <a href="#" className={socialIconClass} aria-label="Instagram">
+            <a
+              href="#"
+              className={socialIconClass}
+              aria-label={tr("footer.instagramAria")}
+            >
               <InstagramIcon />
             </a>
-            <a href="#" className={socialIconClass} aria-label="Facebook">
+            <a
+              href="#"
+              className={socialIconClass}
+              aria-label={tr("footer.facebookAria")}
+            >
               <FacebookIcon />
             </a>
             {whatsappUrl ? (
               <a
                 href={whatsappUrl}
                 className={socialIconClass}
-                aria-label="WhatsApp"
+                aria-label={tr("footer.whatsappAria")}
                 target="_blank"
                 rel="noopener noreferrer"
               >
                 <WhatsAppIcon />
               </a>
             ) : (
-              <a href="#" className={socialIconClass} aria-label="WhatsApp">
+              <a
+                href="#"
+                className={socialIconClass}
+                aria-label={tr("footer.whatsappAria")}
+              >
                 <WhatsAppIcon />
               </a>
             )}

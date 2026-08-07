@@ -25,6 +25,7 @@ import {
   type ChildSeatPrices,
 } from "@/lib/child-seats"
 import { formatDateTime, formatMoney } from "@/lib/format"
+import { useT } from "@/lib/i18n/use-locale"
 import {
   useBookingStore,
   VEHICLE_TYPES,
@@ -186,6 +187,7 @@ function SummaryEditDialog({
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
+  const tr = useT()
   const direction = useBookingStore((s) => s.direction)
   const isRoundTrip = useBookingStore((s) => s.isRoundTrip)
   const selectedAirportIata = useBookingStore((s) => s.selectedAirportIata)
@@ -253,22 +255,22 @@ function SummaryEditDialog({
 
   async function save() {
     if (!draftZoneId) {
-      setError("Select a destination.")
+      setError(tr("book.selectDestination"))
       return
     }
     if (!draftDateTime) {
-      setError("Select pickup date & time.")
+      setError(tr("book.selectPickupDateTime"))
       return
     }
     if (isRoundTrip) {
       if (!draftReturnDateTime) {
-        setError("Select return date & time.")
+        setError(tr("book.addReturnRequired"))
         return
       }
       const pickupMs = new Date(draftDateTime).getTime()
       const returnMs = new Date(draftReturnDateTime).getTime()
       if (Number.isNaN(returnMs) || returnMs <= pickupMs) {
-        setError("Return must be after pickup.")
+        setError(tr("book.returnAfterPickup"))
         return
       }
     }
@@ -383,7 +385,7 @@ function SummaryEditDialog({
       } catch {
         patch({
           quoteStatus: "error",
-          quoteError: "Could not update price.",
+          quoteError: tr("book.couldNotLoadPrices"),
         })
       }
     }
@@ -417,7 +419,7 @@ function SummaryEditDialog({
         </div>
 
         <div className="flex max-h-[min(60dvh,28rem)] flex-col gap-3 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
-          <EditSection icon={MapPinIcon} title="Route">
+          <EditSection icon={MapPinIcon} title={tr("book.route")}>
             {airports.length > 1 ? (
               <div className="flex flex-col gap-1.5">
                 <Label className="text-xs font-bold text-muted-foreground">
@@ -430,7 +432,7 @@ function SummaryEditDialog({
                   }}
                 >
                   <SelectTrigger className="h-11 w-full rounded-xl border-border bg-brand-page">
-                    <SelectValue placeholder="Select airport">
+                    <SelectValue placeholder={tr("book.selectAirportPlaceholder")}>
                       {selectedAirportName
                         ? `${selectedAirportName.name} (${selectedAirportName.iataCode})`
                         : undefined}
@@ -473,12 +475,12 @@ function SummaryEditDialog({
                 <div className="min-w-0 flex-1">
                   <HeroFieldSelect
                     value={draftZoneId}
-                    placeholder="To (airport, port, address)"
+                    placeholder={tr("book.toPlaceholder")}
                     options={zoneOptions}
                     onChange={setDraftZoneId}
                     anchor={destinationRowRef}
                     mobileSheet
-                    sheetTitle="Choose destination"
+                    sheetTitle={tr("book.chooseDestination")}
                   />
                 </div>
               </div>
@@ -487,12 +489,12 @@ function SummaryEditDialog({
 
           <EditSection
             icon={CalendarIcon}
-            title={isRoundTrip ? "Dates" : "Pickup time"}
+            title={isRoundTrip ? tr("book.dates") : tr("book.pickupTime")}
           >
             <div className="flex flex-col gap-1.5">
               {isRoundTrip ? (
                 <Label className="text-xs font-bold text-muted-foreground">
-                  Pickup
+                  {tr("book.pickup")}
                 </Label>
               ) : null}
               <HeroDateTimePicker
@@ -526,7 +528,7 @@ function SummaryEditDialog({
                     >
                       {draftDateTime
                         ? formatHeroDateLabel(draftDateTime)
-                        : "Add pickup date & time"}
+                        : tr("book.addPickup")}
                     </span>
                   </button>
                 }
@@ -536,7 +538,7 @@ function SummaryEditDialog({
             {isRoundTrip ? (
               <div className="flex flex-col gap-1.5">
                 <Label className="text-xs font-bold text-muted-foreground">
-                  Return
+                  {tr("book.return")}
                 </Label>
                 <HeroDateTimePicker
                   inDialog
@@ -574,7 +576,7 @@ function SummaryEditDialog({
                       >
                         {draftReturnDateTime
                           ? formatHeroDateLabel(draftReturnDateTime)
-                          : "Add return date & time"}
+                          : tr("book.addReturn")}
                       </span>
                     </button>
                   }
@@ -583,17 +585,17 @@ function SummaryEditDialog({
             ) : null}
           </EditSection>
 
-          <EditSection icon={UsersIcon} title="Party">
+          <EditSection icon={UsersIcon} title={tr("book.party")}>
             <div className="grid grid-cols-2 gap-4">
               <HeroStyleStepper
-                label="Passengers"
+                label={tr("book.passengers")}
                 value={draftPassengers}
                 min={1}
                 max={maxPassengers}
                 onChange={setDraftPassengers}
               />
               <HeroStyleStepper
-                label="Luggage pieces"
+                label={tr("book.luggage")}
                 value={draftLuggage}
                 min={0}
                 max={maxLuggage}
@@ -626,10 +628,10 @@ function SummaryEditDialog({
             {saving ? (
               <>
                 <Loader2Icon className="animate-spin" data-icon="inline-start" />
-                Updating…
+                {tr("book.saving")}
               </>
             ) : (
-              "Save changes"
+              tr("book.saveChanges")
             )}
           </Button>
         </DialogFooter>
@@ -666,6 +668,7 @@ function SummaryTimelineItem({
 }
 
 export function BookingSummaryContent() {
+  const tr = useT()
   const [editOpen, setEditOpen] = React.useState(false)
   const pickup = useBookingStore((s) => s.pickup)
   const dropoff = useBookingStore((s) => s.dropoff)
@@ -705,7 +708,7 @@ export function BookingSummaryContent() {
   const summaryImage = selectedZone?.image || SUMMARY_IMAGE_FALLBACK
   const destinationLabel =
     selectedZone?.name ||
-    (dropoff.address ? dropoff.address.split(",")[0] : "Your Destination")
+    (dropoff.address ? dropoff.address.split(",")[0] : tr("book.yourDestination"))
 
   return (
     <div className="flex flex-col">
@@ -719,7 +722,7 @@ export function BookingSummaryContent() {
         <div className="absolute inset-0 flex flex-col justify-between p-4 text-white">
           <div className="flex items-start justify-between gap-2">
             <h2 className="text-sm font-bold tracking-wider uppercase">
-              Order Summary
+              {tr("book.orderSummary")}
             </h2>
             <button
               type="button"
@@ -727,7 +730,7 @@ export function BookingSummaryContent() {
               className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-bold text-white backdrop-blur-md transition-colors hover:bg-white/25"
             >
               <PencilIcon className="size-3" strokeWidth={2.5} />
-              Edit
+              {tr("book.edit")}
             </button>
           </div>
           <div className="w-fit rounded bg-brand-surface/20 px-2 py-0.5 text-xs font-bold uppercase backdrop-blur-md">
@@ -743,18 +746,18 @@ export function BookingSummaryContent() {
             <span className="text-xs font-semibold text-brand">
               {pickupDateTime
                 ? formatDateTime(pickupDateTime)
-                : "Set date & time"}
+                : tr("book.setDateTime")}
             </span>
           </div>
           {isRoundTrip ? (
             <div className="flex items-center gap-2 pl-6">
               <span className="text-[10px] font-bold tracking-wide text-muted-foreground uppercase">
-                Return
+                {tr("book.return")}
               </span>
               <span className="text-xs font-semibold text-brand">
                 {returnDateTime
                   ? formatDateTime(returnDateTime)
-                  : "Set return date"}
+                  : tr("book.setReturnDate")}
               </span>
             </div>
           ) : null}
@@ -762,12 +765,12 @@ export function BookingSummaryContent() {
 
         <div className="flex flex-col">
           <SummaryTimelineItem
-            label="Pickup"
-            address={pickup.address || "Select pickup"}
+            label={tr("book.pickup")}
+            address={pickup.address || tr("book.selectPickup")}
           />
           <SummaryTimelineItem
-            label="Dropoff"
-            address={dropoff.address || "Select dropoff"}
+            label={tr("book.dropoff")}
+            address={dropoff.address || tr("book.selectDropoff")}
             isLast
           />
         </div>
@@ -816,9 +819,9 @@ export function BookingSummaryContent() {
 
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-bold text-brand">Total price</p>
+            <p className="text-sm font-bold text-brand">{tr("book.totalPrice")}</p>
             <p className="text-[10px] text-muted-foreground">
-              Taxes & fees included
+              {tr("book.taxesIncluded")}
             </p>
           </div>
           <div className="text-2xl font-bold text-brand-accent">
@@ -828,13 +831,9 @@ export function BookingSummaryContent() {
       </div>
 
       <div className="mt-4 rounded-xl border bg-brand-surface p-5 shadow-sm">
-        <h3 className="text-sm font-bold text-brand">Book now and be flexible</h3>
+        <h3 className="text-sm font-bold text-brand">{tr("book.bookFlexible")}</h3>
         <ul className="mt-4 space-y-3">
-          {[
-            "Modify your dates & times, at anytime for free",
-            "Secure this price now; prices may change soon.",
-            "Easily add more guests to your booking anytime.",
-          ].map((text, i) => (
+          {[tr("book.flexBullet1"), tr("book.flexBullet2"), tr("book.flexBullet3")].map((text, i) => (
             <li key={i} className="flex items-start gap-2.5">
               <CheckIcon className="mt-0.5 size-3.5 shrink-0 text-brand-accent" />
               <span className="text-xs font-medium leading-normal text-brand">

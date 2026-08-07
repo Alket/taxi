@@ -4,6 +4,8 @@ import * as React from "react"
 import { usePathname, useRouter } from "next/navigation"
 
 import { hasBookingProgress } from "@/lib/booking-progress"
+import { stripLocalePrefix } from "@/lib/i18n/locales"
+import { useT } from "@/lib/i18n/use-locale"
 import { useBookingStore } from "@/lib/store/booking-store"
 import {
   AlertDialog,
@@ -33,11 +35,12 @@ export function isBookingLeaveGuardBypassed() {
 }
 
 function isBookingFlowPath(pathname: string) {
-  return pathname === "/" || pathname === "/book"
+  const path = stripLocalePrefix(pathname)
+  return path === "/" || path === "/book"
 }
 
 function shouldAllowWithoutPrompt(url: URL) {
-  const path = url.pathname
+  const path = stripLocalePrefix(url.pathname)
   if (path.startsWith("/book/confirmation")) return true
   if (path.startsWith("/book/payment")) return true
   if (path === "/" || path === "/book") return true
@@ -50,6 +53,7 @@ function shouldAllowWithoutPrompt(url: URL) {
 export function useBookingLeaveGuard(enabled: boolean) {
   const router = useRouter()
   const pathname = usePathname()
+  const tr = useT()
   const [pendingHref, setPendingHref] = React.useState<string | null>(null)
 
   const dirty = useBookingStore((s) => hasBookingProgress(s))
@@ -122,15 +126,14 @@ export function useBookingLeaveGuard(enabled: boolean) {
     >
       <AlertDialogContent size="default" className="max-w-md sm:max-w-md">
         <AlertDialogHeader>
-          <AlertDialogTitle>Leave this booking?</AlertDialogTitle>
+          <AlertDialogTitle>{tr("book.leaveTitle")}</AlertDialogTitle>
           <AlertDialogDescription>
-            Your progress is saved in this browser tab for now, but leaving may
-            make it harder to finish checkout. Are you sure you want to leave?
+            {tr("book.leaveBody")}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel className="h-11 rounded-full border border-border bg-brand-page px-5 text-sm font-bold text-brand shadow-none hover:bg-muted">
-            Stay
+            {tr("book.leaveStay")}
           </AlertDialogCancel>
           <AlertDialogAction
             className="h-11 rounded-full bg-brand-accent px-5 text-sm font-extrabold text-white shadow-none hover:bg-brand-accent-hover"
@@ -146,7 +149,7 @@ export function useBookingLeaveGuard(enabled: boolean) {
               }
             }}
           >
-            Leave
+            {tr("book.leaveConfirm")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

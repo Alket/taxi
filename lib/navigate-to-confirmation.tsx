@@ -5,7 +5,23 @@ import { createRoot } from "react-dom/client"
 import { BookingConfirmingScreen } from "@/components/booking/booking-confirming-screen"
 import { markMarketingPreloaderHandoff } from "@/components/marketing/marketing-preloader"
 import { bypassBookingLeaveGuard } from "@/hooks/use-booking-leave-guard"
+import {
+  type Locale,
+  isLocale,
+  localeFromPathname,
+  localePath,
+} from "@/lib/i18n/locales"
+import { t } from "@/lib/i18n/t"
 import { useBookingStore } from "@/lib/store/booking-store"
+
+function readClientLocale(): Locale {
+  if (typeof document === "undefined") return "en"
+  const fromPath = localeFromPathname(window.location.pathname)
+  if (fromPath !== "en") return fromPath
+  const match = document.cookie.match(/(?:^|; )NEXT_LOCALE=([^;]*)/)
+  const cookie = match?.[1] ? decodeURIComponent(match[1]) : null
+  return isLocale(cookie) ? cookie : "en"
+}
 
 /**
  * Show a confirming preloader, clear the draft, then hard-navigate to the
@@ -16,7 +32,14 @@ export function navigateToBookingConfirmation(referenceCode: string) {
   const code = referenceCode.trim().toUpperCase()
   if (!code) return
 
-  const confirmationUrl = `/book/confirmation/${encodeURIComponent(code)}`
+  const locale = readClientLocale()
+  // Keep NEXT_LOCALE so middleware doesn't force English on the confirmation URL.
+  document.cookie = `NEXT_LOCALE=${encodeURIComponent(locale)}; Path=/; Max-Age=31536000; SameSite=Lax`
+
+  const confirmationUrl = localePath(
+    `/book/confirmation/${encodeURIComponent(code)}`,
+    locale,
+  )
 
   // Must run before resetBooking(): clearing startedFromHero would otherwise
   // trigger BookingShell's /#book redirect and cancel this navigation (worse
@@ -30,7 +53,9 @@ export function navigateToBookingConfirmation(referenceCode: string) {
   host.setAttribute("data-booking-confirming", "true")
   document.body.appendChild(host)
   createRoot(host).render(
-    <BookingConfirmingScreen message="Confirming your booking…" />,
+    <BookingConfirmingScreen
+      message={t(locale, "book.confirmingBooking")}
+    />,
   )
 
   useBookingStore.getState().resetBooking()

@@ -137,7 +137,7 @@ function FieldError({ message }: { message?: string }) {
 }
 
 export function DetailsStep() {
-  const t = useT()
+  const tr = useT()
   const isRoundTrip = useBookingStore((s) => s.isRoundTrip)
   const returnDateTime = useBookingStore((s) => s.returnDateTime)
   const flightNumber = useBookingStore((s) => s.flightNumber)
@@ -334,12 +334,12 @@ export function DetailsStep() {
           htmlFor="flightNumber"
           className="text-sm font-bold text-brand"
         >
-          Flight number
+          {tr("book.flightNumber")}
         </Label>
         <div className="relative">
           <Input
             id="flightNumber"
-            placeholder="Find my flight"
+            placeholder={tr("book.findMyFlight")}
             aria-invalid={errors.flightNumber ? true : undefined}
             className="h-12 border-border pr-10 shadow-none transition-all focus:border-brand-accent focus:ring-0"
             {...register("flightNumber")}
@@ -347,7 +347,7 @@ export function DetailsStep() {
           <SearchIcon className="absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted-foreground" />
         </div>
         <p className="text-[11px] text-muted-foreground">
-          {t("book.flightNumberHint")}
+          {tr("book.flightNumberHint")}
         </p>
       </div>
 
@@ -366,7 +366,7 @@ export function DetailsStep() {
             onMouseDown={(e) => e.preventDefault()}
           />
           <RadioText onSelect={() => setBookedForOther(false)}>
-            I&apos;m the main passenger
+            {tr("book.imMainPassenger")}
           </RadioText>
         </div>
         <div className="flex items-center gap-3">
@@ -376,7 +376,7 @@ export function DetailsStep() {
             onMouseDown={(e) => e.preventDefault()}
           />
           <RadioText onSelect={() => setBookedForOther(true)}>
-            This booking is for another person
+            {tr("book.bookingForOther")}
           </RadioText>
         </div>
       </RadioGroup>
@@ -384,7 +384,7 @@ export function DetailsStep() {
       {watchedBookedForOther ? (
         <div className="flex flex-col gap-5 rounded-xl border border-border bg-brand-surface/40 p-4">
           <div>
-            <p className="text-sm font-bold text-brand">Passenger details</p>
+            <p className="text-sm font-bold text-brand">{tr("book.passengerDetails")}</p>
             <p className="mt-0.5 text-xs text-muted-foreground">
               Who will be traveling on this transfer
             </p>
@@ -398,11 +398,11 @@ export function DetailsStep() {
               htmlFor="passengerName"
               className="text-sm font-bold text-brand"
             >
-              Passenger&apos;s full name
+              {tr("book.passengerFullName")}
             </Label>
             <Input
               id="passengerName"
-              placeholder="Enter passenger's full name"
+              placeholder={tr("book.enterPassengerName")}
               aria-invalid={errors.passengerName ? true : undefined}
               className="h-12 border-border shadow-none transition-all focus:border-brand-accent focus:ring-0"
               {...register("passengerName")}
@@ -418,12 +418,12 @@ export function DetailsStep() {
               htmlFor="passengerEmail"
               className="text-sm font-bold text-brand"
             >
-              Passenger&apos;s email
+              {tr("book.passengerEmail")}
             </Label>
             <Input
               id="passengerEmail"
               type="email"
-              placeholder="Enter passenger's email"
+              placeholder={tr("book.enterPassengerEmail")}
               disabled={watchedPassengerNoEmail}
               aria-invalid={errors.passengerEmail ? true : undefined}
               className={cn(
@@ -465,7 +465,7 @@ export function DetailsStep() {
                       }}
                       className="min-w-0 flex-1 cursor-pointer text-left text-sm font-semibold text-brand"
                     >
-                      Passenger doesn&apos;t have an email
+                      {tr("book.passengerNoEmail")}
                     </CheckboxText>
                   </>
                 )}
@@ -482,7 +482,7 @@ export function DetailsStep() {
               htmlFor="passengerPhone"
               className="text-sm font-bold text-brand"
             >
-              Passenger&apos;s phone number
+              {tr("book.passengerPhone")}
             </Label>
             <div className="flex gap-2">
               <Controller
@@ -522,7 +522,7 @@ export function DetailsStep() {
             data-booking-field="bookerRelation"
           >
             <Label className="text-sm font-bold text-brand">
-              Your relation with passenger
+              {tr("book.relationToPassenger")}
             </Label>
             <Controller
               control={control}
@@ -562,7 +562,7 @@ export function DetailsStep() {
       <div className="flex flex-col gap-5">
         {watchedBookedForOther ? (
           <div>
-            <p className="text-sm font-bold text-brand">Your details</p>
+            <p className="text-sm font-bold text-brand">{tr("book.yourDetails")}</p>
             <p className="mt-0.5 text-xs text-muted-foreground">
               Booking contact for confirmation and updates
             </p>
@@ -571,11 +571,11 @@ export function DetailsStep() {
 
         <div className="flex flex-col gap-2" data-booking-field="name">
           <Label htmlFor="name" className="text-sm font-bold text-brand">
-            Your full name
+            {tr("book.yourFullName")}
           </Label>
           <Input
             id="name"
-            placeholder="Enter your full name"
+            placeholder={tr("book.enterFullName")}
             aria-invalid={errors.name ? true : undefined}
             className="h-12 border-border shadow-none transition-all focus:border-brand-accent focus:ring-0"
             {...register("name")}
@@ -585,12 +585,12 @@ export function DetailsStep() {
 
         <div className="flex flex-col gap-2" data-booking-field="email">
           <Label htmlFor="email" className="text-sm font-bold text-brand">
-            Your email
+            {tr("book.yourEmail")}
           </Label>
           <Input
             id="email"
             type="email"
-            placeholder="Enter your email"
+            placeholder={tr("book.enterEmail")}
             aria-invalid={errors.email ? true : undefined}
             className="h-12 border-border shadow-none transition-all focus:border-brand-accent focus:ring-0"
             {...register("email")}
@@ -600,7 +600,7 @@ export function DetailsStep() {
 
         <div className="flex flex-col gap-2" data-booking-field="phone">
           <Label htmlFor="phone" className="text-sm font-bold text-brand">
-            Your phone number
+            {tr("book.phone")}
           </Label>
           <div className="flex gap-2">
             <Controller
@@ -647,7 +647,7 @@ export function DetailsStep() {
             className="min-w-0 flex-1 cursor-pointer text-left"
           >
             <span className="block text-sm font-bold text-brand">
-              Meet & Greet
+              {tr("book.meetAndGreet")}
             </span>
             <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
               Driver waits inside arrivals with a name sign
@@ -710,7 +710,7 @@ export function DetailsStep() {
                 }
               }}
             >
-              Add child seats
+              {tr("book.addChildSeats")}
             </CheckboxText>
           </div>
 
@@ -766,7 +766,7 @@ export function DetailsStep() {
                 if (!enabled) patch({ driverNotes: "" })
               }}
             >
-              Add notes for the driver
+              {tr("book.driverNotes")}
             </CheckboxText>
           </div>
 
@@ -778,7 +778,7 @@ export function DetailsStep() {
                 onChange={(e) =>
                   patch({ driverNotes: e.target.value.slice(0, 500) })
                 }
-                placeholder="e.g. Flight terminal, luggage help, meeting point…"
+                placeholder={tr("book.driverNotesPlaceholder")}
                 rows={3}
                 className="min-h-24 resize-y text-sm font-semibold text-brand placeholder:font-semibold"
               />

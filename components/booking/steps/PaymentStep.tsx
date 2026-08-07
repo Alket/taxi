@@ -41,6 +41,8 @@ import {
   pickupLeadTimeMessage,
 } from "@/lib/pickup-lead-time"
 import { formatDateTime, formatMoney } from "@/lib/format"
+import { localePath } from "@/lib/i18n/locales"
+import { useLocale, useT } from "@/lib/i18n/use-locale"
 import { bypassBookingLeaveGuard } from "@/hooks/use-booking-leave-guard"
 import { useBookingFieldFocusListener } from "@/hooks/use-booking-field-focus"
 import { focusBookingTerms } from "@/lib/booking-field-focus"
@@ -119,6 +121,7 @@ function getStripePromise(publishableKey: string) {
 }
 
 function Recap() {
+  const tr = useT()
   const direction = useBookingStore((s) => s.direction)
   const pickup = useBookingStore((s) => s.pickup)
   const dropoff = useBookingStore((s) => s.dropoff)
@@ -155,7 +158,7 @@ function Recap() {
   const routePreview =
     pickup.address && dropoff.address
       ? `${pickup.address.split(",")[0]} → ${dropoff.address.split(",")[0]}`
-      : "View trip details"
+      : tr("book.viewTripDetails")
   const pickupPreview = pickupDateTime ? formatDateTime(pickupDateTime) : null
 
   const tiles: {
@@ -165,14 +168,14 @@ function Recap() {
   }[] = [
       {
         icon: CalendarIcon,
-        label: isRoundTrip ? "Outbound" : "Pickup",
+        label: isRoundTrip ? tr("book.pickup") : tr("book.pickup"),
         value: pickupDateTime ? formatDateTime(pickupDateTime) : "—",
       },
       ...(isRoundTrip
         ? [
           {
             icon: CalendarIcon,
-            label: "Return",
+            label: tr("book.return"),
             value: returnDateTime ? formatDateTime(returnDateTime) : "—",
           },
         ]
@@ -192,8 +195,17 @@ function Recap() {
       },
       {
         icon: UsersIcon,
-        label: "Party",
-        value: `${passengerCount} passenger${passengerCount === 1 ? "" : "s"}, ${luggageCount} bag${luggageCount === 1 ? "" : "s"}`,
+        label: tr("book.party"),
+        value:
+          passengerCount === 1
+            ? tr("book.passengersSummary", {
+                count: passengerCount,
+                luggage: luggageCount,
+              })
+            : tr("book.passengersSummaryPlural", {
+                count: passengerCount,
+                luggage: luggageCount,
+              }),
       },
       ...(flightNumber
         ? [{ icon: PlaneIcon, label: "Flight", value: flightNumber }]
@@ -218,7 +230,7 @@ function Recap() {
       >
         <div className="min-w-0 flex-1">
           <p className="text-[11px] font-extrabold tracking-[0.14em] text-brand-accent uppercase">
-            Trip recap
+            {tr("book.tripRecap")}
           </p>
           <p className="mt-1.5 truncate text-sm font-extrabold text-brand">
             {routePreview}
@@ -256,7 +268,7 @@ function Recap() {
             <div className="flex min-w-0 flex-1 flex-col gap-3.5">
               <div className="min-w-0">
                 <p className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
-                  Pickup
+                  {tr("book.pickup")}
                 </p>
                 <p className="mt-0.5 text-sm font-semibold leading-snug text-brand">
                   {pickup.address || "—"}
@@ -264,7 +276,7 @@ function Recap() {
               </div>
               <div className="min-w-0">
                 <p className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
-                  Drop-off
+                  {tr("book.dropoff")}
                 </p>
                 <p className="mt-0.5 text-sm font-semibold leading-snug text-brand">
                   {dropoff.address || "—"}
@@ -389,15 +401,16 @@ function PaymentMethodChooser({
   onChange: (method: CheckoutMethod) => void
   disabled?: boolean
 }) {
+  const tr = useT()
   return (
     <fieldset className="flex flex-col gap-3" disabled={disabled}>
       <legend className="mb-1 text-sm font-bold text-brand">
-        Choose payment method
+        {tr("book.choosePaymentMethod")}
       </legend>
       <div
         className="grid gap-2.5"
         role="radiogroup"
-        aria-label="Payment method"
+        aria-label={tr("book.paymentMethod")}
       >
         {methods.map((method) => {
           const active = value === method.id
@@ -504,6 +517,8 @@ function StripeCheckoutForm({
   customerEmail: string
   customerPhone: string
 }) {
+  const tr = useT()
+  const locale = useLocale()
   const stripe = useStripe()
   const elements = useElements()
   const [submitting, setSubmitting] = React.useState(false)
@@ -519,7 +534,7 @@ function StripeCheckoutForm({
     if (!stripe || !elements) return
 
     if (!termsAccepted) {
-      setError("Please agree to the booking terms and cancellation policy to proceed.")
+      setError(tr("book.agreeTermsRequired"))
       focusBookingTerms()
       return
     }
@@ -532,7 +547,7 @@ function StripeCheckoutForm({
         elements,
         redirect: "if_required",
         confirmParams: {
-          return_url: `${window.location.origin}/book/confirmation/${referenceCode}`,
+          return_url: `${window.location.origin}${localePath(`/book/confirmation/${referenceCode}`, locale)}`,
           // Name/email/phone are opted out on the Element (already collected in booking).
           // Address uses `if_required` so Stripe collects zip/country as needed — do not
           // pass a partial address here or Stripe will demand every omitted field.
@@ -587,7 +602,7 @@ function StripeCheckoutForm({
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 <Loader2Icon className="size-3.5 animate-spin text-brand-accent" />
-                <span>Loading secure checkout...</span>
+                <span>{tr("book.loadingSecure")}</span>
               </div>
               <Skeleton className="h-12 w-full rounded-xl" />
             </div>
@@ -640,11 +655,9 @@ function StripeCheckoutForm({
             <button
               type="button"
               className="absolute inset-0 z-20 cursor-not-allowed rounded-xl bg-transparent"
-              aria-label="Accept booking terms before entering card details"
+              aria-label={tr("book.acceptTermsForCard")}
               onClick={() => {
-                setError(
-                  "Please agree to the booking terms and cancellation policy to proceed.",
-                )
+                setError(tr("book.agreeTermsRequired"))
                 focusBookingTerms()
               }}
             />
@@ -663,22 +676,26 @@ function StripeCheckoutForm({
         {submitting ? (
           <>
             <Loader2Icon className="animate-spin" data-icon="inline-start" />
-            Processing secure payment…
+            {tr("book.processingPayment")}
           </>
         ) : (
           <>
             <LockIcon className="size-4" />
             {paymentOption === "full" ? (
-              `Pay ${formatMoney(depositAmount, currency)}`
+              tr("book.payAmount", {
+                amount: formatMoney(depositAmount, currency),
+              })
             ) : (
-              `Pay deposit ${formatMoney(depositAmount, currency)}`
+              tr("book.payDepositAmount", {
+                amount: formatMoney(depositAmount, currency),
+              })
             )}
           </>
         )}
       </Button>
       <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
         <ShieldCheckIcon className="size-4 text-brand-accent" />
-        <span>PCI-compliant secure bank transfer</span>
+        <span>{tr("book.pciSecure")}</span>
       </div>
     </form>
   )
@@ -686,6 +703,8 @@ function StripeCheckoutForm({
 
 export function PaymentStep() {
   const router = useRouter()
+  const tr = useT()
+  const locale = useLocale()
   const store = useBookingStore()
   const patch = useBookingStore((s) => s.patch)
 
@@ -746,38 +765,38 @@ export function PaymentStep() {
     if (showStripe) {
       methods.push({
         id: "card",
-        label: "Card",
-        description: "Visa, Mastercard, Amex — secure checkout",
+        label: tr("book.methodCard"),
+        description: tr("book.methodCardDesc"),
         icon: CreditCardIcon,
-        badge: "Recommended",
+        badge: tr("book.recommended"),
       })
     }
     if (showPaypal) {
       methods.push({
         id: "paypal",
-        label: "PayPal",
-        description: "Pay with your PayPal balance or linked card",
+        label: tr("book.methodPaypal"),
+        description: tr("book.methodPaypalDesc"),
         icon: CreditCardIcon,
       })
     }
     if (showPok) {
       methods.push({
         id: "pok",
-        label: "POK",
-        description: "Pay by card through POK",
+        label: tr("book.methodPok"),
+        description: tr("book.methodPokDesc"),
         icon: CreditCardIcon,
       })
     }
     if (showCash) {
       methods.push({
         id: "cash",
-        label: "Cash on arrival",
-        description: "Reserve now, pay the driver at pickup",
+        label: tr("book.methodCash"),
+        description: tr("book.methodCashDesc"),
         icon: BanknoteIcon,
       })
     }
     return methods
-  }, [showStripe, showPaypal, showPok, showCash])
+  }, [showStripe, showPaypal, showPok, showCash, tr])
 
   const selectedMethod =
     checkoutMethod && availableMethods.some((m) => m.id === checkoutMethod)
@@ -998,7 +1017,7 @@ export function PaymentStep() {
   async function payWithPaypal() {
     if (!store.createdBookingId) return
     if (!termsAccepted) {
-      toast.error("Please agree to the booking terms and cancellation policy to proceed.")
+      toast.error(tr("book.agreeTermsRequired"))
       focusBookingTerms()
       return
     }
@@ -1093,8 +1112,7 @@ export function PaymentStep() {
   async function confirmCashOnArrival() {
     if (!store.createdBookingId) return
     if (!termsAccepted) {
-      const message =
-        "Please agree to the booking terms and cancellation policy to proceed."
+      const message = tr("book.agreeTermsRequired")
       setCashError(message)
       setTermsInvalid(true)
       toast.error(message)
@@ -1130,7 +1148,7 @@ export function PaymentStep() {
         <Skeleton className="h-48 w-full rounded-xl" />
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2Icon className="size-4 animate-spin" />
-          Preparing checkout…
+          {tr("book.preparingCheckout")}
         </div>
       </div>
     )
@@ -1139,7 +1157,7 @@ export function PaymentStep() {
   if (bootError || !store.createdBookingId) {
     return (
       <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm">
-        <p className="font-medium text-destructive">Payment unavailable</p>
+        <p className="font-medium text-destructive">{tr("book.paymentUnavailable")}</p>
         <p className="mt-1 text-muted-foreground">
           {bootError || "Could not start checkout."}
         </p>
@@ -1167,9 +1185,9 @@ export function PaymentStep() {
   if (!showStripe && !showPaypal && !showPok && !showCash) {
     return (
       <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm">
-        <p className="font-medium text-destructive">No payment methods available</p>
+        <p className="font-medium text-destructive">{tr("book.noMethods")}</p>
         <p className="mt-1 text-muted-foreground">
-          Please contact support to complete your booking.
+          {tr("book.contactSupport")}
         </p>
       </div>
     )
@@ -1200,25 +1218,31 @@ export function PaymentStep() {
             <p className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
               {payingOnline
                 ? paymentOption === "full"
-                  ? "Full amount due now"
-                  : "Deposit due now"
-                : "Amount due on arrival"}
+                  ? tr("book.fullAmountDueNow")
+                  : tr("book.depositDueNow")
+                : tr("book.amountDueOnArrival")}
             </p>
             <p className="text-2xl font-semibold tabular-nums">
               {formatMoney(payingOnline ? chargeNow : tripTotal, currency)}
             </p>
           </div>
           <div className="text-xs text-muted-foreground sm:text-right">
-            <p>Trip total {formatMoney(tripTotal, currency)}</p>
+            <p>
+              {tr("book.tripTotal", {
+                amount: formatMoney(tripTotal, currency),
+              })}
+            </p>
             {payingOnline && balanceDue > 0 && (
-              <p>Balance later {formatMoney(balanceDue, currency)}</p>
+              <p>
+                {tr("book.balanceLater", {
+                  amount: formatMoney(balanceDue, currency),
+                })}
+              </p>
             )}
             {payingOnline && balanceDue <= 0 && (
-              <p>Nothing left to pay after checkout</p>
+              <p>{tr("book.nothingLeftAfterCheckout")}</p>
             )}
-            {!payingOnline && (
-              <p>No online payment required</p>
-            )}
+            {!payingOnline && <p>{tr("book.noOnlinePayment")}</p>}
           </div>
         </div>
 
@@ -1227,20 +1251,22 @@ export function PaymentStep() {
             <PaymentOptionCard
               active={paymentOption === "deposit"}
               disabled={switchingIntent || paypalPending}
-              title="Pay deposit now"
+              title={tr("book.payDepositNow")}
               amount={formatMoney(depositValue, currency)}
-              hint={`Pay ${formatMoney(
-                Math.max(0, round2(tripTotal - depositValue)),
-                currency,
-              )} balance later`}
+              hint={tr("book.payBalanceLaterHint", {
+                amount: formatMoney(
+                  Math.max(0, round2(tripTotal - depositValue)),
+                  currency,
+                ),
+              })}
               onSelect={() => setPaymentOption("deposit")}
             />
             <PaymentOptionCard
               active={paymentOption === "full"}
               disabled={switchingIntent || paypalPending}
-              title="Pay full amount"
+              title={tr("book.payFullAmount")}
               amount={formatMoney(tripTotal, currency)}
-              hint="Nothing to pay at pickup"
+              hint={tr("book.nothingAtPickup")}
               onSelect={() => setPaymentOption("full")}
             />
           </div>
@@ -1248,7 +1274,7 @@ export function PaymentStep() {
         {switchingIntent && (
           <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
             <Loader2Icon className="size-3 animate-spin" />
-            Updating amount…
+            {tr("book.updatingAmount")}
           </p>
         )}
       </div>
@@ -1270,23 +1296,21 @@ export function PaymentStep() {
           onChange={(e) => setTermsAccepted(e.target.checked)}
         />
         <span className="min-w-0">
-          I agree to the{" "}
+          {tr("book.agreeTermsPrefix")}{" "}
           <a
-            href="/cancellation-policy"
+            href={localePath("/cancellation-policy", locale)}
             target="_blank"
             rel="noreferrer"
             className="font-medium text-brand underline underline-offset-2"
           >
-            booking terms and cancellation policy
+            {tr("book.agreeTermsLink")}
           </a>
-          {selectedMethod === "cash"
-            ? "."
-            : ". Cancelling forfeits the deposit paid — it is not refunded. The remaining balance is never charged."}
+          {selectedMethod === "cash" ? "." : tr("book.agreeTermsDeposit")}
         </span>
       </label>
       {termsInvalid && !termsAccepted ? (
         <p className="-mt-2 text-xs text-destructive" role="alert">
-          Please agree to the booking terms and cancellation policy to proceed.
+          {tr("book.agreeTermsRequired")}
         </p>
       ) : null}
 
@@ -1315,7 +1339,7 @@ export function PaymentStep() {
             {!showMethodChooser ? (
               <div className="flex items-center gap-2 px-3 pt-3">
                 <CreditCardIcon className="size-4 text-brand-accent" />
-                <p className="text-sm font-bold text-brand">Pay by card</p>
+                <p className="text-sm font-bold text-brand">{tr("book.payByCard")}</p>
               </div>
             ) : null}
             <Elements
@@ -1349,15 +1373,13 @@ export function PaymentStep() {
             {!showMethodChooser ? (
               <div className="flex items-center gap-2">
                 <PaypalMark className="size-4 text-[#003087]" />
-                <p className="text-sm font-bold text-brand">Pay with PayPal</p>
+                <p className="text-sm font-bold text-brand">{tr("book.payWithPaypal")}</p>
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">
-                You&apos;ll be redirected to PayPal to approve{" "}
-                <span className="font-semibold text-brand">
-                  {formatMoney(chargeNow, currency)}
-                </span>
-                , then return here automatically.
+                {tr("book.redirectPaypal", {
+                  amount: formatMoney(chargeNow, currency),
+                })}
               </p>
             )}
             <Button
@@ -1370,12 +1392,14 @@ export function PaymentStep() {
               {paypalPending ? (
                 <>
                   <Loader2Icon className="animate-spin" data-icon="inline-start" />
-                  Redirecting to PayPal…
+                  {tr("book.redirectingPaypal")}
                 </>
               ) : (
                 <>
                   <PaypalMark className="size-4" />
-                  Continue with PayPal · {formatMoney(chargeNow, currency)}
+                  {tr("book.continuePaypal", {
+                    amount: formatMoney(chargeNow, currency),
+                  })}
                 </>
               )}
             </Button>
@@ -1399,22 +1423,22 @@ export function PaymentStep() {
           >
             <div className="flex items-center gap-2">
               <CreditCardIcon className="size-4 text-brand-accent" />
-              <p className="text-sm font-bold text-brand">Pay with POK</p>
+              <p className="text-sm font-bold text-brand">{tr("book.payWithPok")}</p>
             </div>
 
             {!termsAccepted ? (
               <p className="text-sm text-muted-foreground">
-                Accept the booking terms above to enter your card details.
+                {tr("book.acceptTermsForCard")}
               </p>
             ) : pokLoading || switchingIntent ? (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2Icon className="size-4 animate-spin" />
-                Preparing POK checkout…
+                {tr("book.pokPreparing")}
               </div>
             ) : pokConfirming ? (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2Icon className="size-4 animate-spin" />
-                Confirming your payment…
+                {tr("book.pokConfirming")}
               </div>
             ) : pokOrder ? (
               <PokCheckoutForm
@@ -1437,8 +1461,9 @@ export function PaymentStep() {
             {pokError && <p className="text-sm text-destructive">{pokError}</p>}
 
             <p className="text-xs text-muted-foreground">
-              You&apos;ll be charged {formatMoney(chargeNow, currency)} by POK.
-              Card details are entered directly with POK — we never see them.
+              {tr("book.pokChargedHint", {
+                amount: formatMoney(chargeNow, currency),
+              })}
             </p>
           </div>
         ) : null}
@@ -1447,12 +1472,14 @@ export function PaymentStep() {
           <div className="flex flex-col gap-3 rounded-2xl border border-border/80 bg-brand-surface p-4">
             <div className="rounded-xl bg-brand-page px-3.5 py-3">
               <p className="text-sm font-bold text-brand">
-                Pay {formatMoney(tripTotal, currency)} to your driver
+                {tr("book.payDriverCash", {
+                  amount: formatMoney(tripTotal, currency),
+                })}
               </p>
               <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                Your trip is reserved now. No card charge today — settle the
-                full amount in cash at pickup
-                {referenceCode ? ` (ref ${referenceCode})` : ""}.
+                {tr("book.cashReserveHint", {
+                  ref: referenceCode ? ` (ref ${referenceCode})` : "",
+                })}
               </p>
             </div>
             <Button
@@ -1465,12 +1492,12 @@ export function PaymentStep() {
               {cashPending ? (
                 <>
                   <Loader2Icon className="animate-spin" data-icon="inline-start" />
-                  Confirming…
+                  {tr("book.confirming")}
                 </>
               ) : (
                 <>
                   <BanknoteIcon className="size-4" />
-                  Confirm cash booking
+                  {tr("book.confirmCash")}
                 </>
               )}
             </Button>

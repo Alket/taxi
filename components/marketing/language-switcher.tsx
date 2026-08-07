@@ -9,11 +9,10 @@ import {
   LOCALES,
   LOCALE_LABELS,
   type Locale,
-  localeFromPathname,
   localePath,
   stripLocalePrefix,
 } from "@/lib/i18n/locales"
-import { setClientLocale } from "@/lib/i18n/use-locale"
+import { setClientLocale, useLocale } from "@/lib/i18n/use-locale"
 import { t } from "@/lib/i18n/t"
 import { cn } from "@/lib/utils"
 
@@ -34,7 +33,8 @@ export function LanguageSwitcher({
   const rootRef = React.useRef<HTMLDivElement>(null)
   const [open, setOpen] = React.useState(false)
 
-  const active = localeFromPathname(pathname)
+  // Path + cookie — matches useLocale after middleware rewrite strips the prefix.
+  const active = useLocale()
   const current = {
     code: active,
     label: LOCALE_LABELS[active].label,

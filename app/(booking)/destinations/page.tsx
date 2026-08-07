@@ -7,6 +7,7 @@ import {
 } from "@/components/marketing/destinations-archive"
 import { getRequestLocale } from "@/lib/i18n/get-locale"
 import { localePath, localizedAlternates } from "@/lib/i18n/locales"
+import { t } from "@/lib/i18n/t"
 import { resolveDestinationCards } from "@/lib/page-content"
 
 // CMS content rarely changes; ISR + on-demand revalidation (admin save →
@@ -25,9 +26,8 @@ export async function generateMetadata({
   const path = pageParam ? `/destinations?page=${pageParam}` : "/destinations"
 
   return {
-    title: "Albania Airport Transfer Destinations",
-    description:
-      "Browse airport transfer destinations across Albania — cities, coasts, and mountain escapes with fixed prices.",
+    title: t(locale, "destinations.archiveTitle"),
+    description: t(locale, "destinations.intro"),
     alternates: localizedAlternates(path, locale),
   }
 }
