@@ -8,6 +8,8 @@
     "start": "next start",
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
+    "test:i18n": "tsx scripts/smoke-i18n.ts",
+    "test:booking": "tsx scripts/smoke-booking-flow.ts",
     "admin:create": "tsx scripts/create-admin.ts",
     "docker:up": "docker compose up --build",
     "docker:down": "docker compose down",
