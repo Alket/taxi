@@ -35,6 +35,8 @@ export function HeroFieldSelect({
   mobileSheet = false,
   sheetTitle,
   onAfterSelect,
+  open: openProp,
+  onOpenChange,
 }: {
   value: string | null
   placeholder: string
@@ -46,10 +48,22 @@ export function HeroFieldSelect({
   mobileSheet?: boolean
   sheetTitle?: string
   onAfterSelect?: () => void
+  /** Optional controlled open state (sheet or desktop combobox). */
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }) {
   const tr = useT()
   const isMobile = useIsMobile()
-  const [sheetOpen, setSheetOpen] = React.useState(false)
+  const [uncontrolledOpen, setUncontrolledOpen] = React.useState(false)
+  const isControlled = openProp !== undefined
+  const sheetOpen = isControlled ? openProp : uncontrolledOpen
+  const setSheetOpen = React.useCallback(
+    (next: boolean) => {
+      if (!isControlled) setUncontrolledOpen(next)
+      onOpenChange?.(next)
+    },
+    [isControlled, onOpenChange],
+  )
   const [query, setQuery] = React.useState("")
   useBodyScrollLock(Boolean(mobileSheet && isMobile && sheetOpen))
 
@@ -70,8 +84,18 @@ export function HeroFieldSelect({
 
   function pick(next: string) {
     onChange(next)
-    // Open the next sheet first so scroll-lock ref-count never drops to 0.
-    onAfterSelect?.()
+    if (onAfterSelect) {
+      // Parent runs a covered sheet transition. Controlled sheets are closed by
+      // the parent once the cover paints; uncontrolled sheets close on the next
+      // frames so the hero never flashes between modals.
+      onAfterSelect()
+      if (!isControlled) {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => setSheetOpen(false))
+        })
+      }
+      return
+    }
     setSheetOpen(false)
   }
 
@@ -166,6 +190,8 @@ export function HeroFieldSelect({
     <Combobox
       items={options}
       value={selected}
+      open={sheetOpen}
+      onOpenChange={(next) => setSheetOpen(next)}
       onValueChange={(item: HeroFieldOption | null) => {
         if (item) {
           onChange(item.value)

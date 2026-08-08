@@ -178,7 +178,7 @@
   "book.bookingForOther": "Diese Buchung ist für eine andere Person",
   "book.cashReserveHint": "Ihre Fahrt ist jetzt reserviert. Keine Kartenzahlung heute — den vollen Betrag bar bei Abholung zahlen{ref}.",
   "book.choosePaymentMethod": "Zahlungsmethode wählen",
-  "book.confirmCash": "Barzahlung bestätigen",
+  "book.confirmCash": "Bar bestätigen",
   "book.confirming": "Wird bestätigt…",
   "book.confirmingBooking": "Buchung wird bestätigt…",
   "book.contactSupport": "Bitte Support kontaktieren, um die Buchung abzuschließen.",
@@ -326,8 +326,11 @@
   "confirm.dirAirportToDest": "Airport → Destination",
   "confirm.dirDestToAirport": "Destination → Airport",
   "book.time": "Uhrzeit",
+  "book.selectTime": "Bitte eine Uhrzeit wählen.",
   "book.minNotice": "Buchungen benötigen mindestens {lead} Vorlaufzeit.",
   "book.typeToSearch": "Zum Suchen tippen",
   "book.noMatchingPlaces": "Keine passenden Orte",
-  "book.meetAndGreetDesc": "Der Fahrer wartet in der Ankunftshalle mit Namensschild"
+  "book.meetAndGreetDesc": "Der Fahrer wartet in der Ankunftshalle mit Namensschild",
+  "book.roundTrip": "Hin- und Rückfahrt",
+  "book.roundTripDesc": "Erstellt zwei verknüpfte Buchungen (Hinfahrt + Rückfahrt)."
 }

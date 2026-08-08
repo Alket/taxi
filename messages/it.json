@@ -178,7 +178,7 @@
   "book.bookingForOther": "Questa prenotazione è per un'altra persona",
   "book.cashReserveHint": "Il viaggio è riservato. Nessun addebito oggi — salda l'importo totale in contanti al ritiro{ref}.",
   "book.choosePaymentMethod": "Scegli il metodo di pagamento",
-  "book.confirmCash": "Conferma prenotazione in contanti",
+  "book.confirmCash": "Conferma contanti",
   "book.confirming": "Conferma in corso…",
   "book.confirmingBooking": "Conferma della prenotazione…",
   "book.contactSupport": "Contatta l'assistenza per completare la prenotazione.",
@@ -326,8 +326,11 @@
   "confirm.dirAirportToDest": "Aeroporto → Destinazione",
   "confirm.dirDestToAirport": "Destinazione → Aeroporto",
   "book.time": "Ora",
+  "book.selectTime": "Seleziona un orario.",
   "book.minNotice": "Le prenotazioni richiedono almeno {lead} di preavviso.",
   "book.typeToSearch": "Digita per cercare",
   "book.noMatchingPlaces": "Nessun luogo corrispondente",
-  "book.meetAndGreetDesc": "L'autista ti aspetta in arrivi con un cartello nominativo"
+  "book.meetAndGreetDesc": "L'autista ti aspetta in arrivi con un cartello nominativo",
+  "book.roundTrip": "Andata e ritorno",
+  "book.roundTripDesc": "Crea due prenotazioni collegate (andata + ritorno)."
 }

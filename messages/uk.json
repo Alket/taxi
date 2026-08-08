@@ -178,7 +178,7 @@
   "book.bookingForOther": "This booking is for another person",
   "book.cashReserveHint": "Your trip is reserved now. No card charge today — settle the full amount in cash at pickup{ref}.",
   "book.choosePaymentMethod": "Оберіть спосіб оплати",
-  "book.confirmCash": "Підтвердити бронювання готівкою",
+  "book.confirmCash": "Підтвердити готівкою",
   "book.confirming": "Confirming…",
   "book.confirmingBooking": "Підтвердження бронювання…",
   "book.contactSupport": "Please contact support to complete your booking.",
@@ -326,8 +326,11 @@
   "confirm.dirAirportToDest": "Airport → Destination",
   "confirm.dirDestToAirport": "Destination → Airport",
   "book.time": "Час",
+  "book.selectTime": "Оберіть час.",
   "book.minNotice": "Бронювання потребує щонайменше {lead} попередження.",
   "book.typeToSearch": "Введіть для пошуку",
   "book.noMatchingPlaces": "Немає відповідних місць",
-  "book.meetAndGreetDesc": "Водій чекає в зоні прибуття з табличкою з іменем"
+  "book.meetAndGreetDesc": "Водій чекає в зоні прибуття з табличкою з іменем",
+  "book.roundTrip": "Туди й назад",
+  "book.roundTripDesc": "Створює два пов’язані бронювання (туди + назад)."
 }

@@ -178,7 +178,7 @@
   "book.bookingForOther": "This booking is for another person",
   "book.cashReserveHint": "Your trip is reserved now. No card charge today — settle the full amount in cash at pickup{ref}.",
   "book.choosePaymentMethod": "Wybierz metodę płatności",
-  "book.confirmCash": "Potwierdź rezerwację gotówkową",
+  "book.confirmCash": "Potwierdź gotówkę",
   "book.confirming": "Confirming…",
   "book.confirmingBooking": "Potwierdzanie rezerwacji…",
   "book.contactSupport": "Please contact support to complete your booking.",
@@ -326,8 +326,11 @@
   "confirm.dirAirportToDest": "Airport → Destination",
   "confirm.dirDestToAirport": "Destination → Airport",
   "book.time": "Godzina",
+  "book.selectTime": "Wybierz godzinę.",
   "book.minNotice": "Rezerwacje wymagają co najmniej {lead} wyprzedzenia.",
   "book.typeToSearch": "Wpisz, aby wyszukać",
   "book.noMatchingPlaces": "Brak pasujących miejsc",
-  "book.meetAndGreetDesc": "Kierowca czeka na przylotach z tabliczką z imieniem"
+  "book.meetAndGreetDesc": "Kierowca czeka na przylotach z tabliczką z imieniem",
+  "book.roundTrip": "W obie strony",
+  "book.roundTripDesc": "Tworzy dwie powiązane rezerwacje (wyjazd + powrót)."
 }

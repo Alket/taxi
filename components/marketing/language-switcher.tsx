@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { usePathname } from "next/navigation"
+import { usePathname, useSearchParams } from "next/navigation"
 import { CheckIcon, ChevronDownIcon } from "lucide-react"
 
 import {
@@ -29,8 +29,16 @@ export function LanguageSwitcher({
   onNavigate,
 }: LanguageSwitcherProps) {
   const pathname = usePathname() || "/"
+  const searchParams = useSearchParams()
   const rootRef = React.useRef<HTMLDivElement>(null)
   const [open, setOpen] = React.useState(false)
+  // Defer query in href until after mount so SSR HTML always matches the
+  // first client render (search params can differ during static/layout SSR).
+  const hasMounted = React.useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  )
 
   // Path + cookie — matches useLocale after middleware rewrite strips the prefix.
   const active = useLocale()
@@ -41,12 +49,18 @@ export function LanguageSwitcher({
   }
 
   const basePath = stripLocalePrefix(pathname)
+  const search = searchParams.toString()
 
-  /** Localized path + current query/hash (read from window so soft-nav state stays intact). */
+  function pathForLocale(code: Locale) {
+    const path = localePath(basePath, code)
+    return search ? `${path}?${search}` : path
+  }
+
+  /** Localized path; query only after mount to avoid hydration mismatch. */
   function hrefForLocale(code: Locale) {
     const path = localePath(basePath, code)
-    if (typeof window === "undefined") return path
-    return `${path}${window.location.search}${window.location.hash}`
+    if (!hasMounted) return path
+    return pathForLocale(code)
   }
 
   /**
@@ -63,7 +77,8 @@ export function LanguageSwitcher({
     setClientLocale(next)
     setOpen(false)
     onNavigate?.()
-    window.location.assign(hrefForLocale(next))
+    // Hash is never in the SSR payload — only append at navigation time.
+    window.location.assign(`${pathForLocale(next)}${window.location.hash}`)
   }
 
   React.useEffect(() => {

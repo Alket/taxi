@@ -178,7 +178,7 @@
   "book.bookingForOther": "This booking is for another person",
   "book.cashReserveHint": "Your trip is reserved now. No card charge today — settle the full amount in cash at pickup{ref}.",
   "book.choosePaymentMethod": "Выберите способ оплаты",
-  "book.confirmCash": "Подтвердить бронирование наличными",
+  "book.confirmCash": "Подтвердить наличными",
   "book.confirming": "Confirming…",
   "book.confirmingBooking": "Подтверждение бронирования…",
   "book.contactSupport": "Please contact support to complete your booking.",
@@ -326,8 +326,11 @@
   "confirm.dirAirportToDest": "Airport → Destination",
   "confirm.dirDestToAirport": "Destination → Airport",
   "book.time": "Время",
+  "book.selectTime": "Выберите время.",
   "book.minNotice": "Бронирование требует минимум {lead} заранее.",
   "book.typeToSearch": "Введите для поиска",
   "book.noMatchingPlaces": "Нет подходящих мест",
-  "book.meetAndGreetDesc": "Водитель ждёт в зоне прилёта с табличкой с именем"
+  "book.meetAndGreetDesc": "Водитель ждёт в зоне прилёта с табличкой с именем",
+  "book.roundTrip": "Туда и обратно",
+  "book.roundTripDesc": "Создаёт два связанных бронирования (туда + обратно)."
 }

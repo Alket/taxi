@@ -178,7 +178,7 @@
   "book.bookingForOther": "This booking is for another person",
   "book.cashReserveHint": "Your trip is reserved now. No card charge today — settle the full amount in cash at pickup{ref}.",
   "book.choosePaymentMethod": "Ödeme yöntemi seçin",
-  "book.confirmCash": "Nakit rezervasyonu onayla",
+  "book.confirmCash": "Nakit onayla",
   "book.confirming": "Confirming…",
   "book.confirmingBooking": "Rezervasyon onaylanıyor…",
   "book.contactSupport": "Please contact support to complete your booking.",
@@ -326,8 +326,11 @@
   "confirm.dirAirportToDest": "Airport → Destination",
   "confirm.dirDestToAirport": "Destination → Airport",
   "book.time": "Saat",
+  "book.selectTime": "Saat seçin.",
   "book.minNotice": "Rezervasyonlar için en az {lead} önceden bildirim gerekir.",
   "book.typeToSearch": "Aramak için yazın",
   "book.noMatchingPlaces": "Eşleşen yer yok",
-  "book.meetAndGreetDesc": "Şoför varışta isim tabelasıyla bekler"
+  "book.meetAndGreetDesc": "Şoför varışta isim tabelasıyla bekler",
+  "book.roundTrip": "Gidiş-dönüş",
+  "book.roundTripDesc": "İki bağlantılı rezervasyon oluşturur (gidiş + dönüş)."
 }

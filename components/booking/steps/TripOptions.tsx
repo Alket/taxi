@@ -15,6 +15,7 @@ import {
 } from "@/components/marketing/hero-datetime-picker"
 import { formatMoney } from "@/lib/format"
 import { useBookingStore } from "@/lib/store/booking-store"
+import { useT } from "@/lib/i18n/use-locale"
 import { cn } from "@/lib/utils"
 import { useAutoSelectVehicle } from "@/hooks/use-auto-select-vehicle"
 import { usePartyCapacityLimits } from "@/hooks/use-party-capacity-limits"
@@ -91,6 +92,7 @@ function Stepper({
 
 /** Passengers, luggage, round-trip, meet & greet — vehicle is auto-selected. */
 export function TripOptions() {
+  const tr = useT()
   const vehicleType = useBookingStore((s) => s.vehicleType)
   const vehicleQuotes = useBookingStore((s) => s.vehicleQuotes)
   const passengerCount = useBookingStore((s) => s.passengerCount)
@@ -167,10 +169,10 @@ export function TripOptions() {
               htmlFor="roundTrip"
               className="text-sm font-bold text-brand"
             >
-              Round trip
+              {tr("book.roundTrip")}
             </Label>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Creates two linked bookings (outbound + return).
+              {tr("book.roundTripDesc")}
             </p>
           </div>
           <Switch

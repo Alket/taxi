@@ -326,8 +326,11 @@
   "confirm.dirAirportToDest": "Airport → Destination",
   "confirm.dirDestToAirport": "Destination → Airport",
   "book.time": "Time",
+  "book.selectTime": "Select a time.",
   "book.minNotice": "Bookings need at least {lead} notice.",
   "book.typeToSearch": "Type to search",
   "book.noMatchingPlaces": "No matching places",
-  "book.meetAndGreetDesc": "Driver waits inside arrivals with a name sign"
+  "book.meetAndGreetDesc": "Driver waits inside arrivals with a name sign",
+  "book.roundTrip": "Round trip",
+  "book.roundTripDesc": "Creates two linked bookings (outbound + return)."
 }

@@ -81,9 +81,9 @@ function emptyLocation(): BookingLocation {
 
 /** Full-viewport branded cover — portaled above sheet open/close animations. */
 function HeroStepReloader() {
-  const [mounted, setMounted] = React.useState(false)
-  React.useEffect(() => setMounted(true), [])
-  if (!mounted) return null
+  // Portal immediately (no useEffect mount gate) so the cover is present on
+  // the same paint as the sheet swap — otherwise the hero flashes for a frame.
+  if (typeof document === "undefined") return null
 
   return createPortal(
     <MarketingPreloaderMark
@@ -194,6 +194,7 @@ export function HeroBookingCard() {
   const tr = useT()
   const [calendarOpen, setCalendarOpen] = React.useState(false)
   const [returnCalendarOpen, setReturnCalendarOpen] = React.useState(false)
+  const [destinationOpen, setDestinationOpen] = React.useState(false)
   const [passengersOpen, setPassengersOpen] = React.useState(false)
   const [continuing, setContinuing] = React.useState(false)
   const [stepReloading, setStepReloading] = React.useState(false)
@@ -507,28 +508,59 @@ export function HeroBookingCard() {
       return
     }
     setStepReloading(true)
-    // Cover previous sheet close animation completely.
-    await new Promise((resolve) => setTimeout(resolve, 320))
+    // Wait two frames so the cover paints before sheets swap underneath.
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+    })
     openNext()
     // Keep covering until the next sheet has finished opening.
-    await new Promise((resolve) => setTimeout(resolve, 280))
+    await new Promise((resolve) => setTimeout(resolve, 320))
     setStepReloading(false)
   }
 
   function openCalendarAfterDestination() {
-    void runSheetTransition(() => setCalendarOpen(true))
+    void runSheetTransition(() => {
+      setDestinationOpen(false)
+      setCalendarOpen(true)
+    })
   }
 
   function openPassengersAfterCalendar() {
-    void runSheetTransition(() => setPassengersOpen(true))
+    void runSheetTransition(() => {
+      setCalendarOpen(false)
+      setReturnCalendarOpen(false)
+      setPassengersOpen(true)
+    })
   }
 
   function openReturnOrPassengersAfterPickup() {
     if (useBookingStore.getState().isRoundTrip) {
-      void runSheetTransition(() => setReturnCalendarOpen(true))
+      void runSheetTransition(() => {
+        setCalendarOpen(false)
+        setReturnCalendarOpen(true)
+      })
       return
     }
     openPassengersAfterCalendar()
+  }
+
+  /** Prefer destination first — don't open date/time until an address is chosen. */
+  function requestPickupCalendar(open: boolean) {
+    if (open && !selectedZoneId) {
+      setCalendarOpen(false)
+      setDestinationOpen(true)
+      return
+    }
+    setCalendarOpen(open)
+  }
+
+  function requestReturnCalendar(open: boolean) {
+    if (open && !selectedZoneId) {
+      setReturnCalendarOpen(false)
+      setDestinationOpen(true)
+      return
+    }
+    setReturnCalendarOpen(open)
   }
 
   function onPickupDateChange(iso: string) {
@@ -618,6 +650,8 @@ export function HeroBookingCard() {
                   anchor={fromRowAnchor}
                   mobileSheet
                   sheetTitle={tr("book.chooseDestination")}
+                  open={destinationOpen}
+                  onOpenChange={setDestinationOpen}
                   onAfterSelect={openCalendarAfterDestination}
                 />
               )}
@@ -650,6 +684,8 @@ export function HeroBookingCard() {
                   anchor={toRowAnchor}
                   mobileSheet
                   sheetTitle={tr("book.chooseDestination")}
+                  open={destinationOpen}
+                  onOpenChange={setDestinationOpen}
                   onAfterSelect={openCalendarAfterDestination}
                 />
               ) : singleAirportOnly ? (
@@ -674,13 +710,13 @@ export function HeroBookingCard() {
           <HeroDateTimePicker
             value={pickupDateTime}
             open={calendarOpen}
-            onOpenChange={setCalendarOpen}
+            onOpenChange={requestPickupCalendar}
             onChange={onPickupDateChange}
             onAfterConfirm={openReturnOrPassengersAfterPickup}
             trigger={
               <button
                 type="button"
-                onClick={() => setCalendarOpen(true)}
+                onClick={() => requestPickupCalendar(true)}
                 className={cn(
                   "relative z-10 flex w-full items-center gap-3 px-3 py-3.5 text-left transition-colors hover:bg-muted",
                   isRoundTrip ? "border-b border-border" : "rounded-b-xl",
@@ -706,7 +742,7 @@ export function HeroBookingCard() {
             <HeroDateTimePicker
               value={returnDateTime}
               open={returnCalendarOpen}
-              onOpenChange={setReturnCalendarOpen}
+              onOpenChange={requestReturnCalendar}
               onChange={(iso) => patch({ returnDateTime: iso })}
               onAfterConfirm={openPassengersAfterCalendar}
               minDate={
@@ -715,7 +751,7 @@ export function HeroBookingCard() {
               trigger={
                 <button
                   type="button"
-                  onClick={() => setReturnCalendarOpen(true)}
+                  onClick={() => requestReturnCalendar(true)}
                   className={cn(
                     "relative z-10 flex w-full items-center gap-3 rounded-b-xl px-3 py-3.5 text-left transition-colors hover:bg-muted",
                     returnCalendarOpen && "ring-2 ring-inset ring-black",
@@ -731,10 +767,10 @@ export function HeroBookingCard() {
                     {returnDateTime
                       ? formatHeroDateLabel(returnDateTime)
                       : tr("book.addReturn")}
-                </span>
-              </button>
-            }
-          />
+                  </span>
+                </button>
+              }
+            />
           ) : null}
         </div>
 

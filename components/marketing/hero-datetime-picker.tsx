@@ -86,11 +86,15 @@ function CalendarPanel({
   const [selectedDay, setSelectedDay] = React.useState<Date>(
     () => new Date(initialWall.year, initialWall.month - 1, initialWall.day),
   )
-  const [hour, setHour] = React.useState(() => initialWall.hour)
-  const [minute, setMinute] = React.useState(() => {
+  const [hour, setHour] = React.useState<number | null>(() =>
+    value ? initialWall.hour : null,
+  )
+  const [minute, setMinute] = React.useState<number | null>(() => {
+    if (!value) return null
     const raw = Math.floor(initialWall.minute / 5) * 5
     return raw === 60 ? 0 : raw
   })
+  const [timeError, setTimeError] = React.useState<string | null>(null)
 
   React.useEffect(() => {
     if (!open) return
@@ -99,8 +103,15 @@ function CalendarPanel({
     const wall = getZonedWallTime(safe)
     setView(new Date(wall.year, wall.month - 1, 1))
     setSelectedDay(new Date(wall.year, wall.month - 1, wall.day))
-    setHour(wall.hour)
-    setMinute(Math.floor(wall.minute / 5) * 5)
+    if (value) {
+      setHour(wall.hour)
+      const snapped = Math.floor(wall.minute / 5) * 5
+      setMinute(snapped === 60 ? 0 : snapped)
+    } else {
+      setHour(null)
+      setMinute(null)
+    }
+    setTimeError(null)
   }, [open, value, earliest])
 
   const earliestWall = getZonedWallTime(earliest)
@@ -133,6 +144,10 @@ function CalendarPanel({
   }
 
   function confirm() {
+    if (hour == null || minute == null) {
+      setTimeError(tr("book.selectTime"))
+      return
+    }
     let nextIso = slotIso(hour, minute)
     if (new Date(nextIso).getTime() < earliest.getTime()) {
       const wall = getZonedWallTime(earliest)
@@ -156,8 +171,12 @@ function CalendarPanel({
       }
     }
     onChange(nextIso)
-    // Open the next sheet first so scroll-lock ref-count never drops to 0.
-    onAfterConfirm?.()
+    if (onAfterConfirm) {
+      // Parent covers the viewport then closes this sheet — avoid closing
+      // first or the page behind (e.g. homepage hero) flashes between steps.
+      onAfterConfirm()
+      return
+    }
     onOpenChange(false)
   }
 
@@ -166,9 +185,37 @@ function CalendarPanel({
     year: "numeric",
   })
 
-  const hours = Array.from({ length: 24 }, (_, i) => i)
-  const minutes = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55]
+  const allHours = Array.from({ length: 24 }, (_, i) => i)
+  const allMinutes = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55]
+  // Hide past slots entirely (don't list disabled 00–08… when today is selected).
+  const hours = allHours.filter((h) =>
+    allMinutes.some((m) => !isSlotDisabled(h, m)),
+  )
+  const minutes =
+    hour == null
+      ? []
+      : allMinutes.filter((m) => !isSlotDisabled(hour, m))
+
+  React.useEffect(() => {
+    if (hour != null && !hours.includes(hour)) {
+      setHour(null)
+      setMinute(null)
+      return
+    }
+    if (minute != null && hour != null && !minutes.includes(minute)) {
+      setMinute(null)
+    }
+    // Re-evaluate when the selected day / earliest window changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDay, earliest, hour, minute])
+
   const sheet = layout === "sheet"
+  const timeSelectClass = cn(
+    "h-10 rounded-lg border bg-muted px-2 text-base font-bold text-brand outline-none sm:h-8 md:text-xs",
+    timeError
+      ? "border-red-500 focus:border-red-500"
+      : "border-border focus:border-brand-accent",
+  )
 
   return (
     <div className={cn(sheet && "flex min-h-0 flex-1 flex-col")}>
@@ -215,7 +262,12 @@ function CalendarPanel({
               key={day}
               type="button"
               disabled={disabled}
-              onClick={() => setSelectedDay(startOfDay(date))}
+              onClick={() => {
+                setSelectedDay(startOfDay(date))
+                setHour(null)
+                setMinute(null)
+                setTimeError(null)
+              }}
               className={cn(
                 "flex aspect-square items-center justify-center rounded-full font-semibold transition-all touch-manipulation",
                 sheet ? "text-base" : "text-xs",
@@ -241,27 +293,41 @@ function CalendarPanel({
         <span className="text-sm font-bold text-brand">{tr("book.time")}</span>
         <div className="flex items-center gap-1.5">
           <select
-            className="h-10 rounded-lg border border-border bg-muted px-2 text-base font-bold text-brand outline-none focus:border-brand-accent sm:h-8 md:text-xs"
-            value={hour}
-            onChange={(e) => setHour(Number(e.target.value))}
+            aria-invalid={Boolean(timeError)}
+            className={timeSelectClass}
+            value={hour ?? ""}
+            onChange={(e) => {
+              const next = e.target.value
+              setHour(next === "" ? null : Number(next))
+              setMinute(null)
+              setTimeError(null)
+            }}
           >
-            {hours.map((h) => {
-              const hourDisabled = minutes.every((m) => isSlotDisabled(h, m))
-              return (
-                <option key={h} value={h} disabled={hourDisabled}>
-                  {String(h).padStart(2, "0")}
-                </option>
-              )
-            })}
+            <option value="" disabled>
+              --
+            </option>
+            {hours.map((h) => (
+              <option key={h} value={h}>
+                {String(h).padStart(2, "0")}
+              </option>
+            ))}
           </select>
           <span className="font-bold text-muted-foreground">:</span>
           <select
-            className="h-10 rounded-lg border border-border bg-muted px-2 text-base font-bold text-brand outline-none focus:border-brand-accent sm:h-8 md:text-xs"
-            value={minute}
-            onChange={(e) => setMinute(Number(e.target.value))}
+            aria-invalid={Boolean(timeError)}
+            className={timeSelectClass}
+            value={minute ?? ""}
+            onChange={(e) => {
+              const next = e.target.value
+              setMinute(next === "" ? null : Number(next))
+              setTimeError(null)
+            }}
           >
+            <option value="" disabled>
+              --
+            </option>
             {minutes.map((m) => (
-              <option key={m} value={m} disabled={isSlotDisabled(hour, m)}>
+              <option key={m} value={m}>
                 {String(m).padStart(2, "0")}
               </option>
             ))}
@@ -269,9 +335,13 @@ function CalendarPanel({
         </div>
       </div>
 
-      <p className="mt-2 text-[11px] font-semibold text-muted-foreground">
-        {tr("book.minNotice", { lead: MIN_PICKUP_LEAD_LABEL })}
-      </p>
+      {timeError ? (
+        <p className="mt-2 text-[11px] font-semibold text-red-500">{timeError}</p>
+      ) : (
+        <p className="mt-2 text-[11px] font-semibold text-muted-foreground">
+          {tr("book.minNotice", { lead: MIN_PICKUP_LEAD_LABEL })}
+        </p>
+      )}
 
       <Button
         type="button"
@@ -280,11 +350,9 @@ function CalendarPanel({
           sheet ? "h-12 shrink-0 text-base" : "h-11",
         )}
         onClick={confirm}
-        disabled={hours.every((h) =>
-          minutes.every((m) => isSlotDisabled(h, m)),
-        )}
+        disabled={hours.length === 0}
       >
-        Confirm
+        {tr("book.confirm")}
       </Button>
     </div>
   )

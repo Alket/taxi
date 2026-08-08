@@ -106,7 +106,7 @@ export function TestimonialsSection({
       : "Trusted by travellers across Albania")
 
   return (
-    <section className="overflow-hidden bg-white py-10 md:py-24">
+    <section className="bg-white py-10 md:py-24">
       <MarketingContainer>
         <div className="mb-8 flex items-end justify-between gap-4 md:mb-12">
           <div className="min-w-0 flex-1">
