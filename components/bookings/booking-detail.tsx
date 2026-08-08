@@ -429,6 +429,10 @@ function formatBalanceChargedBy(
   return chargedBy
 }
 
+function isCashOnArrivalBooking(notes: string | null | undefined): boolean {
+  return (notes?.toLowerCase() ?? "").includes("cash on arrival")
+}
+
 function PaymentSection({
   booking,
   onMutated,
@@ -441,6 +445,9 @@ function PaymentSection({
     booking.balanceChargedBy,
     booking.driver,
   )
+  const cashOnArrival = isCashOnArrivalBooking(booking.notes)
+  const paidInFull =
+    booking.paymentStatus === "fully_paid" || booking.paymentStatus === "paid"
 
   return (
     <section className="flex flex-col gap-3">
@@ -453,8 +460,35 @@ function PaymentSection({
           label="Total price"
           value={formatMoney(booking.totalPrice, booking.currency)}
         />
-        {booking.paymentStatus === "fully_paid" ||
-        booking.paymentStatus === "paid" ? (
+        {cashOnArrival ? (
+          paidInFull ? (
+            <PaymentRow
+              label="Paid in full (cash)"
+              value={formatMoney(
+                booking.depositPaid || booking.totalPrice,
+                booking.currency,
+              )}
+              tone="success"
+            />
+          ) : (
+            <>
+              <PaymentRow label="Payment method" value="Cash on arrival" />
+              <PaymentRow
+                label="Due at pickup"
+                value={formatMoney(
+                  booking.balanceDue || booking.totalPrice,
+                  booking.currency,
+                )}
+                emphasize
+                tone={
+                  (booking.balanceDue || booking.totalPrice) > 0
+                    ? "warning"
+                    : "muted"
+                }
+              />
+            </>
+          )
+        ) : paidInFull ? (
           <PaymentRow
             label="Paid in full"
             value={formatMoney(

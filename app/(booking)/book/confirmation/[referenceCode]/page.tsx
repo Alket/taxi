@@ -344,9 +344,11 @@ function TripSummary({
 
 function WhatHappensNext({
   hasFlight,
+  cashOnArrival,
   locale,
 }: {
   hasFlight: boolean
+  cashOnArrival: boolean
   locale: Locale
 }) {
   const steps = [
@@ -369,11 +371,15 @@ function WhatHappensNext({
           },
         ]
       : []),
-    {
-      icon: ShieldAlertIcon,
-      title: t(locale, "confirm.nextCancelTitle"),
-      body: t(locale, "confirm.nextCancelBody"),
-    },
+    ...(!cashOnArrival
+      ? [
+          {
+            icon: ShieldAlertIcon,
+            title: t(locale, "confirm.nextCancelTitle"),
+            body: t(locale, "confirm.nextCancelBody"),
+          },
+        ]
+      : []),
   ]
 
   return (
@@ -445,19 +451,22 @@ export default async function BookingConfirmationPage({ params }: PageProps) {
 
       <WhatHappensNext
         hasFlight={Boolean(booking.flightNumber)}
+        cashOnArrival={booking.cashOnArrival}
         locale={locale}
       />
 
-      <p className="text-center text-xs text-muted-foreground">
-        {t(locale, "confirm.cancelNote")}{" "}
-        <Link
-          href={localePath("/cancellation-policy", locale)}
-          className="underline underline-offset-2 hover:text-foreground"
-        >
-          {t(locale, "confirm.readPolicy")}
-        </Link>
-        .
-      </p>
+      {!booking.cashOnArrival ? (
+        <p className="text-center text-xs text-muted-foreground">
+          {t(locale, "confirm.cancelNote")}{" "}
+          <Link
+            href={localePath("/cancellation-policy", locale)}
+            className="underline underline-offset-2 hover:text-foreground"
+          >
+            {t(locale, "confirm.readPolicy")}
+          </Link>
+          .
+        </p>
+      ) : null}
 
       <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-center">
         <Link
