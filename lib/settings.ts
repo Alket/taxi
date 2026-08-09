@@ -113,6 +113,7 @@ export function serializeSettings(
     adminNotificationEmail: row.adminNotificationEmail ?? "",
     faviconUrl: row.faviconUrl ?? "",
     searchIndexingEnabled: row.searchIndexingEnabled ?? false,
+    gtmContainerId: row.gtmContainerId?.trim() ?? "",
     displayCurrencies: row.displayCurrencies.filter((currency): currency is DisplayCurrency =>
       VALID_CURRENCIES.includes(currency as DisplayCurrency),
     ),
@@ -194,6 +195,7 @@ export async function getSettingsRow() {
       adminNotificationEmail: "",
       faviconUrl: "",
       searchIndexingEnabled: false,
+      gtmContainerId: "",
       displayCurrencies: ["EUR"],
       freeCancellationHours: 24,
       depositPercentage: 30,

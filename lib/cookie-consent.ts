@@ -165,6 +165,15 @@ export function hasMarketingConsent(): boolean {
   return Boolean(readCookieConsent()?.categories.marketing)
 }
 
+/** True when analytics and/or marketing cookies were accepted (GTM gate). */
+export function hasTrackingConsent(
+  state: CookieConsentState | null = readCookieConsent(),
+): boolean {
+  return Boolean(
+    state?.categories.analytics || state?.categories.marketing,
+  )
+}
+
 export function openCookiePreferences() {
   if (typeof window === "undefined") return
   window.dispatchEvent(new Event(OPEN_COOKIE_PREFERENCES_EVENT))

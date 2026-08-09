@@ -308,6 +308,8 @@ export interface Settings {
   faviconUrl: string
   /** When false, site is noindex and robots.txt blocks crawlers. */
   searchIndexingEnabled: boolean
+  /** Google Tag Manager container ID (GTM-XXXX). Empty → not installed. */
+  gtmContainerId: string
   displayCurrencies: DisplayCurrency[]
   freeCancellationHours: number
   depositPercentage: number

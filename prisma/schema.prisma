@@ -381,6 +381,8 @@ model Settings {
    * Keep off until the site is ready for Google/Bing.
    */
   searchIndexingEnabled       Boolean          @default(false)
+  /** Google Tag Manager container ID (e.g. GTM-XXXXXXX). Empty → GTM off. */
+  gtmContainerId              String           @default("")
   displayCurrencies           String[]
   freeCancellationHours       Int              @default(24)
   depositPercentage           Int              @default(30)

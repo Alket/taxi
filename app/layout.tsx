@@ -3,6 +3,9 @@ import { Inter, JetBrains_Mono, Mulish } from "next/font/google"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { Toaster } from "@/components/ui/sonner"
 import { AppThemeProvider } from "@/components/admin/theme-provider"
+import {
+  GoogleTagManager,
+} from "@/components/marketing/google-tag-manager"
 import { getRequestLocale } from "@/lib/i18n/get-locale"
 import { getAppBaseUrl } from "@/lib/mail"
 import { DEFAULT_OG_IMAGE } from "@/lib/page-content"
@@ -61,6 +64,15 @@ async function resolveSearchIndexingEnabled() {
     return settings.searchIndexingEnabled === true
   } catch {
     return false
+  }
+}
+
+async function resolveGtmContainerId() {
+  try {
+    const settings = await getSettings()
+    return settings.gtmContainerId?.trim() || ""
+  } catch {
+    return ""
   }
 }
 
@@ -131,7 +143,10 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  const locale = await getRequestLocale()
+  const [locale, gtmContainerId] = await Promise.all([
+    getRequestLocale(),
+    resolveGtmContainerId(),
+  ])
   return (
     <html
       lang={locale}
@@ -139,6 +154,7 @@ export default async function RootLayout({
       className={`${inter.variable} ${jetbrainsMono.variable} ${museoSans.variable}`}
     >
       <body className="font-sans antialiased">
+        <GoogleTagManager containerId={gtmContainerId} />
         <AppThemeProvider>
           <TooltipProvider>{children}</TooltipProvider>
           <Toaster richColors position="top-right" />

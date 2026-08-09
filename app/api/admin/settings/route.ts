@@ -82,6 +82,20 @@ export async function PATCH(request: Request) {
       data.searchIndexingEnabled = body.searchIndexingEnabled
     }
 
+    if (typeof body.gtmContainerId === "string") {
+      const raw = body.gtmContainerId.trim().toUpperCase()
+      if (raw && !/^GTM-[A-Z0-9]+$/.test(raw)) {
+        return NextResponse.json(
+          {
+            error:
+              "Google Tag Manager ID must look like GTM-XXXXXXX (letters and numbers only).",
+          },
+          { status: 400 },
+        )
+      }
+      data.gtmContainerId = raw
+    }
+
     if (Array.isArray(body.displayCurrencies)) {
       const filtered = body.displayCurrencies.filter(
         (currency: unknown): currency is DisplayCurrency =>

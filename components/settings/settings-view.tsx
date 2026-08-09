@@ -8,6 +8,7 @@ import {
   MailIcon,
   PlaneIcon,
   SettingsIcon,
+  TagsIcon,
   UsersIcon,
 } from "lucide-react"
 
@@ -24,6 +25,7 @@ import { PaymentsPanel } from "@/components/settings/payments-panel"
 import { RulesPanel } from "@/components/settings/rules-panel"
 import { SmtpPanel } from "@/components/settings/smtp-panel"
 import { TeamPanel } from "@/components/settings/team-panel"
+import { TrackingPanel } from "@/components/settings/tracking-panel"
 import { cn } from "@/lib/utils"
 
 const TABS = [
@@ -57,6 +59,12 @@ const TABS = [
     label: "Payments",
     short: "Pay",
     icon: CreditCardIcon,
+  },
+  {
+    value: "tracking",
+    label: "Tracking",
+    short: "Tags",
+    icon: TagsIcon,
   },
   { value: "team", label: "Team", short: "Team", icon: UsersIcon },
 ]
@@ -152,6 +160,12 @@ export function SettingsView() {
                 </TabsContent>
                 <TabsContent value="payments">
                   <PaymentsPanel
+                    settings={settings}
+                    onSaved={() => mutate()}
+                  />
+                </TabsContent>
+                <TabsContent value="tracking">
+                  <TrackingPanel
                     settings={settings}
                     onSaved={() => mutate()}
                   />

@@ -489,6 +489,7 @@ const settings: Settings = {
   adminNotificationEmail: "ops@transfers.co",
   faviconUrl: "",
   searchIndexingEnabled: false,
+  gtmContainerId: "",
   displayCurrencies: ["EUR", "GBP"],
   freeCancellationHours: 24,
   depositPercentage: 30,
