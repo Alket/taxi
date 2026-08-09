@@ -66,7 +66,7 @@ export function TrackingPanel({
       <Field
         label="Google Tag Manager container ID"
         htmlFor="gtmContainerId"
-        hint="Paste only the ID from Google (e.g. GTM-NJCSBVHL). Leave empty to disable. Tags load only after the visitor accepts Analytics or Marketing cookies, and never on /admin or /driver."
+        hint="Paste only the ID from Google (e.g. GTM-NJCSBVHL). Leave empty to disable. The GTM script loads on public pages with Google Consent Mode (storage denied until Analytics or Marketing cookies are accepted). Never on /admin or /driver."
       >
         <Input
           id="gtmContainerId"
@@ -87,8 +87,9 @@ export function TrackingPanel({
             <span className="font-mono font-semibold text-foreground">
               {settings.gtmContainerId}
             </span>
-            . It loads on public pages only after cookie consent (Analytics or
-            Marketing), and is blocked on /admin and /driver.
+            . Public pages load the tag with Consent Mode; Analytics/Marketing
+            storage stays denied until the visitor accepts those cookies. Blocked
+            on /admin and /driver.
           </span>
         </p>
       ) : (
