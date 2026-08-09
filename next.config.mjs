@@ -2,6 +2,8 @@
 const nextConfig = {
   // Smaller production image for Docker.
   output: "standalone",
+  // Allow overriding when `.next` is owned by the Docker container user.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   // Allow the app to be reached via ngrok during local PayPal testing.
   allowedDevOrigins: ["wriggle-dollhouse-unhidden.ngrok-free.dev"],
   images: {
