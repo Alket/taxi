@@ -6,6 +6,9 @@ import { LOCALES, localePath } from "@/lib/i18n/locales"
 import { listAdminPages, resolveDestinationCards } from "@/lib/page-content"
 import { getSettings } from "@/lib/settings"
 
+// Must re-read Admin → Settings on every request (indexing can be toggled live).
+export const dynamic = "force-dynamic"
+
 /**
  * Sitemap covering every public marketing page × locale. Search engines
  * cannot discover the localized URL variants on their own since they are

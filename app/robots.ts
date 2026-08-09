@@ -3,6 +3,9 @@ import type { MetadataRoute } from "next"
 import { getAppBaseUrl } from "@/lib/mail"
 import { getSettings } from "@/lib/settings"
 
+// Must re-read Admin → Settings on every request (indexing can be toggled live).
+export const dynamic = "force-dynamic"
+
 /**
  * Dynamic robots.txt driven by Admin → Settings → “Allow search engines”.
  * When indexing is off, disallow everything (safe for pre-launch).
