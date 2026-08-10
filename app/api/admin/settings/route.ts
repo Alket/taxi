@@ -18,6 +18,7 @@ import {
   assertSmtpPortAllowed,
 } from "@/lib/smtp-security"
 import type { DisplayCurrency, NotificationChannels } from "@/lib/types"
+import { revalidateAllLocales } from "@/lib/revalidate-locales"
 
 export async function GET() {
   const denied = await requireAdmin(
@@ -476,6 +477,10 @@ export async function PATCH(request: Request) {
       where: { id: SETTINGS_ID },
       data,
     })
+
+    if (typeof body.cashOnArrivalEnabled === "boolean") {
+      revalidateAllLocales("/cancellation-policy")
+    }
 
     return NextResponse.json({ settings: serializeSettings(updated) })
   } catch (error) {

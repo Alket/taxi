@@ -333,5 +333,7 @@
   "book.meetAndGreetDesc": "Driver waits inside arrivals with a name sign",
   "book.roundTrip": "Round trip",
   "book.roundTripDesc": "Creates two linked bookings (outbound + return).",
-  "book.enterFlightNumber": "Enter your flight number"
+  "book.enterFlightNumber": "Enter your flight number",
+  "policy.cashOnArrivalNoteLabel": "Note:",
+  "policy.cashOnArrivalNote": "For bookings paid entirely by cash on arrival, the client must pay the driver in cash before the trip starts. If a cash-payment booking is cancelled, the client must notify us at least 1 hour before the scheduled pickup time."
 }

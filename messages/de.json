@@ -333,5 +333,7 @@
   "book.meetAndGreetDesc": "Der Fahrer wartet in der Ankunftshalle mit Namensschild",
   "book.roundTrip": "Hin- und Rückfahrt",
   "book.roundTripDesc": "Erstellt zwei verknüpfte Buchungen (Hinfahrt + Rückfahrt).",
-  "book.enterFlightNumber": "Flugnummer eingeben"
+  "book.enterFlightNumber": "Flugnummer eingeben",
+  "policy.cashOnArrivalNoteLabel": "Hinweis:",
+  "policy.cashOnArrivalNote": "Bei Buchungen, die vollständig bar bei Ankunft bezahlt werden, muss der Kunde den Fahrer vor Fahrtbeginn bar bezahlen. Wird eine Barzahlungsbuchung storniert, muss der Kunde uns mindestens 1 Stunde vor der geplanten Abholzeit benachrichtigen."
 }

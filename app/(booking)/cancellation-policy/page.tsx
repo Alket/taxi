@@ -3,12 +3,14 @@ import type { Metadata } from "next"
 import { CancellationPolicyView } from "@/components/marketing/cancellation-policy-view"
 import { DESTINATIONS } from "@/lib/destinations"
 import { getRequestLocale } from "@/lib/i18n/get-locale"
+import { t } from "@/lib/i18n/t"
 import {
   pageMetadataFields,
   resolvePageContent,
   sectionHeading,
   sectionValue,
 } from "@/lib/page-content"
+import { getSettingsRow } from "@/lib/settings"
 
 // CMS content rarely changes; ISR + on-demand revalidation (admin save →
 // revalidatePath) keeps this fast without re-querying the DB on every hit.
@@ -23,7 +25,10 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function CancellationPolicyPage() {
   const locale = await getRequestLocale()
-  const page = await resolvePageContent("cancellation-policy", locale)
+  const [page, settings] = await Promise.all([
+    resolvePageContent("cancellation-policy", locale),
+    getSettingsRow(),
+  ])
   const sections = page?.sections ?? []
 
   const title = sectionHeading(sections, "title") || "Cancellation Policy"
@@ -58,6 +63,10 @@ export default async function CancellationPolicyPage() {
     DESTINATIONS[0]?.image ||
     ""
 
+  const cashOnArrivalNote = settings.cashOnArrivalEnabled
+    ? t(locale, "policy.cashOnArrivalNote")
+    : null
+
   return (
     <CancellationPolicyView
       title={title}
@@ -65,6 +74,7 @@ export default async function CancellationPolicyPage() {
       blocks={blocks}
       heroImage={heroImage}
       locale={locale}
+      cashOnArrivalNote={cashOnArrivalNote}
     />
   )
 }

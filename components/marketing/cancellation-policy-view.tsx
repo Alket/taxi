@@ -83,12 +83,15 @@ export function CancellationPolicyView({
   blocks,
   heroImage,
   locale = DEFAULT_LOCALE,
+  cashOnArrivalNote = null,
 }: {
   title: string
   intro: string
   blocks: PolicyBlock[]
   heroImage: string
   locale?: Locale
+  /** Shown under Customer cancellations when cash on arrival is enabled. */
+  cashOnArrivalNote?: string | null
 }) {
   return (
     <div>
@@ -167,6 +170,16 @@ export function CancellationPolicyView({
                   {block.text ? (
                     <div className="px-5 py-5 sm:px-7 sm:py-6">
                       <PolicyBody text={block.text} />
+                    </div>
+                  ) : null}
+                  {block.key === "customer" && cashOnArrivalNote ? (
+                    <div className="border-t border-border/70 bg-brand-page/60 px-5 py-5 sm:px-7 sm:py-6">
+                      <p className="text-[15px] leading-relaxed text-brand">
+                        <span className="font-extrabold text-brand-accent">
+                          {t(locale, "policy.cashOnArrivalNoteLabel")}{" "}
+                        </span>
+                        {cashOnArrivalNote}
+                      </p>
                     </div>
                   ) : null}
                 </article>

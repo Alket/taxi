@@ -333,5 +333,7 @@
   "book.meetAndGreetDesc": "Şoför varışta isim tabelasıyla bekler",
   "book.roundTrip": "Gidiş-dönüş",
   "book.roundTripDesc": "İki bağlantılı rezervasyon oluşturur (gidiş + dönüş).",
-  "book.enterFlightNumber": "Uçuş numaranızı girin"
+  "book.enterFlightNumber": "Uçuş numaranızı girin",
+  "policy.cashOnArrivalNoteLabel": "Not:",
+  "policy.cashOnArrivalNote": "Tamamen varışta nakit ödenen rezervasyonlarda, müşteri yolculuk başlamadan önce sürücüye nakit ödemelidir. Nakit ödemeli bir rezervasyon iptal edilirse, müşteri planlanan karşılama saatinden en az 1 saat önce bizi bilgilendirmelidir."
 }
