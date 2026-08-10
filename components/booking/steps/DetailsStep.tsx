@@ -4,7 +4,7 @@ import * as React from "react"
 import useSWR from "swr"
 import { Controller, useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { MinusIcon, PlusIcon, SearchIcon } from "lucide-react"
+import { MinusIcon, PlusIcon } from "lucide-react"
 
 import { fetcher } from "@/lib/api"
 import {
@@ -336,16 +336,15 @@ export function DetailsStep() {
         >
           {tr("book.flightNumber")}
         </Label>
-        <div className="relative">
-          <Input
-            id="flightNumber"
-            placeholder={tr("book.findMyFlight")}
-            aria-invalid={errors.flightNumber ? true : undefined}
-            className="h-12 border-border pr-10 shadow-none transition-all focus:border-brand-accent focus:ring-0"
-            {...register("flightNumber")}
-          />
-          <SearchIcon className="absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted-foreground" />
-        </div>
+        <Input
+          id="flightNumber"
+          placeholder={tr("book.enterFlightNumber")}
+          aria-required
+          aria-invalid={errors.flightNumber ? true : undefined}
+          className="h-12 border-border shadow-none transition-all focus:border-brand-accent focus:ring-0"
+          {...register("flightNumber")}
+        />
+        <FieldError message={errors.flightNumber?.message} />
         <p className="text-[11px] text-muted-foreground">
           {tr("book.flightNumberHint")}
         </p>

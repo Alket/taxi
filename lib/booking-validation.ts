@@ -102,12 +102,16 @@ export function getFirstInvalidBookingField(
   }
 
   const flight = state.flightNumber.trim()
-  if (flight) {
-    if (!FLIGHT_NUMBER_RE.test(normalizeFlightNumber(flight))) {
-      return {
-        field: "flightNumber",
-        message: "Enter a valid flight number (e.g. LH1445 or EAF654).",
-      }
+  if (!flight) {
+    return {
+      field: "flightNumber",
+      message: "Enter your flight number.",
+    }
+  }
+  if (!FLIGHT_NUMBER_RE.test(normalizeFlightNumber(flight))) {
+    return {
+      field: "flightNumber",
+      message: "Enter a valid flight number (e.g. LH1445 or EAF654).",
     }
   }
 

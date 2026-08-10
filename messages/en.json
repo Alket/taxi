@@ -332,5 +332,6 @@
   "book.noMatchingPlaces": "No matching places",
   "book.meetAndGreetDesc": "Driver waits inside arrivals with a name sign",
   "book.roundTrip": "Round trip",
-  "book.roundTripDesc": "Creates two linked bookings (outbound + return)."
+  "book.roundTripDesc": "Creates two linked bookings (outbound + return).",
+  "book.enterFlightNumber": "Enter your flight number"
 }

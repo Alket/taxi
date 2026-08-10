@@ -127,6 +127,8 @@ export function serializeSettings(
     sedanLuggage: row.sedanLuggage ?? 2,
     minivanSeats: row.minivanSeats ?? 6,
     minivanLuggage: row.minivanLuggage ?? 6,
+    sedanEnabled: row.sedanEnabled ?? true,
+    minivanEnabled: row.minivanEnabled ?? true,
     stripeEnabled: row.stripeEnabled ?? true,
     paypalEnabled: row.paypalEnabled ?? true,
     pokEnabled: row.pokEnabled ?? false,
@@ -207,6 +209,8 @@ export async function getSettingsRow() {
       sedanLuggage: 2,
       minivanSeats: 6,
       minivanLuggage: 6,
+      sedanEnabled: true,
+      minivanEnabled: true,
       stripeEnabled: true,
       paypalEnabled: true,
       pokEnabled: false,
@@ -246,6 +250,8 @@ export async function getBookingPolicy() {
     sedanLuggage: row.sedanLuggage ?? 2,
     minivanSeats: row.minivanSeats ?? 6,
     minivanLuggage: row.minivanLuggage ?? 6,
+    sedanEnabled: row.sedanEnabled ?? true,
+    minivanEnabled: row.minivanEnabled ?? true,
   }
 }
 

@@ -332,5 +332,6 @@
   "book.noMatchingPlaces": "Nessun luogo corrispondente",
   "book.meetAndGreetDesc": "L'autista ti aspetta in arrivi con un cartello nominativo",
   "book.roundTrip": "Andata e ritorno",
-  "book.roundTripDesc": "Crea due prenotazioni collegate (andata + ritorno)."
+  "book.roundTripDesc": "Crea due prenotazioni collegate (andata + ritorno).",
+  "book.enterFlightNumber": "Inserisci il numero del volo"
 }

@@ -332,5 +332,6 @@
   "book.noMatchingPlaces": "Brak pasujących miejsc",
   "book.meetAndGreetDesc": "Kierowca czeka na przylotach z tabliczką z imieniem",
   "book.roundTrip": "W obie strony",
-  "book.roundTripDesc": "Tworzy dwie powiązane rezerwacje (wyjazd + powrót)."
+  "book.roundTripDesc": "Tworzy dwie powiązane rezerwacje (wyjazd + powrót).",
+  "book.enterFlightNumber": "Wpisz numer lotu"
 }

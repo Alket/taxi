@@ -11,6 +11,7 @@ import { prisma } from "@/lib/db"
 import { getBookingPolicy } from "@/lib/settings"
 import {
   assertVehicleFitsParty,
+  assertVehicleTypeEnabled,
   round2,
   vehicleCapacitiesFromSettingsRow,
   vehicleTypeSchema,
@@ -135,8 +136,16 @@ export async function PATCH(request: Request, context: RouteContext) {
   ) {
     try {
       const policy = await getBookingPolicy()
+      const nextVehicleType = parsed.data.vehicleType ?? existing.vehicleType
+      // Allow keeping the current type even if later disabled; block switching TO a disabled type.
+      if (
+        parsed.data.vehicleType !== undefined &&
+        parsed.data.vehicleType !== existing.vehicleType
+      ) {
+        assertVehicleTypeEnabled(policy, parsed.data.vehicleType)
+      }
       assertVehicleFitsParty(
-        parsed.data.vehicleType ?? existing.vehicleType,
+        nextVehicleType,
         parsed.data.passengerCount ?? existing.passengerCount,
         parsed.data.luggageCount ?? existing.luggageCount,
         vehicleCapacitiesFromSettingsRow(policy),

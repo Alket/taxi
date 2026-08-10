@@ -52,11 +52,18 @@ export async function POST(request: Request) {
       { status: 201 },
     )
   } catch (error) {
-    const message = (error as Error).message || "Failed to create booking."
+    const err = error as Error & { code?: string }
+    const message = err.message || "Failed to create booking."
+    if (err.code === "VEHICLE_DISABLED" || err.name === "VehicleDisabledError") {
+      return NextResponse.json(
+        { error: message, code: "VEHICLE_DISABLED" },
+        { status: 400 },
+      )
+    }
     const status =
       message.includes("outside") || message.includes("Uncovered")
         ? 404
-        : message.startsWith("Invalid")
+        : message.startsWith("Invalid") || message.includes("seats up to") || message.includes("holds up to")
           ? 400
           : 500
     return NextResponse.json({ error: message }, { status })

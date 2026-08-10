@@ -7,8 +7,12 @@ import {
   calculatePriceForZone,
   UncoveredDestinationError,
 } from "@/lib/pricing"
-import { getBookingPolicy } from "@/lib/settings"
-import { vehicleTypeSchema } from "@/lib/vehicles"
+import { getBookingPolicy, getSettingsRow } from "@/lib/settings"
+import {
+  assertVehicleTypeEnabled,
+  VehicleDisabledError,
+  vehicleTypeSchema,
+} from "@/lib/vehicles"
 
 const querySchema = z.object({
   vehicleType: vehicleTypeSchema,
@@ -37,11 +41,19 @@ export async function GET(request: Request) {
 
   let totalPrice: number
   try {
+    const settings = await getSettingsRow()
+    assertVehicleTypeEnabled(settings, vehicleType as VehicleType)
     totalPrice = await calculatePriceForZone(
       zoneId,
       vehicleType as VehicleType,
     )
   } catch (error) {
+    if (error instanceof VehicleDisabledError) {
+      return NextResponse.json(
+        { error: error.message, code: error.code },
+        { status: 400 },
+      )
+    }
     if (error instanceof UncoveredDestinationError) {
       return NextResponse.json(
         { error: error.message, code: error.code },

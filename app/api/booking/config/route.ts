@@ -5,7 +5,7 @@ import { matchDestinationForZoneName } from "@/lib/destinations"
 import { prisma } from "@/lib/db"
 import { resolveDestinationCards } from "@/lib/page-content"
 import { getSettingsRow, parseAirports } from "@/lib/settings"
-import { vehicleCapacitiesFromSettingsRow } from "@/lib/vehicles"
+import { vehicleCapacitiesFromSettingsRow, getEnabledVehicleTypes } from "@/lib/vehicles"
 
 /** Public booking config — airports, service zones, support contact. */
 export async function GET() {
@@ -28,6 +28,7 @@ export async function GET() {
       destinationCards.map((card) => [card.id, card.image]),
     )
     const vehicleCapacities = vehicleCapacitiesFromSettingsRow(row)
+    const enabledVehicleTypes = getEnabledVehicleTypes(row)
 
     return NextResponse.json({
       companyName: row.companyName,
@@ -39,6 +40,9 @@ export async function GET() {
       childSeatPrice: Number(row.childSeatPrice ?? 0),
       boosterSeatPrice: Number(row.boosterSeatPrice ?? 0),
       vehicleCapacities,
+      sedanEnabled: row.sedanEnabled ?? true,
+      minivanEnabled: row.minivanEnabled ?? true,
+      enabledVehicleTypes,
       airports,
       zones: zones.map((zone) => {
         const destination = matchDestinationForZoneName(zone.name)

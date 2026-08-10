@@ -215,9 +215,8 @@ function isDetailsComplete(state: BookingState) {
   }
 
   const flight = state.flightNumber.trim()
-  if (flight) {
-    if (!FLIGHT_NUMBER_RE.test(normalizeFlightNumber(flight))) return false
-  }
+  if (!flight) return false
+  if (!FLIGHT_NUMBER_RE.test(normalizeFlightNumber(flight))) return false
 
   const { name, email, phone } = state.customer
   if (!name.trim() || name.trim().length < 2) return false

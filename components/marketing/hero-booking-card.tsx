@@ -65,6 +65,9 @@ type BookingConfig = {
   airports: AirportWithCoords[]
   zones: ServiceZonePlace[]
   vehicleCapacities?: import("@/lib/vehicles").VehicleCapacityConfig
+  enabledVehicleTypes?: VehicleType[]
+  sedanEnabled?: boolean
+  minivanEnabled?: boolean
 }
 
 function airportLocation(airport: AirportWithCoords): BookingLocation {
@@ -202,7 +205,8 @@ export function HeroBookingCard() {
   const { data: config } = useSWR<BookingConfig>("/api/booking/config", fetcher)
   const airports = config?.airports ?? []
   const zones = config?.zones ?? []
-  const { maxPassengers, maxLuggage, capacities } = usePartyCapacityLimits()
+  const { maxPassengers, maxLuggage, capacities, enabledTypes } =
+    usePartyCapacityLimits()
 
   const destinationLocation =
     direction === "dest_to_airport"
@@ -264,6 +268,28 @@ export function HeroBookingCard() {
       return false
     }
 
+    const typesToQuote =
+      config?.enabledVehicleTypes?.length
+        ? config.enabledVehicleTypes
+        : config?.sedanEnabled === false || config?.minivanEnabled === false
+          ? VEHICLE_TYPES.filter((type) =>
+              type === "sedan"
+                ? config.sedanEnabled !== false
+                : config.minivanEnabled !== false,
+            )
+          : VEHICLE_TYPES
+
+    if (typesToQuote.length === 0) {
+      patch({
+        vehicleQuotes: {},
+        quoteStatus: "uncovered",
+        quoteError: null,
+        quotedPrice: null,
+        vehicleType: null,
+      })
+      return false
+    }
+
     patch({
       quoteStatus: "loading",
       quoteError: null,
@@ -274,7 +300,7 @@ export function HeroBookingCard() {
     })
 
     const settled = await Promise.allSettled(
-      VEHICLE_TYPES.map((vehicleType) =>
+      typesToQuote.map((vehicleType) =>
         fetchVehicleQuote({
           direction: dir,
           vehicleType,
@@ -287,7 +313,7 @@ export function HeroBookingCard() {
     let networkError: string | null = null
     for (let i = 0; i < settled.length; i++) {
       const result = settled[i]!
-      const vehicleType = VEHICLE_TYPES[i]!
+      const vehicleType = typesToQuote[i]!
       if (result.status === "fulfilled") {
         vehicleQuotes[vehicleType] = {
           price: result.value.price,
@@ -297,8 +323,13 @@ export function HeroBookingCard() {
         continue
       }
       const err = result.reason as Error & { code?: string; status?: number }
-      if (err.status === 404 || err.code === "OUTSIDE_SERVICE_AREA") {
-        // Missing rule for this vehicle — skip; zone may still be covered.
+      if (
+        err.status === 404 ||
+        err.code === "OUTSIDE_SERVICE_AREA" ||
+        err.code === "VEHICLE_DISABLED" ||
+        err.status === 400
+      ) {
+        // Missing rule / disabled vehicle — skip; zone may still be covered.
         continue
       }
       networkError = err.message || "Could not load prices."
@@ -334,7 +365,12 @@ export function HeroBookingCard() {
       vehicleType: null,
     })
     return false
-  }, [patch])
+  }, [
+    patch,
+    config?.enabledVehicleTypes,
+    config?.sedanEnabled,
+    config?.minivanEnabled,
+  ])
 
   React.useEffect(() => {
     if (!direction || !selectedZoneId) {
@@ -466,6 +502,7 @@ export function HeroBookingCard() {
           latest.isRoundTrip,
           0,
           capacities,
+          enabledTypes,
         ),
         startedFromHero: true,
       })

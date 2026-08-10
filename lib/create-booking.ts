@@ -32,6 +32,7 @@ import {
 import { getBookingPolicy } from "@/lib/settings"
 import {
   assertVehicleFitsParty,
+  assertVehicleTypeEnabled,
   computeTripTotal,
   round2,
   vehicleCapacitiesFromSettingsRow,
@@ -89,6 +90,17 @@ export const bookingCreateSchema = z
     bookerRelation: bookerRelationSchema.optional().nullable(),
   })
   .superRefine((data, ctx) => {
+    if (data.source === "public") {
+      const flight = (data.flightNumber ?? "").trim()
+      if (!flight) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["flightNumber"],
+          message: "Enter your flight number.",
+        })
+      }
+    }
+
     if (!data.bookedForOther) return
 
     const name = bookingPassengerNameSchema.safeParse(data.passengerName ?? "")
@@ -202,6 +214,8 @@ export async function createBookingsFromInput(
     sedanLuggage,
     minivanSeats,
     minivanLuggage,
+    sedanEnabled,
+    minivanEnabled,
   } = policy
   const vehicleCapacities = vehicleCapacitiesFromSettingsRow({
     sedanSeats,
@@ -209,6 +223,7 @@ export async function createBookingsFromInput(
     minivanSeats,
     minivanLuggage,
   })
+  assertVehicleTypeEnabled({ sedanEnabled, minivanEnabled }, input.vehicleType)
   assertVehicleFitsParty(
     input.vehicleType,
     input.passengerCount,

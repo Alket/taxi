@@ -34,7 +34,14 @@ import {
 } from "@/lib/store/booking-store"
 import type { Direction, VehicleType } from "@/lib/types"
 import { cn } from "@/lib/utils"
-import { round2, partyStepperLimits, clampPartyToLimits, DEFAULT_VEHICLE_CAPACITIES } from "@/lib/vehicles"
+import {
+  round2,
+  partyStepperLimits,
+  clampPartyToLimits,
+  DEFAULT_VEHICLE_CAPACITIES,
+  getEnabledVehicleTypes,
+  VEHICLE_TYPE_VALUES,
+} from "@/lib/vehicles"
 import {
   formatHeroDateLabel,
   HeroDateTimePicker,
@@ -72,6 +79,9 @@ type SummaryConfig = ChildSeatPrices & {
   airports?: AirportWithCoords[]
   zones?: ServiceZonePlace[]
   vehicleCapacities?: import("@/lib/vehicles").VehicleCapacityConfig
+  enabledVehicleTypes?: VehicleType[]
+  sedanEnabled?: boolean
+  minivanEnabled?: boolean
 }
 
 type QuoteResponse = {
@@ -201,8 +211,24 @@ function SummaryEditDialog({
   const { data: config } = useSWR<SummaryConfig>("/api/booking/config", fetcher)
   const airports = config?.airports ?? []
   const zones = config?.zones ?? []
+  const enabledTypes = React.useMemo(() => {
+    if (config?.enabledVehicleTypes?.length) {
+      return config.enabledVehicleTypes.filter((type): type is VehicleType =>
+        (VEHICLE_TYPE_VALUES as readonly string[]).includes(type),
+      )
+    }
+    return getEnabledVehicleTypes({
+      sedanEnabled: config?.sedanEnabled,
+      minivanEnabled: config?.minivanEnabled,
+    })
+  }, [
+    config?.enabledVehicleTypes,
+    config?.sedanEnabled,
+    config?.minivanEnabled,
+  ])
   const { maxPassengers, maxLuggage } = partyStepperLimits(
     config?.vehicleCapacities ?? DEFAULT_VEHICLE_CAPACITIES,
+    enabledTypes,
   )
 
   const [draftAirport, setDraftAirport] = React.useState<string | null>(null)
@@ -321,6 +347,23 @@ function SummaryEditDialog({
 
     const zoneChanged = zone.id !== selectedZoneId
     if (zoneChanged || !useBookingStore.getState().quotedPrice) {
+      const typesToQuote =
+        enabledTypes.length > 0 ? enabledTypes : VEHICLE_TYPES
+
+      if (typesToQuote.length === 0) {
+        patch({
+          vehicleQuotes: {},
+          quoteStatus: "uncovered",
+          quoteError: null,
+          quotedDistanceKm: null,
+          quotedPrice: null,
+          vehicleType: null,
+        })
+        setSaving(false)
+        onOpenChange(false)
+        return
+      }
+
       patch({
         quoteStatus: "loading",
         quoteError: null,
@@ -332,7 +375,7 @@ function SummaryEditDialog({
 
       try {
         const settled = await Promise.allSettled(
-          VEHICLE_TYPES.map((vehicleType) =>
+          typesToQuote.map((vehicleType) =>
             fetchVehicleQuote({
               direction: dir,
               vehicleType,
@@ -344,7 +387,7 @@ function SummaryEditDialog({
         const vehicleQuotes = {} as Record<VehicleType, VehicleQuote>
         for (let i = 0; i < settled.length; i++) {
           const result = settled[i]!
-          const vehicleType = VEHICLE_TYPES[i]!
+          const vehicleType = typesToQuote[i]!
           if (result.status === "fulfilled") {
             vehicleQuotes[vehicleType] = {
               price: result.value.price,
@@ -361,7 +404,7 @@ function SummaryEditDialog({
           const selectedType = (
             Object.entries(vehicleQuotes).find(
               ([, quote]) => quote === preferred,
-            )?.[0] ?? "sedan"
+            )?.[0] ?? typesToQuote[0]!
           ) as VehicleType
 
           patch({

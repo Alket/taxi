@@ -161,11 +161,9 @@ export function createDetailsSchema(options: {
       flightNumber: z
         .string()
         .trim()
+        .min(1, "Enter your flight number.")
         .refine(
-          (value) => {
-            if (!value) return true
-            return FLIGHT_NUMBER_RE.test(normalizeFlightNumber(value))
-          },
+          (value) => FLIGHT_NUMBER_RE.test(normalizeFlightNumber(value)),
           "Use a format like LH1445 or EAF654.",
         ),
       bookedForOther: z.boolean(),

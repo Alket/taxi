@@ -17,6 +17,7 @@ import { VEHICLE_LABELS, formatMoney } from "@/lib/format"
 import type { PricingRule, VehicleType, Zone } from "@/lib/types"
 import { useAdminSession } from "@/hooks/use-admin-session"
 import { PageHeader } from "@/components/admin/page-header"
+import { AdminFilterSelectField } from "@/components/admin/filter-select-field"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -90,11 +91,13 @@ export function PricingView() {
   )
   const rules = ruleData?.rules ?? []
 
-  const zoneFilterItems = React.useMemo(() => {
-    const map: Record<string, React.ReactNode> = { all: "All zones" }
-    for (const z of zones) map[z.id] = z.name
-    return map
-  }, [zones])
+  const zoneFilterOptions = React.useMemo(
+    () => [
+      { value: "all", label: "All zones" },
+      ...zones.map((z) => ({ value: z.id, label: z.name })),
+    ],
+    [zones],
+  )
 
   return (
     <>
@@ -127,29 +130,15 @@ export function PricingView() {
                 Base fare, per-km rate, and minimum fare per zone
               </CardDescription>
             </div>
-            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-              <Select
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-end">
+              <AdminFilterSelectField
+                label="Zone"
                 value={zoneFilter}
-                onValueChange={(value) => {
-                  if (value) setZoneFilter(value)
-                }}
-                items={zoneFilterItems}
-              >
-                <SelectTrigger
-                  size="default"
-                  className="h-10 w-full touch-manipulation sm:h-8 sm:w-[11rem]"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All zones</SelectItem>
-                  {zones.map((z) => (
-                    <SelectItem key={z.id} value={z.id}>
-                      {z.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onChange={setZoneFilter}
+                options={zoneFilterOptions}
+                icon={MapPinIcon}
+                className="sm:w-[14rem]"
+              />
               {isAdmin ? (
                 <AddRuleDialog zones={zones} onCreated={() => mutateRules()} />
               ) : null}
@@ -961,7 +950,7 @@ function AddRuleDialog({
     >
       <Button
         size="sm"
-        className="h-10 w-full touch-manipulation sm:h-8 sm:w-auto"
+        className="h-11 w-full touch-manipulation sm:w-auto md:h-10"
         onClick={() => setOpen(true)}
       >
         <PlusIcon data-icon="inline-start" />

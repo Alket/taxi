@@ -322,6 +322,10 @@ export interface Settings {
   sedanLuggage: number
   minivanSeats: number
   minivanLuggage: number
+  /** When false, Sedan is hidden from public booking and rejected on create/quote. */
+  sedanEnabled: boolean
+  /** When false, Minivan is hidden from public booking and rejected on create/quote. */
+  minivanEnabled: boolean
   stripeEnabled: boolean
   paypalEnabled: boolean
   pokEnabled: boolean

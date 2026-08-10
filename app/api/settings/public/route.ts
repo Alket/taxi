@@ -2,7 +2,10 @@ import { NextResponse } from "next/server"
 
 import { withAirportCoords } from "@/lib/airports"
 import { getSettingsRow, parseAirports } from "@/lib/settings"
-import { vehicleCapacitiesFromSettingsRow } from "@/lib/vehicles"
+import {
+  getEnabledVehicleTypes,
+  vehicleCapacitiesFromSettingsRow,
+} from "@/lib/vehicles"
 
 /**
  * Public settings for the customer booking flow.
@@ -12,6 +15,7 @@ export async function GET() {
   try {
     const row = await getSettingsRow()
     const airports = withAirportCoords(parseAirports(row.airports))
+    const enabledVehicleTypes = getEnabledVehicleTypes(row)
 
     return NextResponse.json({
       companyName: row.companyName,
@@ -23,6 +27,9 @@ export async function GET() {
       childSeatPrice: Number(row.childSeatPrice ?? 0),
       boosterSeatPrice: Number(row.boosterSeatPrice ?? 0),
       vehicleCapacities: vehicleCapacitiesFromSettingsRow(row),
+      sedanEnabled: row.sedanEnabled ?? true,
+      minivanEnabled: row.minivanEnabled ?? true,
+      enabledVehicleTypes,
       stripeEnabled: row.stripeEnabled ?? true,
       paypalEnabled: row.paypalEnabled ?? true,
       pokEnabled: row.pokEnabled ?? false,

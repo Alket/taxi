@@ -1,12 +1,17 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 
+import { getSettingsRow } from "@/lib/settings"
 import {
   calculateQuoteForZone,
   UncoveredDestinationError,
 } from "@/lib/pricing"
 import type { VehicleType } from "@/lib/types"
-import { vehicleTypeSchema } from "@/lib/vehicles"
+import {
+  assertVehicleTypeEnabled,
+  VehicleDisabledError,
+  vehicleTypeSchema,
+} from "@/lib/vehicles"
 
 const bodySchema = z.object({
   direction: z.enum(["airport_to_dest", "dest_to_airport"]).optional(),
@@ -28,6 +33,9 @@ export async function POST(request: Request) {
   const { vehicleType, zoneId } = parsed.data
 
   try {
+    const settings = await getSettingsRow()
+    assertVehicleTypeEnabled(settings, vehicleType as VehicleType)
+
     const quote = await calculateQuoteForZone(
       zoneId,
       vehicleType as VehicleType,
@@ -42,6 +50,12 @@ export async function POST(request: Request) {
       zoneId: quote.zoneId,
     })
   } catch (error) {
+    if (error instanceof VehicleDisabledError) {
+      return NextResponse.json(
+        { error: error.message, code: error.code },
+        { status: 400 },
+      )
+    }
     if (error instanceof UncoveredDestinationError) {
       return NextResponse.json(
         {

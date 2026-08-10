@@ -7,13 +7,19 @@ import { fetcher } from "@/lib/api"
 import {
   autoSelectVehiclePatch,
   DEFAULT_VEHICLE_CAPACITIES,
+  getEnabledVehicleTypes,
   normalizeVehicleCapacities,
+  VEHICLE_TYPE_VALUES,
   type VehicleCapacityConfig,
 } from "@/lib/vehicles"
+import type { VehicleType } from "@/lib/types"
 import { useBookingStore } from "@/lib/store/booking-store"
 
 type BookingConfigCapacities = {
   vehicleCapacities?: VehicleCapacityConfig
+  enabledVehicleTypes?: VehicleType[]
+  sedanEnabled?: boolean
+  minivanEnabled?: boolean
 }
 
 /** Keeps vehicleType + quotedPrice in sync with party size and quotes. */
@@ -34,6 +40,21 @@ export function useAutoSelectVehicle(roundTripDiscountPercent = 0) {
       config?.vehicleCapacities?.minivan?.luggage,
     ],
   )
+  const enabledTypes = React.useMemo(() => {
+    if (config?.enabledVehicleTypes?.length) {
+      return config.enabledVehicleTypes.filter((type): type is VehicleType =>
+        (VEHICLE_TYPE_VALUES as readonly string[]).includes(type),
+      )
+    }
+    return getEnabledVehicleTypes({
+      sedanEnabled: config?.sedanEnabled,
+      minivanEnabled: config?.minivanEnabled,
+    })
+  }, [
+    config?.enabledVehicleTypes,
+    config?.sedanEnabled,
+    config?.minivanEnabled,
+  ])
 
   const quoteStatus = useBookingStore((s) => s.quoteStatus)
   const vehicleQuotes = useBookingStore((s) => s.vehicleQuotes)
@@ -52,6 +73,7 @@ export function useAutoSelectVehicle(roundTripDiscountPercent = 0) {
       isRoundTrip,
       roundTripDiscountPercent,
       capacities,
+      enabledTypes,
     )
 
     const state = useBookingStore.getState()
@@ -72,6 +94,7 @@ export function useAutoSelectVehicle(roundTripDiscountPercent = 0) {
     isRoundTrip,
     roundTripDiscountPercent,
     capacities,
+    enabledTypes,
     patch,
   ])
 }

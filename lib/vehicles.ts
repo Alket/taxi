@@ -106,9 +106,11 @@ export function vehicleCapacitiesFromSettingsRow(row: {
 
 export function buildVehicleCatalog(
   capacities: VehicleCapacityConfig = DEFAULT_VEHICLE_CAPACITIES,
+  enabledTypes: readonly VehicleType[] = VEHICLE_TYPE_VALUES,
 ): VehicleCatalogEntry[] {
   const caps = normalizeVehicleCapacities(capacities)
-  return VEHICLE_TYPE_VALUES.map((type) => ({
+  const allow = new Set(enabledTypes)
+  return VEHICLE_TYPE_VALUES.filter((type) => allow.has(type)).map((type) => ({
     type,
     label: VEHICLE_META[type].label,
     description: VEHICLE_META[type].description,
@@ -116,6 +118,49 @@ export function buildVehicleCatalog(
     luggage: caps[type].luggage,
     icon: VEHICLE_META[type].icon,
   }))
+}
+
+/** Settings shape needed to resolve which fleet types are bookable. */
+export type VehicleEnableFlags = {
+  sedanEnabled?: boolean | null
+  minivanEnabled?: boolean | null
+}
+
+export function isVehicleTypeEnabled(
+  settings: VehicleEnableFlags,
+  type: VehicleType,
+): boolean {
+  if (type === "sedan") return settings.sedanEnabled !== false
+  if (type === "minivan") return settings.minivanEnabled !== false
+  return false
+}
+
+export function getEnabledVehicleTypes(
+  settings: VehicleEnableFlags,
+): VehicleType[] {
+  return VEHICLE_TYPE_VALUES.filter((type) =>
+    isVehicleTypeEnabled(settings, type),
+  )
+}
+
+/** Thrown / returned when a client requests a fleet type that is toggled off. */
+export class VehicleDisabledError extends Error {
+  readonly code = "VEHICLE_DISABLED" as const
+  constructor(type: VehicleType) {
+    super(
+      `${VEHICLE_META[type]?.label ?? type} is not available for booking right now.`,
+    )
+    this.name = "VehicleDisabledError"
+  }
+}
+
+export function assertVehicleTypeEnabled(
+  settings: VehicleEnableFlags,
+  type: VehicleType,
+) {
+  if (!isVehicleTypeEnabled(settings, type)) {
+    throw new VehicleDisabledError(type)
+  }
 }
 
 /** Default catalog (hard-coded fallbacks). Prefer buildVehicleCatalog(settings). */
@@ -156,8 +201,9 @@ export function suggestVehicleType(
   luggage: number,
   quotes?: Partial<Record<VehicleType, { price: number }>>,
   capacities: VehicleCapacityConfig = DEFAULT_VEHICLE_CAPACITIES,
+  enabledTypes: readonly VehicleType[] = VEHICLE_TYPE_VALUES,
 ): VehicleType {
-  const catalog = buildVehicleCatalog(capacities)
+  const catalog = buildVehicleCatalog(capacities, enabledTypes)
   const fitting = catalog.filter(
     (entry) => entry.seats >= passengers && entry.luggage >= luggage,
   )
@@ -165,9 +211,11 @@ export function suggestVehicleType(
   const candidates =
     fitting.length > 0
       ? fitting
-      : [catalog.find((entry) => entry.type === "minivan")!].filter(Boolean)
+      : catalog.length > 0
+        ? [catalog[catalog.length - 1]!]
+        : []
 
-  if (quotes) {
+  if (quotes && candidates.length > 0) {
     let best: VehicleType | null = null
     let bestPrice = Number.POSITIVE_INFINITY
     for (const entry of candidates) {
@@ -180,7 +228,7 @@ export function suggestVehicleType(
     if (best) return best
   }
 
-  return candidates[0]?.type ?? "sedan"
+  return candidates[0]?.type ?? enabledTypes[0] ?? "sedan"
 }
 
 export function autoSelectVehiclePatch(
@@ -192,6 +240,7 @@ export function autoSelectVehiclePatch(
   isRoundTrip: boolean,
   roundTripDiscountPercent = 0,
   capacities: VehicleCapacityConfig = DEFAULT_VEHICLE_CAPACITIES,
+  enabledTypes: readonly VehicleType[] = VEHICLE_TYPE_VALUES,
 ): {
   vehicleType: VehicleType
   quotedPrice: number | null
@@ -202,6 +251,7 @@ export function autoSelectVehiclePatch(
     luggage,
     vehicleQuotes,
     capacities,
+    enabledTypes,
   )
   const quote = vehicleQuotes[vehicleType]
   return {
@@ -259,12 +309,14 @@ export function capacitySuggestion(
 
 export function partyStepperLimits(
   capacities: VehicleCapacityConfig = DEFAULT_VEHICLE_CAPACITIES,
+  enabledTypes: readonly VehicleType[] = VEHICLE_TYPE_VALUES,
 ): { maxPassengers: number; maxLuggage: number } {
   const caps = normalizeVehicleCapacities(capacities)
+  const types =
+    enabledTypes.length > 0 ? enabledTypes : (VEHICLE_TYPE_VALUES as readonly VehicleType[])
   return {
-    // Stepper ceiling = largest vehicle we offer (never below 1 / 0).
-    maxPassengers: Math.max(1, caps.sedan.seats, caps.minivan.seats),
-    maxLuggage: Math.max(0, caps.sedan.luggage, caps.minivan.luggage),
+    maxPassengers: Math.max(1, ...types.map((type) => caps[type].seats)),
+    maxLuggage: Math.max(0, ...types.map((type) => caps[type].luggage)),
   }
 }
 

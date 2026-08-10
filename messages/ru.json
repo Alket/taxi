@@ -332,5 +332,6 @@
   "book.noMatchingPlaces": "Нет подходящих мест",
   "book.meetAndGreetDesc": "Водитель ждёт в зоне прилёта с табличкой с именем",
   "book.roundTrip": "Туда и обратно",
-  "book.roundTripDesc": "Создаёт два связанных бронирования (туда + обратно)."
+  "book.roundTripDesc": "Создаёт два связанных бронирования (туда + обратно).",
+  "book.enterFlightNumber": "Введите номер рейса"
 }

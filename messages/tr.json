@@ -332,5 +332,6 @@
   "book.noMatchingPlaces": "Eşleşen yer yok",
   "book.meetAndGreetDesc": "Şoför varışta isim tabelasıyla bekler",
   "book.roundTrip": "Gidiş-dönüş",
-  "book.roundTripDesc": "İki bağlantılı rezervasyon oluşturur (gidiş + dönüş)."
+  "book.roundTripDesc": "İki bağlantılı rezervasyon oluşturur (gidiş + dönüş).",
+  "book.enterFlightNumber": "Uçuş numaranızı girin"
 }

@@ -190,6 +190,32 @@ export async function PATCH(request: Request) {
       )
     }
 
+    if (typeof body.sedanEnabled === "boolean") {
+      data.sedanEnabled = body.sedanEnabled
+    }
+    if (typeof body.minivanEnabled === "boolean") {
+      data.minivanEnabled = body.minivanEnabled
+    }
+
+    const nextSedanEnabled =
+      typeof data.sedanEnabled === "boolean"
+        ? data.sedanEnabled
+        : (current.sedanEnabled ?? true)
+    const nextMinivanEnabled =
+      typeof data.minivanEnabled === "boolean"
+        ? data.minivanEnabled
+        : (current.minivanEnabled ?? true)
+    if (!nextSedanEnabled && !nextMinivanEnabled) {
+      return NextResponse.json(
+        {
+          error:
+            "At least one vehicle type (Sedan or Minivan) must stay active.",
+          code: "VEHICLE_ALL_DISABLED",
+        },
+        { status: 400 },
+      )
+    }
+
     if (typeof body.stripeEnabled === "boolean") {
       data.stripeEnabled = body.stripeEnabled
     }

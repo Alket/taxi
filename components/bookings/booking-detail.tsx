@@ -35,6 +35,7 @@ import {
 } from "@/lib/format"
 import { getNextFlowStatus, isBookingLockedForCancel, isBookingLockedForEdit } from "@/lib/booking-status"
 import type { Booking, BookingDetail, BookingStatus, VehicleType } from "@/lib/types"
+import { getEnabledVehicleTypes } from "@/lib/vehicles"
 import { cn } from "@/lib/utils"
 import { useAdminSession } from "@/hooks/use-admin-session"
 import { DirectionIndicator } from "@/components/admin/direction-indicator"
@@ -859,6 +860,27 @@ function EditBookingSection({
 }) {
   const [open, setOpen] = React.useState(false)
   const [pending, setPending] = React.useState(false)
+  const { data: config } = useSWR<{
+    enabledVehicleTypes?: VehicleType[]
+    sedanEnabled?: boolean
+    minivanEnabled?: boolean
+  }>(open ? "/api/booking/config" : null, fetcher)
+  const vehicleTypeOptions = React.useMemo(() => {
+    const enabled = config?.enabledVehicleTypes?.length
+      ? config.enabledVehicleTypes
+      : getEnabledVehicleTypes({
+          sedanEnabled: config?.sedanEnabled,
+          minivanEnabled: config?.minivanEnabled,
+        })
+    const options = new Set<VehicleType>(enabled)
+    options.add(booking.vehicleType)
+    return VEHICLE_TYPES.filter((type) => options.has(type))
+  }, [
+    booking.vehicleType,
+    config?.enabledVehicleTypes,
+    config?.sedanEnabled,
+    config?.minivanEnabled,
+  ])
   const [form, setForm] = React.useState({
     pickupAddress: booking.pickupAddress,
     dropoffAddress: booking.dropoffAddress,
@@ -1025,7 +1047,7 @@ function EditBookingSection({
                       }))
                     }
                   >
-                    {VEHICLE_TYPES.map((type) => (
+                    {vehicleTypeOptions.map((type) => (
                       <option key={type} value={type}>
                         {VEHICLE_LABELS[type]}
                       </option>

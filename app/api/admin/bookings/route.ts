@@ -155,9 +155,17 @@ export async function POST(request: Request) {
       })),
     })
   } catch (error) {
+    const err = error as Error & { code?: string }
+    const status =
+      err.code === "VEHICLE_DISABLED" || err.name === "VehicleDisabledError"
+        ? 400
+        : 500
     return NextResponse.json(
-      { error: (error as Error).message || "Failed to create booking." },
-      { status: 500 },
+      {
+        error: err.message || "Failed to create booking.",
+        ...(status === 400 ? { code: "VEHICLE_DISABLED" } : {}),
+      },
+      { status },
     )
   }
 }

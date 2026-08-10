@@ -24,6 +24,7 @@ import { DIRECTION_LABELS, VEHICLE_LABELS } from "@/lib/format"
 import type { Direction, VehicleType } from "@/lib/types"
 import {
   DEFAULT_VEHICLE_CAPACITIES,
+  getEnabledVehicleTypes,
   partyStepperLimits,
 } from "@/lib/vehicles"
 import { cn } from "@/lib/utils"
@@ -58,6 +59,9 @@ type BookingConfig = {
   airports: AirportWithCoords[]
   zones: ServiceZonePlace[]
   vehicleCapacities?: import("@/lib/vehicles").VehicleCapacityConfig
+  enabledVehicleTypes?: VehicleType[]
+  sedanEnabled?: boolean
+  minivanEnabled?: boolean
 }
 
 type Endpoint = {
@@ -158,8 +162,22 @@ export function NewBookingSheet({
 
   const airports = config?.airports ?? []
   const zones = config?.zones ?? []
+  const enabledTypes = React.useMemo(() => {
+    if (config?.enabledVehicleTypes?.length) {
+      return config.enabledVehicleTypes
+    }
+    return getEnabledVehicleTypes({
+      sedanEnabled: config?.sedanEnabled,
+      minivanEnabled: config?.minivanEnabled,
+    })
+  }, [
+    config?.enabledVehicleTypes,
+    config?.sedanEnabled,
+    config?.minivanEnabled,
+  ])
   const { maxPassengers, maxLuggage } = partyStepperLimits(
     config?.vehicleCapacities ?? DEFAULT_VEHICLE_CAPACITIES,
+    enabledTypes,
   )
 
   const airportItems = React.useMemo(
@@ -187,12 +205,19 @@ export function NewBookingSheet({
 
   const vehicleOptions = React.useMemo(
     () =>
-      (Object.keys(VEHICLE_ITEMS) as VehicleType[]).map((value) => ({
+      enabledTypes.map((value) => ({
         value,
         label: VEHICLE_ITEMS[value],
       })),
-    [],
+    [enabledTypes],
   )
+
+  React.useEffect(() => {
+    if (enabledTypes.length === 0) return
+    if (!enabledTypes.includes(vehicleType)) {
+      setVehicleType(enabledTypes[0]!)
+    }
+  }, [enabledTypes, vehicleType])
 
   // Seed default airport once config loads.
   React.useEffect(() => {

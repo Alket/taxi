@@ -501,6 +501,8 @@ const settings: Settings = {
   sedanLuggage: 2,
   minivanSeats: 6,
   minivanLuggage: 6,
+  sedanEnabled: true,
+  minivanEnabled: true,
   stripeEnabled: true,
   paypalEnabled: true,
   pokEnabled: false,

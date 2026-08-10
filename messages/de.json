@@ -332,5 +332,6 @@
   "book.noMatchingPlaces": "Keine passenden Orte",
   "book.meetAndGreetDesc": "Der Fahrer wartet in der Ankunftshalle mit Namensschild",
   "book.roundTrip": "Hin- und Rückfahrt",
-  "book.roundTripDesc": "Erstellt zwei verknüpfte Buchungen (Hinfahrt + Rückfahrt)."
+  "book.roundTripDesc": "Erstellt zwei verknüpfte Buchungen (Hinfahrt + Rückfahrt).",
+  "book.enterFlightNumber": "Flugnummer eingeben"
 }

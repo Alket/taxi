@@ -42,6 +42,9 @@ type BookingConfig = {
   supportPhone: string
   airports: AirportWithCoords[]
   zones: ServiceZonePlace[]
+  enabledVehicleTypes?: VehicleType[]
+  sedanEnabled?: boolean
+  minivanEnabled?: boolean
 }
 
 type QuoteResponse = {
@@ -177,6 +180,29 @@ export function RouteStep() {
       return
     }
 
+    const typesToQuote =
+      config?.enabledVehicleTypes?.length
+        ? config.enabledVehicleTypes
+        : config?.sedanEnabled === false || config?.minivanEnabled === false
+          ? VEHICLE_TYPES.filter((type) =>
+              type === "sedan"
+                ? config.sedanEnabled !== false
+                : config.minivanEnabled !== false,
+            )
+          : VEHICLE_TYPES
+
+    if (typesToQuote.length === 0) {
+      patch({
+        vehicleQuotes: {},
+        quoteStatus: "uncovered",
+        quoteError: null,
+        quotedDistanceKm: null,
+        quotedPrice: null,
+        vehicleType: null,
+      })
+      return
+    }
+
     patch({
       quoteStatus: "loading",
       quoteError: null,
@@ -187,7 +213,7 @@ export function RouteStep() {
     })
 
     const settled = await Promise.allSettled(
-      VEHICLE_TYPES.map((vehicleType) =>
+      typesToQuote.map((vehicleType) =>
         fetchVehicleQuote({
           direction: dir,
           vehicleType,
@@ -200,7 +226,7 @@ export function RouteStep() {
     let networkError: string | null = null
     for (let i = 0; i < settled.length; i++) {
       const result = settled[i]!
-      const vehicleType = VEHICLE_TYPES[i]!
+      const vehicleType = typesToQuote[i]!
       if (result.status === "fulfilled") {
         vehicleQuotes[vehicleType] = {
           price: result.value.price,
@@ -210,7 +236,12 @@ export function RouteStep() {
         continue
       }
       const err = result.reason as Error & { code?: string; status?: number }
-      if (err.status === 404 || err.code === "OUTSIDE_SERVICE_AREA") {
+      if (
+        err.status === 404 ||
+        err.code === "OUTSIDE_SERVICE_AREA" ||
+        err.code === "VEHICLE_DISABLED" ||
+        err.status === 400
+      ) {
         continue
       }
       networkError = err.message || tr("book.couldNotLoadPrices")
@@ -247,7 +278,7 @@ export function RouteStep() {
       quotedPrice: null,
       vehicleType: null,
     })
-  }, [patch, tr])
+  }, [patch, tr, config?.enabledVehicleTypes, config?.sedanEnabled, config?.minivanEnabled])
 
   // Auto-quote once a destination zone is selected.
   React.useEffect(() => {

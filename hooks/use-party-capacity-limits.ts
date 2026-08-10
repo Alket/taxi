@@ -5,16 +5,22 @@ import useSWR from "swr"
 
 import { fetcher } from "@/lib/api"
 import { useBookingStore } from "@/lib/store/booking-store"
+import type { VehicleType } from "@/lib/types"
 import {
   clampPartyToLimits,
   DEFAULT_VEHICLE_CAPACITIES,
+  getEnabledVehicleTypes,
   normalizeVehicleCapacities,
   partyStepperLimits,
+  VEHICLE_TYPE_VALUES,
   type VehicleCapacityConfig,
 } from "@/lib/vehicles"
 
 type BookingConfigCapacities = {
   vehicleCapacities?: VehicleCapacityConfig
+  enabledVehicleTypes?: VehicleType[]
+  sedanEnabled?: boolean
+  minivanEnabled?: boolean
 }
 
 /**
@@ -43,9 +49,25 @@ export function usePartyCapacityLimits() {
     ],
   )
 
+  const enabledTypes = React.useMemo(() => {
+    if (config?.enabledVehicleTypes?.length) {
+      return config.enabledVehicleTypes.filter((type): type is VehicleType =>
+        (VEHICLE_TYPE_VALUES as readonly string[]).includes(type),
+      )
+    }
+    return getEnabledVehicleTypes({
+      sedanEnabled: config?.sedanEnabled,
+      minivanEnabled: config?.minivanEnabled,
+    })
+  }, [
+    config?.enabledVehicleTypes,
+    config?.sedanEnabled,
+    config?.minivanEnabled,
+  ])
+
   const limits = React.useMemo(
-    () => partyStepperLimits(capacities),
-    [capacities],
+    () => partyStepperLimits(capacities, enabledTypes),
+    [capacities, enabledTypes],
   )
 
   React.useEffect(() => {
@@ -58,5 +80,10 @@ export function usePartyCapacityLimits() {
     }
   }, [limits, passengerCount, luggageCount, patch])
 
-  return { ...limits, capacities, ready: Boolean(config) }
+  return {
+    ...limits,
+    capacities,
+    enabledTypes,
+    ready: Boolean(config),
+  }
 }

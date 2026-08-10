@@ -396,6 +396,9 @@ model Settings {
   sedanLuggage                Int              @default(2)
   minivanSeats                Int              @default(6)
   minivanLuggage              Int              @default(6)
+  /** Fleet availability — at least one must stay enabled (enforced in admin PATCH). */
+  sedanEnabled                Boolean          @default(true)
+  minivanEnabled              Boolean          @default(true)
   stripeEnabled               Boolean          @default(true)
   paypalEnabled               Boolean          @default(true)
   pokEnabled                  Boolean          @default(false)
