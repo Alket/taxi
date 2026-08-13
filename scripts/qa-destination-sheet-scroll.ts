@@ -31,22 +31,25 @@ function assertSource() {
     fail("S1", "expected useBodyScrollLock(... && !isIOS)")
   }
 
-  if (select.includes('touchAction: "pan-y"')) {
-    pass("S2 list uses touch-action pan-y")
+  if (select.includes('modal={isIOS ? "trap-focus" : true}')) {
+    pass("S2 iOS uses trap-focus (no Base UI scroll lock)")
   } else {
-    fail("S2", "missing touchAction pan-y on list")
+    fail("S2", 'expected modal={isIOS ? "trap-focus" : true}')
+  }
+
+  if (
+    select.includes("absolute inset-0 overflow-y-auto") &&
+    select.includes('touchAction: "pan-y"')
+  ) {
+    pass("S3 absolute scroll layer + pan-y")
+  } else {
+    fail("S3", "missing absolute overflow-y-auto list with pan-y")
   }
 
   if (select.includes("listRef") && select.includes("scrollTop = 1")) {
-    pass("S3 iOS scroll-layer wake on open")
+    pass("S4 iOS scroll-layer wake on open")
   } else {
-    fail("S3", "missing listRef scroll nudge")
-  }
-
-  if (select.includes("stopPropagation") && select.includes("onTouchMove")) {
-    pass("S4 list stops touchmove propagation")
-  } else {
-    fail("S4", "missing onTouchMove stopPropagation")
+    fail("S4", "missing listRef scroll nudge")
   }
 
   if (!/autoFocus/.test(select)) {
@@ -56,12 +59,21 @@ function assertSource() {
   }
 
   if (
+    select.includes('style={{ touchAction: "pan-y" }}') &&
+    !select.includes("touch-manipulation transition-colors")
+  ) {
+    pass("S6 list rows use pan-y (not touch-manipulation)")
+  } else {
+    fail("S6", "list rows still use touch-manipulation")
+  }
+
+  if (
     lock.includes("usedFixedStrategy = !isIOS()") &&
     !lock.includes('touchAction = "none"')
   ) {
-    pass("S6 body lock never sets touch-action:none")
+    pass("S7 body lock never sets touch-action:none")
   } else {
-    fail("S6", "body lock still uses touch-action:none or wrong iOS strategy")
+    fail("S7", "body lock still uses touch-action:none or wrong iOS strategy")
   }
 }
 

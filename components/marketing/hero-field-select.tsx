@@ -25,6 +25,17 @@ import {
 
 export type HeroFieldOption = { value: string; label: string }
 
+function isAppleTouchDevice() {
+  if (typeof navigator === "undefined") return false
+  if (/iP(hone|od|ad)/.test(navigator.userAgent)) return true
+  // iPadOS 13+ reports as MacIntel with touch.
+  return (
+    navigator.platform === "MacIntel" &&
+    typeof navigator.maxTouchPoints === "number" &&
+    navigator.maxTouchPoints > 1
+  )
+}
+
 /** Searchable place select matching the homepage booking form. */
 export function HeroFieldSelect({
   value,
@@ -68,14 +79,10 @@ export function HeroFieldSelect({
   const [listKey, setListKey] = React.useState(0)
   const searchInputRef = React.useRef<HTMLInputElement>(null)
   const listRef = React.useRef<HTMLDivElement>(null)
-  const isIOS = React.useMemo(
-    () =>
-      typeof navigator !== "undefined" &&
-      /iP(hone|od|ad)/.test(navigator.userAgent),
-    [],
-  )
-  // On iOS, skip our body lock for this sheet — Base UI modal + 100dvh sheet
-  // is enough, and body locks break list scrolling until the search field is tapped.
+  const isIOS = React.useMemo(() => isAppleTouchDevice(), [])
+  // Skip our lock on iOS. Also use modal="trap-focus" below so Base UI does
+  // not apply overflow:hidden — that lock is what kills nested scroll in Safari
+  // until the search field is tapped.
   useBodyScrollLock(Boolean(mobileSheet && isMobile && sheetOpen && !isIOS))
 
   const selected =
@@ -105,7 +112,7 @@ export function HeroFieldSelect({
         if (!el) return
         el.scrollTop = 1
         el.scrollTop = 0
-      }, 50)
+      }, 80)
       return () => window.clearTimeout(timer)
     }
 
@@ -153,12 +160,17 @@ export function HeroFieldSelect({
           <SearchIcon className="size-4 shrink-0 text-muted-foreground" />
         </button>
 
-        <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+        <Sheet
+          open={sheetOpen}
+          onOpenChange={setSheetOpen}
+          // trap-focus: keep focus inside, but skip Base UI document scroll lock
+          // (overflow:hidden on html/body breaks iOS nested overflow scrolling).
+          modal={isIOS ? "trap-focus" : true}
+        >
           <SheetContent
             side="bottom"
             showCloseButton
-            className="flex h-[100dvh] max-h-[100dvh] flex-col gap-0 rounded-none border-0 bg-brand-surface p-0 text-[color:var(--brand-ink)] data-[side=bottom]:h-[100dvh]"
-            style={isIOS ? { touchAction: "manipulation" } : undefined}
+            className="flex h-[100dvh] max-h-[100dvh] flex-col gap-0 overflow-hidden rounded-none border-0 bg-brand-surface p-0 text-[color:var(--brand-ink)] data-[side=bottom]:h-[100dvh]"
           >
             <SheetHeader className="shrink-0 border-b border-border px-4 py-3 pr-14">
               <SheetTitle className="text-base font-bold text-brand">
@@ -183,49 +195,51 @@ export function HeroFieldSelect({
               </div>
             </div>
 
-            <div
-              key={listKey}
-              ref={listRef}
-              className="min-h-0 flex-1 overflow-y-scroll overscroll-y-contain px-2 py-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] [-webkit-overflow-scrolling:touch]"
-              style={{ touchAction: "pan-y" }}
-              onTouchMove={(event) => {
-                // Keep iOS from treating the gesture as page scroll / canceling it.
-                event.stopPropagation()
-              }}
-            >
-              {filtered.length === 0 ? (
-                <div className="flex flex-col items-center gap-1.5 px-4 py-10 text-sm text-muted-foreground">
-                  <SearchIcon className="size-5 opacity-50" />
-                  {tr("book.noMatchingPlaces")}
-                </div>
-              ) : (
-                <ul className="flex flex-col gap-0.5">
-                  {filtered.map((item) => {
-                    const isSelected = item.value === value
-                    return (
-                      <li key={item.value}>
-                        <button
-                          type="button"
-                          onClick={() => pick(item.value)}
-                          className={cn(
-                            "flex w-full items-center gap-3 rounded-xl px-3 py-3.5 text-left touch-manipulation transition-colors",
-                            isSelected
-                              ? "bg-[color-mix(in_srgb,var(--brand-accent)_14%,white)]"
-                              : "hover:bg-muted active:bg-muted",
-                          )}
-                        >
-                          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--brand-accent)_12%,white)] text-brand-accent">
-                            <MapPinIcon className="size-4" />
-                          </span>
-                          <span className="min-w-0 flex-1 text-base font-semibold whitespace-normal text-[color:var(--brand-ink)]">
-                            {item.label}
-                          </span>
-                        </button>
-                      </li>
-                    )
-                  })}
-                </ul>
-              )}
+            {/* Absolute fill gives iOS a hard height; flex-1 alone often leaves a dead scroll layer. */}
+            <div className="relative min-h-0 flex-1">
+              <div
+                key={listKey}
+                ref={listRef}
+                className="absolute inset-0 overflow-y-auto overscroll-y-contain px-2 py-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] [-webkit-overflow-scrolling:touch]"
+                style={{ touchAction: "pan-y", WebkitOverflowScrolling: "touch" }}
+              >
+                {filtered.length === 0 ? (
+                  <div className="flex flex-col items-center gap-1.5 px-4 py-10 text-sm text-muted-foreground">
+                    <SearchIcon className="size-5 opacity-50" />
+                    {tr("book.noMatchingPlaces")}
+                  </div>
+                ) : (
+                  <ul className="flex flex-col gap-0.5">
+                    {filtered.map((item) => {
+                      const isSelected = item.value === value
+                      return (
+                        <li key={item.value}>
+                          <button
+                            type="button"
+                            onClick={() => pick(item.value)}
+                            // pan-y (not touch-manipulation) so vertical drags
+                            // scroll the list when the gesture starts on a row.
+                            className={cn(
+                              "flex w-full items-center gap-3 rounded-xl px-3 py-3.5 text-left transition-colors",
+                              isSelected
+                                ? "bg-[color-mix(in_srgb,var(--brand-accent)_14%,white)]"
+                                : "hover:bg-muted active:bg-muted",
+                            )}
+                            style={{ touchAction: "pan-y" }}
+                          >
+                            <span className="pointer-events-none flex size-10 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--brand-accent)_12%,white)] text-brand-accent">
+                              <MapPinIcon className="size-4" />
+                            </span>
+                            <span className="pointer-events-none min-w-0 flex-1 text-base font-semibold whitespace-normal text-[color:var(--brand-ink)]">
+                              {item.label}
+                            </span>
+                          </button>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+              </div>
             </div>
           </SheetContent>
         </Sheet>
