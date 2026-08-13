@@ -58,7 +58,6 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/web-push": "^3.6.4",
-    "playwright": "^1.49.1",
     "postcss": "^8.5",
     "prisma": "^6.16.0",
     "tailwindcss": "^4.2.0",
