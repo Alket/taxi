@@ -100,6 +100,13 @@ async function main() {
     "compare.broker.items",
     "destinations.heading",
     "peace.heading",
+    "peace.item1",
+    "peace.item1.text",
+    "peace.item2.text",
+    "peace.item3.text",
+    "peace.item4.text",
+    "peace.item5.text",
+    "peace.item6.text",
     "testimonials.heading",
   ]
   const missingHome = requiredHomeKeys.filter((k) => !homeEnKeys.includes(k))
