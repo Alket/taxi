@@ -42,7 +42,7 @@ import { localePath } from "@/lib/i18n/locales"
 import { useLocale, useT } from "@/lib/i18n/use-locale"
 import { cn } from "@/lib/utils"
 import { useIsMobile } from "@/hooks/use-mobile"
-import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock"
+import { useBodyScrollLock, forceUnlockDocumentScroll } from "@/hooks/use-body-scroll-lock"
 import {
   matchZoneId,
   type ServiceZonePlace,
@@ -509,6 +509,9 @@ export function HeroBookingCard() {
       setStep(1)
       // One branded cover through the handoff; skip /book layout preloader.
       markMarketingPreloaderHandoff()
+      // Clear sheet/Base UI body locks before route change — otherwise /book
+      // can inherit position:fixed / overflow:hidden and refuse to scroll.
+      forceUnlockDocumentScroll({ scrollTop: 0 })
       router.push(localePath("/book", locale))
       // Leave continuing on so the cover stays until this tree unmounts.
     } catch {
@@ -535,9 +538,10 @@ export function HeroBookingCard() {
   const fromRowAnchor = useComboboxAnchor()
   const toRowAnchor = useComboboxAnchor()
   const isMobile = useIsMobile()
-  useBodyScrollLock(
-    Boolean((isMobile && passengersOpen) || showReloader),
-  )
+  // Only lock while the passengers sheet is open — do NOT lock for the
+  // continue/reloader cover. That cover is position:fixed itself, and locking
+  // through navigation left body scroll broken on /book (especially iOS).
+  useBodyScrollLock(Boolean(isMobile && passengersOpen))
 
   async function runSheetTransition(openNext: () => void) {
     if (!isMobile) {

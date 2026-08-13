@@ -24,6 +24,7 @@ import {
   enableBookingLeaveGuard,
   isBookingLeaveGuardBypassed,
 } from "@/hooks/use-booking-leave-guard"
+import { forceUnlockDocumentScroll } from "@/hooks/use-body-scroll-lock"
 import { Button } from "@/components/ui/button"
 import {
   Sheet,
@@ -172,8 +173,19 @@ export function BookingShell({
   // Step URL sync uses scroll: false — bring the page back to the top on /book.
   React.useEffect(() => {
     if (!hydrated || isHero) return
+    forceUnlockDocumentScroll({ scrollTop: 0 })
     window.scrollTo({ top: 0, left: 0, behavior: "auto" })
   }, [currentStep, hydrated, isHero])
+
+  // Safety net: homepage sheets can leave body locked after client navigation.
+  React.useEffect(() => {
+    if (!hydrated || isHero) return
+    forceUnlockDocumentScroll({ scrollTop: 0 })
+    const t = window.setTimeout(() => {
+      forceUnlockDocumentScroll({ scrollTop: 0 })
+    }, 50)
+    return () => window.clearTimeout(t)
+  }, [hydrated, isHero])
 
   const stepTitle =
     currentStep === 1 && startedFromHero

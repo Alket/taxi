@@ -47,13 +47,13 @@ function assertSource() {
   }
 
   if (
-    iosHook.includes('body.style.position = "fixed"') &&
-    iosHook.includes("event.preventDefault()") &&
-    iosHook.includes("el.scrollTop = next")
+    iosHook.includes("useBodyScrollLock(active, \"fixed\")") &&
+    iosHook.includes("startMomentum") &&
+    iosHook.includes("requestAnimationFrame")
   ) {
-    pass("S4 iOS hook freezes body + drives list scrollTop")
+    pass("S4 iOS hook uses shared fixed lock + momentum")
   } else {
-    fail("S4", "ios hook missing body freeze or manual scroll")
+    fail("S4", "ios hook missing shared fixed lock or momentum")
   }
 
   if (
