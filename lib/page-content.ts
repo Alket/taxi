@@ -215,17 +215,53 @@ const HOME_DEFAULTS: PageDefinition["defaults"] = {
       heading: "Why Book with Albania Transfers",
       level: 2,
     }),
-    section("heading", "peace.item1", { heading: "Meet-and-Greet", level: 3 }),
-    section("heading", "peace.item2", { heading: "Flight Tracking", level: 3 }),
-    section("heading", "peace.item3", { heading: "Easy Booking", level: 3 }),
-    section("heading", "peace.item4", {
-      heading: "Reliable Chauffeurs",
+    section("heading", "peace.item1", {
+      heading: "Pay Cash on Arrival",
       level: 3,
+      icon: "dollar",
     }),
-    section("heading", "peace.item5", { heading: "Fixed Prices", level: 3 }),
-    section("heading", "peace.item6", {
-      heading: "Clear Cancellation Terms",
+    section("text", "peace.item1.text", {
+      body: "Zero upfront deposit. Pay in Euros (€) or Lek (ALL).",
+    }),
+    section("heading", "peace.item2", {
+      heading: "100% Vetted Drivers",
       level: 3,
+      icon: "shield",
+    }),
+    section("text", "peace.item2.text", {
+      body: "Licensed, background-checked professionals.",
+    }),
+    section("heading", "peace.item3", {
+      heading: "Fixed Rates",
+      level: 3,
+      icon: "wallet",
+    }),
+    section("text", "peace.item3.text", {
+      body: "No meters, surge, or cash exchange markup.",
+    }),
+    section("heading", "peace.item4", {
+      heading: "Live Flight Tracking",
+      level: 3,
+      icon: "plane",
+    }),
+    section("text", "peace.item4.text", {
+      body: "Free pickup updates for delayed or early flights.",
+    }),
+    section("heading", "peace.item5", {
+      heading: "Terminal Meet-&-Greet",
+      level: 3,
+      icon: "user",
+    }),
+    section("text", "peace.item5.text", {
+      body: "Driver holds name sign inside arrivals hall.",
+    }),
+    section("heading", "peace.item6", {
+      heading: "Know Your Driver",
+      level: 3,
+      icon: "map",
+    }),
+    section("text", "peace.item6.text", {
+      body: "See car model, name, & plate number.",
     }),
     section("heading", "safety.heading", {
       heading: "Safety is our #1 priority",

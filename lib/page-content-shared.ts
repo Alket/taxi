@@ -279,7 +279,7 @@ export type HomeMarketingCopy = {
   peace: {
     eyebrow: string
     heading: string
-    items: string[]
+    items: { title: string; description: string; icon: string }[]
   }
   safety: {
     heading: string
@@ -484,9 +484,67 @@ export function homeCopyFromSections(sections: PageSection[]): HomeMarketingCopy
       heading:
         sectionHeading(sections, "peace.heading") ||
         "Why Book with Albania Transfers",
-      items: [1, 2, 3, 4, 5, 6]
-        .map((n) => sectionHeading(sections, `peace.item${n}`))
-        .filter(Boolean),
+      items: (() => {
+        const defaults = [
+          {
+            title: "Pay Cash on Arrival",
+            description:
+              "Zero upfront deposit. Pay in Euros (€) or Lek (ALL).",
+            icon: "dollar",
+          },
+          {
+            title: "100% Vetted Drivers",
+            description: "Licensed, background-checked professionals.",
+            icon: "shield",
+          },
+          {
+            title: "Fixed Rates",
+            description: "No meters, surge, or cash exchange markup.",
+            icon: "wallet",
+          },
+          {
+            title: "Live Flight Tracking",
+            description:
+              "Free pickup updates for delayed or early flights.",
+            icon: "plane",
+          },
+          {
+            title: "Terminal Meet-&-Greet",
+            description: "Driver holds name sign inside arrivals hall.",
+            icon: "user",
+          },
+          {
+            title: "Know Your Driver",
+            description: "See car model, name, & plate number.",
+            icon: "map",
+          },
+        ]
+        const legacyTitles = new Set([
+          "Meet-and-Greet",
+          "Flight Tracking",
+          "Easy Booking",
+          "Reliable Chauffeurs",
+          "Fixed Prices",
+          "Clear Cancellation Terms",
+        ])
+        return [1, 2, 3, 4, 5, 6]
+          .map((n) => {
+            const storedTitle = sectionHeading(sections, `peace.item${n}`)
+            const description = sectionValue(sections, `peace.item${n}.text`)
+            const icon = sectionValue(sections, `peace.item${n}`, "icon")
+            const fallback = defaults[n - 1]!
+            const title =
+              !storedTitle || legacyTitles.has(storedTitle)
+                ? fallback.title
+                : storedTitle
+            return {
+              title,
+              description: description || fallback.description,
+              icon: icon || fallback.icon,
+            }
+          })
+          .filter((item) => item.title || item.description)
+      })(),
     },
     safety: {
       heading:

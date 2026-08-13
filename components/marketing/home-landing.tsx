@@ -114,7 +114,7 @@ export function HomeLanding({
             />
             <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(8,18,22,0.55)_0%,rgba(8,18,22,0.35)_45%,rgba(8,18,22,0.55)_100%)] md:bg-[linear-gradient(105deg,rgba(8,18,22,0.78)_0%,rgba(8,18,22,0.55)_42%,rgba(8,18,22,0.28)_100%)]" />
 
-            <div className="absolute inset-0 z-10 flex flex-col justify-center px-5 pt-32 pb-20 md:hidden">
+            <div className="absolute inset-0 z-10 flex flex-col justify-center px-5 pt-[calc(80px+2.5rem)] pb-16 md:hidden">
               <div className="home-fade-up text-white">
                 <p
                   aria-hidden

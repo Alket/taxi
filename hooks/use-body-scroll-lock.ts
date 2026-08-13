@@ -10,7 +10,14 @@ let savedBodyTop = ""
 let savedBodyLeft = ""
 let savedBodyRight = ""
 let savedBodyWidth = ""
+let savedBodyTouchAction = ""
 let savedHtmlOverflow = ""
+let usedFixedStrategy = false
+
+function isIOS() {
+  if (typeof navigator === "undefined") return false
+  return /iP(hone|od|ad)/.test(navigator.userAgent)
+}
 
 function applyLock() {
   if (typeof document === "undefined") return
@@ -22,15 +29,25 @@ function applyLock() {
     savedBodyLeft = document.body.style.left
     savedBodyRight = document.body.style.right
     savedBodyWidth = document.body.style.width
+    savedBodyTouchAction = document.body.style.touchAction
     savedHtmlOverflow = document.documentElement.style.overflow
 
     document.documentElement.style.overflow = "hidden"
     document.body.style.overflow = "hidden"
-    document.body.style.position = "fixed"
-    document.body.style.top = `-${savedScrollY}px`
-    document.body.style.left = "0"
-    document.body.style.right = "0"
-    document.body.style.width = "100%"
+
+    // iOS: avoid position:fixed — it often leaves nested sheet lists
+    // unable to scroll after close/reopen. Overflow + touch-action is enough
+    // when the modal itself is full-viewport.
+    usedFixedStrategy = !isIOS()
+    if (usedFixedStrategy) {
+      document.body.style.position = "fixed"
+      document.body.style.top = `-${savedScrollY}px`
+      document.body.style.left = "0"
+      document.body.style.right = "0"
+      document.body.style.width = "100%"
+    } else {
+      document.body.style.touchAction = "none"
+    }
   }
   lockCount += 1
 }
@@ -42,12 +59,18 @@ function releaseLock() {
 
   document.documentElement.style.overflow = savedHtmlOverflow
   document.body.style.overflow = savedBodyOverflow
-  document.body.style.position = savedBodyPosition
-  document.body.style.top = savedBodyTop
-  document.body.style.left = savedBodyLeft
-  document.body.style.right = savedBodyRight
-  document.body.style.width = savedBodyWidth
-  window.scrollTo(0, savedScrollY)
+  document.body.style.touchAction = savedBodyTouchAction
+
+  if (usedFixedStrategy) {
+    document.body.style.position = savedBodyPosition
+    document.body.style.top = savedBodyTop
+    document.body.style.left = savedBodyLeft
+    document.body.style.right = savedBodyRight
+    document.body.style.width = savedBodyWidth
+    window.scrollTo(0, savedScrollY)
+  }
+
+  usedFixedStrategy = false
 }
 
 /**

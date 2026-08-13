@@ -65,6 +65,8 @@ export function HeroFieldSelect({
     [isControlled, onOpenChange],
   )
   const [query, setQuery] = React.useState("")
+  const [listKey, setListKey] = React.useState(0)
+  const searchInputRef = React.useRef<HTMLInputElement>(null)
   useBodyScrollLock(Boolean(mobileSheet && isMobile && sheetOpen))
 
   const selected =
@@ -79,7 +81,24 @@ export function HeroFieldSelect({
   }, [options, query])
 
   React.useEffect(() => {
-    if (!sheetOpen) setQuery("")
+    if (!sheetOpen) {
+      setQuery("")
+      return
+    }
+    // Remount the scroll region each open — iOS Safari often keeps a dead
+    // scroll layer after close/reopen of a full-screen sheet.
+    setListKey((n) => n + 1)
+
+    // Avoid autoFocus on iOS (keyboard/viewport glitch breaks list scroll).
+    const isIOS =
+      typeof navigator !== "undefined" &&
+      /iP(hone|od|ad)/.test(navigator.userAgent)
+    if (isIOS) return
+
+    const timer = window.setTimeout(() => {
+      searchInputRef.current?.focus()
+    }, 280)
+    return () => window.clearTimeout(timer)
   }, [sheetOpen])
 
   function pick(next: string) {
@@ -136,16 +155,23 @@ export function HeroFieldSelect({
               <div className="relative">
                 <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
+                  ref={searchInputRef}
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder={tr("book.typeToSearch")}
-                  autoFocus
+                  enterKeyHint="search"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck={false}
                   className="h-11 rounded-xl border-border bg-muted/40 pl-9 text-base font-semibold"
                 />
               </div>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            <div
+              key={listKey}
+              className="min-h-0 flex-1 overflow-y-scroll overscroll-y-contain px-2 py-2 touch-pan-y pb-[max(0.75rem,env(safe-area-inset-bottom))] [-webkit-overflow-scrolling:touch]"
+            >
               {filtered.length === 0 ? (
                 <div className="flex flex-col items-center gap-1.5 px-4 py-10 text-sm text-muted-foreground">
                   <SearchIcon className="size-5 opacity-50" />

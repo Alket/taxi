@@ -1,84 +1,71 @@
-import {
-  CircleDollarSignIcon,
-  ClockIcon,
-  MousePointerClickIcon,
-  PlaneIcon,
-  ShieldCheckIcon,
-  UserRoundIcon,
-  type LucideIcon,
-} from "lucide-react"
-
+import { MarketingIcon } from "@/components/marketing/marketing-icon"
 import {
   MarketingContainer,
   MARKETING_SECTION_TITLE,
 } from "@/components/marketing/marketing-container"
+import {
+  CUSTOM_ICON_CLASSNAME,
+  getMarketingIcon,
+  isCustomMarketingIcon,
+} from "@/lib/marketing-icons"
 import { cn } from "@/lib/utils"
 
 type PeaceCopy = {
   eyebrow: string
   heading: string
-  items: string[]
+  items: { title: string; description: string; icon: string }[]
 }
 
-const ICONS: { icon: LucideIcon; iconClassName: string }[] = [
-  {
-    icon: UserRoundIcon,
-    iconClassName: "bg-accent text-primary",
-  },
-  {
-    icon: PlaneIcon,
-    iconClassName: "bg-[oklch(0.94_0.04_230)] text-[oklch(0.45_0.12_240)]",
-  },
-  {
-    icon: MousePointerClickIcon,
-    iconClassName: "bg-[oklch(0.96_0.06_70)] text-[oklch(0.55_0.14_70)]",
-  },
-  {
-    icon: ShieldCheckIcon,
-    iconClassName: "bg-[oklch(0.95_0.05_300)] text-[oklch(0.48_0.14_300)]",
-  },
-  {
-    icon: CircleDollarSignIcon,
-    iconClassName: "bg-accent text-primary",
-  },
-  {
-    icon: ClockIcon,
-    iconClassName: "bg-[oklch(0.94_0.04_250)] text-[oklch(0.45_0.14_250)]",
-  },
-]
-
 export function PeaceOfMindSection({ copy }: { copy: PeaceCopy }) {
+  if (!copy.heading && copy.items.length === 0) return null
+
   return (
     <section className="overflow-hidden border-b border-border bg-brand-page py-10 font-brand md:py-20">
       <MarketingContainer>
         <div className="mb-6 max-w-2xl md:mb-12">
-          <span className="mb-2 block text-xs font-extrabold tracking-widest text-brand-accent uppercase md:mb-3">
-            {copy.eyebrow}
-          </span>
-          <h2 className={MARKETING_SECTION_TITLE}>{copy.heading}</h2>
+          {copy.eyebrow ? (
+            <span className="mb-2 block text-xs font-semibold tracking-widest text-brand-accent uppercase md:mb-3">
+              {copy.eyebrow}
+            </span>
+          ) : null}
+          {copy.heading ? (
+            <h2 className={MARKETING_SECTION_TITLE}>{copy.heading}</h2>
+          ) : null}
         </div>
 
         <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 md:gap-6 lg:grid-cols-3">
-          {copy.items.map((title, index) => {
-            const { icon: Icon, iconClassName } = ICONS[index % ICONS.length]!
+          {copy.items.map((item, index) => {
+            const iconDef = getMarketingIcon(item.icon, index)
+            const iconBoxClass = isCustomMarketingIcon(item.icon)
+              ? CUSTOM_ICON_CLASSNAME
+              : iconDef.iconClassName
+
             return (
               <div
-                key={`${title}-${index}`}
-                className="group flex items-center justify-between gap-3 rounded-xl border border-border bg-brand-surface px-4 py-3.5 shadow-sm transition-all duration-300 hover:shadow-md md:rounded-2xl md:p-8"
+                key={`${item.title}-${index}`}
+                className="group flex items-start justify-between gap-3 rounded-xl border border-border bg-brand-surface px-4 py-3.5 shadow-sm transition-all duration-300 hover:shadow-md md:rounded-2xl md:p-8"
               >
-                <h3 className="text-[0.95rem] font-extrabold leading-snug text-brand transition-colors group-hover:text-brand-accent md:text-xl">
-                  {title}
-                </h3>
+                <div className="min-w-0">
+                  <h3 className="text-[0.95rem] font-medium leading-snug text-brand transition-colors group-hover:text-brand-accent md:text-xl">
+                    {item.title}
+                  </h3>
+                  {item.description ? (
+                    <p className="mt-1.5 text-sm font-normal leading-relaxed text-muted-foreground md:mt-2 md:text-base">
+                      {item.description}
+                    </p>
+                  ) : null}
+                </div>
                 <div
                   className={cn(
                     "flex size-10 shrink-0 items-center justify-center rounded-lg md:size-12 md:rounded-xl",
-                    iconClassName,
+                    iconBoxClass,
                   )}
                 >
-                  <Icon
-                    className="size-5 md:size-6"
-                    strokeWidth={1.8}
-                    aria-hidden
+                  <MarketingIcon
+                    icon={item.icon}
+                    fallbackIndex={index}
+                    className="size-5 text-current md:size-6"
+                    imageClassName="size-5 md:size-6"
                   />
                 </div>
               </div>
