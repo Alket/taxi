@@ -5,6 +5,7 @@ import { MapPinIcon, SearchIcon } from "lucide-react"
 
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock"
+import { useIosSheetScroll } from "@/hooks/use-ios-sheet-scroll"
 import { useT } from "@/lib/i18n/use-locale"
 import { cn } from "@/lib/utils"
 import {
@@ -80,10 +81,10 @@ export function HeroFieldSelect({
   const searchInputRef = React.useRef<HTMLInputElement>(null)
   const listRef = React.useRef<HTMLDivElement>(null)
   const isIOS = React.useMemo(() => isAppleTouchDevice(), [])
-  // Skip our lock on iOS. Also use modal="trap-focus" below so Base UI does
-  // not apply overflow:hidden — that lock is what kills nested scroll in Safari
-  // until the search field is tapped.
-  useBodyScrollLock(Boolean(mobileSheet && isMobile && sheetOpen && !isIOS))
+  const sheetActive = Boolean(mobileSheet && isMobile && sheetOpen)
+  // Android / desktop: normal body lock. iOS: dedicated touch scroll + body freeze.
+  useBodyScrollLock(sheetActive && !isIOS)
+  useIosSheetScroll(sheetActive, listRef)
 
   const selected =
     value != null
@@ -105,16 +106,7 @@ export function HeroFieldSelect({
     // scroll layer after close/reopen of a full-screen sheet.
     setListKey((n) => n + 1)
 
-    if (isIOS) {
-      // Wake the scroll layer without focusing the keyboard.
-      const timer = window.setTimeout(() => {
-        const el = listRef.current
-        if (!el) return
-        el.scrollTop = 1
-        el.scrollTop = 0
-      }, 80)
-      return () => window.clearTimeout(timer)
-    }
+    if (isIOS) return
 
     const timer = window.setTimeout(() => {
       searchInputRef.current?.focus()
@@ -163,8 +155,8 @@ export function HeroFieldSelect({
         <Sheet
           open={sheetOpen}
           onOpenChange={setSheetOpen}
-          // trap-focus: keep focus inside, but skip Base UI document scroll lock
-          // (overflow:hidden on html/body breaks iOS nested overflow scrolling).
+          // iOS: skip Base UI overflow:hidden scroll lock (breaks nested scroll).
+          // Body freeze + list scrolling are handled by useIosSheetScroll.
           modal={isIOS ? "trap-focus" : true}
         >
           <SheetContent
@@ -195,13 +187,20 @@ export function HeroFieldSelect({
               </div>
             </div>
 
-            {/* Absolute fill gives iOS a hard height; flex-1 alone often leaves a dead scroll layer. */}
             <div className="relative min-h-0 flex-1">
               <div
                 key={listKey}
                 ref={listRef}
-                className="absolute inset-0 overflow-y-auto overscroll-y-contain px-2 py-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] [-webkit-overflow-scrolling:touch]"
-                style={{ touchAction: "pan-y", WebkitOverflowScrolling: "touch" }}
+                data-ios-sheet-scroll=""
+                className={cn(
+                  "absolute inset-0 overflow-y-auto px-2 py-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]",
+                  isIOS ? "overscroll-y-none" : "overscroll-y-contain [-webkit-overflow-scrolling:touch]",
+                )}
+                style={
+                  isIOS
+                    ? { touchAction: "none", WebkitOverflowScrolling: "auto" }
+                    : { touchAction: "pan-y" }
+                }
               >
                 {filtered.length === 0 ? (
                   <div className="flex flex-col items-center gap-1.5 px-4 py-10 text-sm text-muted-foreground">
@@ -217,15 +216,14 @@ export function HeroFieldSelect({
                           <button
                             type="button"
                             onClick={() => pick(item.value)}
-                            // pan-y (not touch-manipulation) so vertical drags
-                            // scroll the list when the gesture starts on a row.
                             className={cn(
                               "flex w-full items-center gap-3 rounded-xl px-3 py-3.5 text-left transition-colors",
                               isSelected
                                 ? "bg-[color-mix(in_srgb,var(--brand-accent)_14%,white)]"
                                 : "hover:bg-muted active:bg-muted",
+                              !isIOS && "touch-manipulation",
                             )}
-                            style={{ touchAction: "pan-y" }}
+                            style={isIOS ? { touchAction: "none" } : undefined}
                           >
                             <span className="pointer-events-none flex size-10 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--brand-accent)_12%,white)] text-brand-accent">
                               <MapPinIcon className="size-4" />

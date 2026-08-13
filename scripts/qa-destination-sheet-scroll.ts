@@ -23,12 +23,15 @@ function assertSource() {
     resolve("components/marketing/hero-field-select.tsx"),
     "utf8",
   )
-  const lock = readFileSync(resolve("hooks/use-body-scroll-lock.ts"), "utf8")
+  const iosHook = readFileSync(
+    resolve("hooks/use-ios-sheet-scroll.ts"),
+    "utf8",
+  )
 
-  if (select.includes("sheetOpen && !isIOS")) {
-    pass("S1 hero sheet skips body lock on iOS")
+  if (select.includes("useIosSheetScroll(sheetActive, listRef)")) {
+    pass("S1 uses iOS sheet scroll hook")
   } else {
-    fail("S1", "expected useBodyScrollLock(... && !isIOS)")
+    fail("S1", "expected useIosSheetScroll(sheetActive, listRef)")
   }
 
   if (select.includes('modal={isIOS ? "trap-focus" : true}')) {
@@ -37,43 +40,41 @@ function assertSource() {
     fail("S2", 'expected modal={isIOS ? "trap-focus" : true}')
   }
 
-  if (
-    select.includes("absolute inset-0 overflow-y-auto") &&
-    select.includes('touchAction: "pan-y"')
-  ) {
-    pass("S3 absolute scroll layer + pan-y")
+  if (select.includes('data-ios-sheet-scroll=""')) {
+    pass("S3 list marked data-ios-sheet-scroll")
   } else {
-    fail("S3", "missing absolute overflow-y-auto list with pan-y")
+    fail("S3", "missing data-ios-sheet-scroll on list")
   }
 
-  if (select.includes("listRef") && select.includes("scrollTop = 1")) {
-    pass("S4 iOS scroll-layer wake on open")
+  if (
+    iosHook.includes('body.style.position = "fixed"') &&
+    iosHook.includes("event.preventDefault()") &&
+    iosHook.includes("el.scrollTop = next")
+  ) {
+    pass("S4 iOS hook freezes body + drives list scrollTop")
   } else {
-    fail("S4", "missing listRef scroll nudge")
+    fail("S4", "ios hook missing body freeze or manual scroll")
+  }
+
+  if (
+    iosHook.includes('addEventListener("touchmove"') &&
+    iosHook.includes("passive: false")
+  ) {
+    pass("S5 non-passive touchmove for preventDefault")
+  } else {
+    fail("S5", "touchmove must be non-passive")
   }
 
   if (!/autoFocus/.test(select)) {
-    pass("S5 no autoFocus on destination search")
+    pass("S6 no autoFocus on destination search")
   } else {
-    fail("S5", "autoFocus still present (breaks iOS scroll)")
+    fail("S6", "autoFocus still present")
   }
 
-  if (
-    select.includes('style={{ touchAction: "pan-y" }}') &&
-    !select.includes("touch-manipulation transition-colors")
-  ) {
-    pass("S6 list rows use pan-y (not touch-manipulation)")
+  if (select.includes("useBodyScrollLock(sheetActive && !isIOS)")) {
+    pass("S7 non-iOS still uses body scroll lock")
   } else {
-    fail("S6", "list rows still use touch-manipulation")
-  }
-
-  if (
-    lock.includes("usedFixedStrategy = !isIOS()") &&
-    !lock.includes('touchAction = "none"')
-  ) {
-    pass("S7 body lock never sets touch-action:none")
-  } else {
-    fail("S7", "body lock still uses touch-action:none or wrong iOS strategy")
+    fail("S7", "expected useBodyScrollLock(sheetActive && !isIOS)")
   }
 }
 
