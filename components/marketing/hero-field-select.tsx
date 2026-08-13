@@ -67,7 +67,16 @@ export function HeroFieldSelect({
   const [query, setQuery] = React.useState("")
   const [listKey, setListKey] = React.useState(0)
   const searchInputRef = React.useRef<HTMLInputElement>(null)
-  useBodyScrollLock(Boolean(mobileSheet && isMobile && sheetOpen))
+  const listRef = React.useRef<HTMLDivElement>(null)
+  const isIOS = React.useMemo(
+    () =>
+      typeof navigator !== "undefined" &&
+      /iP(hone|od|ad)/.test(navigator.userAgent),
+    [],
+  )
+  // On iOS, skip our body lock for this sheet — Base UI modal + 100dvh sheet
+  // is enough, and body locks break list scrolling until the search field is tapped.
+  useBodyScrollLock(Boolean(mobileSheet && isMobile && sheetOpen && !isIOS))
 
   const selected =
     value != null
@@ -89,17 +98,22 @@ export function HeroFieldSelect({
     // scroll layer after close/reopen of a full-screen sheet.
     setListKey((n) => n + 1)
 
-    // Avoid autoFocus on iOS (keyboard/viewport glitch breaks list scroll).
-    const isIOS =
-      typeof navigator !== "undefined" &&
-      /iP(hone|od|ad)/.test(navigator.userAgent)
-    if (isIOS) return
+    if (isIOS) {
+      // Wake the scroll layer without focusing the keyboard.
+      const timer = window.setTimeout(() => {
+        const el = listRef.current
+        if (!el) return
+        el.scrollTop = 1
+        el.scrollTop = 0
+      }, 50)
+      return () => window.clearTimeout(timer)
+    }
 
     const timer = window.setTimeout(() => {
       searchInputRef.current?.focus()
     }, 280)
     return () => window.clearTimeout(timer)
-  }, [sheetOpen])
+  }, [sheetOpen, isIOS])
 
   function pick(next: string) {
     onChange(next)
@@ -144,6 +158,7 @@ export function HeroFieldSelect({
             side="bottom"
             showCloseButton
             className="flex h-[100dvh] max-h-[100dvh] flex-col gap-0 rounded-none border-0 bg-brand-surface p-0 text-[color:var(--brand-ink)] data-[side=bottom]:h-[100dvh]"
+            style={isIOS ? { touchAction: "manipulation" } : undefined}
           >
             <SheetHeader className="shrink-0 border-b border-border px-4 py-3 pr-14">
               <SheetTitle className="text-base font-bold text-brand">
@@ -170,7 +185,13 @@ export function HeroFieldSelect({
 
             <div
               key={listKey}
-              className="min-h-0 flex-1 overflow-y-scroll overscroll-y-contain px-2 py-2 touch-pan-y pb-[max(0.75rem,env(safe-area-inset-bottom))] [-webkit-overflow-scrolling:touch]"
+              ref={listRef}
+              className="min-h-0 flex-1 overflow-y-scroll overscroll-y-contain px-2 py-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] [-webkit-overflow-scrolling:touch]"
+              style={{ touchAction: "pan-y" }}
+              onTouchMove={(event) => {
+                // Keep iOS from treating the gesture as page scroll / canceling it.
+                event.stopPropagation()
+              }}
             >
               {filtered.length === 0 ? (
                 <div className="flex flex-col items-center gap-1.5 px-4 py-10 text-sm text-muted-foreground">

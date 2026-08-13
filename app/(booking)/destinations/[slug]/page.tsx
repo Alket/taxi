@@ -189,7 +189,7 @@ export default async function DestinationPage({ params }: PageProps) {
       </section>
 
       {hasRouteContent ? (
-        <section className="py-12 md:py-16">
+        <section className="py-8 md:py-10">
           <MarketingContainer>
             <h2 className="font-brand text-2xl font-extrabold tracking-tight text-brand sm:text-3xl">
               {routeHeading}

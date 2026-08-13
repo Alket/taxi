@@ -14,7 +14,7 @@ export function DestinationAttractionsSection({
   if (attractions.length === 0) return null
 
   return (
-    <section className="bg-brand-page py-16 md:py-24">
+    <section className="bg-brand-page py-8 md:py-10">
       <MarketingContainer>
         <h2 className={MARKETING_SECTION_TITLE}>{heading}</h2>
         <ul className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">

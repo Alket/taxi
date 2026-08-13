@@ -10,7 +10,6 @@ let savedBodyTop = ""
 let savedBodyLeft = ""
 let savedBodyRight = ""
 let savedBodyWidth = ""
-let savedBodyTouchAction = ""
 let savedHtmlOverflow = ""
 let usedFixedStrategy = false
 
@@ -29,15 +28,14 @@ function applyLock() {
     savedBodyLeft = document.body.style.left
     savedBodyRight = document.body.style.right
     savedBodyWidth = document.body.style.width
-    savedBodyTouchAction = document.body.style.touchAction
     savedHtmlOverflow = document.documentElement.style.overflow
 
     document.documentElement.style.overflow = "hidden"
     document.body.style.overflow = "hidden"
 
-    // iOS: avoid position:fixed — it often leaves nested sheet lists
-    // unable to scroll after close/reopen. Overflow + touch-action is enough
-    // when the modal itself is full-viewport.
+    // iOS: never use position:fixed or touch-action:none — both break
+    // nested overflow scrolling inside full-screen sheets until an input
+    // is focused. Overflow:hidden alone is enough with a 100dvh modal.
     usedFixedStrategy = !isIOS()
     if (usedFixedStrategy) {
       document.body.style.position = "fixed"
@@ -45,8 +43,6 @@ function applyLock() {
       document.body.style.left = "0"
       document.body.style.right = "0"
       document.body.style.width = "100%"
-    } else {
-      document.body.style.touchAction = "none"
     }
   }
   lockCount += 1
@@ -59,7 +55,6 @@ function releaseLock() {
 
   document.documentElement.style.overflow = savedHtmlOverflow
   document.body.style.overflow = savedBodyOverflow
-  document.body.style.touchAction = savedBodyTouchAction
 
   if (usedFixedStrategy) {
     document.body.style.position = savedBodyPosition
