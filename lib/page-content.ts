@@ -16,6 +16,7 @@ import {
   type PageContentRecord,
   type PageSection,
   type PageSectionType,
+  ensureMissingDefaultSections,
   homeCopyFromSections,
   isCorePageSlug,
   mergeLocalizedSections,
@@ -42,6 +43,7 @@ export {
   attractionsFromSections,
   homeCopyFromSections,
   mergeLocalizedSections,
+  ensureMissingDefaultSections,
 } from "@/lib/page-content-shared"
 
 export type PageDefinition = {
@@ -86,6 +88,47 @@ const HOME_DEFAULTS: PageDefinition["defaults"] = {
     section("image", "hero.image", {
       src: "https://www.welcomepickups.com/wp-content/themes/welcomepickups_new/images/conversion-v2/hero_photo_desktop_2.jpg",
     }),
+    section("text", "uberAlt.eyebrow", {
+      body: "No Uber in Albania?",
+    }),
+    section("heading", "uberAlt.heading", {
+      heading: "The Seamless Uber Alternative at Tirana Airport",
+      level: 2,
+    }),
+    section("text", "uberAlt.highlight", {
+      body: "Uber Alternative",
+    }),
+    section("text", "uberAlt.text", {
+      body: "Looking for Uber, Bolt, or Lyft after landing at Tirana International Airport (TIA)? Global ride-hailing apps do not operate in Albania. Instead of negotiating with unmetered airport street taxis, exchanging currency at high terminal rates, or waiting in line, Landed Albania provides the modern booking experience you expect.",
+    }),
+    section("heading", "uberAlt.feature1.heading", {
+      heading: "Fixed Pricing",
+      level: 3,
+    }),
+    section("text", "uberAlt.feature1.text", {
+      body: "Zero surge fees or surprises",
+    }),
+    section("heading", "uberAlt.feature2.heading", {
+      heading: "Flight Tracking",
+      level: 3,
+    }),
+    section("text", "uberAlt.feature2.text", {
+      body: "Automated driver pickup adjustments",
+    }),
+    section("text", "uberAlt.cta", {
+      body: "Calculate Your Fixed Fare",
+    }),
+    section("image", "uberAlt.image", {
+      src: "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?q=80&w=1200&auto=format&fit=crop",
+      alt: "Landed Albania premium airport transfer",
+    }),
+    section("heading", "uberAlt.floatingBadge.heading", {
+      heading: "Under 2 Minutes",
+      level: 3,
+    }),
+    section("text", "uberAlt.floatingBadge.text", {
+      body: "Quick & Easy Online Booking",
+    }),
     section("heading", "whyBook.heading", {
       heading: "Why book with us?",
       level: 2,
@@ -120,6 +163,43 @@ const HOME_DEFAULTS: PageDefinition["defaults"] = {
     }),
     section("text", "destinations.text", {
       body: "Discover our most popular hand-picked locations for your next unforgettable journey.",
+    }),
+    section("text", "compare.eyebrow", {
+      body: "Why Landed vs. Competitors",
+    }),
+    section("heading", "compare.heading", {
+      heading: "The Clear Choice for Tirana Airport Transfers",
+      level: 2,
+    }),
+    section("text", "compare.subtitle", {
+      body: "Compare Landed Albania directly against local airport street taxis and global booking brokers.",
+    }),
+    section("heading", "compare.taxi.title", {
+      heading: "Airport Terminal Taxis",
+      level: 3,
+    }),
+    section("text", "compare.taxi.items", {
+      body: "Pricing: Metered or Negotiated Cash\nPayment: Cash Only (Euros/LEK)\nDrivers: Hit-or-Miss English\nTracking: None (Taxi leaves if delayed)\nMeet & Greet: Wait outside in crowded rank\nFocus: General Local Rides",
+    }),
+    section("heading", "compare.landed.title", {
+      heading: "Landed Albania",
+      level: 3,
+    }),
+    section("text", "compare.landed.badge", {
+      body: "Best Experience",
+    }),
+    section("text", "compare.landed.items", {
+      body: "Pricing: Fixed Flat Rate (Upfront)\nPayment: Yes (Deposit + Online Balance)\nDrivers: 100% Vetted English Drivers\nTracking: Included Free (Delays Covered)\nMeet & Greet: Driver holds name sign\nFocus: 100% Tirana Airport Specialist",
+    }),
+    section("heading", "compare.broker.title", {
+      heading: "Global Aggregators",
+      level: 3,
+    }),
+    section("text", "compare.broker.subtitle", {
+      body: "(e.g., GetTransfer)",
+    }),
+    section("text", "compare.broker.items", {
+      body: "Pricing: Variable Bidding / Hidden Fees\nPayment: Card (High Commission)\nDrivers: Unverified Third-Party Fleet\nTracking: Extra Charges for Updates\nMeet & Greet: Dependent on driver choice\nFocus: Non-local Broker",
     }),
     section("heading", "testimonials.heading", {
       heading: "Trusted by travellers across Albania",
@@ -429,21 +509,27 @@ function destinationDefaults(slug: string): PageDefinition | null {
 
 export function destinationDefinitionFromMeta(dest: Destination): PageDefinition {
   const route = DESTINATION_ROUTE_INFO[dest.id]
+  const publicSlug = dest.slug || dest.id
   return {
     slug: `destinations/${dest.id}`,
     label: `Destination · ${dest.name}`,
-    path: `/destinations/${dest.id}`,
+    path: `/destinations/${publicSlug}`,
     defaults: {
       title: `${dest.name} airport transfer`,
       description: dest.description,
       ogImage: dest.image,
       sections: [
         section("heading", "title", { heading: dest.name, level: 1 }),
+        section("text", "urlSlug", { body: publicSlug }),
         section("text", "region", { body: dest.region }),
         section("text", "description", { body: dest.description }),
         section("image", "hero", { src: dest.image, alt: dest.name }),
         section("text", "badge", { body: dest.badge }),
         section("text", "priceFrom", { body: dest.priceFrom }),
+        section("text", "travelTime", { body: dest.travelTime || "" }),
+        section("text", "primaryKeyword", {
+          body: dest.primaryKeyword || "",
+        }),
         section("heading", "route.heading", {
           heading: `Getting to ${dest.name}`,
           level: 2,
@@ -482,6 +568,16 @@ export function destinationIdFromSlug(slug: string): string | null {
   if (!isDestinationSlug(slug)) return null
   const id = slug.slice("destinations/".length)
   return id || null
+}
+
+/** Public URL segment for a destination (`urlSlug` CMS field, else id). */
+export function publicDestinationSlug(
+  sections: PageSection[],
+  id: string,
+): string {
+  const raw = sectionValue(sections, "urlSlug").trim()
+  const slug = slugifyDestinationId(raw)
+  return slug || id
 }
 
 const HIDDEN_STATUS_KEY = "_status"
@@ -552,7 +648,7 @@ function pageDefinitionFromRow(row: {
   return {
     slug: row.slug,
     label: row.label || `Destination · ${name}`,
-    path: `/destinations/${id}`,
+    path: `/destinations/${publicDestinationSlug(sections, id)}`,
     defaults: {
       title: row.title || `${name} airport transfer`,
       description: row.description || "",
@@ -562,12 +658,15 @@ function pageDefinitionFromRow(row: {
           ? sections
           : destinationDefinitionFromMeta({
               id,
+              slug: id,
               name,
               region: "",
               description: row.description || "",
               badge: "New",
               priceFrom: "€—",
               image: row.ogImage || "",
+              travelTime: "",
+              primaryKeyword: "",
               reviewKeywords: [name],
             }).defaults.sections,
     },
@@ -711,12 +810,22 @@ export async function resolvePageContent(
   }
 
   const localizedSections = localized ? parseSections(localized.sections) : []
-  const englishSections = english ? parseSections(english.sections) : []
+  const englishSectionsRaw = english ? parseSections(english.sections) : []
+  const englishSections =
+    englishSectionsRaw.length > 0
+      ? ensureMissingDefaultSections(
+          englishSectionsRaw,
+          def.defaults.sections,
+        )
+      : englishSectionsRaw
   const baseSections =
     englishSections.length > 0
       ? englishSections
       : localizedSections.length > 0
-        ? localizedSections
+        ? ensureMissingDefaultSections(
+            localizedSections,
+            def.defaults.sections,
+          )
         : def.defaults.sections
 
   const sections =
@@ -774,14 +883,30 @@ export async function resolvePageContentForAdmin(
     where: { slug_locale: { slug, locale } },
   })
   if (localized) {
-    return serializePageContent(localized, { hasLocaleRow: true })
+    const record = serializePageContent(localized, { hasLocaleRow: true })
+    return {
+      ...record,
+      sections: ensureMissingDefaultSections(
+        record.sections,
+        def.defaults.sections,
+      ),
+    }
   }
 
   const english = await prisma.pageContent.findUnique({
     where: { slug_locale: { slug, locale: DEFAULT_LOCALE } },
   })
   const base = english
-    ? serializePageContent(english, { hasLocaleRow: false })
+    ? (() => {
+        const record = serializePageContent(english, { hasLocaleRow: false })
+        return {
+          ...record,
+          sections: ensureMissingDefaultSections(
+            record.sections,
+            def.defaults.sections,
+          ),
+        }
+      })()
     : {
         slug: def.slug,
         locale: DEFAULT_LOCALE,
@@ -857,10 +982,18 @@ export async function listAdminPages(): Promise<AdminPageListItem[]> {
     const sections = row ? parseSections(row.sections) : []
     const hidden = isDestination && row ? isDestinationHidden(sections) : false
     if (hidden) return null
+    const id = destinationIdFromSlug(def.slug)
+    const path =
+      isDestination && id
+        ? `/destinations/${publicDestinationSlug(
+            sections.length ? sections : def.defaults.sections,
+            id,
+          )}`
+        : def.path
     return {
       slug: def.slug,
       label: row?.label || def.label,
-      path: def.path,
+      path,
       title: row?.title || def.defaults.title,
       updatedAt: row?.updatedAt?.toISOString() ?? null,
       fromDatabase: Boolean(row),
@@ -905,7 +1038,12 @@ export function pathForSlug(slug: string): string {
 }
 
 export function pageMetadataFields(page: PageContentRecord) {
-  const path = pathForSlug(page.slug)
+  const path = isDestinationSlug(page.slug)
+    ? `/destinations/${publicDestinationSlug(
+        page.sections,
+        destinationIdFromSlug(page.slug) || page.slug,
+      )}`
+    : pathForSlug(page.slug)
   const ogImage = page.ogImage || DEFAULT_OG_IMAGE
 
   return {
@@ -953,8 +1091,10 @@ function destinationFromPage(
 ): Destination {
   const sections = page.sections
   const name = sectionHeading(sections, "title") || fallback?.name || id
+  const slug = publicDestinationSlug(sections, id)
   return {
     id,
+    slug,
     name,
     region: sectionValue(sections, "region") || fallback?.region || "",
     description:
@@ -971,6 +1111,12 @@ function destinationFromPage(
       fallback?.image || "",
     ),
     imageAlt: "",
+    travelTime:
+      sectionValue(sections, "travelTime") || fallback?.travelTime || "",
+    primaryKeyword:
+      sectionValue(sections, "primaryKeyword") ||
+      fallback?.primaryKeyword ||
+      "",
     reviewKeywords: fallback?.reviewKeywords?.length
       ? fallback.reviewKeywords
       : [name],
@@ -1108,11 +1254,15 @@ export async function setDestinationFeatured(
 }
 
 export async function resolveDestination(
-  id: string,
+  slugOrId: string,
   localeInput?: string | null,
 ): Promise<Destination | null> {
   const cards = await resolveDestinationCards(localeInput)
-  return cards.find((card) => card.id === id) ?? null
+  return (
+    cards.find(
+      (card) => card.slug === slugOrId || card.id === slugOrId,
+    ) ?? null
+  )
 }
 
 export async function createDestinationPage(input: {
@@ -1123,6 +1273,8 @@ export async function createDestinationPage(input: {
   badge?: string
   priceFrom?: string
   image?: string
+  travelTime?: string
+  primaryKeyword?: string
 }) {
   const name = input.name.trim()
   if (!name) throw new Error("Name is required.")
@@ -1149,6 +1301,7 @@ export async function createDestinationPage(input: {
 
   const dest: Destination = {
     id,
+    slug: id,
     name,
     region: input.region?.trim() || "Albania",
     description:
@@ -1159,6 +1312,8 @@ export async function createDestinationPage(input: {
     image:
       input.image?.trim() ||
       "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&q=80&w=800",
+    travelTime: input.travelTime?.trim() || "",
+    primaryKeyword: input.primaryKeyword?.trim() || "",
     reviewKeywords: [name],
   }
 
@@ -1246,7 +1401,7 @@ export async function deleteAdminPage(slug: string): Promise<{
 }
 
 /**
- * Homepage copy with media-library alt applied to hero / safety images.
+ * Homepage copy with media-library alt applied to hero / uber-alt / safety images.
  * Visible headings and body copy always come from page sections
  * (/admin/pages/home); media title/description only feed alt text.
  */
@@ -1256,12 +1411,19 @@ export async function resolveHomeMarketingCopy(
   const copy = homeCopyFromSections(sections)
   const urls = [
     copy.hero.image,
+    copy.uberAlt.image,
     ...copy.safety.items.map((item) => item.image),
   ]
   const byUrl = await mediaMetaByUrls(urls)
 
   const heroMeta = byUrl.get(copy.hero.image)
   copy.hero.imageAlt = resolveMediaAlt(heroMeta, copy.hero.imageAlt.trim())
+
+  const uberAltMeta = byUrl.get(copy.uberAlt.image)
+  copy.uberAlt.imageAlt = resolveMediaAlt(
+    uberAltMeta,
+    copy.uberAlt.imageAlt.trim(),
+  )
 
   copy.safety.items = copy.safety.items.map((item) => {
     const meta = byUrl.get(item.image)

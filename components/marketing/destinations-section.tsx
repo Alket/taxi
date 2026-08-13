@@ -37,13 +37,13 @@ export function DestinationsSection({
   return (
     <section
       id="destinations"
-      className={cn("bg-white py-10 md:py-0", className)}
+      className={cn("bg-white py-10 md:pt-24 md:pb-0", className)}
     >
       <MarketingContainer>
         <div className="mb-8 flex items-end justify-between gap-4 md:mb-12">
           <div className="min-w-0 flex-1">
             <h2 className={MARKETING_SECTION_TITLE}>{heading}</h2>
-            <p className="mt-3 max-w-xl text-base leading-relaxed text-muted-foreground md:mt-2 md:text-lg">
+            <p className="mt-3 max-w-xl text-base leading-relaxed text-muted-foreground md:mt-2">
               {text}
             </p>
           </div>

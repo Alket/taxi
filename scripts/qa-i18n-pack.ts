@@ -73,14 +73,131 @@ async function main() {
 
   const home = pack.pages.find((p) => p.slug === "home")!
   const homeEnKeys = Object.keys(home.byLocale.en!.sections)
-  if (
-    homeEnKeys.includes("hero.heading") &&
-    homeEnKeys.some((k) => k.startsWith("faq."))
-  ) {
-    pass("E7 home has hero + faq keys", `${homeEnKeys.length} keys`)
+  const requiredHomeKeys = [
+    "hero.heading",
+    "uberAlt.eyebrow",
+    "uberAlt.heading",
+    "uberAlt.highlight",
+    "uberAlt.text",
+    "uberAlt.feature1.heading",
+    "uberAlt.feature1.text",
+    "uberAlt.feature2.heading",
+    "uberAlt.feature2.text",
+    "uberAlt.cta",
+    "uberAlt.image",
+    "uberAlt.floatingBadge.heading",
+    "uberAlt.floatingBadge.text",
+    "compare.eyebrow",
+    "compare.heading",
+    "compare.subtitle",
+    "compare.taxi.title",
+    "compare.taxi.items",
+    "compare.landed.title",
+    "compare.landed.badge",
+    "compare.landed.items",
+    "compare.broker.title",
+    "compare.broker.subtitle",
+    "compare.broker.items",
+    "destinations.heading",
+    "peace.heading",
+    "testimonials.heading",
+  ]
+  const missingHome = requiredHomeKeys.filter((k) => !homeEnKeys.includes(k))
+  if (missingHome.length === 0 && homeEnKeys.some((k) => k.startsWith("faq."))) {
+    pass("E7 home has hero + uberAlt + compare + faq keys", `${homeEnKeys.length} keys`)
   } else {
-    fail("E7 home keys", homeEnKeys.slice(0, 10).join(","))
+    fail(
+      "E7 home keys",
+      missingHome.length
+        ? `missing: ${missingHome.join(", ")}`
+        : homeEnKeys.slice(0, 10).join(","),
+    )
   }
+
+  // Non-EN shells / rows must expose the same key set as EN (empty strings OK).
+  let localeKeyParity = true
+  for (const loc of LOCALES) {
+    if (loc === "en") continue
+    const keys = Object.keys(home.byLocale[loc]?.sections || {})
+    const missing = homeEnKeys.filter((k) => !keys.includes(k))
+    if (missing.length) {
+      localeKeyParity = false
+      fail(`E7b home locale key parity: ${loc}`, missing.join(", "))
+      break
+    }
+  }
+  if (localeKeyParity) pass("E7b home locale key parity with EN")
+
+  // New-section import: apply uberAlt + compare text even if IT row lacked those keys.
+  const structureMarker = `QA-STRUCT-${Date.now()}`
+  const structurePack = structuredClone(pack) as typeof pack
+  structurePack.pages = structurePack.pages.map((p) => {
+    if (p.slug !== "home") return p
+    const it = p.byLocale.it!
+    return {
+      ...p,
+      byLocale: {
+        ...p.byLocale,
+        it: {
+          ...it,
+          title: it.title || "IT Home",
+          description: it.description || "IT desc",
+          sections: {
+            ...it.sections,
+            "uberAlt.highlight": { body: `HL ${structureMarker}` },
+            "uberAlt.cta": { body: `CTA ${structureMarker}` },
+            "compare.heading": { heading: `CMP ${structureMarker}` },
+            "compare.landed.badge": { body: `BADGE ${structureMarker}` },
+          },
+        },
+      },
+    }
+  })
+  const sImport = await importPageI18nPack(structurePack, { locales: ["it"] })
+  if (sImport.errors.length === 0 && sImport.updated + sImport.created >= 1) {
+    pass("S1 import uberAlt/compare into IT", JSON.stringify(sImport))
+  } else {
+    fail("S1 structure import", JSON.stringify(sImport))
+  }
+
+  const homeItStruct = await prisma.pageContent.findUnique({
+    where: { slug_locale: { slug: "home", locale: "it" } },
+  })
+  const itSections = parseSections(homeItStruct?.sections)
+  const itHighlight = itSections.find((s) => s.key === "uberAlt.highlight")?.body
+  const itCta = itSections.find((s) => s.key === "uberAlt.cta")?.body
+  const itCompare = itSections.find((s) => s.key === "compare.heading")?.heading
+  const itBadge = itSections.find((s) => s.key === "compare.landed.badge")?.body
+  if (itHighlight === `HL ${structureMarker}`) pass("S2 IT uberAlt.highlight applied")
+  else fail("S2 IT uberAlt.highlight", itHighlight || "missing")
+  if (itCta === `CTA ${structureMarker}`) pass("S3 IT uberAlt.cta applied")
+  else fail("S3 IT uberAlt.cta", itCta || "missing")
+  if (itCompare === `CMP ${structureMarker}`) pass("S4 IT compare.heading applied")
+  else fail("S4 IT compare.heading", itCompare || "missing")
+  if (itBadge === `BADGE ${structureMarker}`) pass("S5 IT compare.landed.badge applied")
+  else fail("S5 IT compare.landed.badge", itBadge || "missing")
+
+  const reExport = await exportPageI18nPack()
+  const reHomeIt = reExport.pages.find((p) => p.slug === "home")?.byLocale.it
+  if (reHomeIt?.sections["uberAlt.highlight"]?.body === `HL ${structureMarker}`) {
+    pass("S6 re-export includes imported uberAlt.highlight")
+  } else {
+    fail(
+      "S6 re-export uberAlt.highlight",
+      reHomeIt?.sections["uberAlt.highlight"]?.body || "missing",
+    )
+  }
+  if (reHomeIt?.sections["compare.heading"]?.heading === `CMP ${structureMarker}`) {
+    pass("S7 re-export includes imported compare.heading")
+  } else {
+    fail(
+      "S7 re-export compare.heading",
+      reHomeIt?.sections["compare.heading"]?.heading || "missing",
+    )
+  }
+
+  // Restore IT from original pack before continuing mutate tests.
+  await importPageI18nPack(pack, { locales: ["it"] })
 
   const metaLeak = pack.pages.some((p) =>
     Object.values(p.byLocale).some(

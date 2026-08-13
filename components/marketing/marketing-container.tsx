@@ -8,7 +8,7 @@ export const MARKETING_CONTAINER =
 
 /** Shared homepage section heading. Mobile keeps solid size; desktop matches original. */
 export const MARKETING_SECTION_TITLE =
-  "font-brand text-3xl font-extrabold tracking-tight text-brand md:text-4xl"
+  "font-brand text-3xl !leading-[1.3] font-extrabold tracking-tight text-brand md:text-4xl"
 
 type MarketingContainerProps = HTMLAttributes<HTMLElement> & {
   children: ReactNode

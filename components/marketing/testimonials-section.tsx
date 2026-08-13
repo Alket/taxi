@@ -58,11 +58,11 @@ function ReviewCard({ review }: { review: PublicReview }) {
         </span>
       </div>
       {review.comment ? (
-        <p className="min-w-0 flex-1 text-sm leading-relaxed break-words text-brand sm:text-base">
+        <p className="min-w-0 flex-1 text-base leading-relaxed break-words text-brand">
           “{review.comment}”
         </p>
       ) : (
-        <p className="min-w-0 flex-1 text-sm text-muted-foreground sm:text-base">
+        <p className="min-w-0 flex-1 text-base text-muted-foreground">
           Rated {review.platformRating}/5 overall.
         </p>
       )}

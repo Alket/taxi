@@ -43,17 +43,25 @@ export async function generateMetadata({
 }: PageProps): Promise<Metadata> {
   const { slug } = await params
   const locale = await getRequestLocale()
-  const page = await resolvePageContent(`destinations/${slug}`, locale)
-  if (page) return pageMetadataFields(page)
   const destination = await resolveDestination(slug, locale)
-  if (!destination) return { title: t(locale, "nav.destinations") }
-  return {
-    title: t(locale, "destinations.airportTransfer", {
-      name: destination.name,
-    }),
-    description: destination.description,
-    alternates: localizedAlternates(`/destinations/${slug}`, locale),
+  if (destination) {
+    const page = await resolvePageContent(
+      `destinations/${destination.id}`,
+      locale,
+    )
+    if (page) return pageMetadataFields(page)
+    return {
+      title: t(locale, "destinations.airportTransfer", {
+        name: destination.name,
+      }),
+      description: destination.description,
+      alternates: localizedAlternates(
+        `/destinations/${destination.slug}`,
+        locale,
+      ),
+    }
   }
+  return { title: t(locale, "nav.destinations") }
 }
 
 export default async function DestinationPage({ params }: PageProps) {
@@ -63,7 +71,7 @@ export default async function DestinationPage({ params }: PageProps) {
   if (!destination) notFound()
 
   const [page, destinationCards] = await Promise.all([
-    resolvePageContent(`destinations/${slug}`, locale),
+    resolvePageContent(`destinations/${destination.id}`, locale),
     resolveDestinationCards(locale),
   ])
   const sections = page?.sections ?? []
@@ -106,19 +114,20 @@ export default async function DestinationPage({ params }: PageProps) {
   const moreDestinations = destinationCards.filter(
     (d) => d.id !== destination.id,
   )
+  const publicSlug = destination.slug
 
   const destinationsLabel = t(locale, "nav.destinations") || "Destinations"
   const homeLabel = t(locale, "nav.home") || "Home"
   const breadcrumbJsonLd = buildBreadcrumbJsonLd([
     { name: homeLabel, url: localePath("/", locale) },
     { name: destinationsLabel, url: localePath("/destinations", locale) },
-    { name, url: localePath(`/destinations/${slug}`, locale) },
+    { name, url: localePath(`/destinations/${publicSlug}`, locale) },
   ])
   const touristDestinationJsonLd = buildTouristDestinationJsonLd({
     name,
     description,
     image,
-    url: localePath(`/destinations/${slug}`, locale),
+    url: localePath(`/destinations/${publicSlug}`, locale),
   })
 
   return (

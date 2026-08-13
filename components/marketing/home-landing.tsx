@@ -3,6 +3,7 @@
 import { Suspense, useEffect, type ReactNode } from "react"
 import Image from "next/image"
 
+import { ComparisonSection } from "@/components/marketing/comparison-section"
 import { CookieConsentBanner } from "@/components/marketing/cookie-consent-banner"
 import { DestinationsSection } from "@/components/marketing/destinations-section"
 import { FaqSection } from "@/components/marketing/faq-section"
@@ -11,10 +12,9 @@ import { MarketingContainer } from "@/components/marketing/marketing-container"
 import { MarketingPageEnter } from "@/components/marketing/marketing-page-enter"
 import { MarketingPreloader } from "@/components/marketing/marketing-preloader"
 import { PeaceOfMindSection } from "@/components/marketing/peace-of-mind-section"
-import { SafetyPrioritySection } from "@/components/marketing/safety-priority-section"
 import { SiteHeader } from "@/components/marketing/site-header"
 import { TestimonialsSection } from "@/components/marketing/testimonials-section"
-import { WhyBookSection } from "@/components/marketing/why-book-section"
+import { UberAltSection } from "@/components/marketing/uber-alt-section"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { Destination } from "@/lib/destinations"
 import type { HomeMarketingCopy } from "@/lib/page-content-shared"
@@ -114,7 +114,7 @@ export function HomeLanding({
             />
             <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(8,18,22,0.55)_0%,rgba(8,18,22,0.35)_45%,rgba(8,18,22,0.55)_100%)] md:bg-[linear-gradient(105deg,rgba(8,18,22,0.78)_0%,rgba(8,18,22,0.55)_42%,rgba(8,18,22,0.28)_100%)]" />
 
-            <div className="absolute inset-0 z-10 flex flex-col justify-center px-5 pt-24 md:hidden">
+            <div className="absolute inset-0 z-10 flex flex-col justify-center px-5 pt-32 pb-20 md:hidden">
               <div className="home-fade-up text-white">
                 <p
                   aria-hidden
@@ -122,23 +122,23 @@ export function HomeLanding({
                 >
                   {headingLines(copy.hero.heading)}
                 </p>
-                <p className="home-fade-up-delay mt-3 max-w-sm text-base leading-relaxed text-white/90 sm:text-lg">
+                <p className="home-fade-up-delay mt-3 max-w-sm text-base leading-relaxed text-white/90">
                   {copy.hero.text}
                 </p>
               </div>
             </div>
           </div>
 
-          <MarketingContainer className="relative z-20 -mt-16 pb-8 md:mt-0 md:flex md:h-full md:items-center md:pb-8 md:pt-28">
+          <MarketingContainer className="relative z-20 -mt-6 pb-8 md:mt-0 md:flex md:h-full md:items-center md:pb-8 md:pt-28">
             <div className="grid w-full gap-0 md:grid-cols-[minmax(0,1fr)_minmax(20rem,24rem)] md:items-center md:gap-12 lg:grid-cols-[minmax(0,1.1fr)_minmax(22rem,26rem)]">
-              <div className="home-fade-up hidden max-w-xl text-white md:block">
+              <div className="home-fade-up hidden max-w-3xl text-white md:block">
                 <p
                   aria-hidden
                   className="text-[clamp(2.6rem,7vw,4.25rem)] font-bold leading-[1.05] tracking-tight text-balance"
                 >
                   {headingLines(copy.hero.heading)}
                 </p>
-                <p className="home-fade-up-delay mt-4 max-w-md text-base leading-relaxed text-white/85 md:text-lg">
+                <p className="home-fade-up-delay mt-4 max-w-xl text-base leading-relaxed text-white/85">
                   {copy.hero.text}
                 </p>
               </div>
@@ -155,7 +155,7 @@ export function HomeLanding({
           </MarketingContainer>
         </section>
 
-        <WhyBookSection copy={copy.whyBook} />
+        <UberAltSection copy={copy.uberAlt} />
 
         <DestinationsSection
           heading={copy.destinations.heading}
@@ -163,14 +163,14 @@ export function HomeLanding({
           destinations={destinations}
         />
 
+        <ComparisonSection copy={copy.compare} />
+
+        <PeaceOfMindSection copy={copy.peace} />
+
         <TestimonialsSection
           eyebrow={copy.testimonials.eyebrow}
           heading={copy.testimonials.heading}
         />
-
-        <PeaceOfMindSection copy={copy.peace} />
-
-        <SafetyPrioritySection copy={copy.safety} />
 
         <FaqSection items={copy.faq} />
       </MarketingPageEnter>

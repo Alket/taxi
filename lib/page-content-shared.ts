@@ -224,12 +224,39 @@ export function attractionsFromSections(
     .filter((item) => item.title || item.description || item.image)
 }
 
+export type HomeCompareItem = {
+  label: string
+  detail: string
+}
+
+export type HomeCompareColumn = {
+  title: string
+  subtitle?: string
+  badge?: string
+  tone: "negative" | "positive"
+  items: HomeCompareItem[]
+}
+
 export type HomeMarketingCopy = {
   hero: {
     heading: string
     text: string
     image: string
     imageAlt: string
+  }
+  uberAlt: {
+    eyebrow: string
+    heading: string
+    highlight: string
+    text: string
+    cta: string
+    image: string
+    imageAlt: string
+    features: { title: string; description: string }[]
+    floatingBadge: {
+      title: string
+      text: string
+    }
   }
   whyBook: {
     heading: string
@@ -238,6 +265,12 @@ export type HomeMarketingCopy = {
   destinations: {
     heading: string
     text: string
+  }
+  compare: {
+    eyebrow: string
+    heading: string
+    subtitle: string
+    columns: HomeCompareColumn[]
   }
   testimonials: {
     eyebrow: string
@@ -260,6 +293,59 @@ export type HomeMarketingCopy = {
   faq: PageSection[]
 }
 
+function parseCompareItems(body: string): HomeCompareItem[] {
+  return body
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const idx = line.indexOf(":")
+      if (idx <= 0) return { label: "", detail: line }
+      return {
+        label: line.slice(0, idx).trim(),
+        detail: line.slice(idx + 1).trim(),
+      }
+    })
+}
+
+/**
+ * Insert any default sections that are missing from a saved page, preserving
+ * existing content and placing new keys after their preceding default neighbor.
+ */
+export function ensureMissingDefaultSections(
+  sections: PageSection[],
+  defaults: PageSection[],
+): PageSection[] {
+  if (defaults.length === 0) return sections
+  const existingKeys = new Set(
+    sections.map((section) => section.key).filter(Boolean),
+  )
+  const missing = defaults.filter(
+    (section) => section.key && !existingKeys.has(section.key),
+  )
+  if (missing.length === 0) return sections
+
+  const result = [...sections]
+  for (const miss of missing) {
+    const defIndex = defaults.findIndex((section) => section.key === miss.key)
+    let insertAt = result.length
+    for (let i = defIndex - 1; i >= 0; i--) {
+      const prevKey = defaults[i]?.key
+      if (!prevKey) continue
+      const idx = result.findIndex((section) => section.key === prevKey)
+      if (idx >= 0) {
+        insertAt = idx + 1
+        break
+      }
+    }
+    result.splice(insertAt, 0, {
+      ...miss,
+      id: newId(),
+    })
+  }
+  return result
+}
+
 export function homeCopyFromSections(sections: PageSection[]): HomeMarketingCopy {
   return {
     hero: {
@@ -273,6 +359,52 @@ export function homeCopyFromSections(sections: PageSection[]): HomeMarketingCopy
         sectionValue(sections, "hero.image", "src") ||
         "https://www.welcomepickups.com/wp-content/themes/welcomepickups_new/images/conversion-v2/hero_photo_desktop_2.jpg",
       imageAlt: sectionValue(sections, "hero.image", "alt"),
+    },
+    uberAlt: {
+      eyebrow:
+        sectionValue(sections, "uberAlt.eyebrow") || "No Uber in Albania?",
+      heading:
+        sectionHeading(sections, "uberAlt.heading") ||
+        "The Seamless Uber Alternative at Tirana Airport",
+      highlight:
+        sectionValue(sections, "uberAlt.highlight") || "Uber Alternative",
+      text:
+        sectionValue(sections, "uberAlt.text") ||
+        "Looking for Uber, Bolt, or Lyft after landing at Tirana International Airport (TIA)? Global ride-hailing apps do not operate in Albania. Instead of negotiating with unmetered airport street taxis, exchanging currency at high terminal rates, or waiting in line, Landed Albania provides the modern booking experience you expect.",
+      cta: sectionValue(sections, "uberAlt.cta") || "Calculate Your Fixed Fare",
+      image:
+        sectionValue(sections, "uberAlt.image", "src") ||
+        "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?q=80&w=1200&auto=format&fit=crop",
+      imageAlt:
+        sectionValue(sections, "uberAlt.image", "alt") ||
+        "Landed Albania premium airport transfer",
+      features: (() => {
+        const items = [1, 2]
+          .map((n) => ({
+            title: sectionHeading(sections, `uberAlt.feature${n}.heading`),
+            description: sectionValue(sections, `uberAlt.feature${n}.text`),
+          }))
+          .filter((item) => item.title || item.description)
+        if (items.length > 0) return items
+        return [
+          {
+            title: "Fixed Pricing",
+            description: "Zero surge fees or surprises",
+          },
+          {
+            title: "Flight Tracking",
+            description: "Automated driver pickup adjustments",
+          },
+        ]
+      })(),
+      floatingBadge: {
+        title:
+          sectionHeading(sections, "uberAlt.floatingBadge.heading") ||
+          "Under 2 Minutes",
+        text:
+          sectionValue(sections, "uberAlt.floatingBadge.text") ||
+          "Quick & Easy Online Booking",
+      },
     },
     whyBook: {
       heading:
@@ -290,6 +422,54 @@ export function homeCopyFromSections(sections: PageSection[]): HomeMarketingCopy
         sectionHeading(sections, "destinations.heading") ||
         "Featured Destinations",
       text: sectionValue(sections, "destinations.text"),
+    },
+    compare: {
+      eyebrow:
+        sectionValue(sections, "compare.eyebrow") ||
+        "Why Landed vs. Competitors",
+      heading:
+        sectionHeading(sections, "compare.heading") ||
+        "The Clear Choice for Tirana Airport Transfers",
+      subtitle:
+        sectionValue(sections, "compare.subtitle") ||
+        "Compare Landed Albania directly against local airport street taxis and global booking brokers.",
+      columns: [
+        {
+          title:
+            sectionHeading(sections, "compare.taxi.title") ||
+            "Airport Terminal Taxis",
+          tone: "negative" as const,
+          items: parseCompareItems(
+            sectionValue(sections, "compare.taxi.items") ||
+              "Pricing: Metered or Negotiated Cash\nPayment: Cash Only (Euros/LEK)\nDrivers: Hit-or-Miss English\nTracking: None (Taxi leaves if delayed)\nMeet & Greet: Wait outside in crowded rank\nFocus: General Local Rides",
+          ),
+        },
+        {
+          title:
+            sectionHeading(sections, "compare.landed.title") ||
+            "Landed Albania",
+          badge:
+            sectionValue(sections, "compare.landed.badge") || "Best Experience",
+          tone: "positive" as const,
+          items: parseCompareItems(
+            sectionValue(sections, "compare.landed.items") ||
+              "Pricing: Fixed Flat Rate (Upfront)\nPayment: Yes (Deposit + Online Balance)\nDrivers: 100% Vetted English Drivers\nTracking: Included Free (Delays Covered)\nMeet & Greet: Driver holds name sign\nFocus: 100% Tirana Airport Specialist",
+          ),
+        },
+        {
+          title:
+            sectionHeading(sections, "compare.broker.title") ||
+            "Global Aggregators",
+          subtitle:
+            sectionValue(sections, "compare.broker.subtitle") ||
+            "(e.g., GetTransfer)",
+          tone: "negative" as const,
+          items: parseCompareItems(
+            sectionValue(sections, "compare.broker.items") ||
+              "Pricing: Variable Bidding / Hidden Fees\nPayment: Card (High Commission)\nDrivers: Unverified Third-Party Fleet\nTracking: Extra Charges for Updates\nMeet & Greet: Dependent on driver choice\nFocus: Non-local Broker",
+          ),
+        },
+      ],
     },
     testimonials: {
       eyebrow:

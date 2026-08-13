@@ -17,6 +17,8 @@ const createSchema = z.object({
   badge: z.string().trim().max(60).optional(),
   priceFrom: z.string().trim().max(40).optional(),
   image: z.string().trim().max(2000).optional(),
+  travelTime: z.string().trim().max(60).optional(),
+  primaryKeyword: z.string().trim().max(120).optional(),
 })
 
 export async function GET() {

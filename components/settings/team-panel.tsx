@@ -747,30 +747,30 @@ function InviteAdminDialog({
           </>
         ) : (
           <>
-            <DialogHeader>
+        <DialogHeader>
               <DialogTitle>Invite team member</DialogTitle>
-              <DialogDescription>
+          <DialogDescription>
                 Create a new account. Operators can manage bookings, drivers,
                 and pricing, but cannot delete them.
-              </DialogDescription>
-            </DialogHeader>
-            <Field label="Email address" htmlFor="inviteEmail">
-              <Input
-                id="inviteEmail"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.nativeEvent.isComposing || e.keyCode === 229) return
-                  if (e.key === "Enter") {
-                    e.preventDefault()
-                    submit()
-                  }
-                }}
-                placeholder="name@company.com"
-                autoFocus
-              />
-            </Field>
+          </DialogDescription>
+        </DialogHeader>
+        <Field label="Email address" htmlFor="inviteEmail">
+          <Input
+            id="inviteEmail"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.nativeEvent.isComposing || e.keyCode === 229) return
+              if (e.key === "Enter") {
+                e.preventDefault()
+                submit()
+              }
+            }}
+            placeholder="name@company.com"
+            autoFocus
+          />
+        </Field>
             <Field
               label="Role"
               htmlFor="inviteRole"
@@ -802,14 +802,14 @@ function InviteAdminDialog({
                 </SelectContent>
               </Select>
             </Field>
-            <DialogFooter>
+        <DialogFooter>
               <DialogClose render={<Button variant="outline" />}>
                 Cancel
               </DialogClose>
-              <Button onClick={submit} disabled={pending}>
+          <Button onClick={submit} disabled={pending}>
                 {pending ? "Creating…" : "Create account"}
-              </Button>
-            </DialogFooter>
+          </Button>
+        </DialogFooter>
           </>
         )}
       </DialogContent>

@@ -190,6 +190,8 @@ export function PagesListView() {
   const [description, setDescription] = React.useState("")
   const [badge, setBadge] = React.useState("New")
   const [priceFrom, setPriceFrom] = React.useState("€—")
+  const [travelTime, setTravelTime] = React.useState("")
+  const [primaryKeyword, setPrimaryKeyword] = React.useState("")
 
   const [pendingAction, setPendingAction] = React.useState<{
     page: AdminPageRow
@@ -209,6 +211,8 @@ export function PagesListView() {
     setDescription("")
     setBadge("New")
     setPriceFrom("€—")
+    setTravelTime("")
+    setPrimaryKeyword("")
   }
 
   async function exportI18nPack() {
@@ -303,6 +307,8 @@ export function PagesListView() {
         description: description.trim() || undefined,
         badge: badge.trim() || undefined,
         priceFrom: priceFrom.trim() || undefined,
+        travelTime: travelTime.trim() || undefined,
+        primaryKeyword: primaryKeyword.trim() || undefined,
       })
       toast.success("Destination page created.")
       setCreateOpen(false)
@@ -600,13 +606,33 @@ export function PagesListView() {
                 />
               </div>
             </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="dest-price">Price from</Label>
+                <Input
+                  id="dest-price"
+                  value={priceFrom}
+                  placeholder="€40"
+                  onChange={(e) => setPriceFrom(e.target.value)}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="dest-travel">Travel time</Label>
+                <Input
+                  id="dest-travel"
+                  value={travelTime}
+                  placeholder="20–25 min"
+                  onChange={(e) => setTravelTime(e.target.value)}
+                />
+              </div>
+            </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="dest-price">Price from</Label>
+              <Label htmlFor="dest-keyword">Primary keyword</Label>
               <Input
-                id="dest-price"
-                value={priceFrom}
-                placeholder="€40"
-                onChange={(e) => setPriceFrom(e.target.value)}
+                id="dest-keyword"
+                value={primaryKeyword}
+                placeholder="Tirana Airport Transfer"
+                onChange={(e) => setPrimaryKeyword(e.target.value)}
               />
             </div>
             <div className="flex flex-col gap-1.5">

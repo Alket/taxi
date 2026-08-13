@@ -3,6 +3,7 @@ import { z } from "zod"
 import { prisma } from "@/lib/db"
 import { LOCALES, DEFAULT_LOCALE, type Locale, isLocale } from "@/lib/i18n/locales"
 import {
+  ensureMissingDefaultSections,
   listAdminPages,
   parseSections,
   preserveDestinationMetaKeys,
@@ -152,6 +153,45 @@ function sectionsToTextMap(sections: PageSection[]): Record<string, SectionTextF
   return out
 }
 
+function emptySectionFields(
+  fields: SectionTextFields,
+): SectionTextFields {
+  return Object.fromEntries(
+    Object.keys(fields).map((field) => [field, ""]),
+  ) as SectionTextFields
+}
+
+/**
+ * Ensure every template (EN) key is present for translators.
+ * Locale rows that predate new homepage sections (uberAlt, compare, …)
+ * otherwise omit those keys from export.
+ */
+function mergeLocaleSectionMap(
+  templateMap: Record<string, SectionTextFields>,
+  localeMap: Record<string, SectionTextFields>,
+): Record<string, SectionTextFields> {
+  const out: Record<string, SectionTextFields> = {}
+  for (const [key, fields] of Object.entries(templateMap)) {
+    const localeFields = localeMap[key]
+    if (!localeFields) {
+      out[key] = emptySectionFields(fields)
+      continue
+    }
+    const merged: SectionTextFields = {}
+    for (const field of Object.keys(fields) as (keyof SectionTextFields)[]) {
+      const value = localeFields[field]
+      merged[field] = typeof value === "string" ? value : ""
+    }
+    out[key] = merged
+  }
+  // Keep locale-only FAQ/attraction keys that are not in the EN template yet.
+  for (const [key, fields] of Object.entries(localeMap)) {
+    if (out[key]) continue
+    out[key] = fields
+  }
+  return out
+}
+
 function applyTextToSections(
   template: PageSection[],
   textByKey: Record<string, SectionTextFields> | undefined,
@@ -274,13 +314,14 @@ export async function exportPageI18nPack(): Promise<PageI18nPack> {
     if (!template) continue
 
     const byLocale: Partial<Record<Locale, PageLocaleText>> = {}
+    const templateSections = sectionsToTextMap(template.sections)
 
     for (const locale of LOCALES) {
       if (locale === DEFAULT_LOCALE) {
         byLocale[locale] = {
           title: template.title,
           description: template.description,
-          sections: sectionsToTextMap(template.sections),
+          sections: templateSections,
         }
         continue
       }
@@ -292,17 +333,16 @@ export async function exportPageI18nPack(): Promise<PageI18nPack> {
         byLocale[locale] = {
           title: row.title,
           description: row.description,
-          sections: sectionsToTextMap(parseSections(row.sections)),
+          sections: mergeLocaleSectionMap(
+            templateSections,
+            sectionsToTextMap(parseSections(row.sections)),
+          ),
         }
       } else {
         // Empty shell with the same keys so translators know what to fill.
         const emptySections: Record<string, SectionTextFields> = {}
-        for (const [key, fields] of Object.entries(
-          sectionsToTextMap(template.sections),
-        )) {
-          emptySections[key] = Object.fromEntries(
-            Object.keys(fields).map((field) => [field, ""]),
-          ) as SectionTextFields
+        for (const [key, fields] of Object.entries(templateSections)) {
+          emptySections[key] = emptySectionFields(fields)
         }
         byLocale[locale] = {
           title: "",
@@ -381,9 +421,10 @@ export async function importPageI18nPack(
         where: { slug_locale: { slug: page.slug, locale } },
       })
 
-      const structureBase = existing
-        ? parseSections(existing.sections)
-        : template.sections
+      const structureBase = ensureMissingDefaultSections(
+        existing ? parseSections(existing.sections) : template.sections,
+        template.sections,
+      )
 
       let nextSections: PageSection[]
       try {
