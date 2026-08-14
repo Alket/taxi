@@ -117,6 +117,7 @@ export function SiteFooterClient({
       href: localePath("/destinations", locale),
       label: tr("nav.destinations"),
     },
+    { href: localePath("/blog", locale), label: tr("nav.blog") },
     { href: localePath("/#safety", locale), label: tr("nav.safety") },
     { href: localePath("/#faq", locale), label: tr("nav.faq") },
   ] as const

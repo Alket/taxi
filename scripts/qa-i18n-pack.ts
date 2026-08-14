@@ -44,6 +44,7 @@ async function main() {
   const slugs = pack.pages.map((p) => p.slug)
   for (const need of [
     "home",
+    "blog",
     "cancellation-policy",
     "privacy-policy",
     "terms",

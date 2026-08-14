@@ -87,15 +87,20 @@ export async function POST(request: Request) {
 
     revalidateAllLocales("/")
     revalidateAllLocales("/destinations")
+    revalidateAllLocales("/blog")
     revalidateAllLocales("/cancellation-policy")
     revalidateAllLocales("/privacy-policy")
     revalidateAllLocales("/terms")
     revalidateAllLocales("/cookies")
     revalidatePath("/admin/pages")
+    revalidatePath("/blog/[slug]", "page")
+    revalidatePath("/destinations/[slug]", "page")
 
     const pages = await listAdminPages().catch(() => [])
     for (const page of pages) {
-      if (page.isDestination) revalidateAllLocales(page.path)
+      if (page.isDestination || page.isBlog || page.slug === "blog") {
+        revalidateAllLocales(page.path)
+      }
     }
 
     return NextResponse.json({

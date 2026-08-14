@@ -1,5 +1,12 @@
 import { prisma } from "@/lib/db"
 import { DESTINATIONS, type Destination, slugifyDestinationId } from "@/lib/destinations"
+import { BLOG_POSTS } from "@/lib/blog/posts"
+import {
+  blogPostToSections,
+  emptyBlogSections,
+  pageContentToBlogPost,
+  slugifyBlogId,
+} from "@/lib/blog/cms"
 import {
   DEFAULT_LOCALE,
   type Locale,
@@ -16,8 +23,10 @@ import {
   type PageContentRecord,
   type PageSection,
   type PageSectionType,
+  blogIdFromSlug,
   ensureMissingDefaultSections,
   homeCopyFromSections,
+  isBlogSlug,
   isCorePageSlug,
   mergeLocalizedSections,
   parseSections,
@@ -29,10 +38,13 @@ export {
   PAGE_SECTION_TYPES,
   CORE_PAGE_SLUGS,
   isCorePageSlug,
+  isBlogSlug,
+  blogIdFromSlug,
   type PageSectionType,
   type PageSection,
   type PageContentRecord,
   type HomeMarketingCopy,
+  type BlogArchiveCopy,
   type DestinationAttraction,
   type CorePageSlug,
   parseSections,
@@ -42,6 +54,7 @@ export {
   attractionSections,
   attractionsFromSections,
   homeCopyFromSections,
+  blogArchiveCopyFromSections,
   mergeLocalizedSections,
   ensureMissingDefaultSections,
 } from "@/lib/page-content-shared"
@@ -482,6 +495,32 @@ const COOKIES_DEFAULTS: PageDefinition["defaults"] = {
   ],
 }
 
+const BLOG_ARCHIVE_DEFAULTS: PageDefinition["defaults"] = {
+  title: "Albania Airport Transport Guides | Landed",
+  description:
+    "TIA transit tips, destination routes, and fixed-price airport transfer guides for Albania travellers.",
+  ogImage: "",
+  sections: [
+    section("text", "hero.eyebrow", { body: "Landed Guides" }),
+    section("heading", "hero.heading", {
+      heading: "Albania Airport Transport & Travel Guides",
+      level: 1,
+    }),
+    section("text", "hero.text", {
+      body: "Practical guides for Tirana International Airport (TIA) transit, airport logistics, and fixed-price route tips across Albania—written for travellers who want clarity before they land.",
+    }),
+    section("text", "cta.eyebrow", { body: "Fixed fare · €0 deposit" }),
+    section("heading", "cta.heading", {
+      heading: "Calculate your Tirana Airport transfer",
+      level: 2,
+    }),
+    section("text", "cta.text", {
+      body: "Get a fixed price from TIA before you fly. Meet your driver on arrival and pay cash—no deposit required to reserve.",
+    }),
+    section("text", "cta.button", { body: "Get my fixed fare" }),
+  ],
+}
+
 /** Route-specific copy (distance/time from Tirana Airport + why-book blurb) for built-in destinations. */
 const DESTINATION_ROUTE_INFO: Record<
   string,
@@ -606,6 +645,55 @@ export function destinationIdFromSlug(slug: string): string | null {
   return id || null
 }
 
+export function isBuiltInBlogId(id: string): boolean {
+  return BLOG_POSTS.some((post) => post.slug === id)
+}
+
+export function blogDefinitionFromPost(post: (typeof BLOG_POSTS)[number]): PageDefinition {
+  const sections = blogPostToSections(post)
+  return {
+    slug: `blog/${post.slug}`,
+    label: `Blog · ${post.title}`,
+    path: `/blog/${post.slug}`,
+    defaults: {
+      title: post.seoTitle,
+      description: post.seoDescription,
+      ogImage: post.heroImage.src,
+      sections,
+    },
+  }
+}
+
+function blogDefinitionFromRow(row: {
+  slug: string
+  label: string
+  title: string
+  description: string
+  ogImage: string
+  sections: unknown
+}): PageDefinition {
+  const id = blogIdFromSlug(row.slug) || row.slug
+  const sections = parseSections(row.sections)
+  const title =
+    sectionHeading(sections, "title.heading") ||
+    row.label.replace(/^Blog\s*·\s*/i, "").trim() ||
+    id
+  return {
+    slug: row.slug,
+    label: row.label || `Blog · ${title}`,
+    path: `/blog/${id}`,
+    defaults: {
+      title: row.title || title,
+      description: row.description || "",
+      ogImage: row.ogImage || "",
+      sections:
+        sections.length > 0
+          ? sections
+          : emptyBlogSections(title),
+    },
+  }
+}
+
 /** Public URL segment for a destination (`urlSlug` CMS field, else id). */
 export function publicDestinationSlug(
   sections: PageSection[],
@@ -658,7 +746,14 @@ export function preserveDestinationMetaKeys(
   let sections = next.filter(
     (s) => s.key !== HIDDEN_STATUS_KEY && s.key !== FEATURED_STATUS_KEY,
   )
-  if (isDestinationFeatured(previous)) {
+  // Blog editors send `meta.*` + optional `_featured`; trust featured from next.
+  // Destination editors drop meta keys via merge — preserve featured from previous.
+  const blogShaped = next.some((s) => s.key.startsWith("meta."))
+  if (
+    blogShaped
+      ? isDestinationFeatured(next)
+      : isDestinationFeatured(previous)
+  ) {
     sections = withFeaturedStatus(sections)
   }
   if (isDestinationHidden(previous)) {
@@ -717,6 +812,12 @@ export const PAGE_DEFINITIONS: PageDefinition[] = [
     defaults: HOME_DEFAULTS,
   },
   {
+    slug: "blog",
+    label: "Blog archive",
+    path: "/blog",
+    defaults: BLOG_ARCHIVE_DEFAULTS,
+  },
+  {
     slug: "cancellation-policy",
     label: "Cancellation Policy",
     path: "/cancellation-policy",
@@ -741,25 +842,27 @@ export const PAGE_DEFINITIONS: PageDefinition[] = [
     defaults: COOKIES_DEFAULTS,
   },
   ...DESTINATIONS.map((d) => destinationDefaults(d.id)!),
+  ...BLOG_POSTS.map((post) => blogDefinitionFromPost(post)),
 ]
 
 export function getPageDefinition(slug: string): PageDefinition | undefined {
   return PAGE_DEFINITIONS.find((p) => p.slug === slug)
 }
 
-/** Built-in definition, or a custom destination row from the database. */
+/** Built-in definition, or a custom destination/blog row from the database. */
 export async function resolvePageDefinition(
   slug: string,
 ): Promise<PageDefinition | undefined> {
   const builtIn = getPageDefinition(slug)
   if (builtIn) return builtIn
-  if (!isDestinationSlug(slug)) return undefined
+  if (!isDestinationSlug(slug) && !isBlogSlug(slug)) return undefined
   const row =
     (await prisma.pageContent.findUnique({
       where: { slug_locale: { slug, locale: DEFAULT_LOCALE } },
     })) ??
     (await prisma.pageContent.findFirst({ where: { slug } }))
   if (!row) return undefined
+  if (isBlogSlug(slug)) return blogDefinitionFromRow(row)
   return pageDefinitionFromRow(row)
 }
 
@@ -819,11 +922,13 @@ export async function resolvePageContent(
   const isCustomDestination =
     isDestinationSlug(slug) &&
     !isBuiltInDestinationId(destinationIdFromSlug(slug) || "")
+  const isCustomBlog =
+    isBlogSlug(slug) && !isBuiltInBlogId(blogIdFromSlug(slug) || "")
 
   const hideSource = english ?? localized
   if (
     hideSource &&
-    isDestinationSlug(slug) &&
+    (isDestinationSlug(slug) || isBlogSlug(slug)) &&
     isDestinationHidden(parseSections(hideSource.sections))
   ) {
     return null
@@ -831,7 +936,7 @@ export async function resolvePageContent(
 
   const row = localized ?? english
   if (!row) {
-    if (isCustomDestination) return null
+    if (isCustomDestination || isCustomBlog) return null
     return {
       slug: def.slug,
       locale: DEFAULT_LOCALE,
@@ -987,13 +1092,15 @@ export type AdminPageListItem = {
   title: string
   updatedAt: string | null
   fromDatabase: boolean
-  /** Permanent delete (custom destinations). */
+  /** Permanent delete (custom destinations / blogs). */
   canDelete: boolean
   /** Clear DB overrides and restore code defaults. */
   canReset: boolean
   isCustomDestination: boolean
+  isCustomBlog: boolean
   /** Destination pages only — homepage carousel star. */
   isDestination: boolean
+  isBlog: boolean
   featured: boolean
 }
 
@@ -1015,15 +1122,19 @@ export async function listAdminPages(): Promise<AdminPageListItem[]> {
   const builtIn = PAGE_DEFINITIONS.map((def) => {
     const row = bySlug.get(def.slug)
     const isDestination = isDestinationSlug(def.slug)
+    const isBlog = isBlogSlug(def.slug)
     const sections = row ? parseSections(row.sections) : []
-    const hidden = isDestination && row ? isDestinationHidden(sections) : false
+    const hidden =
+      (isDestination || isBlog) && row
+        ? isDestinationHidden(sections)
+        : false
     if (hidden) return null
-    const id = destinationIdFromSlug(def.slug)
+    const destId = destinationIdFromSlug(def.slug)
     const path =
-      isDestination && id
+      isDestination && destId
         ? `/destinations/${publicDestinationSlug(
             sections.length ? sections : def.defaults.sections,
-            id,
+            destId,
           )}`
         : def.path
     return {
@@ -1033,22 +1144,38 @@ export async function listAdminPages(): Promise<AdminPageListItem[]> {
       title: row?.title || def.defaults.title,
       updatedAt: row?.updatedAt?.toISOString() ?? null,
       fromDatabase: Boolean(row),
-      canDelete: isDestination,
-      canReset: !isDestination && Boolean(row),
+      canDelete: isDestination || isBlog,
+      canReset: !isDestination && !isBlog && Boolean(row),
       isCustomDestination: false,
+      isCustomBlog: false,
       isDestination,
-      featured: isDestination && row ? isDestinationFeatured(sections) : false,
+      isBlog,
+      featured:
+        (isDestination || isBlog) && row
+          ? isDestinationFeatured(sections)
+          : isBlog && !row
+            ? isDestinationFeatured(def.defaults.sections)
+            : false,
     }
   }).filter((item): item is NonNullable<typeof item> => Boolean(item))
 
   const builtInSlugs = new Set(PAGE_DEFINITIONS.map((d) => d.slug))
   const custom = rows
     .filter((row) => {
-      if (!isDestinationSlug(row.slug) || builtInSlugs.has(row.slug)) return false
-      return !isDestinationHidden(parseSections(row.sections))
+      if (builtInSlugs.has(row.slug)) return false
+      if (isDestinationSlug(row.slug)) {
+        return !isDestinationHidden(parseSections(row.sections))
+      }
+      if (isBlogSlug(row.slug)) {
+        return !isDestinationHidden(parseSections(row.sections))
+      }
+      return false
     })
     .map((row) => {
-      const def = pageDefinitionFromRow(row)
+      const isBlog = isBlogSlug(row.slug)
+      const def = isBlog
+        ? blogDefinitionFromRow(row)
+        : pageDefinitionFromRow(row)
       const sections = parseSections(row.sections)
       return {
         slug: row.slug,
@@ -1059,8 +1186,10 @@ export async function listAdminPages(): Promise<AdminPageListItem[]> {
         fromDatabase: true,
         canDelete: true,
         canReset: false,
-        isCustomDestination: true,
-        isDestination: true,
+        isCustomDestination: !isBlog,
+        isCustomBlog: isBlog,
+        isDestination: !isBlog,
+        isBlog,
         featured: isDestinationFeatured(sections),
       }
     })
@@ -1103,6 +1232,50 @@ export function pageMetadataFields(page: PageContentRecord) {
       images: [ogImage],
     },
   }
+}
+
+/** List public blog posts for a locale (CMS + built-in defaults). */
+export async function listBlogPostsFromCms(
+  localeInput?: string | null,
+): Promise<NonNullable<ReturnType<typeof pageContentToBlogPost>>[]> {
+  const locale = normalizeLocale(localeInput)
+  const defs = PAGE_DEFINITIONS.filter((d) => isBlogSlug(d.slug))
+  const builtInSlugs = new Set(defs.map((d) => d.slug))
+
+  const rows = await prisma.pageContent.findMany({
+    where: {
+      locale: DEFAULT_LOCALE,
+      slug: { startsWith: "blog/" },
+    },
+    select: { slug: true },
+  })
+
+  const slugs = new Set([
+    ...defs.map((d) => d.slug),
+    ...rows.map((r) => r.slug).filter((s) => !builtInSlugs.has(s)),
+  ])
+
+  const posts: NonNullable<ReturnType<typeof pageContentToBlogPost>>[] = []
+  for (const slug of slugs) {
+    const page = await resolvePageContent(slug, locale)
+    if (!page) continue
+    const post = pageContentToBlogPost(page)
+    if (post) posts.push(post)
+  }
+
+  return posts.sort(
+    (a, b) =>
+      new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime(),
+  )
+}
+
+export async function getBlogPostFromCms(
+  postSlug: string,
+  localeInput?: string | null,
+) {
+  const page = await resolvePageContent(`blog/${postSlug}`, localeInput)
+  if (!page) return null
+  return pageContentToBlogPost(page)
 }
 
 function destinationCardImage(
@@ -1239,20 +1412,20 @@ export async function resolveDestinationCards(
 }
 
 /**
- * Toggle homepage feature star for a destination page.
+ * Toggle feature star for a destination (homepage carousel) or blog post (archive).
  * Upserts EN PageContent so built-ins without a row can be starred.
  */
 export async function setDestinationFeatured(
   slug: string,
   featured: boolean,
 ): Promise<{ featured: boolean }> {
-  if (!isDestinationSlug(slug)) {
-    throw new Error("Only destination pages can be featured.")
+  if (!isDestinationSlug(slug) && !isBlogSlug(slug)) {
+    throw new Error("Only destination or blog pages can be featured.")
   }
 
   const def = await resolvePageDefinition(slug)
   if (!def) {
-    throw new Error("Unknown destination.")
+    throw new Error("Unknown page.")
   }
 
   const existing = await prisma.pageContent.findUnique({
@@ -1263,7 +1436,7 @@ export async function setDestinationFeatured(
     : def.defaults.sections
 
   if (existing && isDestinationHidden(baseSections)) {
-    throw new Error("This destination is deleted.")
+    throw new Error("This page is deleted.")
   }
 
   const nextSections = featured
@@ -1287,6 +1460,59 @@ export async function setDestinationFeatured(
   })
 
   return { featured }
+}
+
+export async function createBlogPage(input: {
+  title: string
+  slug?: string
+}) {
+  const title = input.title.trim()
+  if (!title) throw new Error("Title is required.")
+
+  const id = slugifyBlogId(input.slug?.trim() || title)
+  if (!id) throw new Error("Enter a valid slug (letters and numbers).")
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id)) {
+    throw new Error("Slug must be lowercase letters, numbers, and hyphens.")
+  }
+
+  const slug = `blog/${id}`
+  const existing = await prisma.pageContent.findUnique({
+    where: { slug_locale: { slug, locale: DEFAULT_LOCALE } },
+  })
+  const existingHidden =
+    existing != null && isDestinationHidden(parseSections(existing.sections))
+
+  if (isBuiltInBlogId(id) && !existingHidden) {
+    throw new Error("That blog post already exists.")
+  }
+  if (existing && !existingHidden) {
+    throw new Error("That blog post already exists.")
+  }
+
+  const sections = emptyBlogSections(title)
+  const data = {
+    label: `Blog · ${title}`,
+    title: title.slice(0, 60),
+    description: `Travel guide: ${title}`.slice(0, 155),
+    ogImage:
+      "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&q=80&w=1600",
+    sections,
+  }
+
+  const row = existingHidden
+    ? await prisma.pageContent.update({
+        where: { slug_locale: { slug, locale: DEFAULT_LOCALE } },
+        data,
+      })
+    : await prisma.pageContent.create({
+        data: {
+          slug,
+          locale: DEFAULT_LOCALE,
+          ...data,
+        },
+      })
+
+  return serializePageContent(row)
 }
 
 export async function resolveDestination(
@@ -1381,32 +1607,40 @@ export async function deleteAdminPage(slug: string): Promise<{
   mode: "deleted" | "reset"
 }> {
   const def = await resolvePageDefinition(slug)
-  if (!def && !isDestinationSlug(slug)) {
+  if (!def && !isDestinationSlug(slug) && !isBlogSlug(slug)) {
     throw new Error("Unknown page.")
   }
 
-  const id = destinationIdFromSlug(slug)
-  const isCustom = Boolean(id && !isBuiltInDestinationId(id))
+  const destId = destinationIdFromSlug(slug)
+  const blogId = blogIdFromSlug(slug)
+  const isCustomDest = Boolean(destId && !isBuiltInDestinationId(destId))
+  const isCustomBlog = Boolean(blogId && !isBuiltInBlogId(blogId))
 
-  if (isCustom) {
+  if (isCustomDest || isCustomBlog) {
     await prisma.pageContent.deleteMany({ where: { slug } })
     return { mode: "deleted" }
   }
 
-  if (id && isBuiltInDestinationId(id)) {
+  if (
+    (destId && isBuiltInDestinationId(destId)) ||
+    (blogId && isBuiltInBlogId(blogId))
+  ) {
     const existing = await prisma.pageContent.findUnique({
       where: { slug_locale: { slug, locale: DEFAULT_LOCALE } },
     })
     const baseSections = existing
       ? parseSections(existing.sections).filter((s) => s.key !== HIDDEN_STATUS_KEY)
       : def?.defaults.sections ?? []
+    const labelFallback = blogId
+      ? `Blog · ${blogId}`
+      : `Destination · ${destId}`
     await prisma.pageContent.upsert({
       where: { slug_locale: { slug, locale: DEFAULT_LOCALE } },
       create: {
         slug,
         locale: DEFAULT_LOCALE,
-        label: def?.label || `Destination · ${id}`,
-        title: def?.defaults.title || id,
+        label: def?.label || labelFallback,
+        title: def?.defaults.title || blogId || destId || slug,
         description: def?.defaults.description || "",
         ogImage: def?.defaults.ogImage || "",
         sections: withHiddenStatus(
@@ -1419,7 +1653,6 @@ export async function deleteAdminPage(slug: string): Promise<{
         ),
       },
     })
-    // Drop non-EN translations for a deleted built-in destination.
     await prisma.pageContent.deleteMany({
       where: { slug, locale: { not: DEFAULT_LOCALE } },
     })

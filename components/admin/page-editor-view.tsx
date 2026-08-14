@@ -41,18 +41,45 @@ import {
   isCustomMarketingIcon,
 } from "@/lib/marketing-icons"
 import {
+  BLOG_META_KEYS,
   PAGE_SECTION_TYPES,
+  isBlogSlug,
   isCorePageSlug,
   type PageContentRecord,
   type PageSection,
   type PageSectionType,
 } from "@/lib/page-content-shared"
+import { BLOG_AUTHORS } from "@/lib/blog/authors"
+import {
+  BLOG_CATEGORY_LABELS,
+  type BlogCategoryId,
+} from "@/lib/blog/types"
 import type { MediaAssetDto } from "@/lib/media-shared"
 import { cn } from "@/lib/utils"
 
 const CONTENT_SECTION_TYPES = PAGE_SECTION_TYPES.filter(
-  (t) => t !== "faq_item" && t !== "attraction",
+  (t) =>
+    t !== "faq_item" &&
+    t !== "attraction" &&
+    t !== "callout" &&
+    t !== "list" &&
+    t !== "table" &&
+    t !== "mid_cta",
 ) as PageSectionType[]
+
+const BLOG_BODY_SECTION_TYPES = [
+  "heading",
+  "text",
+  "image",
+  "callout",
+  "list",
+  "table",
+  "mid_cta",
+] as PageSectionType[]
+
+const BLOG_CATEGORY_OPTIONS = (
+  Object.keys(BLOG_CATEGORY_LABELS) as Array<keyof typeof BLOG_CATEGORY_LABELS>
+).filter((k) => k !== "all") as BlogCategoryId[]
 
 function newSection(type: PageSectionType): PageSection {
   return {
@@ -67,7 +94,15 @@ function newSection(type: PageSectionType): PageSection {
           ? { src: "", alt: "" }
           : type === "attraction"
             ? { heading: "", body: "", src: "", alt: "" }
-            : { question: "", answer: "" }),
+            : type === "callout"
+              ? { heading: "", body: "" }
+              : type === "list"
+                ? { items: [], listStyle: "ul" as const }
+                : type === "table"
+                  ? { heading: "", headers: ["Column A", "Column B"], rows: [["", ""]] }
+                  : type === "mid_cta"
+                    ? {}
+                    : { question: "", answer: "" }),
   }
 }
 
@@ -99,11 +134,116 @@ function splitSections(sections: PageSection[]) {
       (s) =>
         s.type !== "faq_item" &&
         s.type !== "attraction" &&
-        !s.key.startsWith("_"),
+        !s.key.startsWith("_") &&
+        !s.key.startsWith("meta.") &&
+        !s.key.startsWith("body.") &&
+        s.key !== "title.heading" &&
+        s.key !== "hero.image",
     ),
+    settings: sections.filter(
+      (s) => s.key.startsWith("meta.") || s.key === "title.heading",
+    ),
+    hero: sections.filter((s) => s.key === "hero.image"),
+    body: sections
+      .filter((s) => s.key.startsWith("body."))
+      .sort((a, b) => {
+        const na = Number(a.key.slice(5)) || 0
+        const nb = Number(b.key.slice(5)) || 0
+        return na - nb
+      }),
     attractions: sections.filter((s) => s.type === "attraction"),
     faqs: sections.filter((s) => s.type === "faq_item"),
+    metaKeys: sections.filter((s) => s.key.startsWith("_")),
   }
+}
+
+function defaultBlogSetting(key: string): PageSection {
+  if (key === "title.heading") {
+    return {
+      id: crypto.randomUUID(),
+      type: "heading",
+      key,
+      heading: "",
+      level: 1,
+    }
+  }
+  return {
+    id: crypto.randomUUID(),
+    type: "text",
+    key,
+    body: "",
+  }
+}
+
+function ensureBlogParts(sections: PageSection[]) {
+  const parts = splitSections(sections)
+  const byKey = new Map(parts.settings.map((s) => [s.key, s]))
+  const settings = BLOG_META_KEYS.map(
+    (key) => byKey.get(key) ?? defaultBlogSetting(key),
+  )
+  const hero =
+    parts.hero.length > 0
+      ? parts.hero
+      : [
+          {
+            id: crypto.randomUUID(),
+            type: "image" as const,
+            key: "hero.image",
+            src: "",
+            alt: "",
+          },
+        ]
+  return {
+    ...parts,
+    settings,
+    hero,
+  }
+}
+
+function settingBody(settings: PageSection[], key: string): string {
+  const section = settings.find((s) => s.key === key)
+  if (!section) return ""
+  if (section.key === "title.heading") return section.heading ?? ""
+  return section.body ?? ""
+}
+
+function patchSetting(
+  settings: PageSection[],
+  key: string,
+  value: string,
+): PageSection[] {
+  return settings.map((section) => {
+    if (section.key !== key) return section
+    if (key === "title.heading") {
+      return { ...section, heading: value, level: 1 as const }
+    }
+    return { ...section, body: value }
+  })
+}
+
+function mergeBlogSections(parts: {
+  settings: PageSection[]
+  hero: PageSection[]
+  body: PageSection[]
+  faqs: PageSection[]
+  metaKeys: PageSection[]
+}): PageSection[] {
+  const body = parts.body.map((item, i) => ({
+    ...item,
+    key: `body.${i + 1}`,
+  }))
+  const faqs = parts.faqs.map((faq, i) => ({
+    ...faq,
+    type: "faq_item" as const,
+    key: `faq.${i + 1}`,
+  }))
+  return [
+    ...parts.settings,
+    ...parts.hero,
+    ...body,
+    ...faqs,
+    ...parts.metaKeys,
+  ]
 }
 
 function mergeSections(
@@ -346,6 +486,133 @@ function SectionFields({
         </>
       )}
 
+      {section.type === "callout" && (
+        <>
+          <div className="flex flex-col gap-1.5 sm:col-span-2">
+            <Label className="text-xs text-muted-foreground">
+              Callout title (optional)
+            </Label>
+            <Input
+              value={section.heading ?? ""}
+              onChange={(e) =>
+                onChange({ ...section, heading: e.target.value })
+              }
+            />
+          </div>
+          <div className="flex flex-col gap-1.5 sm:col-span-2">
+            <Label className="text-xs text-muted-foreground">Callout text</Label>
+            <Textarea
+              rows={3}
+              value={section.body ?? ""}
+              onChange={(e) => onChange({ ...section, body: e.target.value })}
+            />
+          </div>
+        </>
+      )}
+
+      {section.type === "list" && (
+        <>
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs text-muted-foreground">List style</Label>
+            <Select
+              value={section.listStyle === "ol" ? "ol" : "ul"}
+              onValueChange={(v) => {
+                if (v !== "ul" && v !== "ol") return
+                onChange({ ...section, listStyle: v })
+              }}
+              items={[
+                { value: "ul", label: "Bullets" },
+                { value: "ol", label: "Numbered" },
+              ]}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ul">Bullets</SelectItem>
+                <SelectItem value="ol">Numbered</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex flex-col gap-1.5 sm:col-span-2">
+            <Label className="text-xs text-muted-foreground">
+              Items (one per line)
+            </Label>
+            <Textarea
+              rows={5}
+              value={(section.items ?? []).join("\n")}
+              onChange={(e) =>
+                onChange({
+                  ...section,
+                  items: e.target.value
+                    .split("\n")
+                    .map((line) => line.trimEnd()),
+                })
+              }
+            />
+          </div>
+        </>
+      )}
+
+      {section.type === "table" && (
+        <>
+          <div className="flex flex-col gap-1.5 sm:col-span-2">
+            <Label className="text-xs text-muted-foreground">
+              Caption (optional)
+            </Label>
+            <Input
+              value={section.heading ?? ""}
+              onChange={(e) =>
+                onChange({ ...section, heading: e.target.value })
+              }
+            />
+          </div>
+          <div className="flex flex-col gap-1.5 sm:col-span-2">
+            <Label className="text-xs text-muted-foreground">
+              Headers (comma-separated)
+            </Label>
+            <Input
+              value={(section.headers ?? []).join(", ")}
+              onChange={(e) =>
+                onChange({
+                  ...section,
+                  headers: e.target.value.split(",").map((h) => h.trim()),
+                })
+              }
+            />
+          </div>
+          <div className="flex flex-col gap-1.5 sm:col-span-2">
+            <Label className="text-xs text-muted-foreground">
+              Rows (one row per line, cells separated by |)
+            </Label>
+            <Textarea
+              rows={5}
+              value={(section.rows ?? [])
+                .map((row) => row.join(" | "))
+                .join("\n")}
+              onChange={(e) =>
+                onChange({
+                  ...section,
+                  rows: e.target.value
+                    .split("\n")
+                    .filter((line) => line.trim().length > 0)
+                    .map((line) =>
+                      line.split("|").map((cell) => cell.trim()),
+                    ),
+                })
+              }
+            />
+          </div>
+        </>
+      )}
+
+      {section.type === "mid_cta" && (
+        <p className="sm:col-span-2 text-sm text-muted-foreground">
+          Inserts the mid-article booking CTA (“Landing at Tirana Airport
+          soon?”). No extra fields needed.
+        </p>
+      )}
+
       {section.type === "faq_item" && (
         <>
           <div className="flex flex-col gap-1.5 sm:col-span-2">
@@ -441,20 +708,24 @@ export function PageEditorView({ slug }: { slug: string }) {
   function applyLibraryAsset(asset: MediaAssetDto) {
     if (!page || !libraryTarget) return
     if (libraryTarget.type === "og") {
+      const isDest = page.slug.startsWith("destinations/")
+      const isBlog = isBlogSlug(page.slug)
       setPage({
         ...page,
         ogImage: asset.url,
-        sections: page.slug.startsWith("destinations/")
-          ? page.sections.map((section) =>
-              section.type === "image" && section.key === "hero"
-                ? {
-                    ...section,
-                    src: asset.url,
-                    ...(asset.alt ? { alt: asset.alt } : {}),
-                  }
-                : section,
-            )
-          : page.sections,
+        sections:
+          isDest || isBlog
+            ? page.sections.map((section) =>
+                section.type === "image" &&
+                section.key === (isBlog ? "hero.image" : "hero")
+                  ? {
+                      ...section,
+                      src: asset.url,
+                      ...(asset.alt ? { alt: asset.alt } : {}),
+                    }
+                  : section,
+              )
+            : page.sections,
       })
       return
     }
@@ -477,6 +748,9 @@ export function PageEditorView({ slug }: { slug: string }) {
     if (!page) return
     setSaving(true)
     try {
+      const sections = isBlogSlug(page.slug)
+        ? mergeBlogSections(ensureBlogParts(page.sections))
+        : page.sections
       const data = await apiPatch<{ page: PageContentRecord }>(
         `/api/admin/pages/${slug}?locale=${locale}`,
         {
@@ -485,7 +759,7 @@ export function PageEditorView({ slug }: { slug: string }) {
           title: page.title,
           description: page.description,
           ogImage: page.ogImage,
-          sections: page.sections,
+          sections,
         },
       )
       setPage(data.page)
@@ -503,10 +777,9 @@ export function PageEditorView({ slug }: { slug: string }) {
 
   async function removePage() {
     if (!page) return
-    const destId = page.slug.startsWith("destinations/")
-      ? page.slug.slice("destinations/".length)
-      : ""
-    const canDelete = Boolean(destId)
+    const isDestination = page.slug.startsWith("destinations/")
+    const isBlog = isBlogSlug(page.slug)
+    const canDelete = isDestination || isBlog
     const canReset = page.fromDatabase && isCorePageSlug(page.slug)
 
     if (!canDelete && !canReset) {
@@ -520,7 +793,9 @@ export function PageEditorView({ slug }: { slug: string }) {
 
     const confirmed = window.confirm(
       canDelete
-        ? "Delete this destination? It will be removed from the site."
+        ? isBlog
+          ? "Delete this blog post? It will be removed from the site."
+          : "Delete this destination? It will be removed from the site."
         : "Reset this page to built-in defaults? Your custom edits will be cleared.",
     )
     if (!confirmed) return
@@ -532,7 +807,9 @@ export function PageEditorView({ slug }: { slug: string }) {
       )
       toast.success(
         res.mode === "deleted"
-          ? "Destination deleted."
+          ? isBlog
+            ? "Blog post deleted."
+            : "Destination deleted."
           : "Page reset to defaults.",
       )
       router.push("/admin/pages")
@@ -551,11 +828,27 @@ export function PageEditorView({ slug }: { slug: string }) {
       page.slug.startsWith("destinations/") &&
       next.type === "image" &&
       next.key === "hero"
+    const isBlogHero =
+      isBlogSlug(page.slug) &&
+      next.type === "image" &&
+      next.key === "hero.image"
     setPage({
       ...page,
       sections,
-      ...(isDestinationHero && next.src != null ? { ogImage: next.src } : {}),
+      ...((isDestinationHero || isBlogHero) && next.src != null
+        ? { ogImage: next.src }
+        : {}),
     })
+  }
+
+  function setBlogParts(
+    updater: (
+      parts: ReturnType<typeof ensureBlogParts>,
+    ) => ReturnType<typeof ensureBlogParts>,
+  ) {
+    if (!page) return
+    const parts = ensureBlogParts(page.sections)
+    setPage({ ...page, sections: mergeBlogSections(updater(parts)) })
   }
 
   function moveContentSection(contentIndex: number, dir: -1 | 1) {
@@ -587,6 +880,13 @@ export function PageEditorView({ slug }: { slug: string }) {
       addFaqItem()
       return
     }
+    if (isBlogSlug(page.slug)) {
+      setBlogParts((parts) => ({
+        ...parts,
+        body: [...parts.body, newSection(addType)],
+      }))
+      return
+    }
     const { content, attractions, faqs } = splitSections(page.sections)
     setPage({
       ...page,
@@ -600,6 +900,13 @@ export function PageEditorView({ slug }: { slug: string }) {
 
   function addFaqItem() {
     if (!page) return
+    if (isBlogSlug(page.slug)) {
+      setBlogParts((parts) => ({
+        ...parts,
+        faqs: [...parts.faqs, newFaqItem()],
+      }))
+      return
+    }
     const { content, attractions, faqs } = splitSections(page.sections)
     setPage({
       ...page,
@@ -609,6 +916,14 @@ export function PageEditorView({ slug }: { slug: string }) {
 
   function updateFaqItem(faqIndex: number, next: PageSection) {
     if (!page) return
+    if (isBlogSlug(page.slug)) {
+      setBlogParts((parts) => {
+        const nextFaqs = [...parts.faqs]
+        nextFaqs[faqIndex] = next
+        return { ...parts, faqs: nextFaqs }
+      })
+      return
+    }
     const { content, attractions, faqs } = splitSections(page.sections)
     const nextFaqs = [...faqs]
     nextFaqs[faqIndex] = next
@@ -620,6 +935,19 @@ export function PageEditorView({ slug }: { slug: string }) {
 
   function moveFaqItem(faqIndex: number, dir: -1 | 1) {
     if (!page) return
+    if (isBlogSlug(page.slug)) {
+      setBlogParts((parts) => {
+        const target = faqIndex + dir
+        if (target < 0 || target >= parts.faqs.length) return parts
+        const nextFaqs = [...parts.faqs]
+        ;[nextFaqs[faqIndex], nextFaqs[target]] = [
+          nextFaqs[target],
+          nextFaqs[faqIndex],
+        ]
+        return { ...parts, faqs: nextFaqs }
+      })
+      return
+    }
     const { content, attractions, faqs } = splitSections(page.sections)
     const target = faqIndex + dir
     if (target < 0 || target >= faqs.length) return
@@ -636,6 +964,13 @@ export function PageEditorView({ slug }: { slug: string }) {
 
   function removeFaqItem(faqIndex: number) {
     if (!page) return
+    if (isBlogSlug(page.slug)) {
+      setBlogParts((parts) => ({
+        ...parts,
+        faqs: parts.faqs.filter((_, i) => i !== faqIndex),
+      }))
+      return
+    }
     const { content, attractions, faqs } = splitSections(page.sections)
     setPage({
       ...page,
@@ -645,6 +980,23 @@ export function PageEditorView({ slug }: { slug: string }) {
         faqs.filter((_, i) => i !== faqIndex),
       ),
     })
+  }
+
+  function moveBodySection(bodyIndex: number, dir: -1 | 1) {
+    setBlogParts((parts) => {
+      const target = bodyIndex + dir
+      if (target < 0 || target >= parts.body.length) return parts
+      const next = [...parts.body]
+      ;[next[bodyIndex], next[target]] = [next[target], next[bodyIndex]]
+      return { ...parts, body: next }
+    })
+  }
+
+  function removeBodySection(bodyIndex: number) {
+    setBlogParts((parts) => ({
+      ...parts,
+      body: parts.body.filter((_, i) => i !== bodyIndex),
+    }))
   }
 
   function addAttractionItem() {
@@ -718,9 +1070,24 @@ export function PageEditorView({ slug }: { slug: string }) {
     attractions: attractionItems,
     faqs: faqItems,
   } = splitSections(page.sections)
+  const blogParts = isBlogSlug(page.slug)
+    ? ensureBlogParts(page.sections)
+    : null
   const isDestinationPage = page.slug.startsWith("destinations/")
-  const canDelete = isDestinationPage
+  const isBlogPage = isBlogSlug(page.slug)
+  const canDelete = isDestinationPage || isBlogPage
   const canReset = page.fromDatabase && isCorePageSlug(page.slug)
+  const blogFeatured =
+    blogParts != null &&
+    blogParts.metaKeys.some(
+      (s) =>
+        s.key === "_featured" &&
+        (s.body ?? "").trim().toLowerCase() === "featured",
+    )
+  const authorOptions = Object.values(BLOG_AUTHORS)
+  const sectionTypeOptions = isBlogPage
+    ? BLOG_BODY_SECTION_TYPES
+    : CONTENT_SECTION_TYPES
 
   return (
     <>
@@ -851,14 +1218,16 @@ export function PageEditorView({ slug }: { slug: string }) {
           </div>
           <div className="flex flex-col gap-1.5">
             <Label className="text-xs text-muted-foreground">
-              {page.slug.startsWith("destinations/")
+              {isDestinationPage || isBlogPage
                 ? "Card / page image"
                 : "OG image"}
             </Label>
             <p className="text-[11px] text-muted-foreground">
-              {page.slug.startsWith("destinations/")
+              {isDestinationPage
                 ? "Used on the homepage carousel and destination page hero."
-                : "Open Graph image for search and social shares."}
+                : isBlogPage
+                  ? "Used as the post hero and Open Graph image."
+                  : "Open Graph image for search and social shares."}
             </p>
             <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
               <Input
@@ -869,13 +1238,16 @@ export function PageEditorView({ slug }: { slug: string }) {
                   setPage({
                     ...page,
                     ogImage,
-                    sections: page.slug.startsWith("destinations/")
-                      ? page.sections.map((section) =>
-                          section.type === "image" && section.key === "hero"
-                            ? { ...section, src: ogImage }
-                            : section,
-                        )
-                      : page.sections,
+                    sections:
+                      isDestinationPage || isBlogPage
+                        ? page.sections.map((section) =>
+                            section.type === "image" &&
+                            section.key ===
+                              (isBlogPage ? "hero.image" : "hero")
+                              ? { ...section, src: ogImage }
+                              : section,
+                          )
+                        : page.sections,
                   })
                 }}
                 className="min-w-0 flex-1"
@@ -906,13 +1278,16 @@ export function PageEditorView({ slug }: { slug: string }) {
                       setPage({
                         ...page,
                         ogImage: url,
-                        sections: page.slug.startsWith("destinations/")
-                          ? page.sections.map((section) =>
-                              section.type === "image" && section.key === "hero"
-                                ? { ...section, src: url }
-                                : section,
-                            )
-                          : page.sections,
+                        sections:
+                          isDestinationPage || isBlogPage
+                            ? page.sections.map((section) =>
+                                section.type === "image" &&
+                                section.key ===
+                                  (isBlogPage ? "hero.image" : "hero")
+                                  ? { ...section, src: url }
+                                  : section,
+                              )
+                            : page.sections,
                       })
                     }}
                   />
@@ -925,147 +1300,611 @@ export function PageEditorView({ slug }: { slug: string }) {
         </div>
       </section>
 
-      <section className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 className="text-sm font-semibold">Sections</h2>
+      {isBlogPage && blogParts ? (
+        <>
+          <section className="rounded-xl border bg-card p-4 md:p-6">
+            <h2 className="text-sm font-semibold">Post settings</h2>
             <p className="mt-1 text-xs text-muted-foreground">
-              Heading, text, and image blocks in display order.
+              Category, dates, author, and related destinations for this guide.
             </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Select
-              value={addType === "faq_item" ? "text" : addType}
-              onValueChange={(v) => {
-                if (v && CONTENT_SECTION_TYPES.includes(v as PageSectionType)) {
-                  setAddType(v as PageSectionType)
-                }
-              }}
-              items={CONTENT_SECTION_TYPES.map((t) => ({
-                value: t,
-                label: t.replace("_", " "),
-              }))}
-            >
-              <SelectTrigger className="w-[140px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {CONTENT_SECTION_TYPES.map((t) => (
-                  <SelectItem key={t} value={t}>
-                    {t.replace("_", " ")}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button type="button" variant="outline" onClick={addSection}>
-              <Plus className="size-3.5" />
-              Add
-            </Button>
-          </div>
-        </div>
-
-        {contentSections.length === 0 ? (
-          <p className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-            No content sections yet. Add a heading, text, or image block.
-          </p>
-        ) : (
-          contentSections.map((section, contentIndex) => {
-            const realIndex = page.sections.findIndex((s) => s.id === section.id)
-            return (
-              <div
-                key={section.id}
-                className="rounded-xl border bg-card p-4 md:p-5"
-              >
-                <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium capitalize">
-                      {section.type.replace("_", " ")}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      #{contentIndex + 1}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Select
-                      value={section.type}
-                      onValueChange={(v) => {
-                        if (
-                          !v ||
-                          !CONTENT_SECTION_TYPES.includes(v as PageSectionType)
-                        ) {
-                          return
-                        }
-                        if (realIndex < 0) return
-                        updateSection(realIndex, {
-                          ...newSection(v as PageSectionType),
-                          id: section.id,
-                          key: section.key,
-                        })
-                      }}
-                      items={CONTENT_SECTION_TYPES.map((t) => ({
-                        value: t,
-                        label: t.replace("_", " "),
-                      }))}
-                    >
-                      <SelectTrigger className="h-8 w-[130px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {CONTENT_SECTION_TYPES.map((t) => (
-                          <SelectItem key={t} value={t}>
-                            {t.replace("_", " ")}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="size-8"
-                      disabled={contentIndex === 0}
-                      onClick={() => moveContentSection(contentIndex, -1)}
-                    >
-                      <ArrowUp className="size-3.5" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="size-8"
-                      disabled={contentIndex === contentSections.length - 1}
-                      onClick={() => moveContentSection(contentIndex, 1)}
-                    >
-                      <ArrowDown className="size-3.5" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="size-8 text-destructive"
-                      onClick={() => removeContentSection(contentIndex)}
-                    >
-                      <Trash2 className="size-3.5" />
-                    </Button>
-                  </div>
-                </div>
-                <SectionFields
-                  section={section}
-                  onChange={(next) => {
-                    if (realIndex < 0) return
-                    updateSection(realIndex, next)
-                  }}
-                  onUpload={uploadImage}
-                  onOpenLibrary={() =>
-                    setLibraryTarget({ type: "section", id: section.id })
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-1.5 sm:col-span-2">
+                <Label className="text-xs text-muted-foreground">
+                  Article H1
+                </Label>
+                <Input
+                  value={settingBody(blogParts.settings, "title.heading")}
+                  onChange={(e) =>
+                    setBlogParts((parts) => ({
+                      ...parts,
+                      settings: patchSetting(
+                        parts.settings,
+                        "title.heading",
+                        e.target.value,
+                      ),
+                    }))
                   }
-                  uploading={uploading}
                 />
               </div>
-            )
-          })
-        )}
-      </section>
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs text-muted-foreground">Category</Label>
+                <Select
+                  value={
+                    settingBody(blogParts.settings, "meta.category") ||
+                    "airport-transport"
+                  }
+                  onValueChange={(v) => {
+                    if (!v || !BLOG_CATEGORY_OPTIONS.includes(v as BlogCategoryId))
+                      return
+                    setBlogParts((parts) => ({
+                      ...parts,
+                      settings: patchSetting(
+                        parts.settings,
+                        "meta.category",
+                        v,
+                      ),
+                    }))
+                  }}
+                  items={BLOG_CATEGORY_OPTIONS.map((id) => ({
+                    value: id,
+                    label: BLOG_CATEGORY_LABELS[id],
+                  }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {BLOG_CATEGORY_OPTIONS.map((id) => (
+                      <SelectItem key={id} value={id}>
+                        {BLOG_CATEGORY_LABELS[id]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs text-muted-foreground">Author</Label>
+                <Select
+                  value={
+                    settingBody(blogParts.settings, "meta.authorId") ||
+                    "landed-team"
+                  }
+                  onValueChange={(v) => {
+                    if (!v) return
+                    setBlogParts((parts) => ({
+                      ...parts,
+                      settings: patchSetting(
+                        parts.settings,
+                        "meta.authorId",
+                        v,
+                      ),
+                    }))
+                  }}
+                  items={authorOptions.map((a) => ({
+                    value: a.id,
+                    label: a.name,
+                  }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {authorOptions.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>
+                        {a.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col gap-1.5 sm:col-span-2">
+                <Label className="text-xs text-muted-foreground">Excerpt</Label>
+                <Textarea
+                  rows={2}
+                  value={settingBody(blogParts.settings, "meta.excerpt")}
+                  onChange={(e) =>
+                    setBlogParts((parts) => ({
+                      ...parts,
+                      settings: patchSetting(
+                        parts.settings,
+                        "meta.excerpt",
+                        e.target.value,
+                      ),
+                    }))
+                  }
+                />
+              </div>
+              <div className="flex flex-col gap-1.5 sm:col-span-2">
+                <Label className="text-xs text-muted-foreground">
+                  Quick takeaway
+                </Label>
+                <Textarea
+                  rows={2}
+                  value={settingBody(blogParts.settings, "meta.quickTakeaway")}
+                  onChange={(e) =>
+                    setBlogParts((parts) => ({
+                      ...parts,
+                      settings: patchSetting(
+                        parts.settings,
+                        "meta.quickTakeaway",
+                        e.target.value,
+                      ),
+                    }))
+                  }
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs text-muted-foreground">
+                  Published (YYYY-MM-DD)
+                </Label>
+                <Input
+                  value={settingBody(blogParts.settings, "meta.publishedAt")}
+                  onChange={(e) =>
+                    setBlogParts((parts) => ({
+                      ...parts,
+                      settings: patchSetting(
+                        parts.settings,
+                        "meta.publishedAt",
+                        e.target.value,
+                      ),
+                    }))
+                  }
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs text-muted-foreground">
+                  Updated (YYYY-MM-DD)
+                </Label>
+                <Input
+                  value={settingBody(blogParts.settings, "meta.updatedAt")}
+                  onChange={(e) =>
+                    setBlogParts((parts) => ({
+                      ...parts,
+                      settings: patchSetting(
+                        parts.settings,
+                        "meta.updatedAt",
+                        e.target.value,
+                      ),
+                    }))
+                  }
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs text-muted-foreground">
+                  Read time (minutes)
+                </Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={settingBody(blogParts.settings, "meta.readTime")}
+                  onChange={(e) =>
+                    setBlogParts((parts) => ({
+                      ...parts,
+                      settings: patchSetting(
+                        parts.settings,
+                        "meta.readTime",
+                        e.target.value,
+                      ),
+                    }))
+                  }
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs text-muted-foreground">
+                  Related destinations
+                </Label>
+                <Input
+                  value={settingBody(
+                    blogParts.settings,
+                    "meta.relatedDestinations",
+                  )}
+                  placeholder="tirana, saranda, himare"
+                  onChange={(e) =>
+                    setBlogParts((parts) => ({
+                      ...parts,
+                      settings: patchSetting(
+                        parts.settings,
+                        "meta.relatedDestinations",
+                        e.target.value,
+                      ),
+                    }))
+                  }
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Comma-separated destination ids.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 sm:col-span-2">
+                <input
+                  id="blog-featured"
+                  type="checkbox"
+                  className="size-4 rounded border"
+                  checked={blogFeatured}
+                  onChange={(e) => {
+                    const featured = e.target.checked
+                    setBlogParts((parts) => {
+                      const metaKeys = parts.metaKeys.filter(
+                        (s) => s.key !== "_featured",
+                      )
+                      if (featured) {
+                        metaKeys.push({
+                          id: crypto.randomUUID(),
+                          type: "text",
+                          key: "_featured",
+                          body: "featured",
+                        })
+                      }
+                      return { ...parts, metaKeys }
+                    })
+                  }}
+                />
+                <Label htmlFor="blog-featured" className="text-sm font-normal">
+                  Featured on blog archive
+                </Label>
+              </div>
+            </div>
+          </section>
+
+          <section className="flex flex-col gap-4">
+            <div>
+              <h2 className="text-sm font-semibold">Hero image</h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Full-bleed hero at the top of the post. Synced with the OG image
+                above.
+              </p>
+            </div>
+            {blogParts.hero.map((section) => {
+              return (
+                <div
+                  key={section.id}
+                  className="rounded-xl border bg-card p-4 md:p-5"
+                >
+                  <SectionFields
+                    section={section}
+                    onChange={(next) => {
+                      if (!page) return
+                      const parts = ensureBlogParts(page.sections)
+                      setPage({
+                        ...page,
+                        ...(next.src != null ? { ogImage: next.src } : {}),
+                        sections: mergeBlogSections({
+                          ...parts,
+                          hero: [next],
+                        }),
+                      })
+                    }}
+                    onUpload={uploadImage}
+                    onOpenLibrary={() =>
+                      setLibraryTarget({ type: "section", id: section.id })
+                    }
+                    uploading={uploading}
+                  />
+                </div>
+              )
+            })}
+          </section>
+
+          <section className="flex flex-col gap-4">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-semibold">Article body</h2>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Ordered blocks: headings, text, images, callouts, lists,
+                  tables, or a mid-article CTA.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Select
+                  value={
+                    BLOG_BODY_SECTION_TYPES.includes(addType)
+                      ? addType
+                      : "text"
+                  }
+                  onValueChange={(v) => {
+                    if (
+                      v &&
+                      BLOG_BODY_SECTION_TYPES.includes(v as PageSectionType)
+                    ) {
+                      setAddType(v as PageSectionType)
+                    }
+                  }}
+                  items={BLOG_BODY_SECTION_TYPES.map((t) => ({
+                    value: t,
+                    label: t.replace("_", " "),
+                  }))}
+                >
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {BLOG_BODY_SECTION_TYPES.map((t) => (
+                      <SelectItem key={t} value={t}>
+                        {t.replace("_", " ")}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button type="button" variant="outline" onClick={addSection}>
+                  <Plus className="size-3.5" />
+                  Add
+                </Button>
+              </div>
+            </div>
+
+            {blogParts.body.length === 0 ? (
+              <p className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+                No body blocks yet. Add a heading, text, or other block.
+              </p>
+            ) : (
+              blogParts.body.map((section, bodyIndex) => {
+                const realIndex = page.sections.findIndex(
+                  (s) => s.id === section.id,
+                )
+                return (
+                  <div
+                    key={section.id}
+                    className="rounded-xl border bg-card p-4 md:p-5"
+                  >
+                    <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium capitalize">
+                          {section.type.replace("_", " ")}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          #{bodyIndex + 1}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Select
+                          value={section.type}
+                          onValueChange={(v) => {
+                            if (
+                              !v ||
+                              !BLOG_BODY_SECTION_TYPES.includes(
+                                v as PageSectionType,
+                              )
+                            ) {
+                              return
+                            }
+                            const next = {
+                              ...newSection(v as PageSectionType),
+                              id: section.id,
+                              key: section.key,
+                            }
+                            if (realIndex >= 0) {
+                              updateSection(realIndex, next)
+                              return
+                            }
+                            setBlogParts((parts) => {
+                              const body = [...parts.body]
+                              body[bodyIndex] = next
+                              return { ...parts, body }
+                            })
+                          }}
+                          items={BLOG_BODY_SECTION_TYPES.map((t) => ({
+                            value: t,
+                            label: t.replace("_", " "),
+                          }))}
+                        >
+                          <SelectTrigger className="h-8 w-[130px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {BLOG_BODY_SECTION_TYPES.map((t) => (
+                              <SelectItem key={t} value={t}>
+                                {t.replace("_", " ")}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="size-8"
+                          disabled={bodyIndex === 0}
+                          onClick={() => moveBodySection(bodyIndex, -1)}
+                        >
+                          <ArrowUp className="size-3.5" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="size-8"
+                          disabled={bodyIndex === blogParts.body.length - 1}
+                          onClick={() => moveBodySection(bodyIndex, 1)}
+                        >
+                          <ArrowDown className="size-3.5" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="size-8 text-destructive"
+                          onClick={() => removeBodySection(bodyIndex)}
+                        >
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                    <SectionFields
+                      section={section}
+                      onChange={(next) => {
+                        if (realIndex >= 0) {
+                          updateSection(realIndex, next)
+                          return
+                        }
+                        setBlogParts((parts) => {
+                          const body = [...parts.body]
+                          body[bodyIndex] = next
+                          return { ...parts, body }
+                        })
+                      }}
+                      onUpload={uploadImage}
+                      onOpenLibrary={() =>
+                        setLibraryTarget({ type: "section", id: section.id })
+                      }
+                      uploading={uploading}
+                    />
+                  </div>
+                )
+              })
+            )}
+          </section>
+        </>
+      ) : (
+        <section className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold">Sections</h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Heading, text, and image blocks in display order.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Select
+                value={
+                  sectionTypeOptions.includes(addType) ? addType : "text"
+                }
+                onValueChange={(v) => {
+                  if (
+                    v &&
+                    sectionTypeOptions.includes(v as PageSectionType)
+                  ) {
+                    setAddType(v as PageSectionType)
+                  }
+                }}
+                items={sectionTypeOptions.map((t) => ({
+                  value: t,
+                  label: t.replace("_", " "),
+                }))}
+              >
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {sectionTypeOptions.map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {t.replace("_", " ")}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button type="button" variant="outline" onClick={addSection}>
+                <Plus className="size-3.5" />
+                Add
+              </Button>
+            </div>
+          </div>
+
+          {contentSections.length === 0 ? (
+            <p className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+              No content sections yet. Add a heading, text, or image block.
+            </p>
+          ) : (
+            contentSections.map((section, contentIndex) => {
+              const realIndex = page.sections.findIndex(
+                (s) => s.id === section.id,
+              )
+              return (
+                <div
+                  key={section.id}
+                  className="rounded-xl border bg-card p-4 md:p-5"
+                >
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium capitalize">
+                        {section.type.replace("_", " ")}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        #{contentIndex + 1}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Select
+                        value={section.type}
+                        onValueChange={(v) => {
+                          if (
+                            !v ||
+                            !CONTENT_SECTION_TYPES.includes(
+                              v as PageSectionType,
+                            )
+                          ) {
+                            return
+                          }
+                          if (realIndex < 0) return
+                          updateSection(realIndex, {
+                            ...newSection(v as PageSectionType),
+                            id: section.id,
+                            key: section.key,
+                          })
+                        }}
+                        items={CONTENT_SECTION_TYPES.map((t) => ({
+                          value: t,
+                          label: t.replace("_", " "),
+                        }))}
+                      >
+                        <SelectTrigger className="h-8 w-[130px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CONTENT_SECTION_TYPES.map((t) => (
+                            <SelectItem key={t} value={t}>
+                              {t.replace("_", " ")}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-8"
+                        disabled={contentIndex === 0}
+                        onClick={() => moveContentSection(contentIndex, -1)}
+                      >
+                        <ArrowUp className="size-3.5" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-8"
+                        disabled={contentIndex === contentSections.length - 1}
+                        onClick={() => moveContentSection(contentIndex, 1)}
+                      >
+                        <ArrowDown className="size-3.5" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-8 text-destructive"
+                        onClick={() => removeContentSection(contentIndex)}
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                  <SectionFields
+                    section={section}
+                    onChange={(next) => {
+                      if (realIndex < 0) return
+                      updateSection(realIndex, next)
+                    }}
+                    onUpload={uploadImage}
+                    onOpenLibrary={() =>
+                      setLibraryTarget({ type: "section", id: section.id })
+                    }
+                    uploading={uploading}
+                  />
+                </div>
+              )
+            })
+          )}
+        </section>
+      )}
 
       {isDestinationPage ? (
         <section className="flex flex-col gap-4">

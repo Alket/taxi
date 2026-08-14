@@ -33,6 +33,10 @@ const sectionSchema = z.object({
   answer: z.string().max(10000).optional(),
   level: z.union([z.literal(1), z.literal(2), z.literal(3)]).optional(),
   icon: z.string().max(2000).optional(),
+  items: z.array(z.string().max(2000)).max(100).optional(),
+  headers: z.array(z.string().max(200)).max(20).optional(),
+  rows: z.array(z.array(z.string().max(2000)).max(20)).max(50).optional(),
+  listStyle: z.enum(["ul", "ol"]).optional(),
 })
 
 const updateSchema = z.object({
@@ -106,6 +110,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       )
       revalidateAllLocales("/")
       revalidateAllLocales("/destinations")
+      revalidateAllLocales("/blog")
       revalidatePath("/admin/pages")
       return NextResponse.json(result)
     } catch (error) {
@@ -143,7 +148,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   let nextSections =
     parsed.data.sections != null
-      ? slug.startsWith("destinations/")
+      ? slug.startsWith("destinations/") || slug.startsWith("blog/")
         ? preserveDestinationMetaKeys(
             parseSections(parsed.data.sections),
             previousSections,
@@ -154,8 +159,11 @@ export async function PATCH(request: Request, context: RouteContext) {
   const existingOgImage = existing?.ogImage?.trim() || ""
   const englishOgImage = english?.ogImage?.trim() || ""
   const heroSrc =
-    nextSections.find((s) => s.type === "image" && s.key === "hero")?.src?.trim() ||
-    ""
+    nextSections.find(
+      (s) =>
+        s.type === "image" &&
+        (s.key === "hero" || s.key === "hero.image"),
+    )?.src?.trim() || ""
   const providedOgImage =
     parsed.data.ogImage !== undefined ? parsed.data.ogImage.trim() : undefined
 
@@ -165,7 +173,7 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 
   let nextOgImage: string
-  if (slug.startsWith("destinations/")) {
+  if (slug.startsWith("destinations/") || slug.startsWith("blog/")) {
     nextOgImage =
       preferUpload(
         providedOgImage ?? "",
@@ -175,8 +183,9 @@ export async function PATCH(request: Request, context: RouteContext) {
       ) || def.defaults.ogImage
 
     let synced = false
+    const heroKey = slug.startsWith("blog/") ? "hero.image" : "hero"
     nextSections = nextSections.map((section) => {
-      if (section.type === "image" && section.key === "hero") {
+      if (section.type === "image" && section.key === heroKey) {
         synced = true
         return { ...section, src: nextOgImage }
       }
@@ -188,7 +197,7 @@ export async function PATCH(request: Request, context: RouteContext) {
         {
           id: crypto.randomUUID(),
           type: "image",
-          key: "hero",
+          key: heroKey,
           src: nextOgImage,
           alt: def.label,
         },
@@ -219,7 +228,9 @@ export async function PATCH(request: Request, context: RouteContext) {
       ...(parsed.data.description != null
         ? { description: parsed.data.description }
         : {}),
-      ...(slug.startsWith("destinations/") || parsed.data.ogImage != null
+      ...(slug.startsWith("destinations/") ||
+      slug.startsWith("blog/") ||
+      parsed.data.ogImage != null
         ? { ogImage: nextOgImage }
         : {}),
       sections: nextSections,
@@ -231,6 +242,13 @@ export async function PATCH(request: Request, context: RouteContext) {
   if (slug.startsWith("destinations/")) {
     revalidateAllLocales("/destinations")
     revalidatePath("/destinations/[slug]", "page")
+  }
+  if (slug.startsWith("blog/")) {
+    revalidateAllLocales("/blog")
+    revalidatePath("/blog/[slug]", "page")
+  }
+  if (slug === "blog") {
+    revalidateAllLocales("/blog")
   }
 
   return NextResponse.json({
@@ -247,9 +265,12 @@ export async function DELETE(_request: Request, context: RouteContext) {
     const result = await deleteAdminPage(slug)
     revalidateAllLocales("/")
     revalidateAllLocales("/destinations")
+    revalidateAllLocales("/blog")
     revalidatePath("/destinations/[slug]", "page")
+    revalidatePath("/blog/[slug]", "page")
     revalidatePath("/admin/pages")
     if (slug === "home") revalidateAllLocales("/")
+    if (slug === "blog") revalidateAllLocales("/blog")
     if (slug === "cancellation-policy")
       revalidateAllLocales("/cancellation-policy")
     if (slug === "privacy-policy") revalidateAllLocales("/privacy-policy")

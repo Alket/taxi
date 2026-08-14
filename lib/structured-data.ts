@@ -89,3 +89,52 @@ export function buildBreadcrumbJsonLd(
     })),
   }
 }
+
+export function buildBlogPostingJsonLd(input: {
+  headline: string
+  description: string
+  url: string
+  image: string
+  datePublished: string
+  dateModified: string
+  authorName: string
+  publisherName?: string
+  publisherLogoUrl?: string
+}): JsonLdObject {
+  const site = baseUrl()
+  const pageUrl = input.url.startsWith("http")
+    ? input.url
+    : `${site}${input.url}`
+  const imageUrl = input.image.startsWith("http")
+    ? input.image
+    : `${site}${input.image}`
+  const logoUrl =
+    input.publisherLogoUrl ??
+    `${site}/marketing/logo.svg`
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: input.headline,
+    description: input.description,
+    image: [imageUrl],
+    datePublished: input.datePublished,
+    dateModified: input.dateModified,
+    author: {
+      "@type": "Person",
+      name: input.authorName,
+    },
+    publisher: {
+      "@type": "Organization",
+      name: input.publisherName ?? "Landed Albania",
+      logo: {
+        "@type": "ImageObject",
+        url: logoUrl,
+      },
+    },
+    mainEntityOfPage: {
+      "@type": "WebPage",
+      "@id": pageUrl,
+    },
+  }
+}

@@ -42,6 +42,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { apiDelete, apiPatch, apiPost, fetcher } from "@/lib/api"
 import { slugifyDestinationId } from "@/lib/destinations"
+import { slugifyBlogId } from "@/lib/blog/cms"
 import { PageHeader } from "@/components/admin/page-header"
 
 type AdminPageRow = {
@@ -54,7 +55,9 @@ type AdminPageRow = {
   canDelete: boolean
   canReset: boolean
   isCustomDestination: boolean
+  isCustomBlog?: boolean
   isDestination: boolean
+  isBlog?: boolean
   featured: boolean
 }
 
@@ -82,7 +85,7 @@ function PageRowActions({
           : "flex flex-wrap items-center justify-end gap-1"
       }
     >
-      {page.isDestination ? (
+      {page.isDestination || page.isBlog ? (
         <Button
           variant="outline"
           size="sm"
@@ -96,13 +99,21 @@ function PageRowActions({
           disabled={featuring}
           title={
             page.featured
-              ? "Remove from homepage"
-              : "Show on homepage"
+              ? page.isBlog
+                ? "Remove featured guide"
+                : "Remove from homepage"
+              : page.isBlog
+                ? "Feature on blog archive"
+                : "Show on homepage"
           }
           aria-label={
             page.featured
-              ? "Remove from homepage"
-              : "Show on homepage"
+              ? page.isBlog
+                ? "Remove featured guide"
+                : "Remove from homepage"
+              : page.isBlog
+                ? "Feature on blog archive"
+                : "Show on homepage"
           }
           aria-pressed={page.featured}
           onClick={onToggleFeatured}
@@ -180,9 +191,14 @@ export function PagesListView() {
     fetcher,
   )
   const pages = data?.pages ?? []
+  const corePages = pages.filter((p) => !p.isDestination && !p.isBlog)
+  const destinationPages = pages.filter((p) => p.isDestination)
+  const blogPages = pages.filter((p) => p.isBlog)
 
   const [createOpen, setCreateOpen] = React.useState(false)
+  const [blogCreateOpen, setBlogCreateOpen] = React.useState(false)
   const [creating, setCreating] = React.useState(false)
+  const [creatingBlog, setCreatingBlog] = React.useState(false)
   const [name, setName] = React.useState("")
   const [id, setId] = React.useState("")
   const [idTouched, setIdTouched] = React.useState(false)
@@ -192,6 +208,9 @@ export function PagesListView() {
   const [priceFrom, setPriceFrom] = React.useState("€—")
   const [travelTime, setTravelTime] = React.useState("")
   const [primaryKeyword, setPrimaryKeyword] = React.useState("")
+  const [blogTitle, setBlogTitle] = React.useState("")
+  const [blogSlug, setBlogSlug] = React.useState("")
+  const [blogSlugTouched, setBlogSlugTouched] = React.useState(false)
 
   const [pendingAction, setPendingAction] = React.useState<{
     page: AdminPageRow
@@ -213,6 +232,37 @@ export function PagesListView() {
     setPriceFrom("€—")
     setTravelTime("")
     setPrimaryKeyword("")
+  }
+
+  function resetBlogCreateForm() {
+    setBlogTitle("")
+    setBlogSlug("")
+    setBlogSlugTouched(false)
+  }
+
+  async function toggleFeatured(page: AdminPageRow) {
+    if ((!page.isDestination && !page.isBlog) || featuringSlug) return
+    setFeaturingSlug(page.slug)
+    try {
+      const res = await apiPatch<{ featured: boolean }>(
+        `/api/admin/pages/${page.slug}`,
+        { featured: !page.featured },
+      )
+      toast.success(
+        res.featured
+          ? page.isBlog
+            ? "Featured on blog archive."
+            : "Shown on homepage."
+          : page.isBlog
+            ? "Removed from featured guides."
+            : "Removed from homepage.",
+      )
+      await mutate()
+    } catch (err) {
+      toast.error((err as Error).message)
+    } finally {
+      setFeaturingSlug(null)
+    }
   }
 
   async function exportI18nPack() {
@@ -276,27 +326,6 @@ export function PagesListView() {
     }
   }
 
-  async function toggleFeatured(page: AdminPageRow) {
-    if (!page.isDestination || featuringSlug) return
-    setFeaturingSlug(page.slug)
-    try {
-      const res = await apiPatch<{ featured: boolean }>(
-        `/api/admin/pages/${page.slug}`,
-        { featured: !page.featured },
-      )
-      toast.success(
-        res.featured
-          ? "Shown on homepage."
-          : "Removed from homepage.",
-      )
-      await mutate()
-    } catch (err) {
-      toast.error((err as Error).message)
-    } finally {
-      setFeaturingSlug(null)
-    }
-  }
-
   async function createDestination() {
     setCreating(true)
     try {
@@ -322,6 +351,26 @@ export function PagesListView() {
     }
   }
 
+  async function createBlog() {
+    setCreatingBlog(true)
+    try {
+      const res = await apiPost<{ page: { slug: string } }>("/api/admin/pages", {
+        type: "blog",
+        title: blogTitle,
+        slug: blogSlug.trim() || undefined,
+      })
+      toast.success("Blog post created.")
+      setBlogCreateOpen(false)
+      resetBlogCreateForm()
+      await mutate()
+      router.push(`/admin/pages/${res.page.slug}`)
+    } catch (err) {
+      toast.error((err as Error).message)
+    } finally {
+      setCreatingBlog(false)
+    }
+  }
+
   async function confirmAction() {
     if (!pendingAction) return
     setActing(true)
@@ -331,7 +380,9 @@ export function PagesListView() {
       )
       toast.success(
         res.mode === "deleted"
-          ? "Destination deleted."
+          ? pendingAction.page.isBlog
+            ? "Blog post deleted."
+            : "Destination deleted."
           : "Page reset to defaults.",
       )
       setPendingAction(null)
@@ -347,9 +398,9 @@ export function PagesListView() {
     <>
       <PageHeader
         title="Pages"
-        description="Edit marketing copy, images, FAQs, and SEO. Star destinations to feature them on the homepage."
+        description="Edit marketing copy, images, FAQs, blog guides, and SEO. Export/import translations include core pages, the blog archive, blog posts, and destinations."
         actions={
-          <div className="flex w-full items-center gap-2 sm:w-auto">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
             <input
               ref={importInputRef}
               type="file"
@@ -381,6 +432,15 @@ export function PagesListView() {
             </Button>
             <Button
               size="sm"
+              variant="outline"
+              className="h-10 flex-1 touch-manipulation sm:h-8 sm:flex-none sm:w-auto"
+              onClick={() => setBlogCreateOpen(true)}
+            >
+              <Plus className="size-3.5" />
+              Add blog post
+            </Button>
+            <Button
+              size="sm"
               className="h-10 flex-1 touch-manipulation sm:h-8 sm:flex-none sm:w-auto"
               onClick={() => setCreateOpen(true)}
             >
@@ -404,7 +464,19 @@ export function PagesListView() {
             </div>
           ) : null}
           {!isLoading
-            ? pages.map((page) => (
+            ? (
+              <>
+                {([
+                  ["Core pages", corePages],
+                  ["Destinations", destinationPages],
+                  ["Blog", blogPages],
+                ] as const).map(([title, group]) =>
+                  group.length === 0 ? null : (
+                    <div key={title} className="flex flex-col gap-2.5">
+                      <h2 className="pt-1 text-xs font-bold tracking-wide text-muted-foreground uppercase">
+                        {title}
+                      </h2>
+                      {group.map((page) => (
                 <div
                   key={page.slug}
                   className="flex flex-col gap-3 rounded-xl border bg-card p-3.5 shadow-sm"
@@ -417,10 +489,10 @@ export function PagesListView() {
                           {page.label}
                         </p>
                         <div className="flex shrink-0 items-center gap-2">
-                          {page.isDestination && page.featured ? (
+                          {(page.isDestination || page.isBlog) && page.featured ? (
                             <Star
                               className="size-3.5 fill-amber-400 text-amber-500"
-                              aria-label="Featured on homepage"
+                              aria-label="Featured"
                             />
                           ) : null}
                           <span
@@ -436,7 +508,9 @@ export function PagesListView() {
                       </div>
                       <p className="mt-0.5 truncate text-xs text-muted-foreground">
                         {page.path}
-                        {page.isCustomDestination ? " · custom" : null}
+                        {page.isCustomDestination || page.isCustomBlog
+                          ? " · custom"
+                          : null}
                       </p>
                       {page.title ? (
                         <p className="mt-1.5 line-clamp-2 text-xs text-muted-foreground">
@@ -456,7 +530,12 @@ export function PagesListView() {
                     onReset={() => setPendingAction({ page, mode: "reset" })}
                   />
                 </div>
-              ))
+                      ))}
+                    </div>
+                  ),
+                )}
+              </>
+              )
             : null}
         </div>
 
@@ -481,7 +560,24 @@ export function PagesListView() {
                   </tr>
                 ))}
               {!isLoading &&
-                pages.map((page) => (
+                (
+                  [
+                    ["Core pages", corePages],
+                    ["Destinations", destinationPages],
+                    ["Blog", blogPages],
+                  ] as const
+                ).flatMap(([title, group]) => {
+                  if (group.length === 0) return []
+                  return [
+                    <tr key={`h-${title}`} className="border-b bg-muted/20">
+                      <td
+                        colSpan={4}
+                        className="px-4 py-2 text-xs font-bold tracking-wide text-muted-foreground uppercase"
+                      >
+                        {title}
+                      </td>
+                    </tr>,
+                    ...group.map((page) => (
                   <tr
                     key={page.slug}
                     className="border-b last:border-0 hover:bg-muted/30"
@@ -492,16 +588,19 @@ export function PagesListView() {
                         <div>
                           <p className="font-medium">
                             {page.label}
-                            {page.isDestination && page.featured ? (
+                            {(page.isDestination || page.isBlog) &&
+                            page.featured ? (
                               <Star
                                 className="ml-1.5 inline size-3.5 fill-amber-400 text-amber-500 align-[-2px]"
-                                aria-label="Featured on homepage"
+                                aria-label="Featured"
                               />
                             ) : null}
                           </p>
                           <p className="text-xs text-muted-foreground">
                             {page.path}
-                            {page.isCustomDestination ? " · custom" : null}
+                            {page.isCustomDestination || page.isCustomBlog
+                              ? " · custom"
+                              : null}
                           </p>
                         </div>
                       </div>
@@ -535,7 +634,9 @@ export function PagesListView() {
                       />
                     </td>
                   </tr>
-                ))}
+                    )),
+                  ]
+                })}
             </tbody>
           </table>
         </div>
@@ -661,6 +762,65 @@ export function PagesListView() {
         </DialogContent>
       </Dialog>
 
+      <Dialog
+        open={blogCreateOpen}
+        onOpenChange={(open) => {
+          setBlogCreateOpen(open)
+          if (!open) resetBlogCreateForm()
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add blog post</DialogTitle>
+            <DialogDescription>
+              Creates a new guide at /blog/[slug] editable from this pages list.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="blog-title">Title</Label>
+              <Input
+                id="blog-title"
+                value={blogTitle}
+                placeholder="Is There Uber in Albania?"
+                onChange={(e) => {
+                  const next = e.target.value
+                  setBlogTitle(next)
+                  if (!blogSlugTouched) setBlogSlug(slugifyBlogId(next))
+                }}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="blog-slug">URL slug</Label>
+              <Input
+                id="blog-slug"
+                value={blogSlug}
+                placeholder="is-there-uber-in-albania"
+                className="font-mono text-sm"
+                onChange={(e) => {
+                  setBlogSlugTouched(true)
+                  setBlogSlug(slugifyBlogId(e.target.value))
+                }}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Public URL: /blog/{blogSlug || "…"}
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBlogCreateOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={creatingBlog || !blogTitle.trim()}
+              onClick={() => void createBlog()}
+            >
+              {creatingBlog ? "Creating…" : "Create blog post"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <AlertDialog
         open={Boolean(pendingAction)}
         onOpenChange={(open) => {
@@ -671,7 +831,9 @@ export function PagesListView() {
           <AlertDialogHeader>
             <AlertDialogTitle>
               {pendingAction?.mode === "delete"
-                ? "Delete destination?"
+                ? pendingAction.page.isBlog
+                  ? "Delete blog post?"
+                  : "Delete destination?"
                 : "Reset page to defaults?"}
             </AlertDialogTitle>
             <AlertDialogDescription>

@@ -2,7 +2,7 @@ import { redirect } from "next/navigation"
 
 import { PageEditorView } from "@/components/admin/page-editor-view"
 import { getSession, isAdmin } from "@/lib/auth"
-import { getPageDefinition } from "@/lib/page-content"
+import { resolvePageDefinition } from "@/lib/page-content"
 
 type PageProps = {
   params: Promise<{ slug: string[] }>
@@ -15,7 +15,8 @@ export default async function AdminPageEditorPage({ params }: PageProps) {
   }
 
   const slug = (await params).slug.join("/")
-  if (!getPageDefinition(slug)) {
+  const def = await resolvePageDefinition(slug)
+  if (!def) {
     redirect("/admin/pages")
   }
 

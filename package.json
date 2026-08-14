@@ -16,7 +16,8 @@
     "docker:up": "docker compose up --build",
     "docker:down": "docker compose down",
     "docker:dev": "docker compose -f docker-compose.dev.yml up --build",
-    "test:destinations": "tsx scripts/qa-destinations.ts"
+    "test:destinations": "tsx scripts/qa-destinations.ts",
+    "test:blog": "tsx scripts/qa-blog.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",

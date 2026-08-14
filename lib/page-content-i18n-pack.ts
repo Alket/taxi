@@ -7,7 +7,6 @@ import {
   listAdminPages,
   parseSections,
   preserveDestinationMetaKeys,
-  resolvePageContent,
   resolvePageDefinition,
   type PageSection,
 } from "@/lib/page-content"
@@ -51,7 +50,7 @@ export type PageLocaleText = {
 export type PageI18nPackPage = {
   slug: string
   label: string
-  kind: "core" | "destination"
+  kind: "core" | "destination" | "blog"
   byLocale: Partial<Record<Locale, PageLocaleText>>
 }
 
@@ -100,7 +99,7 @@ const packPageSchema = z
   .object({
     slug: z.string().trim().min(1).max(120),
     label: z.string().max(I18N_MAX_LABEL).optional(),
-    kind: z.enum(["core", "destination"]).optional(),
+    kind: z.enum(["core", "destination", "blog"]).optional(),
     byLocale: z.record(z.string(), pageLocaleTextSchema),
   })
   .strict()
@@ -118,6 +117,14 @@ export const pageI18nPackSchema = z
 
 function extractSectionText(section: PageSection): SectionTextFields | null {
   if (!section.key || META_SECTION_KEYS.has(section.key)) return null
+  // Structural blog meta (ids/dates) — not for translators.
+  if (
+    section.key.startsWith("meta.") &&
+    section.key !== "meta.excerpt" &&
+    section.key !== "meta.quickTakeaway"
+  ) {
+    return null
+  }
   if (section.type === "heading") {
     return { heading: section.heading ?? "" }
   }
@@ -138,6 +145,24 @@ function extractSectionText(section: PageSection): SectionTextFields | null {
       heading: section.heading ?? "",
       body: section.body ?? "",
       alt: section.alt ?? "",
+    }
+  }
+  if (section.type === "callout") {
+    return {
+      heading: section.heading ?? "",
+      body: section.body ?? "",
+    }
+  }
+  if (section.type === "list") {
+    return { body: (section.items ?? []).join("\n") }
+  }
+  if (section.type === "table") {
+    return {
+      heading: section.heading ?? "",
+      body: JSON.stringify({
+        headers: section.headers ?? [],
+        rows: section.rows ?? [],
+      }),
     }
   }
   return null
@@ -231,10 +256,49 @@ function applyTextToSections(
         alt: text.alt ?? base.alt ?? "",
       }
     }
+    if (base.type === "callout") {
+      return {
+        ...base,
+        heading: text.heading ?? "",
+        body: text.body ?? "",
+      }
+    }
+    if (base.type === "list") {
+      return {
+        ...base,
+        items: (text.body ?? "")
+          .split("\n")
+          .map((line) => line.trimEnd())
+          .filter((line, i, arr) => line.length > 0 || i < arr.length - 1),
+      }
+    }
+    if (base.type === "table") {
+      let headers = base.headers ?? []
+      let rows = base.rows ?? []
+      if (text.body?.trim()) {
+        try {
+          const parsed = JSON.parse(text.body) as {
+            headers?: string[]
+            rows?: string[][]
+          }
+          if (Array.isArray(parsed.headers)) headers = parsed.headers
+          if (Array.isArray(parsed.rows)) rows = parsed.rows
+        } catch {
+          // keep template structure if translators corrupt JSON
+        }
+      }
+      return {
+        ...base,
+        heading: text.heading ?? "",
+        headers,
+        rows,
+      }
+    }
     return { ...base }
   })
 
-  // Append FAQ/attraction keys present in the pack but missing from the template.
+  // Append FAQ / attraction / blog body keys present in the pack but missing
+  // from the template (e.g. locale added an extra FAQ, or body block count grew).
   for (const [key, text] of Object.entries(textByKey)) {
     if (next.length >= I18N_MAX_SECTIONS) break
     if (used.has(key) || META_SECTION_KEYS.has(key)) continue
@@ -261,6 +325,73 @@ function applyTextToSections(
         body: text.body ?? "",
         alt: text.alt ?? "",
       })
+      continue
+    }
+    if (key.startsWith("body.")) {
+      // Infer block type from which text fields the pack provided.
+      if (text.heading != null && text.body != null) {
+        // Callout (title + body) or table JSON in body — prefer callout unless JSON.
+        const trimmed = (text.body ?? "").trim()
+        if (trimmed.startsWith("{") && trimmed.includes("headers")) {
+          let headers: string[] = []
+          let rows: string[][] = []
+          try {
+            const parsed = JSON.parse(trimmed) as {
+              headers?: string[]
+              rows?: string[][]
+            }
+            if (Array.isArray(parsed.headers)) headers = parsed.headers
+            if (Array.isArray(parsed.rows)) rows = parsed.rows
+          } catch {
+            /* keep empty */
+          }
+          next.push({
+            id: globalThis.crypto.randomUUID(),
+            type: "table",
+            key,
+            heading: text.heading ?? "",
+            headers,
+            rows,
+          })
+        } else {
+          next.push({
+            id: globalThis.crypto.randomUUID(),
+            type: "callout",
+            key,
+            heading: text.heading ?? "",
+            body: text.body ?? "",
+          })
+        }
+        continue
+      }
+      if (text.heading != null) {
+        next.push({
+          id: globalThis.crypto.randomUUID(),
+          type: "heading",
+          key,
+          heading: text.heading ?? "",
+          level: 2,
+        })
+        continue
+      }
+      if (text.body != null) {
+        next.push({
+          id: globalThis.crypto.randomUUID(),
+          type: "text",
+          key,
+          body: text.body ?? "",
+        })
+        continue
+      }
+      if (text.alt != null) {
+        next.push({
+          id: globalThis.crypto.randomUUID(),
+          type: "image",
+          key,
+          src: "",
+          alt: text.alt ?? "",
+        })
+      }
     }
   }
 
@@ -280,17 +411,28 @@ async function resolveEnglishTemplate(slug: string): Promise<{
   ogImage: string
   sections: PageSection[]
 } | null> {
-  const page = await resolvePageContent(slug, DEFAULT_LOCALE)
-  if (page) {
+  // Prefer the EN DB row (admin source of truth), then built-in / custom
+  // page definitions. Avoid public resolvePageContent() so soft-hidden
+  // posts in a pack can still import, and core pages like `blog` always
+  // resolve from defaults when no row exists yet.
+  const def = await resolvePageDefinition(slug)
+  const english = await prisma.pageContent.findUnique({
+    where: { slug_locale: { slug, locale: DEFAULT_LOCALE } },
+  })
+
+  if (english) {
+    const defaults = def?.defaults.sections ?? []
     return {
-      label: page.label,
-      title: page.title,
-      description: page.description,
-      ogImage: page.ogImage,
-      sections: page.sections,
+      label: english.label || def?.label || slug,
+      title: english.title || def?.defaults.title || "",
+      description: english.description || def?.defaults.description || "",
+      ogImage: english.ogImage || def?.defaults.ogImage || "",
+      sections: defaults.length
+        ? ensureMissingDefaultSections(parseSections(english.sections), defaults)
+        : parseSections(english.sections),
     }
   }
-  const def = await resolvePageDefinition(slug)
+
   if (!def) return null
   return {
     label: def.label,
@@ -302,7 +444,7 @@ async function resolveEnglishTemplate(slug: string): Promise<{
 }
 
 /**
- * Build a translation pack for all marketing pages + destinations.
+ * Build a translation pack for core pages, destinations, blog archive, and blog posts.
  * Text only — image URLs / icons / meta flags stay in the DB template.
  */
 export async function exportPageI18nPack(): Promise<PageI18nPack> {
@@ -355,7 +497,13 @@ export async function exportPageI18nPack(): Promise<PageI18nPack> {
     pages.push({
       slug: item.slug,
       label: item.label,
-      kind: item.isDestination ? "destination" : "core",
+      kind: item.isBlog
+        ? "blog"
+        : item.slug === "blog"
+          ? "blog"
+          : item.isDestination
+            ? "destination"
+            : "core",
       byLocale,
     })
   }
@@ -438,7 +586,10 @@ export async function importPageI18nPack(
         continue
       }
 
-      if (page.slug.startsWith("destinations/")) {
+      if (
+        page.slug.startsWith("destinations/") ||
+        page.slug.startsWith("blog/")
+      ) {
         const previous = existing
           ? parseSections(existing.sections)
           : template.sections

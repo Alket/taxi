@@ -48,7 +48,7 @@ export function SiteHeader({ className }: { className?: string }) {
       href: localePath("/destinations", locale),
       label: t(locale, "nav.destinations"),
     },
-    { href: localePath("/#safety", locale), label: t(locale, "nav.safety") },
+    { href: localePath("/blog", locale), label: t(locale, "nav.blog") },
     { href: localePath("/#faq", locale), label: t(locale, "nav.faq") },
   ] as const
 

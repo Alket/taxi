@@ -4,12 +4,17 @@ export const PAGE_SECTION_TYPES = [
   "image",
   "faq_item",
   "attraction",
+  "callout",
+  "list",
+  "table",
+  "mid_cta",
 ] as const
 
 export type PageSectionType = (typeof PAGE_SECTION_TYPES)[number]
 
 export const CORE_PAGE_SLUGS = [
   "home",
+  "blog",
   "cancellation-policy",
   "privacy-policy",
   "terms",
@@ -20,6 +25,28 @@ export type CorePageSlug = (typeof CORE_PAGE_SLUGS)[number]
 
 export function isCorePageSlug(slug: string): boolean {
   return (CORE_PAGE_SLUGS as readonly string[]).includes(slug)
+}
+
+export const BLOG_META_KEYS = [
+  "meta.category",
+  "meta.excerpt",
+  "meta.quickTakeaway",
+  "meta.publishedAt",
+  "meta.updatedAt",
+  "meta.readTime",
+  "meta.authorId",
+  "meta.relatedDestinations",
+  "title.heading",
+] as const
+
+export function isBlogSlug(slug: string): boolean {
+  return slug.startsWith("blog/")
+}
+
+export function blogIdFromSlug(slug: string): string | null {
+  if (!isBlogSlug(slug)) return null
+  const id = slug.slice("blog/".length)
+  return id || null
 }
 
 export type PageSection = {
@@ -36,6 +63,14 @@ export type PageSection = {
   level?: 1 | 2 | 3
   /** Lucide marketing icon id (e.g. headset, wallet). */
   icon?: string
+  /** Ordered list items (`list` sections). */
+  items?: string[]
+  /** Table column headers (`table` sections). */
+  headers?: string[]
+  /** Table body rows (`table` sections). */
+  rows?: string[][]
+  /** List style: unordered vs ordered (`list` sections). */
+  listStyle?: "ul" | "ol"
 }
 
 export type PageContentRecord = {
@@ -58,6 +93,20 @@ function newId() {
     return globalThis.crypto.randomUUID()
   }
   return `sec_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
+}
+
+function parseStringArray(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined
+  const items = value.filter((v): v is string => typeof v === "string")
+  return items.length ? items : undefined
+}
+
+function parseTableRows(value: unknown): string[][] | undefined {
+  if (!Array.isArray(value)) return undefined
+  const rows = value
+    .filter((row): row is unknown[] => Array.isArray(row))
+    .map((row) => row.map((cell) => (typeof cell === "string" ? cell : String(cell ?? ""))))
+  return rows.length ? rows : undefined
 }
 
 export function parseSections(value: unknown): PageSection[] {
@@ -83,6 +132,13 @@ export function parseSections(value: unknown): PageSection[] {
             ? item.level
             : undefined,
         icon: typeof item.icon === "string" ? item.icon : undefined,
+        items: parseStringArray(item.items),
+        headers: parseStringArray(item.headers),
+        rows: parseTableRows(item.rows),
+        listStyle:
+          item.listStyle === "ol" || item.listStyle === "ul"
+            ? item.listStyle
+            : undefined,
       } satisfies PageSection
     })
 }
@@ -291,6 +347,20 @@ export type HomeMarketingCopy = {
     }[]
   }
   faq: PageSection[]
+}
+
+export type BlogArchiveCopy = {
+  hero: {
+    eyebrow: string
+    heading: string
+    text: string
+  }
+  cta: {
+    eyebrow: string
+    heading: string
+    text: string
+    button: string
+  }
 }
 
 function parseCompareItems(body: string): HomeCompareItem[] {
@@ -560,5 +630,31 @@ export function homeCopyFromSections(sections: PageSection[]): HomeMarketingCopy
         .filter((item) => item.title || item.description || item.image),
     },
     faq: faqSections(sections),
+  }
+}
+
+export function blogArchiveCopyFromSections(
+  sections: PageSection[],
+): BlogArchiveCopy {
+  return {
+    hero: {
+      eyebrow: sectionValue(sections, "hero.eyebrow") || "Landed Guides",
+      heading:
+        sectionHeading(sections, "hero.heading") ||
+        "Albania Airport Transport & Travel Guides",
+      text:
+        sectionValue(sections, "hero.text") ||
+        "Practical guides for Tirana International Airport (TIA) transit, airport logistics, and fixed-price route tips across Albania—written for travellers who want clarity before they land.",
+    },
+    cta: {
+      eyebrow: sectionValue(sections, "cta.eyebrow") || "Fixed fare · €0 deposit",
+      heading:
+        sectionHeading(sections, "cta.heading") ||
+        "Calculate your Tirana Airport transfer",
+      text:
+        sectionValue(sections, "cta.text") ||
+        "Get a fixed price from TIA before you fly. Meet your driver on arrival and pay cash—no deposit required to reserve.",
+      button: sectionValue(sections, "cta.button") || "Get my fixed fare",
+    },
   }
 }

@@ -86,5 +86,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     addPath("/destinations", { changeFrequency: "daily", priority: 0.7 })
   }
 
+  // Blog archive + posts.
+  try {
+    const { listBlogPostsFromCms } = await import("@/lib/page-content")
+    addPath("/blog", { changeFrequency: "weekly", priority: 0.7 })
+    for (const post of await listBlogPostsFromCms()) {
+      addPath(`/blog/${post.slug}`, {
+        lastModified: new Date(post.updatedAt),
+        changeFrequency: "monthly",
+        priority: 0.6,
+      })
+    }
+  } catch {
+    addPath("/blog", { changeFrequency: "weekly", priority: 0.7 })
+  }
+
   return entries
 }
