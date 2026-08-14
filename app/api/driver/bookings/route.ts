@@ -40,6 +40,8 @@ function serializeTrip(b: {
   depositPaid: { toString(): string } | number
   balanceDue: { toString(): string } | number
   paymentStatus: PaymentStatus
+  passengerName: string | null
+  passengerPhone: string | null
   customer: { name: string; phone: string }
   payments: {
     provider: string
@@ -98,6 +100,13 @@ function serializeTrip(b: {
     noteItems.find((item) => item.id === "driver-notes")?.detail?.trim() || null
   const meetAndGreet = noteItems.some((item) => item.id === "meet-and-greet")
 
+  const passengerName = b.passengerName?.trim() || null
+  const passengerPhone = b.passengerPhone?.trim() || null
+  // Prefer traveler phone when booking is for someone else.
+  const contactName = passengerName || b.customer.name
+  const contactPhone = passengerPhone || b.customer.phone
+  const contactPhoneDigits = contactPhone.replace(/\D/g, "")
+
   return {
     id: b.id,
     referenceCode: b.referenceCode,
@@ -116,6 +125,13 @@ function serializeTrip(b: {
     statusLabel: BOOKING_STATUS_LABELS[status],
     customerName: b.customer.name,
     customerPhone: b.customer.phone,
+    passengerName,
+    passengerPhone,
+    contactName,
+    contactPhone,
+    contactWhatsappUrl: contactPhoneDigits
+      ? `https://wa.me/${contactPhoneDigits}`
+      : null,
     currency: b.currency,
     totalPrice,
     totalPriceLabel: formatMoney(totalPrice, b.currency),
@@ -155,6 +171,8 @@ const tripSelect = {
   depositPaid: true,
   balanceDue: true,
   paymentStatus: true,
+  passengerName: true,
+  passengerPhone: true,
   customer: { select: { name: true, phone: true } },
   payments: {
     select: { provider: true, externalId: true, type: true },

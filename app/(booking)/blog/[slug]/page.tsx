@@ -8,10 +8,14 @@ import {
   categoryLabelFromCatalog,
   getBlogCatalog,
 } from "@/lib/blog/catalog"
+import { getRelatedDestinations } from "@/lib/blog"
 import { getRequestLocale } from "@/lib/i18n/get-locale"
 import { localePath, localizedAlternates } from "@/lib/i18n/locales"
 import { getAppBaseUrl } from "@/lib/mail"
-import { getBlogPostFromCms } from "@/lib/page-content"
+import {
+  getBlogPostFromCms,
+  resolveDestinationCards,
+} from "@/lib/page-content"
 import {
   buildBlogPostingJsonLd,
   buildBreadcrumbJsonLd,
@@ -70,14 +74,16 @@ export async function generateMetadata({
 export default async function BlogPostPage({ params }: PageProps) {
   const { slug } = await params
   const locale = await getRequestLocale()
-  const [post, catalog] = await Promise.all([
+  const [post, catalog, destinationCards] = await Promise.all([
     getBlogPostFromCms(slug, locale),
     getBlogCatalog(),
+    resolveDestinationCards(locale),
   ])
   if (!post) notFound()
 
   const author = authorFromCatalog(catalog, post.authorId)
   const categoryLabel = categoryLabelFromCatalog(catalog, post.category)
+  const relatedDestinations = getRelatedDestinations(post, destinationCards)
   const path = `/blog/${post.slug}`
   const localizedPath = localePath(path, locale)
   const faqLd = buildFaqPageJsonLd(post.faq)
@@ -112,6 +118,7 @@ export default async function BlogPostPage({ params }: PageProps) {
         locale={locale}
         categoryLabel={categoryLabel}
         author={author}
+        relatedDestinations={relatedDestinations}
       />
     </>
   )

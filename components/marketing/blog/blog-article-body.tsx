@@ -5,6 +5,7 @@ import {
   type BlogPost,
 } from "@/lib/blog"
 import type { Locale } from "@/lib/i18n/locales"
+import { sanitizeBlogHtml } from "@/lib/sanitize-blog-html"
 import { BlogMidCta } from "@/components/marketing/blog/blog-mid-cta"
 import { cn } from "@/lib/utils"
 
@@ -20,6 +21,26 @@ function assignH2Ids(blocks: BlogBlock[]): (BlogBlock & { headingId?: string })[
   })
 }
 
+function RichHtml({
+  html,
+  as: Comp,
+  className,
+  id,
+}: {
+  html: string
+  as: "p" | "h2" | "h3" | "li" | "td" | "span"
+  className?: string
+  id?: string
+}) {
+  return (
+    <Comp
+      id={id}
+      className={className}
+      dangerouslySetInnerHTML={{ __html: sanitizeBlogHtml(html) }}
+    />
+  )
+}
+
 export function BlogArticleBody({
   post,
   locale,
@@ -32,36 +53,44 @@ export function BlogArticleBody({
   void getPostH2Headings(post)
 
   return (
-    <div className="min-w-0 max-w-full font-brand text-brand">
+    <div
+      className={cn(
+        "min-w-0 max-w-full font-brand text-brand",
+        "[&_a]:font-semibold [&_a]:text-primary [&_a]:underline-offset-2 hover:[&_a]:underline",
+        "[&_strong]:font-extrabold [&_strong]:text-brand [&_b]:font-extrabold [&_b]:text-brand",
+        "[&_em]:italic [&_i]:italic",
+        "[&_code]:rounded-md [&_code]:bg-muted [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-[0.9em]",
+      )}
+    >
       {blocks.map((block, index) => {
         switch (block.type) {
           case "paragraph":
             return (
-              <p
+              <RichHtml
                 key={index}
+                as="p"
+                html={block.text}
                 className="mb-5 text-base leading-relaxed text-muted-foreground md:text-[1.05rem]"
-              >
-                {block.text}
-              </p>
+              />
             )
           case "h2":
             return (
-              <h2
+              <RichHtml
                 key={index}
+                as="h2"
                 id={block.headingId}
+                html={block.text}
                 className="mt-10 mb-4 scroll-mt-28 text-2xl font-extrabold tracking-tight text-brand md:text-3xl"
-              >
-                {block.text}
-              </h2>
+              />
             )
           case "h3":
             return (
-              <h3
+              <RichHtml
                 key={index}
+                as="h3"
+                html={block.text}
                 className="mt-7 mb-3 text-xl font-bold tracking-tight text-brand"
-              >
-                {block.text}
-              </h3>
+              />
             )
           case "ul":
             return (
@@ -69,8 +98,8 @@ export function BlogArticleBody({
                 key={index}
                 className="mb-5 list-disc space-y-2 pl-5 text-base leading-relaxed text-muted-foreground"
               >
-                {block.items.map((item) => (
-                  <li key={item}>{item}</li>
+                {block.items.map((item, itemIndex) => (
+                  <RichHtml key={itemIndex} as="li" html={item} />
                 ))}
               </ul>
             )
@@ -80,8 +109,8 @@ export function BlogArticleBody({
                 key={index}
                 className="mb-5 list-decimal space-y-2 pl-5 text-base leading-relaxed text-muted-foreground"
               >
-                {block.items.map((item) => (
-                  <li key={item}>{item}</li>
+                {block.items.map((item, itemIndex) => (
+                  <RichHtml key={itemIndex} as="li" html={item} />
                 ))}
               </ol>
             )
@@ -92,18 +121,20 @@ export function BlogArticleBody({
                 className="mb-6 rounded-2xl border border-border bg-brand-page px-5 py-4"
               >
                 {block.title ? (
-                  <p className="text-sm font-extrabold text-brand">
-                    {block.title}
-                  </p>
+                  <RichHtml
+                    as="p"
+                    html={block.title}
+                    className="text-sm font-extrabold text-brand"
+                  />
                 ) : null}
-                <p
+                <RichHtml
+                  as="p"
+                  html={block.text}
                   className={cn(
                     "text-base leading-relaxed text-muted-foreground",
                     block.title && "mt-1",
                   )}
-                >
-                  {block.text}
-                </p>
+                />
               </aside>
             )
           case "table":
@@ -115,19 +146,24 @@ export function BlogArticleBody({
                 <table className="w-full min-w-0 border-collapse text-left text-sm md:min-w-[24rem]">
                   {block.caption ? (
                     <caption className="bg-brand-page px-4 py-3 text-left text-xs font-bold tracking-wide text-muted-foreground uppercase">
-                      {block.caption}
+                      <span
+                        dangerouslySetInnerHTML={{
+                          __html: sanitizeBlogHtml(block.caption),
+                        }}
+                      />
                     </caption>
                   ) : null}
                   <thead className="bg-brand-panel text-white">
                     <tr>
-                      {block.headers.map((header) => (
+                      {block.headers.map((header, headerIndex) => (
                         <th
-                          key={header}
+                          key={headerIndex}
                           scope="col"
                           className="max-w-[12rem] px-3 py-2.5 font-extrabold break-words sm:max-w-none sm:px-4 sm:py-3"
-                        >
-                          {header}
-                        </th>
+                          dangerouslySetInnerHTML={{
+                            __html: sanitizeBlogHtml(header),
+                          }}
+                        />
                       ))}
                     </tr>
                   </thead>
@@ -138,12 +174,12 @@ export function BlogArticleBody({
                         className="border-t border-border odd:bg-brand-surface even:bg-brand-page/60"
                       >
                         {row.map((cell, cellIndex) => (
-                          <td
+                          <RichHtml
                             key={`${rowIndex}-${cellIndex}`}
+                            as="td"
+                            html={cell}
                             className="max-w-[12rem] px-3 py-2.5 align-top break-words text-muted-foreground sm:max-w-none sm:px-4 sm:py-3"
-                          >
-                            {cell}
-                          </td>
+                          />
                         ))}
                       </tr>
                     ))}

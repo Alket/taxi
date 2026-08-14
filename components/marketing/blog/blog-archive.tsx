@@ -43,7 +43,7 @@ export function BlogArchive({
 
   return (
     <main className="bg-brand-page pb-16 md:pb-24">
-      <header className="relative isolate -mt-24 h-[min(52svh,28rem)] min-h-[20rem] overflow-hidden md:h-[min(48svh,32rem)]">
+      <header className="relative isolate -mt-24 h-[min(62svh,34rem)] min-h-[24rem] overflow-hidden md:h-[min(48svh,32rem)] md:min-h-0">
         <Image
           src={heroImage}
           alt={heroAlt}

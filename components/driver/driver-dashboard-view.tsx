@@ -12,6 +12,7 @@ import {
   Loader2Icon,
   MapPinIcon,
   MessageSquareIcon,
+  PhoneIcon,
   UsersIcon,
 } from "lucide-react"
 import { toast } from "sonner"
@@ -27,7 +28,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import {
   Card,
   CardContent,
@@ -66,6 +67,11 @@ type DriverTrip = {
   statusLabel: string
   customerName: string
   customerPhone: string
+  passengerName: string | null
+  passengerPhone: string | null
+  contactName: string
+  contactPhone: string
+  contactWhatsappUrl: string | null
   currency: string
   totalPrice: number
   totalPriceLabel: string
@@ -598,7 +604,7 @@ function TripCard({
             {trip.dropoffAddress}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            {trip.customerName} · {trip.totalPriceLabel}
+            {trip.contactName} · {trip.totalPriceLabel}
             {trip.cashToCollect > 0
               ? ` · ${trip.cashToCollectLabel}`
               : ""}
@@ -679,8 +685,38 @@ function TripCard({
               <span>{t("trips.flight", { flight: trip.flightNumber })}</span>
             ) : null}
             {trip.meetAndGreet ? <span>{t("trips.meetGreet")}</span> : null}
-            <span>{trip.customerName}</span>
           </div>
+
+          {trip.contactPhone ? (
+            <div className="flex flex-wrap gap-2">
+              <a
+                href={`tel:${trip.contactPhone}`}
+                aria-label={t("trips.callPassenger")}
+                className={cn(
+                  buttonVariants({ variant: "outline", size: "sm" }),
+                  "h-9 flex-1 touch-manipulation sm:flex-none",
+                )}
+              >
+                <PhoneIcon data-icon="inline-start" />
+                {t("trips.phone")}
+              </a>
+              {trip.contactWhatsappUrl ? (
+                <a
+                  href={trip.contactWhatsappUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={t("trips.whatsappPassenger")}
+                  className={cn(
+                    buttonVariants({ variant: "outline", size: "sm" }),
+                    "h-9 flex-1 touch-manipulation sm:flex-none",
+                  )}
+                >
+                  <MessageSquareIcon data-icon="inline-start" />
+                  {t("trips.whatsapp")}
+                </a>
+              ) : null}
+            </div>
+          ) : null}
 
           {trip.childSeats || trip.driverNotes ? (
             <div className="flex flex-col gap-2">

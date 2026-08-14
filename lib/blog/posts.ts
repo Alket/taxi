@@ -494,9 +494,13 @@ export function archivePostsFromList(
   }
 }
 
-export function getRelatedDestinations(post: BlogPost): Destination[] {
+/** Map post related IDs onto destination cards (pass CMS cards for real images). */
+export function getRelatedDestinations(
+  post: BlogPost,
+  destinations: Destination[] = DESTINATIONS,
+): Destination[] {
   return post.relatedDestinationIds
-    .map((id) => DESTINATIONS.find((d) => d.id === id || d.slug === id))
+    .map((id) => destinations.find((d) => d.id === id || d.slug === id))
     .filter((d): d is Destination => Boolean(d))
 }
 

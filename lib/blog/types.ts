@@ -64,8 +64,13 @@ export const BLOG_CATEGORY_LABELS: Record<string, string> = {
   "local-tips": "Local Travel Tips",
 }
 
+/** Strip simple HTML tags before slugifying (TOC / anchor ids). */
+function plainHeadingText(text: string): string {
+  return text.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim()
+}
+
 export function slugifyHeading(text: string): string {
-  return text
+  return plainHeadingText(text)
     .toLowerCase()
     .normalize("NFKD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -84,7 +89,7 @@ export function getPostH2Headings(post: BlogPost): { id: string; text: string }[
     const count = seen.get(base) ?? 0
     seen.set(base, count + 1)
     const id = count === 0 ? base : `${base}-${count + 1}`
-    headings.push({ id, text: block.text })
+    headings.push({ id, text: plainHeadingText(block.text) })
   }
 
   return headings

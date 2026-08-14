@@ -15,10 +15,10 @@ import {
   formatBlogDate,
   getPostAuthor,
   getPostH2Headings,
-  getRelatedDestinations,
   type BlogAuthor,
   type BlogPost,
 } from "@/lib/blog"
+import type { Destination } from "@/lib/destinations"
 import type { Locale } from "@/lib/i18n/locales"
 
 export function BlogPostView({
@@ -26,15 +26,17 @@ export function BlogPostView({
   locale,
   categoryLabel,
   author: authorProp,
+  relatedDestinations = [],
 }: {
   post: BlogPost
   locale: Locale
   categoryLabel?: string
   author?: BlogAuthor
+  /** CMS destination cards (images/pricing) for the related-routes grid. */
+  relatedDestinations?: Destination[]
 }) {
   const author = authorProp ?? getPostAuthor(post)
   const headings = getPostH2Headings(post)
-  const related = getRelatedDestinations(post)
   const label = categoryLabel || post.category
   const breadcrumbs = buildPostBreadcrumbItems({
     locale,
@@ -104,7 +106,10 @@ export function BlogPostView({
 
         <div className="mt-12 space-y-12 md:mt-16 md:space-y-16">
           <BlogAuthorBio author={author} />
-          <BlogRelatedRoutes destinations={related} locale={locale} />
+          <BlogRelatedRoutes
+            destinations={relatedDestinations}
+            locale={locale}
+          />
           <BlogFaq items={post.faq} />
         </div>
       </MarketingContainer>
