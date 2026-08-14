@@ -94,7 +94,7 @@ export function BlogPostView({
 
       <MarketingContainer className="mt-10 md:mt-14">
         <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_16rem] lg:gap-12">
-          <article>
+          <article className="min-w-0 max-w-full">
             <BlogArticleBody post={post} locale={locale} />
           </article>
           <aside className="lg:pt-1">

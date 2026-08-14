@@ -32,7 +32,7 @@ export function BlogArticleBody({
   void getPostH2Headings(post)
 
   return (
-    <div className="font-brand text-brand">
+    <div className="min-w-0 max-w-full font-brand text-brand">
       {blocks.map((block, index) => {
         switch (block.type) {
           case "paragraph":
@@ -110,9 +110,9 @@ export function BlogArticleBody({
             return (
               <div
                 key={index}
-                className="mb-6 overflow-x-auto rounded-2xl border border-border"
+                className="mb-6 max-w-full overflow-x-auto overscroll-x-contain rounded-2xl border border-border [-webkit-overflow-scrolling:touch]"
               >
-                <table className="w-full min-w-[28rem] border-collapse text-left text-sm">
+                <table className="w-full min-w-0 border-collapse text-left text-sm md:min-w-[24rem]">
                   {block.caption ? (
                     <caption className="bg-brand-page px-4 py-3 text-left text-xs font-bold tracking-wide text-muted-foreground uppercase">
                       {block.caption}
@@ -124,7 +124,7 @@ export function BlogArticleBody({
                         <th
                           key={header}
                           scope="col"
-                          className="px-4 py-3 font-extrabold"
+                          className="max-w-[12rem] px-3 py-2.5 font-extrabold break-words sm:max-w-none sm:px-4 sm:py-3"
                         >
                           {header}
                         </th>
@@ -140,7 +140,7 @@ export function BlogArticleBody({
                         {row.map((cell, cellIndex) => (
                           <td
                             key={`${rowIndex}-${cellIndex}`}
-                            className="px-4 py-3 text-muted-foreground"
+                            className="max-w-[12rem] px-3 py-2.5 align-top break-words text-muted-foreground sm:max-w-none sm:px-4 sm:py-3"
                           >
                             {cell}
                           </td>
