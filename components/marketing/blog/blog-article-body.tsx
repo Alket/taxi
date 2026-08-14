@@ -28,7 +28,7 @@ function RichHtml({
   id,
 }: {
   html: string
-  as: "p" | "h2" | "h3" | "li" | "td" | "span"
+  as: "p" | "h2" | "h3" | "li" | "td" | "span" | "div"
   className?: string
   id?: string
 }) {
@@ -60,6 +60,9 @@ export function BlogArticleBody({
         "[&_strong]:font-extrabold [&_strong]:text-brand [&_b]:font-extrabold [&_b]:text-brand",
         "[&_em]:italic [&_i]:italic",
         "[&_code]:rounded-md [&_code]:bg-muted [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-[0.9em]",
+        "[&_ul]:my-3 [&_ul]:list-disc [&_ul]:space-y-2 [&_ul]:pl-5",
+        "[&_ol]:my-3 [&_ol]:list-decimal [&_ol]:space-y-2 [&_ol]:pl-5",
+        "[&_li]:leading-relaxed",
       )}
     >
       {blocks.map((block, index) => {
@@ -68,7 +71,7 @@ export function BlogArticleBody({
             return (
               <RichHtml
                 key={index}
-                as="p"
+                as="div"
                 html={block.text}
                 className="mb-5 text-base leading-relaxed text-muted-foreground md:text-[1.05rem]"
               />
@@ -122,13 +125,13 @@ export function BlogArticleBody({
               >
                 {block.title ? (
                   <RichHtml
-                    as="p"
+                    as="div"
                     html={block.title}
                     className="text-sm font-extrabold text-brand"
                   />
                 ) : null}
                 <RichHtml
-                  as="p"
+                  as="div"
                   html={block.text}
                   className={cn(
                     "text-base leading-relaxed text-muted-foreground",

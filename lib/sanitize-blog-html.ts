@@ -1,6 +1,6 @@
 import DOMPurify from "isomorphic-dompurify"
 
-/** Inline formatting allowed in blog CMS text fields. */
+/** Formatting allowed in blog CMS text fields (inline + simple lists). */
 const ALLOWED_TAGS = [
   "br",
   "strong",
@@ -15,6 +15,9 @@ const ALLOWED_TAGS = [
   "mark",
   "sup",
   "sub",
+  "ul",
+  "ol",
+  "li",
 ] as const
 
 /**
@@ -25,7 +28,7 @@ const ALLOWED_ATTR = ["href", "target", "rel", "title"] as const
 
 /**
  * Sanitize blog rich text for safe HTML rendering.
- * Keeps common inline tags (br, bold, italic, links, …); strips scripts and blocks.
+ * Keeps common inline tags, lists (ul/ol/li); strips scripts and unsafe blocks.
  */
 export function sanitizeBlogHtml(raw: string): string {
   const cleaned = DOMPurify.sanitize(raw ?? "", {
