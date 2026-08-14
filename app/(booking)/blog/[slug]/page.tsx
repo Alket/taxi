@@ -3,7 +3,11 @@ import { notFound } from "next/navigation"
 
 import { BlogPostView } from "@/components/marketing/blog/blog-post-view"
 import { JsonLd } from "@/components/marketing/json-ld"
-import { BLOG_CATEGORY_LABELS, getPostAuthor } from "@/lib/blog"
+import {
+  authorFromCatalog,
+  categoryLabelFromCatalog,
+  getBlogCatalog,
+} from "@/lib/blog/catalog"
 import { getRequestLocale } from "@/lib/i18n/get-locale"
 import { localePath, localizedAlternates } from "@/lib/i18n/locales"
 import { getAppBaseUrl } from "@/lib/mail"
@@ -66,10 +70,14 @@ export async function generateMetadata({
 export default async function BlogPostPage({ params }: PageProps) {
   const { slug } = await params
   const locale = await getRequestLocale()
-  const post = await getBlogPostFromCms(slug, locale)
+  const [post, catalog] = await Promise.all([
+    getBlogPostFromCms(slug, locale),
+    getBlogCatalog(),
+  ])
   if (!post) notFound()
 
-  const author = getPostAuthor(post)
+  const author = authorFromCatalog(catalog, post.authorId)
+  const categoryLabel = categoryLabelFromCatalog(catalog, post.category)
   const path = `/blog/${post.slug}`
   const localizedPath = localePath(path, locale)
   const faqLd = buildFaqPageJsonLd(post.faq)
@@ -92,14 +100,19 @@ export default async function BlogPostPage({ params }: PageProps) {
           { name: "Home", url: localePath("/", locale) },
           { name: "Blog", url: localePath("/blog", locale) },
           {
-            name: BLOG_CATEGORY_LABELS[post.category],
+            name: categoryLabel,
             url: localePath(`/blog?category=${post.category}`, locale),
           },
           { name: post.title, url: localizedPath },
         ])}
       />
       {faqLd ? <JsonLd data={faqLd} /> : null}
-      <BlogPostView post={post} locale={locale} />
+      <BlogPostView
+        post={post}
+        locale={locale}
+        categoryLabel={categoryLabel}
+        author={author}
+      />
     </>
   )
 }

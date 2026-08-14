@@ -11,6 +11,7 @@ import {
 } from "@/components/marketing/marketing-container"
 import type { BlogFilterId, BlogPost } from "@/lib/blog"
 import type { BlogArchiveCopy } from "@/lib/page-content-shared"
+import type { BlogCategoryRecord } from "@/lib/blog/catalog"
 import type { Locale } from "@/lib/i18n/locales"
 import { cn } from "@/lib/utils"
 
@@ -23,12 +24,16 @@ export function BlogArchive({
   featured,
   rest,
   copy,
+  categories,
+  categoryLabels,
 }: {
   locale: Locale
   filter: BlogFilterId
   featured: BlogPost | null
   rest: BlogPost[]
   copy: BlogArchiveCopy
+  categories: BlogCategoryRecord[]
+  categoryLabels: Record<string, string>
 }) {
   const heroImage = featured?.heroImage.src || BLOG_HERO_FALLBACK
   const heroAlt =
@@ -78,12 +83,18 @@ export function BlogArchive({
               <div className="h-10 w-full max-w-xl animate-pulse rounded-full bg-muted" />
             }
           >
-            <BlogCategoryFilter active={filter} />
+            <BlogCategoryFilter active={filter} categories={categories} />
           </Suspense>
 
           <div className="mt-8">
             {featured ? (
-              <BlogFeaturedCard post={featured} locale={locale} />
+              <BlogFeaturedCard
+                post={featured}
+                locale={locale}
+                categoryLabel={
+                  categoryLabels[featured.category] || featured.category
+                }
+              />
             ) : (
               <p className="rounded-2xl border border-border bg-brand-surface px-5 py-8 text-muted-foreground">
                 No guides published yet. Check back soon.
@@ -108,7 +119,13 @@ export function BlogArchive({
             <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {rest.map((post) => (
                 <li key={post.slug}>
-                  <BlogPostCard post={post} locale={locale} />
+                  <BlogPostCard
+                    post={post}
+                    locale={locale}
+                    categoryLabel={
+                      categoryLabels[post.category] || post.category
+                    }
+                  />
                 </li>
               ))}
             </ul>

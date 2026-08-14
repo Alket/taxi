@@ -12,11 +12,11 @@ import { BlogRelatedRoutes } from "@/components/marketing/blog/blog-related-rout
 import { BlogToc } from "@/components/marketing/blog/blog-toc"
 import { MarketingContainer } from "@/components/marketing/marketing-container"
 import {
-  BLOG_CATEGORY_LABELS,
   formatBlogDate,
   getPostAuthor,
   getPostH2Headings,
   getRelatedDestinations,
+  type BlogAuthor,
   type BlogPost,
 } from "@/lib/blog"
 import type { Locale } from "@/lib/i18n/locales"
@@ -24,16 +24,22 @@ import type { Locale } from "@/lib/i18n/locales"
 export function BlogPostView({
   post,
   locale,
+  categoryLabel,
+  author: authorProp,
 }: {
   post: BlogPost
   locale: Locale
+  categoryLabel?: string
+  author?: BlogAuthor
 }) {
-  const author = getPostAuthor(post)
+  const author = authorProp ?? getPostAuthor(post)
   const headings = getPostH2Headings(post)
   const related = getRelatedDestinations(post)
+  const label = categoryLabel || post.category
   const breadcrumbs = buildPostBreadcrumbItems({
     locale,
     category: post.category,
+    categoryLabel: label,
     title: post.title,
   })
 
@@ -57,7 +63,7 @@ export function BlogPostView({
 
           <div className="mt-5 flex flex-wrap items-center gap-2 text-xs font-bold tracking-wide text-white/75 uppercase">
             <span className="rounded-full bg-white/15 px-3 py-1 text-white backdrop-blur-sm">
-              {BLOG_CATEGORY_LABELS[post.category]}
+              {label}
             </span>
             <time dateTime={post.publishedAt}>
               Published {formatBlogDate(post.publishedAt)}

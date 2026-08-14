@@ -44,6 +44,10 @@ import { apiDelete, apiPatch, apiPost, fetcher } from "@/lib/api"
 import { slugifyDestinationId } from "@/lib/destinations"
 import { slugifyBlogId } from "@/lib/blog/cms"
 import { PageHeader } from "@/components/admin/page-header"
+import {
+  BlogCatalogManagerDialog,
+  useBlogCatalog,
+} from "@/components/admin/blog-catalog-manager"
 
 type AdminPageRow = {
   slug: string
@@ -220,7 +224,9 @@ export function PagesListView() {
   const [featuringSlug, setFeaturingSlug] = React.useState<string | null>(null)
   const [exporting, setExporting] = React.useState(false)
   const [importing, setImporting] = React.useState(false)
+  const [catalogOpen, setCatalogOpen] = React.useState(false)
   const importInputRef = React.useRef<HTMLInputElement>(null)
+  const { catalog, setCatalog } = useBlogCatalog()
 
   function resetCreateForm() {
     setName("")
@@ -429,6 +435,14 @@ export function PagesListView() {
             >
               <Upload className="size-3.5" />
               {importing ? "Importing…" : "Import translations"}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-10 flex-1 touch-manipulation sm:h-8 sm:flex-none sm:w-auto"
+              onClick={() => setCatalogOpen(true)}
+            >
+              Categories & authors
             </Button>
             <Button
               size="sm"
@@ -863,6 +877,16 @@ export function PagesListView() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {catalog ? (
+        <BlogCatalogManagerDialog
+          open={catalogOpen}
+          onOpenChange={setCatalogOpen}
+          initial={catalog}
+          mode="all"
+          onSaved={(next) => setCatalog(next)}
+        />
+      ) : null}
     </>
   )
 }

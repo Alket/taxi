@@ -2,28 +2,25 @@
 
 import Link from "next/link"
 
-import {
-  BLOG_CATEGORY_LABELS,
-  type BlogFilterId,
-} from "@/lib/blog"
+import type { BlogFilterId } from "@/lib/blog"
 import { useLocale } from "@/lib/i18n/use-locale"
 import { localePath } from "@/lib/i18n/locales"
 import { cn } from "@/lib/utils"
 
-const FILTERS: BlogFilterId[] = [
-  "all",
-  "airport-transport",
-  "destinations-routes",
-  "local-tips",
-]
-
 export function BlogCategoryFilter({
   active,
+  categories,
 }: {
   active: BlogFilterId
+  categories: { id: string; label: string }[]
 }) {
   const locale = useLocale()
   const blogHref = localePath("/blog", locale)
+
+  const filters: { id: BlogFilterId; label: string }[] = [
+    { id: "all", label: "All Guides" },
+    ...categories.map((c) => ({ id: c.id, label: c.label })),
+  ]
 
   function hrefFor(filter: BlogFilterId) {
     if (filter === "all") return blogHref
@@ -33,12 +30,12 @@ export function BlogCategoryFilter({
   return (
     <nav aria-label="Filter guides by category" className="w-full">
       <ul className="flex flex-wrap gap-2">
-        {FILTERS.map((filter) => {
-          const selected = active === filter
+        {filters.map((filter) => {
+          const selected = active === filter.id
           return (
-            <li key={filter}>
+            <li key={filter.id}>
               <Link
-                href={hrefFor(filter)}
+                href={hrefFor(filter.id)}
                 scroll={false}
                 aria-current={selected ? "page" : undefined}
                 className={cn(
@@ -48,7 +45,7 @@ export function BlogCategoryFilter({
                     : "border border-border bg-brand-surface text-brand hover:bg-muted",
                 )}
               >
-                {BLOG_CATEGORY_LABELS[filter]}
+                {filter.label}
               </Link>
             </li>
           )

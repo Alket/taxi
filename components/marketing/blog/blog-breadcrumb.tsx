@@ -76,17 +76,19 @@ export function BlogBreadcrumb({
 export function buildPostBreadcrumbItems({
   locale,
   category,
+  categoryLabel,
   title,
 }: {
   locale: Locale
   category: BlogCategoryId
+  categoryLabel?: string
   title: string
 }): BlogBreadcrumbItem[] {
   return [
     { name: "Home", href: localePath("/", locale) },
     { name: "Blog", href: localePath("/blog", locale) },
     {
-      name: BLOG_CATEGORY_LABELS[category],
+      name: categoryLabel || BLOG_CATEGORY_LABELS[category] || category,
       href: localePath(`/blog?category=${category}`, locale),
     },
     { name: title },

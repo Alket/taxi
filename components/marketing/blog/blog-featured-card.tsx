@@ -2,9 +2,9 @@ import Image from "next/image"
 import Link from "next/link"
 
 import {
-  BLOG_CATEGORY_LABELS,
   formatBlogDate,
   getPostAuthor,
+  type BlogAuthor,
   type BlogPost,
 } from "@/lib/blog"
 import type { Locale } from "@/lib/i18n/locales"
@@ -13,11 +13,15 @@ import { localePath } from "@/lib/i18n/locales"
 export function BlogFeaturedCard({
   post,
   locale,
+  categoryLabel,
+  author: authorProp,
 }: {
   post: BlogPost
   locale: Locale
+  categoryLabel?: string
+  author?: BlogAuthor
 }) {
-  const author = getPostAuthor(post)
+  const author = authorProp ?? getPostAuthor(post)
   const href = localePath(`/blog/${post.slug}`, locale)
 
   return (
@@ -37,7 +41,7 @@ export function BlogFeaturedCard({
         <div className="flex flex-col justify-center gap-4 p-6 sm:p-8 lg:p-10">
           <div className="flex flex-wrap items-center gap-2 text-xs font-bold tracking-wide text-muted-foreground uppercase">
             <span className="rounded-full bg-[color-mix(in_srgb,var(--brand-accent)_14%,white)] px-3 py-1 text-brand-accent">
-              {BLOG_CATEGORY_LABELS[post.category]}
+              {categoryLabel || post.category}
             </span>
             <span>{formatBlogDate(post.publishedAt)}</span>
             <span aria-hidden>·</span>
@@ -50,7 +54,7 @@ export function BlogFeaturedCard({
             {post.excerpt}
           </p>
           <p className="text-sm font-semibold text-brand">
-            By {author.name}
+            By {author.name} →
           </p>
         </div>
       </Link>

@@ -28,7 +28,7 @@ export async function fetcher<T>(url: string): Promise<T> {
 
 async function mutateRequest<T>(
   url: string,
-  method: "POST" | "PATCH" | "DELETE",
+  method: "POST" | "PATCH" | "PUT" | "DELETE",
   body?: unknown,
 ): Promise<T> {
   const res = await fetch(url, {
@@ -65,6 +65,10 @@ export function apiPost<T>(url: string, body?: unknown) {
 
 export function apiPatch<T>(url: string, body?: unknown) {
   return mutateRequest<T>(url, "PATCH", body)
+}
+
+export function apiPut<T>(url: string, body?: unknown) {
+  return mutateRequest<T>(url, "PUT", body)
 }
 
 export function apiDelete<T>(url: string, body?: unknown) {

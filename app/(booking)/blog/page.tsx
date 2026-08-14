@@ -3,6 +3,10 @@ import type { Metadata } from "next"
 import { BlogArchive } from "@/components/marketing/blog/blog-archive"
 import { JsonLd } from "@/components/marketing/json-ld"
 import { archivePostsFromList, parseBlogFilter } from "@/lib/blog"
+import {
+  blogCategoryLabelsMap,
+  getBlogCatalog,
+} from "@/lib/blog/catalog"
 import { getRequestLocale } from "@/lib/i18n/get-locale"
 import { localePath, localizedAlternates } from "@/lib/i18n/locales"
 import { getAppBaseUrl } from "@/lib/mail"
@@ -83,12 +87,14 @@ export default async function BlogArchivePage({ searchParams }: PageProps) {
   const { category } = await searchParams
   const filter = parseBlogFilter(category)
   const blogPath = localePath("/blog", locale)
-  const [page, posts] = await Promise.all([
+  const [page, posts, catalog] = await Promise.all([
     resolvePageContent("blog", locale),
     listBlogPostsFromCms(locale),
+    getBlogCatalog(),
   ])
   const { featured, rest } = archivePostsFromList(posts, filter)
   const copy = blogArchiveCopyFromSections(page?.sections ?? [])
+  const categoryLabels = blogCategoryLabelsMap(catalog)
 
   return (
     <>
@@ -104,6 +110,8 @@ export default async function BlogArchivePage({ searchParams }: PageProps) {
         featured={featured}
         rest={rest}
         copy={copy}
+        categories={catalog.categories}
+        categoryLabels={categoryLabels}
       />
     </>
   )

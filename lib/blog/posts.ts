@@ -505,11 +505,7 @@ export function getPostAuthor(post: BlogPost) {
 }
 
 export function isBlogCategoryId(value: string): value is BlogCategoryId {
-  return (
-    value === "airport-transport" ||
-    value === "destinations-routes" ||
-    value === "local-tips"
-  )
+  return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value) && value !== "all"
 }
 
 export function parseBlogFilter(value: string | null | undefined): BlogFilterId {

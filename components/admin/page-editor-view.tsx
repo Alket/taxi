@@ -49,11 +49,11 @@ import {
   type PageSection,
   type PageSectionType,
 } from "@/lib/page-content-shared"
-import { BLOG_AUTHORS } from "@/lib/blog/authors"
 import {
-  BLOG_CATEGORY_LABELS,
-  type BlogCategoryId,
-} from "@/lib/blog/types"
+  BlogCatalogManagerDialog,
+  useBlogCatalog,
+} from "@/components/admin/blog-catalog-manager"
+import { toDateInputValue } from "@/components/admin/date-field"
 import type { MediaAssetDto } from "@/lib/media-shared"
 import { cn } from "@/lib/utils"
 
@@ -76,11 +76,6 @@ const BLOG_BODY_SECTION_TYPES = [
   "table",
   "mid_cta",
 ] as PageSectionType[]
-
-const BLOG_CATEGORY_OPTIONS = (
-  Object.keys(BLOG_CATEGORY_LABELS) as Array<keyof typeof BLOG_CATEGORY_LABELS>
-).filter((k) => k !== "all") as BlogCategoryId[]
-
 function newSection(type: PageSectionType): PageSection {
   return {
     id: crypto.randomUUID(),
@@ -652,6 +647,10 @@ export function PageEditorView({ slug }: { slug: string }) {
   const [libraryTarget, setLibraryTarget] = useState<
     null | { type: "og" } | { type: "section"; id: string }
   >(null)
+  const [catalogDialog, setCatalogDialog] = useState<
+    null | "categories" | "authors"
+  >(null)
+  const { catalog, setCatalog } = useBlogCatalog()
 
   const load = useCallback(
     async (nextLocale: Locale) => {
@@ -1084,10 +1083,18 @@ export function PageEditorView({ slug }: { slug: string }) {
         s.key === "_featured" &&
         (s.body ?? "").trim().toLowerCase() === "featured",
     )
-  const authorOptions = Object.values(BLOG_AUTHORS)
+  const categoryOptions = catalog?.categories ?? []
+  const authorOptions = catalog?.authors ?? []
   const sectionTypeOptions = isBlogPage
     ? BLOG_BODY_SECTION_TYPES
     : CONTENT_SECTION_TYPES
+  const publishedValue = blogParts
+    ? settingBody(blogParts.settings, "meta.publishedAt")
+    : ""
+  const updatedValue = blogParts
+    ? settingBody(blogParts.settings, "meta.updatedAt")
+    : ""
+  const todayIso = toDateInputValue(new Date())
 
   return (
     <>
@@ -1327,15 +1334,28 @@ export function PageEditorView({ slug }: { slug: string }) {
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label className="text-xs text-muted-foreground">Category</Label>
+                <div className="flex items-center justify-between gap-2">
+                  <Label className="text-xs text-muted-foreground">
+                    Category
+                  </Label>
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    className="h-auto px-0 text-xs"
+                    onClick={() => setCatalogDialog("categories")}
+                  >
+                    Manage
+                  </Button>
+                </div>
                 <Select
                   value={
                     settingBody(blogParts.settings, "meta.category") ||
+                    categoryOptions[0]?.id ||
                     "airport-transport"
                   }
                   onValueChange={(v) => {
-                    if (!v || !BLOG_CATEGORY_OPTIONS.includes(v as BlogCategoryId))
-                      return
+                    if (!v) return
                     setBlogParts((parts) => ({
                       ...parts,
                       settings: patchSetting(
@@ -1345,28 +1365,40 @@ export function PageEditorView({ slug }: { slug: string }) {
                       ),
                     }))
                   }}
-                  items={BLOG_CATEGORY_OPTIONS.map((id) => ({
-                    value: id,
-                    label: BLOG_CATEGORY_LABELS[id],
+                  items={categoryOptions.map((c) => ({
+                    value: c.id,
+                    label: c.label,
                   }))}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {BLOG_CATEGORY_OPTIONS.map((id) => (
-                      <SelectItem key={id} value={id}>
-                        {BLOG_CATEGORY_LABELS[id]}
+                    {categoryOptions.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label className="text-xs text-muted-foreground">Author</Label>
+                <div className="flex items-center justify-between gap-2">
+                  <Label className="text-xs text-muted-foreground">Author</Label>
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    className="h-auto px-0 text-xs"
+                    onClick={() => setCatalogDialog("authors")}
+                  >
+                    Manage
+                  </Button>
+                </div>
                 <Select
                   value={
                     settingBody(blogParts.settings, "meta.authorId") ||
+                    authorOptions[0]?.id ||
                     "landed-team"
                   }
                   onValueChange={(v) => {
@@ -1435,39 +1467,87 @@ export function PageEditorView({ slug }: { slug: string }) {
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label className="text-xs text-muted-foreground">
-                  Published (YYYY-MM-DD)
+                  Published date
                 </Label>
-                <Input
-                  value={settingBody(blogParts.settings, "meta.publishedAt")}
-                  onChange={(e) =>
-                    setBlogParts((parts) => ({
-                      ...parts,
-                      settings: patchSetting(
-                        parts.settings,
-                        "meta.publishedAt",
-                        e.target.value,
-                      ),
-                    }))
-                  }
-                />
+                <div className="flex flex-wrap items-center gap-2">
+                  <Input
+                    type="date"
+                    value={/^\d{4}-\d{2}-\d{2}$/.test(publishedValue) ? publishedValue : ""}
+                    onChange={(e) =>
+                      setBlogParts((parts) => ({
+                        ...parts,
+                        settings: patchSetting(
+                          parts.settings,
+                          "meta.publishedAt",
+                          e.target.value,
+                        ),
+                      }))
+                    }
+                    className="min-w-0 flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0"
+                    onClick={() =>
+                      setBlogParts((parts) => ({
+                        ...parts,
+                        settings: patchSetting(
+                          parts.settings,
+                          "meta.publishedAt",
+                          todayIso,
+                        ),
+                      }))
+                    }
+                  >
+                    Today
+                  </Button>
+                </div>
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label className="text-xs text-muted-foreground">
-                  Updated (YYYY-MM-DD)
+                  Updated date
                 </Label>
-                <Input
-                  value={settingBody(blogParts.settings, "meta.updatedAt")}
-                  onChange={(e) =>
-                    setBlogParts((parts) => ({
-                      ...parts,
-                      settings: patchSetting(
-                        parts.settings,
-                        "meta.updatedAt",
-                        e.target.value,
-                      ),
-                    }))
-                  }
-                />
+                <div className="flex flex-wrap items-center gap-2">
+                  <Input
+                    type="date"
+                    value={/^\d{4}-\d{2}-\d{2}$/.test(updatedValue) ? updatedValue : ""}
+                    onChange={(e) =>
+                      setBlogParts((parts) => ({
+                        ...parts,
+                        settings: patchSetting(
+                          parts.settings,
+                          "meta.updatedAt",
+                          e.target.value,
+                        ),
+                      }))
+                    }
+                    className="min-w-0 flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0"
+                    onClick={() =>
+                      setBlogParts((parts) => ({
+                        ...parts,
+                        settings: patchSetting(
+                          parts.settings,
+                          "meta.updatedAt",
+                          todayIso,
+                        ),
+                      }))
+                    }
+                  >
+                    Today
+                  </Button>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Shown on the post as “Updated …”. Use Today after meaningful
+                  edits.
+                </p>
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label className="text-xs text-muted-foreground">
@@ -2197,6 +2277,18 @@ export function PageEditorView({ slug }: { slug: string }) {
         }}
         onSelect={applyLibraryAsset}
       />
+
+      {catalog ? (
+        <BlogCatalogManagerDialog
+          open={catalogDialog != null}
+          onOpenChange={(open) => {
+            if (!open) setCatalogDialog(null)
+          }}
+          initial={catalog}
+          mode={catalogDialog === "authors" ? "authors" : "categories"}
+          onSaved={(next) => setCatalog(next)}
+        />
+      ) : null}
     </>
   )
 }

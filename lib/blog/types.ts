@@ -1,7 +1,4 @@
-export type BlogCategoryId =
-  | "airport-transport"
-  | "destinations-routes"
-  | "local-tips"
+export type BlogCategoryId = string
 
 export type BlogFilterId = "all" | BlogCategoryId
 
@@ -59,7 +56,8 @@ export type BlogPost = {
   featured?: boolean
 }
 
-export const BLOG_CATEGORY_LABELS: Record<BlogFilterId, string> = {
+/** Built-in labels (fallback when catalog not loaded). Prefer getBlogCatalog(). */
+export const BLOG_CATEGORY_LABELS: Record<string, string> = {
   all: "All Guides",
   "airport-transport": "Airport Transport",
   "destinations-routes": "Destinations & Routes",

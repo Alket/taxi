@@ -2,9 +2,9 @@ import Image from "next/image"
 import Link from "next/link"
 
 import {
-  BLOG_CATEGORY_LABELS,
   formatBlogDate,
   getPostAuthor,
+  type BlogAuthor,
   type BlogPost,
 } from "@/lib/blog"
 import type { Locale } from "@/lib/i18n/locales"
@@ -13,11 +13,15 @@ import { localePath } from "@/lib/i18n/locales"
 export function BlogPostCard({
   post,
   locale,
+  categoryLabel,
+  author: authorProp,
 }: {
   post: BlogPost
   locale: Locale
+  categoryLabel?: string
+  author?: BlogAuthor
 }) {
-  const author = getPostAuthor(post)
+  const author = authorProp ?? getPostAuthor(post)
   const href = localePath(`/blog/${post.slug}`, locale)
 
   return (
@@ -33,7 +37,7 @@ export function BlogPostCard({
             sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw"
           />
           <span className="absolute top-3 left-3 rounded-full bg-brand-surface/95 px-3 py-1 text-[11px] font-bold tracking-wide text-brand-accent uppercase shadow-sm">
-            {BLOG_CATEGORY_LABELS[post.category]}
+            {categoryLabel || post.category}
           </span>
         </div>
         <div className="flex flex-1 flex-col gap-3 p-5">
@@ -50,7 +54,7 @@ export function BlogPostCard({
               {formatBlogDate(post.publishedAt)}
             </time>
             <span aria-hidden>·</span>
-            <span>{post.readTimeMinutes} min</span>
+            <span>{post.readTimeMinutes} min read</span>
           </div>
         </div>
       </Link>
