@@ -20,7 +20,7 @@ export function BlogMidCta({ locale }: { locale: Locale }) {
       </p>
       <Link
         href={localePath("/#book", locale)}
-        className="mt-5 inline-flex min-h-11 items-center justify-center rounded-full bg-brand-accent px-6 text-sm font-extrabold text-white transition-colors hover:bg-brand-accent-hover"
+        className="mt-5 inline-flex min-h-11 items-center justify-center rounded-full bg-brand-accent !text-white px-6 text-sm font-extrabold transition-colors hover:bg-brand-accent-hover"
       >
         Book my transfer
       </Link>
