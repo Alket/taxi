@@ -41,7 +41,10 @@ export default async function HomePage() {
     resolveDestinationCards(locale, { featuredOnly: true }),
     getSettings().catch(() => null),
   ])
-  const copy = await resolveHomeMarketingCopy(page?.sections ?? [])
+  const copy = await resolveHomeMarketingCopy(
+    page?.sections ?? [],
+    page?.ogImage,
+  )
 
   const localBusinessJsonLd = buildLocalBusinessJsonLd({
     name: settings?.companyName || "Albania Transfers",

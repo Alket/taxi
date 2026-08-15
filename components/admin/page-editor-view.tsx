@@ -45,6 +45,7 @@ import {
   PAGE_SECTION_TYPES,
   isBlogSlug,
   isCorePageSlug,
+  pageHeroImageKey,
   type PageContentRecord,
   type PageSection,
   type PageSectionType,
@@ -245,8 +246,10 @@ function mergeSections(
   content: PageSection[],
   attractions: PageSection[],
   faqs: PageSection[],
+  extras: PageSection[] = [],
 ): PageSection[] {
   return [
+    ...extras,
     ...content,
     ...attractions.map((item, i) => ({
       ...item,
@@ -259,6 +262,33 @@ function mergeSections(
       key: `faq.${i + 1}`,
     })),
   ]
+}
+
+function splitExtras(parts: ReturnType<typeof splitSections>): PageSection[] {
+  return [
+    ...parts.settings,
+    ...parts.hero,
+    ...parts.body,
+    ...parts.metaKeys,
+  ]
+}
+
+function patchSplitSections(
+  sections: PageSection[],
+  patch: Partial<
+    Pick<
+      ReturnType<typeof splitSections>,
+      "content" | "attractions" | "faqs" | "hero"
+    >
+  >,
+): PageSection[] {
+  const parts = { ...splitSections(sections), ...patch }
+  return mergeSections(
+    parts.content,
+    parts.attractions,
+    parts.faqs,
+    splitExtras(parts),
+  )
 }
 
 function SectionFields({
@@ -704,28 +734,30 @@ export function PageEditorView({ slug }: { slug: string }) {
     }
   }
 
+  function applyOgImage(ogImage: string, extra?: { alt?: string }) {
+    if (!page) return
+    const heroKey = pageHeroImageKey(page.slug)
+    setPage({
+      ...page,
+      ogImage,
+      sections: heroKey
+        ? page.sections.map((section) =>
+            section.type === "image" && section.key === heroKey
+              ? {
+                  ...section,
+                  src: ogImage,
+                  ...(extra?.alt ? { alt: extra.alt } : {}),
+                }
+              : section,
+          )
+        : page.sections,
+    })
+  }
+
   function applyLibraryAsset(asset: MediaAssetDto) {
     if (!page || !libraryTarget) return
     if (libraryTarget.type === "og") {
-      const isDest = page.slug.startsWith("destinations/")
-      const isBlog = isBlogSlug(page.slug)
-      setPage({
-        ...page,
-        ogImage: asset.url,
-        sections:
-          isDest || isBlog
-            ? page.sections.map((section) =>
-                section.type === "image" &&
-                section.key === (isBlog ? "hero.image" : "hero")
-                  ? {
-                      ...section,
-                      src: asset.url,
-                      ...(asset.alt ? { alt: asset.alt } : {}),
-                    }
-                  : section,
-              )
-            : page.sections,
-      })
+      applyOgImage(asset.url, asset.alt ? { alt: asset.alt } : undefined)
       return
     }
     const index = page.sections.findIndex((s) => s.id === libraryTarget.id)
@@ -823,20 +855,13 @@ export function PageEditorView({ slug }: { slug: string }) {
     if (!page) return
     const sections = [...page.sections]
     sections[index] = next
-    const isDestinationHero =
-      page.slug.startsWith("destinations/") &&
-      next.type === "image" &&
-      next.key === "hero"
-    const isBlogHero =
-      isBlogSlug(page.slug) &&
-      next.type === "image" &&
-      next.key === "hero.image"
+    const heroKey = pageHeroImageKey(page.slug)
+    const isSyncedHero =
+      Boolean(heroKey) && next.type === "image" && next.key === heroKey
     setPage({
       ...page,
       sections,
-      ...((isDestinationHero || isBlogHero) && next.src != null
-        ? { ogImage: next.src }
-        : {}),
+      ...(isSyncedHero && next.src != null ? { ogImage: next.src } : {}),
     })
   }
 
@@ -852,24 +877,25 @@ export function PageEditorView({ slug }: { slug: string }) {
 
   function moveContentSection(contentIndex: number, dir: -1 | 1) {
     if (!page) return
-    const { content, attractions, faqs } = splitSections(page.sections)
+    const { content } = splitSections(page.sections)
     const target = contentIndex + dir
     if (target < 0 || target >= content.length) return
     const next = [...content]
     ;[next[contentIndex], next[target]] = [next[target], next[contentIndex]]
-    setPage({ ...page, sections: mergeSections(next, attractions, faqs) })
+    setPage({
+      ...page,
+      sections: patchSplitSections(page.sections, { content: next }),
+    })
   }
 
   function removeContentSection(contentIndex: number) {
     if (!page) return
-    const { content, attractions, faqs } = splitSections(page.sections)
+    const { content } = splitSections(page.sections)
     setPage({
       ...page,
-      sections: mergeSections(
-        content.filter((_, i) => i !== contentIndex),
-        attractions,
-        faqs,
-      ),
+      sections: patchSplitSections(page.sections, {
+        content: content.filter((_, i) => i !== contentIndex),
+      }),
     })
   }
 
@@ -886,14 +912,12 @@ export function PageEditorView({ slug }: { slug: string }) {
       }))
       return
     }
-    const { content, attractions, faqs } = splitSections(page.sections)
+    const { content } = splitSections(page.sections)
     setPage({
       ...page,
-      sections: mergeSections(
-        [...content, newSection(addType)],
-        attractions,
-        faqs,
-      ),
+      sections: patchSplitSections(page.sections, {
+        content: [...content, newSection(addType)],
+      }),
     })
   }
 
@@ -906,10 +930,12 @@ export function PageEditorView({ slug }: { slug: string }) {
       }))
       return
     }
-    const { content, attractions, faqs } = splitSections(page.sections)
+    const { faqs } = splitSections(page.sections)
     setPage({
       ...page,
-      sections: mergeSections(content, attractions, [...faqs, newFaqItem()]),
+      sections: patchSplitSections(page.sections, {
+        faqs: [...faqs, newFaqItem()],
+      }),
     })
   }
 
@@ -923,12 +949,12 @@ export function PageEditorView({ slug }: { slug: string }) {
       })
       return
     }
-    const { content, attractions, faqs } = splitSections(page.sections)
+    const { faqs } = splitSections(page.sections)
     const nextFaqs = [...faqs]
     nextFaqs[faqIndex] = next
     setPage({
       ...page,
-      sections: mergeSections(content, attractions, nextFaqs),
+      sections: patchSplitSections(page.sections, { faqs: nextFaqs }),
     })
   }
 
@@ -947,7 +973,7 @@ export function PageEditorView({ slug }: { slug: string }) {
       })
       return
     }
-    const { content, attractions, faqs } = splitSections(page.sections)
+    const { faqs } = splitSections(page.sections)
     const target = faqIndex + dir
     if (target < 0 || target >= faqs.length) return
     const nextFaqs = [...faqs]
@@ -957,7 +983,7 @@ export function PageEditorView({ slug }: { slug: string }) {
     ]
     setPage({
       ...page,
-      sections: mergeSections(content, attractions, nextFaqs),
+      sections: patchSplitSections(page.sections, { faqs: nextFaqs }),
     })
   }
 
@@ -970,14 +996,12 @@ export function PageEditorView({ slug }: { slug: string }) {
       }))
       return
     }
-    const { content, attractions, faqs } = splitSections(page.sections)
+    const { faqs } = splitSections(page.sections)
     setPage({
       ...page,
-      sections: mergeSections(
-        content,
-        attractions,
-        faqs.filter((_, i) => i !== faqIndex),
-      ),
+      sections: patchSplitSections(page.sections, {
+        faqs: faqs.filter((_, i) => i !== faqIndex),
+      }),
     })
   }
 
@@ -1000,31 +1024,31 @@ export function PageEditorView({ slug }: { slug: string }) {
 
   function addAttractionItem() {
     if (!page) return
-    const { content, attractions, faqs } = splitSections(page.sections)
+    const { attractions } = splitSections(page.sections)
     setPage({
       ...page,
-      sections: mergeSections(
-        content,
-        [...attractions, newAttractionItem()],
-        faqs,
-      ),
+      sections: patchSplitSections(page.sections, {
+        attractions: [...attractions, newAttractionItem()],
+      }),
     })
   }
 
   function updateAttractionItem(index: number, next: PageSection) {
     if (!page) return
-    const { content, attractions, faqs } = splitSections(page.sections)
+    const { attractions } = splitSections(page.sections)
     const nextItems = [...attractions]
     nextItems[index] = next
     setPage({
       ...page,
-      sections: mergeSections(content, nextItems, faqs),
+      sections: patchSplitSections(page.sections, {
+        attractions: nextItems,
+      }),
     })
   }
 
   function moveAttractionItem(index: number, dir: -1 | 1) {
     if (!page) return
-    const { content, attractions, faqs } = splitSections(page.sections)
+    const { attractions } = splitSections(page.sections)
     const target = index + dir
     if (target < 0 || target >= attractions.length) return
     const nextItems = [...attractions]
@@ -1034,20 +1058,20 @@ export function PageEditorView({ slug }: { slug: string }) {
     ]
     setPage({
       ...page,
-      sections: mergeSections(content, nextItems, faqs),
+      sections: patchSplitSections(page.sections, {
+        attractions: nextItems,
+      }),
     })
   }
 
   function removeAttractionItem(index: number) {
     if (!page) return
-    const { content, attractions, faqs } = splitSections(page.sections)
+    const { attractions } = splitSections(page.sections)
     setPage({
       ...page,
-      sections: mergeSections(
-        content,
-        attractions.filter((_, i) => i !== index),
-        faqs,
-      ),
+      sections: patchSplitSections(page.sections, {
+        attractions: attractions.filter((_, i) => i !== index),
+      }),
     })
   }
 
@@ -1068,12 +1092,24 @@ export function PageEditorView({ slug }: { slug: string }) {
     content: contentSections,
     attractions: attractionItems,
     faqs: faqItems,
+    hero: heroSections,
   } = splitSections(page.sections)
   const blogParts = isBlogSlug(page.slug)
     ? ensureBlogParts(page.sections)
     : null
   const isDestinationPage = page.slug.startsWith("destinations/")
   const isBlogPage = isBlogSlug(page.slug)
+  const isHomePage = page.slug === "home"
+  const homeHero = isHomePage
+    ? (heroSections[0] ?? {
+        id: "home-hero-image",
+        type: "image" as const,
+        key: "hero.image",
+        src: page.ogImage || "",
+        alt: "",
+      })
+    : null
+  const syncsHeroWithOg = Boolean(pageHeroImageKey(page.slug))
   const canDelete = isDestinationPage || isBlogPage
   const canReset = page.fromDatabase && isCorePageSlug(page.slug)
   const blogFeatured =
@@ -1225,38 +1261,22 @@ export function PageEditorView({ slug }: { slug: string }) {
           </div>
           <div className="flex flex-col gap-1.5">
             <Label className="text-xs text-muted-foreground">
-              {isDestinationPage || isBlogPage
-                ? "Card / page image"
-                : "OG image"}
+              {syncsHeroWithOg ? "Hero / page image" : "OG image"}
             </Label>
             <p className="text-[11px] text-muted-foreground">
               {isDestinationPage
                 ? "Used on the homepage carousel and destination page hero."
                 : isBlogPage
                   ? "Used as the post hero and Open Graph image."
-                  : "Open Graph image for search and social shares."}
+                  : isHomePage
+                    ? "Used as the homepage hero and Open Graph image."
+                    : "Open Graph image for search and social shares."}
             </p>
             <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
               <Input
                 value={page.ogImage}
                 placeholder="/uploads/pages/… or https://…"
-                onChange={(e) => {
-                  const ogImage = e.target.value
-                  setPage({
-                    ...page,
-                    ogImage,
-                    sections:
-                      isDestinationPage || isBlogPage
-                        ? page.sections.map((section) =>
-                            section.type === "image" &&
-                            section.key ===
-                              (isBlogPage ? "hero.image" : "hero")
-                              ? { ...section, src: ogImage }
-                              : section,
-                          )
-                        : page.sections,
-                  })
-                }}
+                onChange={(e) => applyOgImage(e.target.value)}
                 className="min-w-0 flex-1"
               />
               <div className="flex flex-wrap gap-2">
@@ -1281,21 +1301,7 @@ export function PageEditorView({ slug }: { slug: string }) {
                       e.target.value = ""
                       if (!file) return
                       const url = await uploadImage(file)
-                      if (!url) return
-                      setPage({
-                        ...page,
-                        ogImage: url,
-                        sections:
-                          isDestinationPage || isBlogPage
-                            ? page.sections.map((section) =>
-                                section.type === "image" &&
-                                section.key ===
-                                  (isBlogPage ? "hero.image" : "hero")
-                                  ? { ...section, src: url }
-                                  : section,
-                              )
-                            : page.sections,
-                      })
+                      if (url) applyOgImage(url)
                     }}
                   />
                   <ImagePlus className="size-3.5" />
@@ -1834,6 +1840,44 @@ export function PageEditorView({ slug }: { slug: string }) {
           </section>
         </>
       ) : (
+        <>
+          {homeHero ? (
+            <section className="flex flex-col gap-4">
+              <div>
+                <h2 className="text-sm font-semibold">Hero image</h2>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Full-bleed photo at the top of the homepage. Same as Hero /
+                  page image in SEO above.
+                </p>
+              </div>
+              <div className="rounded-xl border bg-card p-4 md:p-5">
+                <SectionFields
+                  section={homeHero}
+                  onChange={(next) => {
+                    const idx = page.sections.findIndex(
+                      (s) => s.id === homeHero.id,
+                    )
+                    if (idx >= 0) {
+                      updateSection(idx, next)
+                      return
+                    }
+                    setPage({
+                      ...page,
+                      ogImage: next.src ?? page.ogImage,
+                      sections: patchSplitSections(page.sections, {
+                        hero: [next],
+                      }),
+                    })
+                  }}
+                  onUpload={uploadImage}
+                  onOpenLibrary={() =>
+                    setLibraryTarget({ type: "section", id: homeHero.id })
+                  }
+                  uploading={uploading}
+                />
+              </div>
+            </section>
+          ) : null}
         <section className="flex flex-col gap-4">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
@@ -1984,6 +2028,7 @@ export function PageEditorView({ slug }: { slug: string }) {
             })
           )}
         </section>
+        </>
       )}
 
       {isDestinationPage ? (

@@ -39,6 +39,7 @@ export {
   CORE_PAGE_SLUGS,
   isCorePageSlug,
   isBlogSlug,
+  pageHeroImageKey,
   blogIdFromSlug,
   type PageSectionType,
   type PageSection,
@@ -952,8 +953,12 @@ export async function resolvePageContent(
 
   const localizedSections = localized ? parseSections(localized.sections) : []
   const englishSectionsRaw = english ? parseSections(english.sections) : []
+  // Destinations may gain new structural keys in code; fill those in.
+  // Core pages (home, policies, …) must keep intentional deletions — re-inserting
+  // defaults made removed admin blocks reappear after save/reload.
+  const fillMissingDefaults = isDestinationSlug(slug)
   const englishSections =
-    englishSectionsRaw.length > 0
+    englishSectionsRaw.length > 0 && fillMissingDefaults
       ? ensureMissingDefaultSections(
           englishSectionsRaw,
           def.defaults.sections,
@@ -963,10 +968,12 @@ export async function resolvePageContent(
     englishSections.length > 0
       ? englishSections
       : localizedSections.length > 0
-        ? ensureMissingDefaultSections(
-            localizedSections,
-            def.defaults.sections,
-          )
+        ? fillMissingDefaults
+          ? ensureMissingDefaultSections(
+              localizedSections,
+              def.defaults.sections,
+            )
+          : localizedSections
         : def.defaults.sections
 
   const sections =
@@ -1023,14 +1030,18 @@ export async function resolvePageContentForAdmin(
   const localized = await prisma.pageContent.findUnique({
     where: { slug_locale: { slug, locale } },
   })
+  const fillMissingDefaults = isDestinationSlug(slug)
+
   if (localized) {
     const record = serializePageContent(localized, { hasLocaleRow: true })
     return {
       ...record,
-      sections: ensureMissingDefaultSections(
-        record.sections,
-        def.defaults.sections,
-      ),
+      sections: fillMissingDefaults
+        ? ensureMissingDefaultSections(
+            record.sections,
+            def.defaults.sections,
+          )
+        : record.sections,
     }
   }
 
@@ -1042,10 +1053,12 @@ export async function resolvePageContentForAdmin(
         const record = serializePageContent(english, { hasLocaleRow: false })
         return {
           ...record,
-          sections: ensureMissingDefaultSections(
-            record.sections,
-            def.defaults.sections,
-          ),
+          sections: fillMissingDefaults
+            ? ensureMissingDefaultSections(
+                record.sections,
+                def.defaults.sections,
+              )
+            : record.sections,
         }
       })()
     : {
@@ -1676,8 +1689,13 @@ export async function deleteAdminPage(slug: string): Promise<{
  */
 export async function resolveHomeMarketingCopy(
   sections: PageSection[],
+  ogImage?: string | null,
 ): Promise<HomeMarketingCopy> {
   const copy = homeCopyFromSections(sections)
+  const heroFromOg = ogImage?.trim()
+  if (heroFromOg) {
+    copy.hero.image = heroFromOg
+  }
   const urls = [
     copy.hero.image,
     copy.uberAlt.image,

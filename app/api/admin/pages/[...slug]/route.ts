@@ -9,6 +9,7 @@ import { revalidateAllLocales } from "@/lib/revalidate-locales"
 import {
   PAGE_SECTION_TYPES,
   deleteAdminPage,
+  pageHeroImageKey,
   parseSections,
   preserveDestinationMetaKeys,
   resolvePageContentForAdmin,
@@ -173,7 +174,8 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 
   let nextOgImage: string
-  if (slug.startsWith("destinations/") || slug.startsWith("blog/")) {
+  const heroKey = pageHeroImageKey(slug)
+  if (heroKey) {
     nextOgImage =
       preferUpload(
         providedOgImage ?? "",
@@ -183,7 +185,6 @@ export async function PATCH(request: Request, context: RouteContext) {
       ) || def.defaults.ogImage
 
     let synced = false
-    const heroKey = slug.startsWith("blog/") ? "hero.image" : "hero"
     nextSections = nextSections.map((section) => {
       if (section.type === "image" && section.key === heroKey) {
         synced = true
@@ -228,9 +229,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       ...(parsed.data.description != null
         ? { description: parsed.data.description }
         : {}),
-      ...(slug.startsWith("destinations/") ||
-      slug.startsWith("blog/") ||
-      parsed.data.ogImage != null
+      ...(heroKey || parsed.data.ogImage != null
         ? { ogImage: nextOgImage }
         : {}),
       sections: nextSections,

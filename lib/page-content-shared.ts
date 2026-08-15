@@ -43,6 +43,15 @@ export function isBlogSlug(slug: string): boolean {
   return slug.startsWith("blog/")
 }
 
+/** Section key whose `src` is kept in sync with `ogImage` (hero + social card). */
+export function pageHeroImageKey(
+  slug: string,
+): "hero" | "hero.image" | null {
+  if (slug === "home" || isBlogSlug(slug)) return "hero.image"
+  if (slug.startsWith("destinations/")) return "hero"
+  return null
+}
+
 export function blogIdFromSlug(slug: string): string | null {
   if (!isBlogSlug(slug)) return null
   const id = slug.slice("blog/".length)
@@ -174,9 +183,11 @@ function pickText(
 }
 
 /**
- * Merge a locale's sections onto English (or defaults). Empty translated
- * text/fields fall back to the English value so partial translations still
- * render a complete page.
+ * Merge a locale's sections onto English (or defaults).
+ *
+ * The localized row owns which blocks exist (so intentional deletes stick).
+ * For shared keys, empty translated text/fields fall back to English so
+ * partial translations still render readable copy.
  */
 export function mergeLocalizedSections(
   localized: PageSection[],
@@ -185,15 +196,13 @@ export function mergeLocalizedSections(
   if (localized.length === 0) return fallback
   if (fallback.length === 0) return localized
 
-  const byKey = new Map(
-    localized.filter((s) => s.key).map((s) => [s.key, s] as const),
+  const fallbackByKey = new Map(
+    fallback.filter((s) => s.key).map((s) => [s.key, s] as const),
   )
-  const usedKeys = new Set<string>()
 
-  const merged = fallback.map((base) => {
-    const loc = base.key ? byKey.get(base.key) : undefined
-    if (!loc) return { ...base }
-    if (base.key) usedKeys.add(base.key)
+  return localized.map((loc) => {
+    const base = loc.key ? fallbackByKey.get(loc.key) : undefined
+    if (!base) return { ...loc }
 
     if (loc.type === "heading") {
       return {
@@ -243,15 +252,6 @@ export function mergeLocalizedSections(
     }
     return { ...base, ...loc, id: loc.id || base.id }
   })
-
-  // Locale-only sections (new keys) that aren't in English yet.
-  for (const loc of localized) {
-    if (!loc.key || usedKeys.has(loc.key)) continue
-    if (fallback.some((s) => s.key === loc.key)) continue
-    merged.push({ ...loc })
-  }
-
-  return merged
 }
 
 export type DestinationAttraction = {
