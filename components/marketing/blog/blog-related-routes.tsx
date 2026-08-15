@@ -4,6 +4,7 @@ import Link from "next/link"
 import type { Destination } from "@/lib/destinations"
 import type { Locale } from "@/lib/i18n/locales"
 import { localePath } from "@/lib/i18n/locales"
+import { t } from "@/lib/i18n/t"
 import { MARKETING_SECTION_TITLE } from "@/components/marketing/marketing-container"
 
 export function BlogRelatedRoutes({
@@ -16,11 +17,12 @@ export function BlogRelatedRoutes({
   if (destinations.length === 0) return null
 
   return (
-    <section aria-label="Related airport transfer routes">
-      <h2 className={MARKETING_SECTION_TITLE}>Related transfer routes</h2>
+    <section aria-label={t(locale, "blog.relatedTitle")}>
+      <h2 className={MARKETING_SECTION_TITLE}>
+        {t(locale, "blog.relatedTitle")}
+      </h2>
       <p className="mt-2 max-w-2xl text-base text-muted-foreground">
-        Explore fixed-price private transfers from Tirana Airport to popular
-        destinations.
+        {t(locale, "blog.relatedText")}
       </p>
       <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {destinations.map((destination) => (
@@ -44,7 +46,7 @@ export function BlogRelatedRoutes({
               </div>
               <div className="flex flex-1 flex-col gap-1 p-4">
                 <p className="text-xs font-bold tracking-wide text-brand-accent uppercase">
-                  From {destination.priceFrom}
+                  {t(locale, "cta.from", { price: destination.priceFrom })}
                 </p>
                 <h3 className="font-brand text-lg font-extrabold text-brand">
                   {destination.primaryKeyword || destination.name}

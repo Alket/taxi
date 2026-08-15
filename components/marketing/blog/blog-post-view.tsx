@@ -20,6 +20,7 @@ import {
 } from "@/lib/blog"
 import type { Destination } from "@/lib/destinations"
 import type { Locale } from "@/lib/i18n/locales"
+import { t } from "@/lib/i18n/t"
 
 export function BlogPostView({
   post,
@@ -68,18 +69,22 @@ export function BlogPostView({
               {label}
             </span>
             <time dateTime={post.publishedAt}>
-              Published {formatBlogDate(post.publishedAt)}
+              {t(locale, "blog.published", {
+                date: formatBlogDate(post.publishedAt, locale),
+              })}
             </time>
             {post.updatedAt !== post.publishedAt ? (
               <>
                 <span aria-hidden>·</span>
                 <time dateTime={post.updatedAt}>
-                  Updated {formatBlogDate(post.updatedAt)}
+                  Updated {formatBlogDate(post.updatedAt, locale)}
                 </time>
               </>
             ) : null}
             <span aria-hidden>·</span>
-            <span>{post.readTimeMinutes} min read</span>
+            <span>
+              {t(locale, "blog.minRead", { minutes: post.readTimeMinutes })}
+            </span>
             <span aria-hidden>·</span>
             <span>{author.name}</span>
           </div>
@@ -91,7 +96,7 @@ export function BlogPostView({
       </header>
 
       <MarketingContainer className="mt-8 md:mt-10">
-        <BlogQuickTakeaway text={post.quickTakeaway} />
+        <BlogQuickTakeaway text={post.quickTakeaway} locale={locale} />
       </MarketingContainer>
 
       <MarketingContainer className="mt-10 md:mt-14">
@@ -105,7 +110,7 @@ export function BlogPostView({
         </div>
 
         <div className="mt-12 space-y-12 md:mt-16 md:space-y-16">
-          <BlogAuthorBio author={author} />
+          <BlogAuthorBio author={author} locale={locale} />
           <BlogRelatedRoutes
             destinations={relatedDestinations}
             locale={locale}

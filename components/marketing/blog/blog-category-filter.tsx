@@ -3,7 +3,7 @@
 import Link from "next/link"
 
 import type { BlogFilterId } from "@/lib/blog"
-import { useLocale } from "@/lib/i18n/use-locale"
+import { useLocale, useT } from "@/lib/i18n/use-locale"
 import { localePath } from "@/lib/i18n/locales"
 import { cn } from "@/lib/utils"
 
@@ -15,10 +15,11 @@ export function BlogCategoryFilter({
   categories: { id: string; label: string }[]
 }) {
   const locale = useLocale()
+  const t = useT()
   const blogHref = localePath("/blog", locale)
 
   const filters: { id: BlogFilterId; label: string }[] = [
-    { id: "all", label: "All Guides" },
+    { id: "all", label: t("blog.allGuides") },
     ...categories.map((c) => ({ id: c.id, label: c.label })),
   ]
 

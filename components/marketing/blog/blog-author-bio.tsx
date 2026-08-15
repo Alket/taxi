@@ -1,11 +1,28 @@
 import Image from "next/image"
 
 import type { BlogAuthor } from "@/lib/blog"
+import type { Locale } from "@/lib/i18n/locales"
+import { t } from "@/lib/i18n/t"
 
-export function BlogAuthorBio({ author }: { author: BlogAuthor }) {
+export function BlogAuthorBio({
+  author,
+  locale,
+}: {
+  author: BlogAuthor
+  locale: Locale
+}) {
+  const role =
+    author.id === "landed-team"
+      ? t(locale, "blog.authorRole")
+      : author.role
+  const bio =
+    author.id === "landed-team"
+      ? t(locale, "blog.authorBio")
+      : author.bio
+
   return (
     <section
-      aria-label="About the author"
+      aria-label={t(locale, "blog.author")}
       className="rounded-3xl border border-border bg-brand-surface p-5 sm:p-7"
     >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
@@ -20,16 +37,16 @@ export function BlogAuthorBio({ author }: { author: BlogAuthor }) {
         </div>
         <div>
           <p className="text-xs font-bold tracking-[0.14em] text-muted-foreground uppercase">
-            Author
+            {t(locale, "blog.author")}
           </p>
           <h2 className="mt-1 font-brand text-xl font-extrabold text-brand">
             {author.name}
           </h2>
           <p className="mt-0.5 text-sm font-semibold text-brand-accent">
-            {author.role}
+            {role}
           </p>
           <p className="mt-3 text-base leading-relaxed text-muted-foreground">
-            {author.bio}
+            {bio}
           </p>
         </div>
       </div>

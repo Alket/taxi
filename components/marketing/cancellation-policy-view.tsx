@@ -1,6 +1,7 @@
 import Link from "next/link"
 import {
   ArrowLeft,
+  ArrowRight,
   BanIcon,
   ClipboardListIcon,
   ShieldCheckIcon,
@@ -187,22 +188,35 @@ export function CancellationPolicyView({
             })}
           </div>
 
-          <div className="mt-10 flex flex-col gap-4 rounded-3xl bg-brand-panel px-6 py-7 text-white sm:flex-row sm:items-center sm:justify-between sm:px-8 md:mt-12">
-            <div>
-              <p className="text-lg font-extrabold tracking-tight">
-                {t(locale, "policy.needCancelTitle")}
-              </p>
-              <p className="mt-1 text-sm text-white/70">
-                {t(locale, "policy.needCancelText")}
-              </p>
+          <aside
+            aria-label={t(locale, "policy.needCancelTitle")}
+            className="mt-10 overflow-hidden rounded-3xl border border-border bg-brand-surface md:mt-12"
+          >
+            <div className="flex flex-col gap-6 px-6 py-7 sm:px-8 sm:py-9 md:flex-row md:items-center md:justify-between md:gap-10">
+              <div className="max-w-2xl">
+                <p className="text-xs font-bold tracking-[0.14em] text-brand-accent uppercase">
+                  {t(locale, "policy.summary.how")}
+                </p>
+                <h2 className="mt-2 font-brand text-2xl font-extrabold tracking-tight text-brand md:text-3xl">
+                  {t(locale, "policy.needCancelTitle")}
+                </h2>
+                <p className="mt-2 text-base leading-relaxed text-muted-foreground">
+                  {t(locale, "policy.needCancelText")}
+                </p>
+              </div>
+              <Link
+                href={localePath("/my-booking", locale)}
+                className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-full bg-brand-accent px-7 text-sm font-extrabold text-white transition-colors hover:bg-brand-accent-hover"
+              >
+                {t(locale, "nav.myBooking")}
+                <ArrowRight className="size-4" aria-hidden />
+              </Link>
             </div>
-            <Link
-              href={localePath("/my-booking", locale)}
-              className="inline-flex h-11 shrink-0 items-center justify-center rounded-full bg-brand-accent px-6 text-sm font-extrabold text-white transition-colors hover:bg-brand-accent-hover"
-            >
-              {t(locale, "nav.myBooking")}
-            </Link>
-          </div>
+            <div
+              className="h-1.5 w-full bg-[color-mix(in_srgb,var(--brand-accent)_35%,transparent)]"
+              aria-hidden
+            />
+          </aside>
         </MarketingContainer>
       </section>
     </div>

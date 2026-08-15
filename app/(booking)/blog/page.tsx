@@ -94,7 +94,7 @@ export default async function BlogArchivePage({ searchParams }: PageProps) {
   ])
   const { featured, rest } = archivePostsFromList(posts, filter)
   const copy = blogArchiveCopyFromSections(page?.sections ?? [])
-  const categoryLabels = blogCategoryLabelsMap(catalog)
+  const categoryLabels = blogCategoryLabelsMap(catalog, locale)
 
   return (
     <>

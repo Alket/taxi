@@ -5,6 +5,17 @@ import type {
   BlogPost,
 } from "@/lib/blog/types"
 import { DESTINATIONS, type Destination } from "@/lib/destinations"
+import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/locales"
+
+const BLOG_DATE_LOCALES: Record<Locale, string> = {
+  en: "en-GB",
+  it: "it-IT",
+  de: "de-DE",
+  pl: "pl-PL",
+  tr: "tr-TR",
+  uk: "uk-UA",
+  ru: "ru-RU",
+}
 
 export const BLOG_POSTS: BlogPost[] = [
   {
@@ -518,9 +529,12 @@ export function parseBlogFilter(value: string | null | undefined): BlogFilterId 
   return "all"
 }
 
-export function formatBlogDate(isoDate: string): string {
+export function formatBlogDate(
+  isoDate: string,
+  locale: Locale = DEFAULT_LOCALE,
+): string {
   const date = new Date(`${isoDate}T12:00:00Z`)
-  return new Intl.DateTimeFormat("en-GB", {
+  return new Intl.DateTimeFormat(BLOG_DATE_LOCALES[locale] ?? "en-GB", {
     day: "numeric",
     month: "long",
     year: "numeric",

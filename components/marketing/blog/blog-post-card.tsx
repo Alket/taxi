@@ -9,6 +9,7 @@ import {
 } from "@/lib/blog"
 import type { Locale } from "@/lib/i18n/locales"
 import { localePath } from "@/lib/i18n/locales"
+import { t } from "@/lib/i18n/t"
 
 export function BlogPostCard({
   post,
@@ -51,10 +52,12 @@ export function BlogPostCard({
             <span>{author.name}</span>
             <span aria-hidden>·</span>
             <time dateTime={post.publishedAt}>
-              {formatBlogDate(post.publishedAt)}
+              {formatBlogDate(post.publishedAt, locale)}
             </time>
             <span aria-hidden>·</span>
-            <span>{post.readTimeMinutes} min read</span>
+            <span>
+              {t(locale, "blog.minRead", { minutes: post.readTimeMinutes })}
+            </span>
           </div>
         </div>
       </Link>

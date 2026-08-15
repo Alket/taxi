@@ -1,8 +1,9 @@
 import { prisma } from "@/lib/db"
 import type { BlogAuthor } from "@/lib/blog/types"
 import { BLOG_AUTHORS } from "@/lib/blog/authors"
-import { DEFAULT_LOCALE } from "@/lib/i18n/locales"
+import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/locales"
 import { parseSections } from "@/lib/page-content-shared"
+import { t } from "@/lib/i18n/t"
 
 export const BLOG_CATALOG_SLUG = "_blog/catalog"
 
@@ -186,8 +187,9 @@ export function authorFromCatalog(
 
 export function blogCategoryLabelsMap(
   catalog: BlogCatalog,
+  locale: Locale = DEFAULT_LOCALE,
 ): Record<string, string> {
-  const map: Record<string, string> = { all: "All Guides" }
+  const map: Record<string, string> = { all: t(locale, "blog.allGuides") }
   for (const cat of catalog.categories) {
     map[cat.id] = cat.label
   }
