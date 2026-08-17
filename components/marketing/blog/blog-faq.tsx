@@ -8,7 +8,14 @@ import { MARKETING_SECTION_TITLE } from "@/components/marketing/marketing-contai
 import { useT } from "@/lib/i18n/use-locale"
 import { cn } from "@/lib/utils"
 
-export function BlogFaq({ items }: { items: BlogFaqItem[] }) {
+export function BlogFaq({
+  items,
+  heading,
+}: {
+  items: BlogFaqItem[]
+  /** Override default translated “FAQ” heading (e.g. transfer route pages). */
+  heading?: string
+}) {
   const t = useT()
   const reactId = useId()
   const [openId, setOpenId] = useState<string | null>(null)
@@ -16,8 +23,8 @@ export function BlogFaq({ items }: { items: BlogFaqItem[] }) {
   if (items.length === 0) return null
 
   return (
-    <section aria-label="Article FAQ" className="w-full">
-      <h2 className={MARKETING_SECTION_TITLE}>{t("blog.faq")}</h2>
+    <section aria-label="FAQ" className="w-full">
+      <h2 className={MARKETING_SECTION_TITLE}>{heading ?? t("blog.faq")}</h2>
       <div className="mt-6 flex flex-col gap-3">
         {items.map((item, index) => {
           const itemId = `${reactId}-${index}`

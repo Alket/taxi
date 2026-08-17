@@ -25,7 +25,7 @@ export const DESTINATIONS: Destination[] = [
     name: "Tirana City Escape",
     region: "Central Albania",
     description:
-      "Vibrant capital streets, cafés, and quick airport links for city stays.",
+      "Vibrant capital streets, cafés, and a quick private driver Tirana Airport link for city stays—fixed taxi rate TIA pricing with cash on arrival transfer options.",
     badge: "Popular",
     priceFrom: "€25",
     image:
@@ -40,7 +40,7 @@ export const DESTINATIONS: Destination[] = [
     name: "Durrës Coast",
     region: "Adriatic Coast",
     description:
-      "Historic port city with sandy beaches and Roman ruins minutes from the shore.",
+      "Historic port city Durrës (Durres) with sandy beaches and Roman ruins—easy fixed-price airport transfer from TIA for cruise and beach arrivals.",
     badge: "Trending",
     priceFrom: "€30",
     image:
@@ -55,14 +55,14 @@ export const DESTINATIONS: Destination[] = [
     name: "Vlorë Riviera",
     region: "Albanian Riviera",
     description:
-      "Gateway to the south — turquoise bays, promenades, and sunset views.",
+      "Gateway to the south—Vlorë (Vlora) turquoise bays and promenades. Book a private driver Tirana Airport ride with a fixed taxi rate TIA travellers trust.",
     badge: "Coastal",
     priceFrom: "€45",
     image:
       "https://images.unsplash.com/photo-1519046909924-d93b0f86d5b3?auto=format&fit=crop&q=80&w=800",
     travelTime: "~2 hrs",
     primaryKeyword: "Vlorë Airport Transfer",
-    reviewKeywords: ["Vlorë", "Vlore"],
+    reviewKeywords: ["Vlorë", "Vlore", "Vlora"],
   },
   {
     id: "sarande",
@@ -70,14 +70,14 @@ export const DESTINATIONS: Destination[] = [
     name: "Sarandë Seaside",
     region: "Southern Coast",
     description:
-      "Lively seaside town facing Corfu, with crystal waters and nightlife.",
+      "Lively Sarandë (Saranda) facing Corfu—crystal waters, nightlife, and a popular cash on arrival transfer corridor from Tirana Airport.",
     badge: "Best Value",
     priceFrom: "€55",
     image:
       "https://images.unsplash.com/photo-1506953823976-52e1fdc0149a?auto=format&fit=crop&q=80&w=800",
     travelTime: "3.5–4 hrs",
     primaryKeyword: "Sarandë Airport Transfer",
-    reviewKeywords: ["Sarandë", "Sarande"],
+    reviewKeywords: ["Sarandë", "Sarande", "Saranda"],
   },
   {
     id: "ksamil",
@@ -85,14 +85,14 @@ export const DESTINATIONS: Destination[] = [
     name: "Ksamil Islands",
     region: "Butrint National Park",
     description:
-      "Iconic turquoise islands and white-sand coves on the Ionian Sea.",
+      "Iconic Ksamil (Ksamili) turquoise islands and white-sand coves—door-to-door private transfer from TIA without changing cars in Saranda.",
     badge: "Must See",
     priceFrom: "€60",
     image:
       "https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&q=80&w=800",
     travelTime: "~4 hrs",
     primaryKeyword: "Ksamil Airport Transfer",
-    reviewKeywords: ["Ksamil"],
+    reviewKeywords: ["Ksamil", "Ksamili"],
   },
   {
     id: "berat",
@@ -100,14 +100,14 @@ export const DESTINATIONS: Destination[] = [
     name: "Berat Heritage",
     region: "UNESCO Heritage",
     description:
-      "The city of a thousand windows — Ottoman architecture and hilltop castles.",
+      "Berat (Berati), the city of a thousand windows—Ottoman architecture and hilltop castles reached by fixed-price airport transfer from TIA.",
     badge: "Culture",
     priceFrom: "€40",
     image:
       "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&q=80&w=800",
     travelTime: "~2 hrs",
     primaryKeyword: "Berat Airport Transfer",
-    reviewKeywords: ["Berat"],
+    reviewKeywords: ["Berat", "Berati"],
   },
   {
     id: "shkoder",
@@ -115,14 +115,14 @@ export const DESTINATIONS: Destination[] = [
     name: "Shkodër Lakeside",
     region: "Northern Albania",
     description:
-      "Lake-side charm, cycling routes, and the gateway to the Accursed Mountains.",
+      "Shkodër (Shkodra) lake-side charm and the gateway to the Accursed Mountains—reliable private driver Tirana Airport transfers north.",
     badge: "Adventure",
     priceFrom: "€35",
     image:
       "https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&q=80&w=800",
     travelTime: "~1.5 hrs",
     primaryKeyword: "Shkodër Airport Transfer",
-    reviewKeywords: ["Shkodër", "Shkoder"],
+    reviewKeywords: ["Shkodër", "Shkoder", "Shkodra"],
   },
   {
     id: "theth",
@@ -130,7 +130,7 @@ export const DESTINATIONS: Destination[] = [
     name: "Theth Wilderness",
     region: "Albanian Alps",
     description:
-      "Remote mountain valleys, traditional stone towers, and alpine hiking trails.",
+      "Remote mountain valleys, traditional stone towers, and alpine hiking trails—best reached with a driver who knows the mountain road from TIA.",
     badge: "Mountains",
     priceFrom: "€70",
     image:

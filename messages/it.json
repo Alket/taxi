@@ -352,5 +352,6 @@
   "book.roundTripDesc": "Crea due prenotazioni collegate (andata + ritorno).",
   "book.enterFlightNumber": "Inserisci il numero del volo",
   "policy.cashOnArrivalNoteLabel": "Nota:",
-  "policy.cashOnArrivalNote": "Per le prenotazioni pagate interamente in contanti all'arrivo, il cliente deve pagare l'autista in contanti prima dell'inizio del viaggio. Se una prenotazione con pagamento in contanti viene cancellata, il cliente deve avvisarci almeno 1 ora prima dell'orario di ritiro previsto."
+  "policy.cashOnArrivalNote": "Per le prenotazioni pagate interamente in contanti all'arrivo, il cliente deve pagare l'autista in contanti prima dell'inizio del viaggio. Se una prenotazione con pagamento in contanti viene cancellata, il cliente deve avvisarci almeno 1 ora prima dell'orario di ritiro previsto.",
+  "blog.midCtaSecondary": "View fixed driver rates for Tirana to Ksamil"
 }

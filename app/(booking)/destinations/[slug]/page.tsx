@@ -4,23 +4,29 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 
 import { HashLink } from "@/components/marketing/hash-link"
+import { BlogFaq } from "@/components/marketing/blog/blog-faq"
 import { DestinationAttractionsSection } from "@/components/marketing/destination-attractions-section"
 import { DestinationsSection } from "@/components/marketing/destinations-section"
 import { JsonLd } from "@/components/marketing/json-ld"
 import { MarketingContainer } from "@/components/marketing/marketing-container"
 import { TestimonialsSection } from "@/components/marketing/testimonials-section"
+import {
+  getDestinationAttractionsGrid,
+  getDestinationFaqs,
+  getDestinationHero,
+  getDestinationMore,
+  getDestinationRoute,
+} from "@/lib/destination-document"
 import { getRequestLocale } from "@/lib/i18n/get-locale"
 import { localePath, localizedAlternates } from "@/lib/i18n/locales"
 import { t } from "@/lib/i18n/t"
 import {
-  attractionsFromSections,
   pageMetadataFields,
   resolveDestination,
   resolveDestinationCards,
-  resolvePageContent,
-  sectionHeading,
-  sectionValue,
+  resolveDestinationPage,
 } from "@/lib/page-content"
+import { transferLinkForDestination } from "@/lib/transfers/routes"
 import {
   buildBreadcrumbJsonLd,
   buildTouristDestinationJsonLd,
@@ -45,11 +51,42 @@ export async function generateMetadata({
   const locale = await getRequestLocale()
   const destination = await resolveDestination(slug, locale)
   if (destination) {
-    const page = await resolvePageContent(
-      `destinations/${destination.id}`,
-      locale,
-    )
-    if (page) return pageMetadataFields(page)
+    const resolved = await resolveDestinationPage(destination.id, locale)
+    if (resolved) {
+      const { page, document } = resolved
+      const hero = getDestinationHero(document)
+      const meta = pageMetadataFields(page)
+      const canonical =
+        document.meta.canonicalUrl ||
+        localePath(`/destinations/${document.meta.slug || destination.slug}`, locale)
+      return {
+        ...meta,
+        title: page.title || document.meta.title || meta.title,
+        description:
+          page.description || document.meta.description || meta.description,
+        alternates: {
+          ...meta.alternates,
+          canonical: canonical.startsWith("http")
+            ? canonical
+            : undefined,
+          languages: localizedAlternates(
+            `/destinations/${document.meta.slug || destination.slug}`,
+            locale,
+          ).languages,
+        },
+        openGraph: {
+          ...meta.openGraph,
+          images: [
+            {
+              url: hero?.src || page.ogImage || destination.image,
+              width: 1200,
+              height: 630,
+              alt: hero?.alt || document.meta.title || page.title,
+            },
+          ],
+        },
+      }
+    }
     return {
       title: t(locale, "destinations.airportTransfer", {
         name: destination.name,
@@ -70,42 +107,52 @@ export default async function DestinationPage({ params }: PageProps) {
   const destination = await resolveDestination(slug, locale)
   if (!destination) notFound()
 
-  const [page, destinationCards] = await Promise.all([
-    resolvePageContent(`destinations/${destination.id}`, locale),
+  const [resolved, destinationCards] = await Promise.all([
+    resolveDestinationPage(destination.id, locale),
     resolveDestinationCards(locale),
   ])
-  const sections = page?.sections ?? []
+  if (!resolved) notFound()
 
-  const name = sectionHeading(sections, "title") || destination.name
-  const region = sectionValue(sections, "region") || destination.region
-  const description =
-    sectionValue(sections, "description") || destination.description
-  const heroSrc = sectionValue(sections, "hero", "src")
+  const { document } = resolved
+  const meta = document.meta
+  const hero = getDestinationHero(document)
+  const route = getDestinationRoute(document)
+  const attractionsGrid = getDestinationAttractionsGrid(document)
+  const more = getDestinationMore(document)
+  const faqs = getDestinationFaqs(document)
+
+  const name = meta.title || destination.name
+  const region = meta.region || destination.region
+  const description = meta.description || destination.description
   const image =
-    [heroSrc, page?.ogImage ?? "", destination.image].find((url) =>
+    [hero?.src, resolved.page.ogImage, destination.image].find((url) =>
       Boolean(url && url.startsWith("/uploads/")),
     ) ||
-    heroSrc ||
-    page?.ogImage ||
+    hero?.src ||
+    resolved.page.ogImage ||
     destination.image ||
     "/marketing/logo.svg"
-  const imageAlt = sectionValue(sections, "hero", "alt") || name
-  const priceFrom =
-    sectionValue(sections, "priceFrom") || destination.priceFrom
+  const imageAlt = hero?.alt || name
+  const priceFrom = meta.priceFrom || destination.priceFrom
   const moreHeading =
-    sectionHeading(sections, "more.heading") ||
-    t(locale, "destinations.moreHeading")
+    more?.heading || t(locale, "destinations.moreHeading")
   const attractionsHeading =
-    sectionHeading(sections, "attractions.heading") ||
-    t(locale, "destinations.attractionsHeading")
-  const attractions = attractionsFromSections(sections)
+    attractionsGrid?.heading || t(locale, "destinations.attractionsHeading")
+  const attractions = (attractionsGrid?.items ?? [])
+    .filter((item) => item.heading || item.body || item.src)
+    .map((item) => ({
+      id: item.id,
+      title: item.heading,
+      description: item.body,
+      image: item.src,
+      imageAlt: item.alt || item.heading,
+    }))
 
   const routeHeading =
-    sectionHeading(sections, "route.heading") ||
-    t(locale, "destinations.gettingTo", { name })
-  const routeDistance = sectionValue(sections, "route.distance")
-  const routeDuration = sectionValue(sections, "route.duration")
-  const routeWhyBook = sectionValue(sections, "route.whyBook")
+    route?.heading || t(locale, "destinations.gettingTo", { name })
+  const routeDistance = route?.distance ?? ""
+  const routeDuration = route?.duration ?? ""
+  const routeWhyBook = route?.whyBook ?? ""
   const hasRouteContent = Boolean(
     routeDistance || routeDuration || routeWhyBook,
   )
@@ -114,7 +161,7 @@ export default async function DestinationPage({ params }: PageProps) {
   const moreDestinations = destinationCards.filter(
     (d) => d.id !== destination.id,
   )
-  const publicSlug = destination.slug
+  const publicSlug = meta.slug || destination.slug
 
   const destinationsLabel = t(locale, "nav.destinations") || "Destinations"
   const homeLabel = t(locale, "nav.home") || "Home"
@@ -128,122 +175,180 @@ export default async function DestinationPage({ params }: PageProps) {
     description,
     image,
     url: localePath(`/destinations/${publicSlug}`, locale),
+    attractions: attractions.map((a) => ({
+      name: a.title,
+      description: a.description,
+      image: a.image,
+    })),
   })
+
+  const faqItems =
+    faqs?.items
+      .filter((item) => item.question.trim() || item.answer.trim())
+      .map((item) => ({
+        question: item.question,
+        answer: item.answer,
+      })) ?? []
+
+  const transferLink = transferLinkForDestination(destination.id)
 
   return (
     <>
       <JsonLd data={breadcrumbJsonLd} />
       <JsonLd data={touristDestinationJsonLd} />
-      <section className="relative isolate -mt-24 h-[60vh] min-h-[60vh] overflow-hidden">
-        <Image
-          src={image}
-          alt={imageAlt}
-          fill
-          priority
-          fetchPriority="high"
-          sizes="100vw"
-          className="object-cover object-center"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-brand-panel/90 via-brand-panel/40 to-brand-panel/20" />
-        <MarketingContainer className="relative z-10 flex h-full flex-col justify-end py-12 pb-[max(4rem,env(safe-area-inset-bottom))] text-white">
-          <nav aria-label="Breadcrumb" className="mb-2">
-            <ol className="flex flex-wrap items-center gap-1.5 text-xs font-semibold text-white/80">
-              <li>
-                <Link href={localePath("/", locale)} className="hover:text-white">
-                  {homeLabel}
-                </Link>
-              </li>
-              <li aria-hidden className="text-white/50">
-                /
-              </li>
-              <li>
-                <Link
-                  href={localePath("/destinations", locale)}
-                  className="hover:text-white"
-                >
-                  {destinationsLabel}
-                </Link>
-              </li>
-              <li aria-hidden className="text-white/50">
-                /
-              </li>
-              <li aria-current="page" className="text-white">
-                {name}
-              </li>
-            </ol>
-          </nav>
-          <p className="text-xs font-extrabold tracking-widest text-white uppercase">
-            {region}
-          </p>
-          <h1 className="mt-2 font-brand text-4xl font-extrabold tracking-tight sm:text-5xl">
-            {t(locale, "destinations.airportTransfer", { name })}
-          </h1>
-          <p className="mt-3 max-w-xl text-base text-white/85">{description}</p>
-          <HashLink
-            href={localePath("/#book", locale)}
-            className="mt-6 inline-flex h-11 w-fit items-center justify-center rounded-full bg-primary px-5 text-sm font-extrabold text-primary-foreground"
-          >
-            {t(locale, "cta.bookTransferFrom", { price: priceFrom })}
-          </HashLink>
-        </MarketingContainer>
-      </section>
-
-      {hasRouteContent ? (
-        <section className="py-8 md:py-10">
-          <MarketingContainer>
-            <h2 className="font-brand text-2xl font-extrabold tracking-tight text-brand sm:text-3xl">
-              {routeHeading}
-            </h2>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              {routeDistance || routeDuration ? (
-                <dl className="grid gap-3 rounded-2xl border border-border bg-brand-surface p-5 sm:grid-cols-2">
-                  {routeDistance ? (
-                    <div>
-                      <dt className="text-xs font-bold tracking-wide text-muted-foreground uppercase">
-                        {t(locale, "destinations.distance")}
-                      </dt>
-                      <dd className="mt-1 text-sm font-semibold text-brand">
-                        {routeDistance}
-                      </dd>
-                    </div>
+      {document.sections.map((section) => {
+        switch (section.type) {
+          case "hero":
+            return (
+              <section
+                key={section.id}
+                className="relative isolate -mt-24 h-[60vh] min-h-[60vh] overflow-hidden"
+              >
+                <Image
+                  src={image}
+                  alt={imageAlt}
+                  fill
+                  priority
+                  fetchPriority="high"
+                  sizes="100vw"
+                  className="object-cover object-center"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-brand-panel/90 via-brand-panel/40 to-brand-panel/20" />
+                <MarketingContainer className="relative z-10 flex h-full flex-col justify-end py-12 pb-[max(4rem,env(safe-area-inset-bottom))] text-white">
+                  <nav aria-label="Breadcrumb" className="mb-2">
+                    <ol className="flex flex-wrap items-center gap-1.5 text-xs font-semibold text-white/80">
+                      <li>
+                        <Link
+                          href={localePath("/", locale)}
+                          className="hover:text-white"
+                        >
+                          {homeLabel}
+                        </Link>
+                      </li>
+                      <li aria-hidden className="text-white/50">
+                        /
+                      </li>
+                      <li>
+                        <Link
+                          href={localePath("/destinations", locale)}
+                          className="hover:text-white"
+                        >
+                          {destinationsLabel}
+                        </Link>
+                      </li>
+                      <li aria-hidden className="text-white/50">
+                        /
+                      </li>
+                      <li aria-current="page" className="text-white">
+                        {name}
+                      </li>
+                    </ol>
+                  </nav>
+                  <p className="text-xs font-extrabold tracking-widest text-white uppercase">
+                    {region}
+                  </p>
+                  <h1 className="mt-2 font-brand text-4xl font-extrabold tracking-tight sm:text-5xl">
+                    {t(locale, "destinations.airportTransfer", { name })}
+                  </h1>
+                  <p className="mt-3 max-w-xl text-base text-white/85">
+                    {description}
+                  </p>
+                  <HashLink
+                    href={localePath("/#book", locale)}
+                    className="mt-6 inline-flex h-11 w-fit items-center justify-center rounded-full bg-primary px-5 text-sm font-extrabold text-primary-foreground"
+                  >
+                    {t(locale, "cta.bookTransferFrom", { price: priceFrom })}
+                  </HashLink>
+                  {transferLink ? (
+                    <p className="mt-3 max-w-xl text-sm text-white/85">
+                      <Link
+                        href={localePath(
+                          `/transfers/${transferLink.transferSlug}`,
+                          locale,
+                        )}
+                        className="font-semibold text-white underline underline-offset-2 hover:text-white/90"
+                      >
+                        {transferLink.anchor}
+                      </Link>
+                    </p>
                   ) : null}
-                  {routeDuration ? (
-                    <div>
-                      <dt className="text-xs font-bold tracking-wide text-muted-foreground uppercase">
-                        {t(locale, "destinations.travelTime")}
-                      </dt>
-                      <dd className="mt-1 text-sm font-semibold text-brand">
-                        {routeDuration}
-                      </dd>
-                    </div>
-                  ) : null}
-                </dl>
-              ) : null}
-              {routeWhyBook ? (
-                <p className="rounded-2xl border border-border bg-brand-surface p-5 text-sm leading-relaxed text-muted-foreground sm:col-span-1">
-                  {routeWhyBook}
-                </p>
-              ) : null}
-            </div>
-          </MarketingContainer>
-        </section>
-      ) : null}
-
-      <DestinationAttractionsSection
-        heading={attractionsHeading}
-        attractions={attractions}
-      />
-
-      <TestimonialsSection destination={reviewKeyword} />
-
-      {moreDestinations.length > 0 ? (
-        <DestinationsSection
-          heading={moreHeading}
-          text={t(locale, "destinations.moreText")}
-          destinations={moreDestinations}
-          className="py-16 md:py-24"
-        />
-      ) : null}
+                </MarketingContainer>
+              </section>
+            )
+          case "route_details":
+            if (!hasRouteContent) return null
+            return (
+              <section key={section.id} className="py-8 md:py-10">
+                <MarketingContainer>
+                  <h2 className="font-brand text-2xl font-extrabold tracking-tight text-brand sm:text-3xl">
+                    {routeHeading}
+                  </h2>
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                    {routeDistance || routeDuration ? (
+                      <dl className="grid gap-3 rounded-2xl border border-border bg-brand-surface p-5 sm:grid-cols-2">
+                        {routeDistance ? (
+                          <div>
+                            <dt className="text-xs font-bold tracking-wide text-muted-foreground uppercase">
+                              {t(locale, "destinations.distance")}
+                            </dt>
+                            <dd className="mt-1 text-sm font-semibold text-brand">
+                              {routeDistance}
+                            </dd>
+                          </div>
+                        ) : null}
+                        {routeDuration ? (
+                          <div>
+                            <dt className="text-xs font-bold tracking-wide text-muted-foreground uppercase">
+                              {t(locale, "destinations.travelTime")}
+                            </dt>
+                            <dd className="mt-1 text-sm font-semibold text-brand">
+                              {routeDuration}
+                            </dd>
+                          </div>
+                        ) : null}
+                      </dl>
+                    ) : null}
+                    {routeWhyBook ? (
+                      <p className="rounded-2xl border border-border bg-brand-surface p-5 text-sm leading-relaxed text-muted-foreground sm:col-span-1">
+                        {routeWhyBook}
+                      </p>
+                    ) : null}
+                  </div>
+                </MarketingContainer>
+              </section>
+            )
+          case "attractions_grid":
+            return (
+              <div key={section.id}>
+                <DestinationAttractionsSection
+                  heading={attractionsHeading}
+                  attractions={attractions}
+                />
+                <TestimonialsSection destination={reviewKeyword} />
+              </div>
+            )
+          case "more_destinations":
+            if (moreDestinations.length === 0) return null
+            return (
+              <DestinationsSection
+                key={section.id}
+                heading={moreHeading}
+                text={t(locale, "destinations.moreText")}
+                destinations={moreDestinations}
+                className="py-16 md:py-24"
+              />
+            )
+          case "faq_accordion":
+            if (faqItems.length === 0) return null
+            return (
+              <MarketingContainer key={section.id} className="py-12 md:py-16">
+                <BlogFaq items={faqItems} />
+              </MarketingContainer>
+            )
+          default:
+            return null
+        }
+      })}
     </>
   )
 }

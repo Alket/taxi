@@ -81,7 +81,7 @@ export const BLOG_POSTS: BlogPost[] = [
       { type: "h2", text: "Why fixed pricing matters for Albania routes" },
       {
         type: "paragraph",
-        text: "Routes from Tirana Airport to the Riviera (Sarandë, Ksamil, Vlorë) are long. Without a locked fare, you absorb uncertainty around night arrivals, traffic, and driver availability. A private transfer quotes the total up front.",
+        text: "Routes from Tirana Airport to the Riviera (<a href=\"/transfers/tirana-airport-to-saranda\">Sarandë / Saranda</a>, <a href=\"/transfers/tirana-airport-to-ksamil\">Ksamil / Ksamili</a>, <a href=\"/transfers/tirana-airport-to-vlore\">Vlorë / Vlora</a>) are long. Without a locked fare, you absorb uncertainty around night arrivals, traffic, and driver availability. A private transfer quotes the total up front—ideal when you need a late night TIA airport taxi that already knows your drop-off.",
       },
       { type: "h3", text: "Cash on arrival, zero deposit" },
       {
@@ -219,7 +219,7 @@ export const BLOG_POSTS: BlogPost[] = [
     blocks: [
       {
         type: "paragraph",
-        text: "Sarandë (Saranda) is one of Albania’s most popular seaside bases—Corfu views, promenade energy, and a gateway to Ksamil and Butrint. Getting there from TIA is a proper road trip.",
+        text: "Sarandë (Saranda) is one of Albania’s most popular seaside bases—Corfu views, promenade energy, and a gateway to Ksamil (Ksamili) and Butrint. Getting there from TIA is a proper road trip. Travellers searching for a private driver Tirana Airport option can <a href=\"/transfers/tirana-airport-to-saranda\">book a private transfer from Tirana Airport to Sarandë</a> with a fixed taxi rate TIA quote.",
       },
       { type: "h2", text: "How long is the transfer?" },
       {
@@ -256,7 +256,11 @@ export const BLOG_POSTS: BlogPost[] = [
       { type: "h3", text: "Continuing to Ksamil" },
       {
         type: "paragraph",
-        text: "Many travellers sleep in Sarandë and day-trip to Ksamil. You can also book a transfer that drops you straight at your Ksamil stay—ask when you reserve.",
+        text: "Many travellers sleep in Sarandë (Saranda) and day-trip to Ksamil (Ksamili). You can also <a href=\"/transfers/tirana-airport-to-ksamil\">view fixed driver rates for Tirana to Ksamil</a> and drop straight at your villa—no taxi change in Saranda.",
+      },
+      {
+        type: "paragraph",
+        text: "Heading via the Riviera gateway instead? <a href=\"/transfers/tirana-airport-to-vlore\">Reserve a direct TIA airport taxi to Vlorë</a> (Vlora) if you plan stops toward Himarë (Himara) or Dhërmi (Dhermi).",
       },
     ],
     faq: [
@@ -316,7 +320,7 @@ export const BLOG_POSTS: BlogPost[] = [
       { type: "h2", text: "Cash-on-arrival transfers" },
       {
         type: "paragraph",
-        text: "A reserved private transfer quotes your fare in advance. You meet the driver and pay cash—no deposit required to book with Landed—so you are not stuck negotiating after a long flight.",
+        text: "A reserved private transfer quotes your fare in advance. You meet the driver and pay cash—no deposit required to book with Landed—so you are not stuck negotiating after a long flight. Popular cash on arrival transfer corridors include <a href=\"/transfers/tirana-airport-to-saranda\">Tirana Airport to Sarandë (Saranda)</a> and <a href=\"/transfers/tirana-airport-to-vlore\">Tirana Airport to Vlorë (Vlora)</a>.",
       },
       { type: "mid_cta" },
       { type: "h3", text: "How much cash to bring" },
@@ -409,7 +413,7 @@ export const BLOG_POSTS: BlogPost[] = [
       { type: "h2", text: "Bottom line for TIA travellers" },
       {
         type: "paragraph",
-        text: "If your priority is a known price and a driver who already has your flight details, reserve a private transfer. Calculate your fare before you fly and pay when you land.",
+        text: "If your priority is a known price and a driver who already has your flight details, reserve a private transfer. Calculate your fare before you fly and pay when you land—or <a href=\"/transfers/tirana-airport-to-saranda\">book a private transfer from Tirana Airport to Sarandë</a> when the Riviera is your final stop.",
       },
     ],
     faq: [

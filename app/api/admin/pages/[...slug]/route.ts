@@ -7,8 +7,16 @@ import { prisma } from "@/lib/db"
 import { DEFAULT_LOCALE, isLocale, type Locale } from "@/lib/i18n/locales"
 import { revalidateAllLocales } from "@/lib/revalidate-locales"
 import {
+  DESTINATION_DOCUMENT_FORMAT,
+  destinationHeroImage,
+  parseDestinationDocument,
+  serializeDestinationDocument,
+  withDestinationHeroImage,
+} from "@/lib/destination-document"
+import {
   PAGE_SECTION_TYPES,
   deleteAdminPage,
+  isDestinationSlug,
   pageHeroImageKey,
   parseSections,
   preserveDestinationMetaKeys,
@@ -40,6 +48,81 @@ const sectionSchema = z.object({
   listStyle: z.enum(["ul", "ol"]).optional(),
 })
 
+const attractionItemSchema = z.object({
+  id: z.string().min(1),
+  heading: z.string().max(500),
+  body: z.string().max(20000),
+  src: z.string().max(2000),
+  alt: z.string().max(500),
+})
+
+const faqItemSchema = z.object({
+  id: z.string().min(1),
+  question: z.string().max(500),
+  answer: z.string().max(10000),
+})
+
+const destinationSectionSchema = z.discriminatedUnion("type", [
+  z.object({
+    id: z.string().min(1),
+    type: z.literal("hero"),
+    heading: z.string().max(500),
+    body: z.string().max(20000).optional(),
+    src: z.string().max(2000),
+    alt: z.string().max(500),
+  }),
+  z.object({
+    id: z.string().min(1),
+    type: z.literal("route_details"),
+    heading: z.string().max(500),
+    distance: z.string().max(2000),
+    duration: z.string().max(2000),
+    whyBook: z.string().max(20000),
+  }),
+  z.object({
+    id: z.string().min(1),
+    type: z.literal("attractions_grid"),
+    heading: z.string().max(500),
+    items: z.array(attractionItemSchema).max(50),
+  }),
+  z.object({
+    id: z.string().min(1),
+    type: z.literal("more_destinations"),
+    heading: z.string().max(500),
+  }),
+  z.object({
+    id: z.string().min(1),
+    type: z.literal("faq_accordion"),
+    heading: z.string().max(500).optional(),
+    items: z.array(faqItemSchema).max(50),
+  }),
+])
+
+const destinationDocumentSchema = z.object({
+  format: z.literal(DESTINATION_DOCUMENT_FORMAT),
+  meta: z.object({
+    title: z.string().max(500),
+    description: z.string().max(2000),
+    primaryKeyword: z.string().max(500),
+    slug: z.string().max(120),
+    canonicalUrl: z.string().max(2000),
+    region: z.string().max(200),
+    badge: z.string().max(120),
+    priceFrom: z.string().max(120),
+    priceCurrency: z.string().max(12),
+    travelTime: z.string().max(120),
+    distanceKm: z.number().nullable(),
+    updatedAt: z.string().max(64),
+  }),
+  sections: z.array(destinationSectionSchema).max(20),
+  flags: z
+    .object({
+      featured: z.boolean().optional(),
+      hidden: z.boolean().optional(),
+    })
+    .optional(),
+})
+
 const updateSchema = z.object({
   locale: z.string().optional(),
   label: z.string().trim().max(200).optional(),
@@ -47,6 +130,7 @@ const updateSchema = z.object({
   description: z.string().trim().max(2000).optional(),
   ogImage: z.string().trim().max(2000).optional(),
   sections: z.array(sectionSchema).max(200).optional(),
+  destinationDocument: destinationDocumentSchema.optional(),
 })
 
 const featuredToggleSchema = z.object({
@@ -141,6 +225,108 @@ export async function PATCH(request: Request, context: RouteContext) {
           where: { slug_locale: { slug, locale: DEFAULT_LOCALE } },
         })
 
+  const preferUpload = (...candidates: string[]) => {
+    const urls = candidates.filter(Boolean)
+    return urls.find((url) => url.startsWith("/uploads/")) || urls[0] || ""
+  }
+
+  const existingOgImage = existing?.ogImage?.trim() || ""
+  const englishOgImage = english?.ogImage?.trim() || ""
+  const providedOgImage =
+    parsed.data.ogImage !== undefined ? parsed.data.ogImage.trim() : undefined
+
+  // Destination v2 document write path
+  if (isDestinationSlug(slug) && parsed.data.destinationDocument) {
+    const destId = slug.slice("destinations/".length)
+    const previousDoc = parseDestinationDocument(
+      existing?.sections ?? english?.sections ?? def.defaults.destinationDocument,
+      {
+        id: destId,
+        title: existing?.title || english?.title || def.defaults.title,
+        description:
+          existing?.description ||
+          english?.description ||
+          def.defaults.description,
+        ogImage: existingOgImage || englishOgImage || def.defaults.ogImage,
+      },
+    )
+
+    let nextDoc = serializeDestinationDocument({
+      ...parsed.data.destinationDocument,
+      flags: {
+        featured:
+          parsed.data.destinationDocument.flags?.featured ??
+          previousDoc.flags?.featured,
+        hidden:
+          parsed.data.destinationDocument.flags?.hidden ??
+          previousDoc.flags?.hidden,
+      },
+    })
+
+    const heroSrc = destinationHeroImage(nextDoc)
+    const nextOgImage =
+      preferUpload(
+        providedOgImage ?? "",
+        heroSrc,
+        existingOgImage,
+        englishOgImage,
+      ) || def.defaults.ogImage
+
+    if (nextOgImage && nextOgImage !== heroSrc) {
+      nextDoc = withDestinationHeroImage(nextDoc, nextOgImage)
+    }
+
+    const mirroredTitle =
+      parsed.data.title?.trim() ||
+      nextDoc.meta.title ||
+      def.defaults.title
+    const mirroredDescription =
+      parsed.data.description?.trim() ||
+      nextDoc.meta.description ||
+      def.defaults.description
+
+    // Keep meta in sync with mirrored SEO columns
+    nextDoc = serializeDestinationDocument({
+      ...nextDoc,
+      meta: {
+        ...nextDoc.meta,
+        title: nextDoc.meta.title || mirroredTitle,
+        description: nextDoc.meta.description || mirroredDescription,
+      },
+    })
+
+    const row = await prisma.pageContent.upsert({
+      where: { slug_locale: { slug, locale } },
+      create: {
+        slug,
+        locale,
+        label: parsed.data.label?.trim() || english?.label || def.label,
+        title: mirroredTitle,
+        description: mirroredDescription,
+        ogImage: nextOgImage,
+        sections: nextDoc,
+      },
+      update: {
+        ...(parsed.data.label != null
+          ? { label: parsed.data.label.trim() || def.label }
+          : {}),
+        title: mirroredTitle,
+        description: mirroredDescription,
+        ogImage: nextOgImage,
+        sections: nextDoc,
+      },
+    })
+
+    revalidateAllLocales("/")
+    revalidateAllLocales(def.path)
+    revalidateAllLocales("/destinations")
+    revalidatePath("/destinations/[slug]", "page")
+
+    return NextResponse.json({
+      page: serializePageContent(row, { hasLocaleRow: true }),
+    })
+  }
+
   const previousSections = existing
     ? parseSections(existing.sections)
     : english
@@ -157,21 +343,79 @@ export async function PATCH(request: Request, context: RouteContext) {
         : parseSections(parsed.data.sections)
       : previousSections
 
-  const existingOgImage = existing?.ogImage?.trim() || ""
-  const englishOgImage = english?.ogImage?.trim() || ""
+  // Legacy destination flat save → upgrade to v2 on write
+  if (isDestinationSlug(slug) && parsed.data.sections != null) {
+    const destId = slug.slice("destinations/".length)
+    const previousDoc = parseDestinationDocument(
+      existing?.sections ?? english?.sections ?? def.defaults.destinationDocument,
+      { id: destId },
+    )
+    let nextDoc = parseDestinationDocument(nextSections, {
+      id: destId,
+      title: parsed.data.title || previousDoc.meta.title,
+      description: parsed.data.description || previousDoc.meta.description,
+      ogImage: providedOgImage || previousDoc.meta.title,
+    })
+    nextDoc = serializeDestinationDocument({
+      ...nextDoc,
+      flags: previousDoc.flags,
+    })
+    const heroSrc = destinationHeroImage(nextDoc)
+    const nextOgImage =
+      preferUpload(
+        providedOgImage ?? "",
+        heroSrc,
+        existingOgImage,
+        englishOgImage,
+      ) || def.defaults.ogImage
+    if (nextOgImage) {
+      nextDoc = withDestinationHeroImage(nextDoc, nextOgImage)
+    }
+    const mirroredTitle =
+      parsed.data.title?.trim() || nextDoc.meta.title || def.defaults.title
+    const mirroredDescription =
+      parsed.data.description?.trim() ||
+      nextDoc.meta.description ||
+      def.defaults.description
+
+    const row = await prisma.pageContent.upsert({
+      where: { slug_locale: { slug, locale } },
+      create: {
+        slug,
+        locale,
+        label: parsed.data.label?.trim() || english?.label || def.label,
+        title: mirroredTitle,
+        description: mirroredDescription,
+        ogImage: nextOgImage,
+        sections: nextDoc,
+      },
+      update: {
+        ...(parsed.data.label != null
+          ? { label: parsed.data.label.trim() || def.label }
+          : {}),
+        title: mirroredTitle,
+        description: mirroredDescription,
+        ogImage: nextOgImage,
+        sections: nextDoc,
+      },
+    })
+
+    revalidateAllLocales("/")
+    revalidateAllLocales(def.path)
+    revalidateAllLocales("/destinations")
+    revalidatePath("/destinations/[slug]", "page")
+
+    return NextResponse.json({
+      page: serializePageContent(row, { hasLocaleRow: true }),
+    })
+  }
+
   const heroSrc =
     nextSections.find(
       (s) =>
         s.type === "image" &&
         (s.key === "hero" || s.key === "hero.image"),
     )?.src?.trim() || ""
-  const providedOgImage =
-    parsed.data.ogImage !== undefined ? parsed.data.ogImage.trim() : undefined
-
-  const preferUpload = (...candidates: string[]) => {
-    const urls = candidates.filter(Boolean)
-    return urls.find((url) => url.startsWith("/uploads/")) || urls[0] || ""
-  }
 
   let nextOgImage: string
   const heroKey = pageHeroImageKey(slug)

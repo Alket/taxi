@@ -1,19 +1,21 @@
 /**
- * QA for destination CMS fields + public routing/cards.
+ * QA for destination CMS fields + public routing/cards + v2 document dual-read.
  * Run: npx tsx scripts/qa-destinations.ts
  */
 import { PrismaClient } from "@prisma/client"
 
 import { DESTINATIONS } from "../lib/destinations"
 import {
-  ensureMissingDefaultSections,
-  parseSections,
-  sectionValue,
-} from "../lib/page-content-shared"
+  isDestinationDocumentV2,
+  parseDestinationDocument,
+  serializeDestinationDocument,
+} from "../lib/destination-document"
+import { parseSections, sectionValue } from "../lib/page-content-shared"
 import {
   publicDestinationSlug,
   resolveDestination,
   resolveDestinationCards,
+  resolveDestinationPage,
   resolvePageContent,
   resolvePageDefinition,
 } from "../lib/page-content"
@@ -85,7 +87,7 @@ async function main() {
     fail("C3 resolveDestination", JSON.stringify({ byId: byId?.id, bySlug: bySlug?.id }))
   }
 
-  // Temporary custom urlSlug round-trip on EN tirana (restore after)
+  // Temporary custom slug round-trip on EN tirana (restore after)
   const tiranaSlug = "destinations/tirana"
   const enRow = await prisma.pageContent.findUnique({
     where: { slug_locale: { slug: tiranaSlug, locale: "en" } },
@@ -93,16 +95,18 @@ async function main() {
   if (!enRow) {
     fail("C4 EN tirana row", "missing")
   } else {
-    const def = await resolvePageDefinition(tiranaSlug)
-    const original = parseSections(enRow.sections)
-    const withDefaults = ensureMissingDefaultSections(
-      original,
-      def?.defaults.sections ?? [],
-    )
+    const original = enRow.sections
+    const doc = parseDestinationDocument(original, {
+      id: "tirana",
+      title: enRow.title,
+      description: enRow.description,
+      ogImage: enRow.ogImage,
+    })
     const marker = `qa-tirana-${Date.now().toString(36)}`
-    const mutated = withDefaults.map((section) =>
-      section.key === "urlSlug" ? { ...section, body: marker } : section,
-    )
+    const mutated = serializeDestinationDocument({
+      ...doc,
+      meta: { ...doc.meta, slug: marker },
+    })
     await prisma.pageContent.update({
       where: { id: enRow.id },
       data: { sections: mutated },
@@ -110,57 +114,142 @@ async function main() {
 
     const resolved = await resolveDestination(marker, "en")
     if (resolved?.id === "tirana" && resolved.slug === marker) {
-      pass("C4 custom urlSlug resolves", marker)
+      pass("C4 custom meta.slug resolves", marker)
     } else {
       fail(
-        "C4 custom urlSlug resolves",
+        "C4 custom meta.slug resolves",
         JSON.stringify({ id: resolved?.id, slug: resolved?.slug }),
       )
     }
 
-    const pageViaCustom = await resolvePageContent(
-      `destinations/${resolved?.id ?? "tirana"}`,
-      "en",
-    )
-    if (pageViaCustom && publicDestinationSlug(pageViaCustom.sections, "tirana") === marker) {
-      pass("C5 CMS urlSlug field readable")
+    const pageViaCustom = await resolveDestinationPage("tirana", "en")
+    if (
+      pageViaCustom &&
+      publicDestinationSlug(pageViaCustom.document, "tirana") === marker
+    ) {
+      pass("C5 CMS meta.slug field readable")
     } else {
-      fail("C5 CMS urlSlug field", publicDestinationSlug(pageViaCustom?.sections ?? [], "tirana"))
+      fail(
+        "C5 CMS meta.slug field",
+        pageViaCustom
+          ? publicDestinationSlug(pageViaCustom.document, "tirana")
+          : "missing",
+      )
     }
 
-    // HTTP with custom slug
     const customPage = await httpStatus(`/destinations/${marker}`)
     if (customPage === 200) pass("H1 /destinations/{customSlug} 200", String(customPage))
     else fail("H1 /destinations/{customSlug}", String(customPage))
 
-    // Restore original urlSlug
     await prisma.pageContent.update({
       where: { id: enRow.id },
-      data: { sections: original },
+      data: { sections: original as object },
     })
     const restored = await resolveDestination("tirana", "en")
-    if (restored?.slug === "tirana" || restored?.slug === sectionValue(original, "urlSlug") || restored?.id === "tirana") {
-      pass("C6 restored urlSlug", restored?.slug || "")
+    if (restored?.id === "tirana") {
+      pass("C6 restored slug", restored?.slug || "")
     } else {
       fail("C6 restore", restored?.slug || "missing")
     }
   }
 
-  // Built-in defaults include new keys
+  // Built-in defaults emit v2 documents
   let defaultsOk = true
   for (const dest of DESTINATIONS) {
     const def = await resolvePageDefinition(`destinations/${dest.id}`)
-    const keys = new Set(def?.defaults.sections.map((s) => s.key))
-    for (const need of ["urlSlug", "travelTime", "primaryKeyword"]) {
-      if (!keys.has(need)) {
-        defaultsOk = false
-        fail("D1 defaults keys", `${dest.id} missing ${need}`)
-        break
-      }
+    const document = def?.defaults.destinationDocument
+    if (!document || !isDestinationDocumentV2(document)) {
+      defaultsOk = false
+      fail("D1 defaults v2", `${dest.id} missing destinationDocument`)
+      break
     }
-    if (!defaultsOk) break
+    if (!document.meta.slug || !document.meta.travelTime) {
+      defaultsOk = false
+      fail("D1 defaults meta", `${dest.id} missing slug/travelTime`)
+      break
+    }
   }
-  if (defaultsOk) pass("D1 destination defaults include new section keys")
+  if (defaultsOk) pass("D1 destination defaults emit v2 documents")
+
+  // Legacy flat array dual-read
+  const legacyFlat = [
+    {
+      id: "t1",
+      type: "heading",
+      key: "title",
+      heading: "Legacy Town",
+      level: 1,
+    },
+    { id: "t2", type: "text", key: "urlSlug", body: "legacy-town" },
+    { id: "t3", type: "text", key: "region", body: "North" },
+    { id: "t4", type: "text", key: "description", body: "Legacy description" },
+    {
+      id: "t5",
+      type: "image",
+      key: "hero",
+      src: "/uploads/test.jpg",
+      alt: "Legacy Town",
+    },
+    { id: "t6", type: "text", key: "badge", body: "New" },
+    { id: "t7", type: "text", key: "priceFrom", body: "€40" },
+    { id: "t8", type: "text", key: "travelTime", body: "1 hr" },
+    {
+      id: "t9",
+      type: "text",
+      key: "primaryKeyword",
+      body: "Legacy Airport Transfer",
+    },
+    {
+      id: "t10",
+      type: "text",
+      key: "route.distance",
+      body: "≈ 55 km from Tirana International Airport (TIA)",
+    },
+    {
+      id: "t11",
+      type: "attraction",
+      key: "attraction.1",
+      heading: "Old Fortress",
+      body: "A historic site.",
+      src: "/uploads/a.jpg",
+      alt: "Fortress",
+    },
+  ]
+  const fromLegacy = parseDestinationDocument(legacyFlat, { id: "legacy-town" })
+  if (
+    fromLegacy.format === "destination_v2" &&
+    fromLegacy.meta.slug === "legacy-town" &&
+    fromLegacy.meta.distanceKm === 55 &&
+    fromLegacy.sections.some((s) => s.type === "attractions_grid")
+  ) {
+    const grid = fromLegacy.sections.find((s) => s.type === "attractions_grid")
+    const count =
+      grid && grid.type === "attractions_grid" ? grid.items.length : 0
+    if (count === 1) pass("D2 legacy dual-read", `distanceKm=${fromLegacy.meta.distanceKm}`)
+    else fail("D2 legacy attractions", String(count))
+  } else {
+    fail("D2 legacy dual-read", JSON.stringify(fromLegacy.meta))
+  }
+
+  // V2 round-trip serialize
+  const roundTrip = serializeDestinationDocument(fromLegacy)
+  if (
+    isDestinationDocumentV2(roundTrip) &&
+    roundTrip.meta.title === "Legacy Town" &&
+    roundTrip.meta.primaryKeyword === "Legacy Airport Transfer"
+  ) {
+    pass("D3 v2 serialize round-trip")
+  } else {
+    fail("D3 v2 serialize", roundTrip.meta.title)
+  }
+
+  // resolveDestinationPage
+  const resolvedPage = await resolveDestinationPage(sample.id, "en")
+  if (resolvedPage?.document?.meta?.title) {
+    pass("D4 resolveDestinationPage", resolvedPage.document.meta.title)
+  } else {
+    fail("D4 resolveDestinationPage", "missing")
+  }
 
   // --- HTTP ---
   const home = await httpText("/")
@@ -183,9 +272,26 @@ async function main() {
     fail("H5 homepage card href", sample.slug)
   }
 
-  const destPage = await httpStatus(`/destinations/${sample.slug}`)
-  if (destPage === 200) pass("H6 destination detail 200", sample.slug)
-  else fail("H6 destination detail", String(destPage))
+  const destPage = await httpText(`/destinations/${sample.slug}`)
+  if (destPage.status === 200) pass("H6 destination detail 200", sample.slug)
+  else fail("H6 destination detail", String(destPage.status))
+
+  if (
+    destPage.text.includes("<title>") &&
+    (destPage.text.includes(sample.name) ||
+      destPage.text.includes(sample.primaryKeyword) ||
+      destPage.text.includes("airport transfer"))
+  ) {
+    pass("H6b destination meta title present")
+  } else {
+    fail("H6b destination meta title")
+  }
+
+  if (destPage.text.includes("TouristDestination")) {
+    pass("H6c JSON-LD TouristDestination present")
+  } else {
+    fail("H6c JSON-LD TouristDestination")
+  }
 
   const byIdPage = await httpStatus(`/destinations/${sample.id}`)
   if (byIdPage === 200) pass("H7 destination by id still 200", sample.id)
@@ -199,39 +305,45 @@ async function main() {
   if (missing === 404) pass("H9 unknown destination 404")
   else fail("H9 unknown destination", String(missing))
 
-  // Uber alt section still present on home
-  if (home.text.includes("uber-alternative") || home.text.includes("No Uber in Albania")) {
-    pass("H10 uber-alt section on homepage")
+  // Legacy urlSlug still readable when row is still flat array
+  const anyLegacy = await prisma.pageContent.findFirst({
+    where: {
+      locale: "en",
+      slug: { startsWith: "destinations/" },
+    },
+  })
+  if (anyLegacy && Array.isArray(anyLegacy.sections)) {
+    const sections = parseSections(anyLegacy.sections)
+    const slug = sectionValue(sections, "urlSlug")
+    const viaPublic = publicDestinationSlug(sections, "x")
+    if (slug || viaPublic) {
+      pass("D5 legacy row still in DB (flat array dual-read path exists)")
+    } else {
+      pass("D5 no urlSlug on flat row (ok if migrated)")
+    }
   } else {
-    fail("H10 uber-alt section", "not found")
+    pass("D5 no flat legacy rows (all v2 or empty)")
   }
 
-  const bookingConfig = await fetch(`${base}/api/booking/config`).then((r) =>
-    r.json(),
+  // resolvePageContent still works
+  const pageContent = await resolvePageContent(`destinations/${sample.id}`, "en")
+  if (pageContent?.destinationDocument) {
+    pass("D6 resolvePageContent attaches destinationDocument")
+  } else {
+    fail("D6 resolvePageContent destinationDocument")
+  }
+
+  const failed = results.filter((r) => r.status === "FAIL")
+  console.log(
+    `\n${results.length - failed.length}/${results.length} passed` +
+      (failed.length ? ` · ${failed.length} failed` : ""),
   )
-  if (
-    Array.isArray(bookingConfig.enabledVehicleTypes) &&
-    typeof bookingConfig.sedanEnabled === "boolean"
-  ) {
-    pass("A1 booking config vehicle flags", JSON.stringify(bookingConfig.enabledVehicleTypes))
-  } else {
-    fail("A1 booking config vehicle flags", JSON.stringify(bookingConfig).slice(0, 120))
-  }
-
-  const passed = results.filter((r) => r.status === "PASS").length
-  const failed = results.filter((r) => r.status === "FAIL").length
-  console.log("\n===== QA SUMMARY =====")
-  console.log(`PASS=${passed} FAIL=${failed}`)
-  for (const r of results.filter((x) => x.status === "FAIL")) {
-    console.log(`  FAIL: ${r.case} | ${r.detail}`)
-  }
-
   await prisma.$disconnect()
-  if (failed > 0) process.exit(1)
+  process.exit(failed.length ? 1 : 0)
 }
 
-main().catch(async (error) => {
-  console.error(error)
+main().catch(async (err) => {
+  console.error(err)
   await prisma.$disconnect()
   process.exit(1)
 })

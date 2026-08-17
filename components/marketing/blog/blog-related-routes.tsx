@@ -5,6 +5,7 @@ import type { Destination } from "@/lib/destinations"
 import type { Locale } from "@/lib/i18n/locales"
 import { localePath } from "@/lib/i18n/locales"
 import { t } from "@/lib/i18n/t"
+import { transferLinkForDestination } from "@/lib/transfers/routes"
 import { MARKETING_SECTION_TITLE } from "@/components/marketing/marketing-container"
 
 export function BlogRelatedRoutes({
@@ -25,39 +26,49 @@ export function BlogRelatedRoutes({
         {t(locale, "blog.relatedText")}
       </p>
       <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {destinations.map((destination) => (
-          <li key={destination.id}>
-            <Link
-              href={localePath(`/destinations/${destination.slug}`, locale)}
-              className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-brand-surface transition-shadow hover:shadow-md"
-            >
-              <div className="relative aspect-[16/10] overflow-hidden bg-muted">
-                <Image
-                  src={destination.image}
-                  alt={
-                    destination.imageAlt ||
-                    `${destination.name} airport transfer`
-                  }
-                  width={800}
-                  height={500}
-                  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-                  sizes="(max-width: 640px) 100vw, 33vw"
-                />
-              </div>
-              <div className="flex flex-1 flex-col gap-1 p-4">
-                <p className="text-xs font-bold tracking-wide text-brand-accent uppercase">
-                  {t(locale, "cta.from", { price: destination.priceFrom })}
-                </p>
-                <h3 className="font-brand text-lg font-extrabold text-brand">
-                  {destination.primaryKeyword || destination.name}
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  {destination.travelTime} · {destination.region}
-                </p>
-              </div>
-            </Link>
-          </li>
-        ))}
+        {destinations.map((destination) => {
+          const transfer = transferLinkForDestination(destination.id)
+          const href = transfer
+            ? localePath(`/transfers/${transfer.transferSlug}`, locale)
+            : localePath(`/destinations/${destination.slug}`, locale)
+          const title =
+            transfer?.anchor ??
+            `book a private transfer from Tirana Airport to ${destination.name}`
+
+          return (
+            <li key={destination.id}>
+              <Link
+                href={href}
+                className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-brand-surface transition-shadow hover:shadow-md"
+              >
+                <div className="relative aspect-[16/10] overflow-hidden bg-muted">
+                  <Image
+                    src={destination.image}
+                    alt={
+                      destination.imageAlt ||
+                      `Private transfer from Tirana Airport to ${destination.name}`
+                    }
+                    width={800}
+                    height={500}
+                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                    sizes="(max-width: 640px) 100vw, 33vw"
+                  />
+                </div>
+                <div className="flex flex-1 flex-col gap-1 p-4">
+                  <p className="text-xs font-bold tracking-wide text-brand-accent uppercase">
+                    {t(locale, "cta.from", { price: destination.priceFrom })}
+                  </p>
+                  <h3 className="font-brand text-lg font-extrabold text-brand">
+                    {title}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {destination.travelTime} · {destination.region}
+                  </p>
+                </div>
+              </Link>
+            </li>
+          )
+        })}
       </ul>
     </section>
   )

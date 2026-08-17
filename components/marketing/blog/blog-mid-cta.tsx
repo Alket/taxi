@@ -19,12 +19,20 @@ export function BlogMidCta({ locale }: { locale: Locale }) {
       <p className="mt-2 max-w-2xl text-base text-muted-foreground">
         {t(locale, "blog.midCtaText")}
       </p>
-      <Link
-        href={localePath("/#book", locale)}
-        className="mt-5 inline-flex min-h-11 items-center justify-center rounded-full bg-brand-accent !text-white px-6 text-sm font-extrabold transition-colors hover:bg-brand-accent-hover"
-      >
-        {t(locale, "blog.midCtaButton")}
-      </Link>
+      <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+        <Link
+          href={localePath("/transfers/tirana-airport-to-saranda", locale)}
+          className="inline-flex min-h-11 items-center justify-center rounded-full bg-brand-accent !text-white px-6 text-sm font-extrabold transition-colors hover:bg-brand-accent-hover"
+        >
+          {t(locale, "blog.midCtaButton")}
+        </Link>
+        <Link
+          href={localePath("/transfers/tirana-airport-to-ksamil", locale)}
+          className="inline-flex min-h-11 items-center justify-center rounded-full border border-border bg-brand-surface px-6 text-sm font-extrabold text-brand transition-colors hover:bg-muted"
+        >
+          {t(locale, "blog.midCtaSecondary")}
+        </Link>
+      </div>
     </aside>
   )
 }

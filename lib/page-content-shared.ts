@@ -89,6 +89,11 @@ export type PageContentRecord = {
   description: string
   ogImage: string
   sections: PageSection[]
+  /**
+   * Destination pages only — parsed v2 document (or legacy dual-read).
+   * Prefer this over flat `sections` for `destinations/*`.
+   */
+  destinationDocument?: import("@/lib/destination-document").DestinationDocument
   updatedAt?: string
   fromDatabase: boolean
   /** Locale of the loaded row (may be fallback). */

@@ -13,6 +13,7 @@ import {
   LogOut,
   MapPinned,
   Plane,
+  Route,
   Settings,
   Star,
   Users,
@@ -49,6 +50,7 @@ const navItems = [
   { title: "Pricing", url: "/admin/pricing", icon: MapPinned },
   { title: "Notifications", url: "/admin/notifications", icon: Bell },
   { title: "Pages", url: "/admin/pages", icon: FileText, adminOnly: true },
+  { title: "Transfers", url: "/admin/transfers", icon: Route, adminOnly: true },
   { title: "Media", url: "/admin/media", icon: Images, adminOnly: true },
   { title: "Settings", url: "/admin/settings", icon: Settings, adminOnly: true },
 ] as const

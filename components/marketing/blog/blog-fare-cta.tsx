@@ -14,7 +14,7 @@ export function BlogFareCta({
 }) {
   return (
     <aside
-      aria-label="Book a Tirana Airport transfer"
+      aria-label="Book a private transfer from Tirana Airport"
       className="overflow-hidden rounded-3xl border border-border bg-brand-surface"
     >
       <div className="flex flex-col gap-6 px-6 py-7 sm:px-8 sm:py-9 md:flex-row md:items-center md:justify-between md:gap-10">
@@ -29,13 +29,21 @@ export function BlogFareCta({
             {copy.text}
           </p>
         </div>
-        <Link
-          href={localePath("/#book", locale)}
-          className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-full bg-brand-accent px-7 text-sm font-extrabold text-white transition-colors hover:bg-brand-accent-hover"
-        >
-          {copy.button}
-          <ArrowRightIcon className="size-4" aria-hidden />
-        </Link>
+        <div className="flex shrink-0 flex-col gap-3">
+          <Link
+            href={localePath("/transfers/tirana-airport-to-saranda", locale)}
+            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-brand-accent px-7 text-sm font-extrabold text-white transition-colors hover:bg-brand-accent-hover"
+          >
+            Book a private transfer from Tirana Airport to Sarandë
+            <ArrowRightIcon className="size-4" aria-hidden />
+          </Link>
+          <Link
+            href={localePath("/#book", locale)}
+            className="inline-flex min-h-11 items-center justify-center rounded-full border border-border px-6 text-sm font-extrabold text-brand transition-colors hover:bg-muted"
+          >
+            {copy.button}
+          </Link>
+        </div>
       </div>
       <div
         className="h-1.5 w-full bg-[color-mix(in_srgb,var(--brand-accent)_35%,transparent)]"

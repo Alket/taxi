@@ -15,6 +15,7 @@ import {
 import { toast } from "sonner"
 
 import { MediaPickerDialog } from "@/components/admin/media-picker-dialog"
+import { DestinationDocumentEditor } from "@/components/admin/destination-document-editor"
 import { PageHeader } from "@/components/admin/page-header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -56,6 +57,11 @@ import {
 } from "@/components/admin/blog-catalog-manager"
 import { toDateInputValue } from "@/components/admin/date-field"
 import type { MediaAssetDto } from "@/lib/media-shared"
+import {
+  destinationHeroImage,
+  parseDestinationDocument,
+  type DestinationDocument,
+} from "@/lib/destination-document"
 import { cn } from "@/lib/utils"
 
 const CONTENT_SECTION_TYPES = PAGE_SECTION_TYPES.filter(
@@ -675,7 +681,10 @@ export function PageEditorView({ slug }: { slug: string }) {
   const [uploading, setUploading] = useState(false)
   const [addType, setAddType] = useState<PageSectionType>("text")
   const [libraryTarget, setLibraryTarget] = useState<
-    null | { type: "og" } | { type: "section"; id: string }
+    | null
+    | { type: "og" }
+    | { type: "section"; id: string }
+    | { type: "destination"; sectionId: string; kind: "hero" | "attraction" }
   >(null)
   const [catalogDialog, setCatalogDialog] = useState<
     null | "categories" | "authors"
@@ -760,7 +769,56 @@ export function PageEditorView({ slug }: { slug: string }) {
       applyOgImage(asset.url, asset.alt ? { alt: asset.alt } : undefined)
       return
     }
-    const index = page.sections.findIndex((s) => s.id === libraryTarget.id)
+    if (libraryTarget.type === "destination" && page.destinationDocument) {
+      const doc = page.destinationDocument
+      const nextDoc: DestinationDocument = {
+        ...doc,
+        sections: doc.sections.map((section) => {
+          if (
+            libraryTarget.kind === "hero" &&
+            section.type === "hero" &&
+            section.id === libraryTarget.sectionId
+          ) {
+            return {
+              ...section,
+              src: asset.url,
+              ...(asset.alt ? { alt: asset.alt } : {}),
+            }
+          }
+          if (
+            libraryTarget.kind === "attraction" &&
+            section.type === "attractions_grid"
+          ) {
+            return {
+              ...section,
+              items: section.items.map((item) =>
+                item.id === libraryTarget.sectionId
+                  ? {
+                      ...item,
+                      src: asset.url,
+                      ...(asset.alt ? { alt: asset.alt } : {}),
+                    }
+                  : item,
+              ),
+            }
+          }
+          return section
+        }),
+      }
+      const hero = destinationHeroImage(nextDoc)
+      setPage({
+        ...page,
+        ogImage: hero || page.ogImage,
+        destinationDocument: nextDoc,
+        title: nextDoc.meta.title || page.title,
+        description: nextDoc.meta.description || page.description,
+      })
+      return
+    }
+    const index =
+      libraryTarget.type === "section"
+        ? page.sections.findIndex((s) => s.id === libraryTarget.id)
+        : -1
     const section = index >= 0 ? page.sections[index] : null
     if (
       !section ||
@@ -779,6 +837,17 @@ export function PageEditorView({ slug }: { slug: string }) {
     if (!page) return
     setSaving(true)
     try {
+      const isDestination = page.slug.startsWith("destinations/")
+      const document =
+        isDestination
+          ? page.destinationDocument ??
+            parseDestinationDocument(page.sections, {
+              id: page.slug.slice("destinations/".length),
+              title: page.title,
+              description: page.description,
+              ogImage: page.ogImage,
+            })
+          : null
       const sections = isBlogSlug(page.slug)
         ? mergeBlogSections(ensureBlogParts(page.sections))
         : page.sections
@@ -787,10 +856,14 @@ export function PageEditorView({ slug }: { slug: string }) {
         {
           locale,
           label: page.label,
-          title: page.title,
-          description: page.description,
-          ogImage: page.ogImage,
-          sections,
+          title: document?.meta.title || page.title,
+          description: document?.meta.description || page.description,
+          ogImage: document
+            ? destinationHeroImage(document) || page.ogImage
+            : page.ogImage,
+          ...(document
+            ? { destinationDocument: document }
+            : { sections }),
         },
       )
       setPage(data.page)
@@ -1100,6 +1173,16 @@ export function PageEditorView({ slug }: { slug: string }) {
   const isDestinationPage = page.slug.startsWith("destinations/")
   const isBlogPage = isBlogSlug(page.slug)
   const isHomePage = page.slug === "home"
+  const destinationDocument =
+    isDestinationPage
+      ? page.destinationDocument ??
+        parseDestinationDocument(page.sections, {
+          id: page.slug.slice("destinations/".length),
+          title: page.title,
+          description: page.description,
+          ogImage: page.ogImage,
+        })
+      : null
   const homeHero = isHomePage
     ? (heroSections[0] ?? {
         id: "home-hero-image",
@@ -1109,7 +1192,7 @@ export function PageEditorView({ slug }: { slug: string }) {
         alt: "",
       })
     : null
-  const syncsHeroWithOg = Boolean(pageHeroImageKey(page.slug))
+  const syncsHeroWithOg = Boolean(pageHeroImageKey(page.slug)) && !isDestinationPage
   const canDelete = isDestinationPage || isBlogPage
   const canReset = page.fromDatabase && isCorePageSlug(page.slug)
   const blogFeatured =
@@ -1232,7 +1315,9 @@ export function PageEditorView({ slug }: { slug: string }) {
       <section className="rounded-xl border bg-card p-4 md:p-6">
         <h2 className="text-sm font-semibold">SEO</h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          Title, description, and Open Graph image for search and social shares.
+          {isDestinationPage
+            ? "Admin label and mirrored SEO. Destination title, description, and hero image are edited in Destination settings below."
+            : "Title, description, and Open Graph image for search and social shares."}
         </p>
         <div className="mt-4 grid gap-4">
           <div className="flex flex-col gap-1.5">
@@ -1242,6 +1327,8 @@ export function PageEditorView({ slug }: { slug: string }) {
               onChange={(e) => setPage({ ...page, label: e.target.value })}
             />
           </div>
+          {!isDestinationPage ? (
+            <>
           <div className="flex flex-col gap-1.5">
             <Label className="text-xs text-muted-foreground">Title</Label>
             <Input
@@ -1264,9 +1351,7 @@ export function PageEditorView({ slug }: { slug: string }) {
               {syncsHeroWithOg ? "Hero / page image" : "OG image"}
             </Label>
             <p className="text-[11px] text-muted-foreground">
-              {isDestinationPage
-                ? "Used on the homepage carousel and destination page hero."
-                : isBlogPage
+              {isBlogPage
                   ? "Used as the post hero and Open Graph image."
                   : isHomePage
                     ? "Used as the homepage hero and Open Graph image."
@@ -1310,6 +1395,8 @@ export function PageEditorView({ slug }: { slug: string }) {
               </div>
             </div>
           </div>
+            </>
+          ) : null}
         </div>
       </section>
 
@@ -1839,6 +1926,25 @@ export function PageEditorView({ slug }: { slug: string }) {
             )}
           </section>
         </>
+      ) : isDestinationPage && destinationDocument ? (
+        <DestinationDocumentEditor
+          document={destinationDocument}
+          onChange={(next) => {
+            const hero = destinationHeroImage(next)
+            setPage({
+              ...page,
+              destinationDocument: next,
+              title: next.meta.title,
+              description: next.meta.description,
+              ogImage: hero || page.ogImage,
+            })
+          }}
+          onOpenLibrary={(sectionId, kind) =>
+            setLibraryTarget({ type: "destination", sectionId, kind })
+          }
+          onUpload={uploadImage}
+          uploading={uploading}
+        />
       ) : (
         <>
           {homeHero ? (
@@ -2031,178 +2137,6 @@ export function PageEditorView({ slug }: { slug: string }) {
         </>
       )}
 
-      {isDestinationPage ? (
-        <section className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <h2 className="text-sm font-semibold">Attractions</h2>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Add places to visit for this destination. They appear in this
-                order on the destination page.
-              </p>
-            </div>
-            <Button type="button" variant="outline" onClick={addAttractionItem}>
-              <Plus className="size-3.5" />
-              Add attraction
-            </Button>
-          </div>
-
-          {attractionItems.length === 0 ? (
-            <p className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-              No attractions yet. Click &ldquo;Add attraction&rdquo; to create
-              the first one.
-            </p>
-          ) : (
-            attractionItems.map((item, index) => (
-              <div
-                key={item.id}
-                className="rounded-xl border bg-card p-4 md:p-5"
-              >
-                <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-                  <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium">
-                    Attraction #{index + 1}
-                  </span>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="size-8"
-                      disabled={index === 0}
-                      onClick={() => moveAttractionItem(index, -1)}
-                    >
-                      <ArrowUp className="size-3.5" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="size-8"
-                      disabled={index === attractionItems.length - 1}
-                      onClick={() => moveAttractionItem(index, 1)}
-                    >
-                      <ArrowDown className="size-3.5" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="size-8 text-destructive"
-                      onClick={() => removeAttractionItem(index)}
-                    >
-                      <Trash2 className="size-3.5" />
-                    </Button>
-                  </div>
-                </div>
-                <div className="grid gap-3">
-                  <div className="flex flex-col gap-1.5">
-                    <Label className="text-xs text-muted-foreground">
-                      Title
-                    </Label>
-                    <Input
-                      value={item.heading ?? ""}
-                      placeholder="e.g. Theth Waterfall"
-                      onChange={(e) =>
-                        updateAttractionItem(index, {
-                          ...item,
-                          heading: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label className="text-xs text-muted-foreground">
-                      Description
-                    </Label>
-                    <Textarea
-                      rows={3}
-                      value={item.body ?? ""}
-                      placeholder="Short description visitors will see…"
-                      onChange={(e) =>
-                        updateAttractionItem(index, {
-                          ...item,
-                          body: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label className="text-xs text-muted-foreground">
-                      Image
-                    </Label>
-                    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                      <Input
-                        value={item.src ?? ""}
-                        placeholder="/uploads/pages/… or https://…"
-                        onChange={(e) =>
-                          updateAttractionItem(index, {
-                            ...item,
-                            src: e.target.value,
-                          })
-                        }
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() =>
-                          setLibraryTarget({ type: "section", id: item.id })
-                        }
-                      >
-                        <FolderOpen className="size-3.5" />
-                        Library
-                      </Button>
-                      <label className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-md border border-input bg-background px-3 text-sm font-medium hover:bg-muted">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="sr-only"
-                          disabled={uploading}
-                          onChange={async (e) => {
-                            const file = e.target.files?.[0]
-                            e.target.value = ""
-                            if (!file) return
-                            const url = await uploadImage(file)
-                            if (!url) return
-                            updateAttractionItem(index, {
-                              ...item,
-                              src: url,
-                            })
-                          }}
-                        />
-                        <ImagePlus className="size-3.5" />
-                        Upload
-                      </label>
-                    </div>
-                    {item.src ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={item.src}
-                        alt={item.alt || item.heading || ""}
-                        className="mt-1 h-32 w-full rounded-lg border object-cover"
-                      />
-                    ) : null}
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label className="text-xs text-muted-foreground">
-                      Image alt text
-                    </Label>
-                    <Input
-                      value={item.alt ?? ""}
-                      placeholder="Describe the image for accessibility"
-                      onChange={(e) =>
-                        updateAttractionItem(index, {
-                          ...item,
-                          alt: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </section>
-      ) : null}
 
       {!isDestinationPage ? (
         <section className="flex flex-col gap-4">

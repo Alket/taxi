@@ -352,5 +352,6 @@
   "book.roundTripDesc": "İki bağlantılı rezervasyon oluşturur (gidiş + dönüş).",
   "book.enterFlightNumber": "Uçuş numaranızı girin",
   "policy.cashOnArrivalNoteLabel": "Not:",
-  "policy.cashOnArrivalNote": "Tamamen varışta nakit ödenen rezervasyonlarda, müşteri yolculuk başlamadan önce sürücüye nakit ödemelidir. Nakit ödemeli bir rezervasyon iptal edilirse, müşteri planlanan karşılama saatinden en az 1 saat önce bizi bilgilendirmelidir."
+  "policy.cashOnArrivalNote": "Tamamen varışta nakit ödenen rezervasyonlarda, müşteri yolculuk başlamadan önce sürücüye nakit ödemelidir. Nakit ödemeli bir rezervasyon iptal edilirse, müşteri planlanan karşılama saatinden en az 1 saat önce bizi bilgilendirmelidir.",
+  "blog.midCtaSecondary": "View fixed driver rates for Tirana to Ksamil"
 }

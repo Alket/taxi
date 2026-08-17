@@ -352,5 +352,6 @@
   "book.roundTripDesc": "Tworzy dwie powiązane rezerwacje (wyjazd + powrót).",
   "book.enterFlightNumber": "Wpisz numer lotu",
   "policy.cashOnArrivalNoteLabel": "Uwaga:",
-  "policy.cashOnArrivalNote": "W przypadku rezerwacji płatnych w całości gotówką przy odbiorze klient musi zapłacić kierowcy gotówką przed rozpoczęciem podróży. Jeśli rezerwacja z płatnością gotówką zostanie anulowana, klient musi powiadomić nas co najmniej 1 godzinę przed planowaną godziną odbioru."
+  "policy.cashOnArrivalNote": "W przypadku rezerwacji płatnych w całości gotówką przy odbiorze klient musi zapłacić kierowcy gotówką przed rozpoczęciem podróży. Jeśli rezerwacja z płatnością gotówką zostanie anulowana, klient musi powiadomić nas co najmniej 1 godzinę przed planowaną godziną odbioru.",
+  "blog.midCtaSecondary": "View fixed driver rates for Tirana to Ksamil"
 }

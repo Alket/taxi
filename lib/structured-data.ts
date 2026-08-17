@@ -61,6 +61,7 @@ export function buildTouristDestinationJsonLd(input: {
   description?: string
   image?: string
   url: string
+  attractions?: { name: string; description?: string; image?: string }[]
 }): JsonLdObject {
   return {
     "@context": "https://schema.org",
@@ -70,7 +71,16 @@ export function buildTouristDestinationJsonLd(input: {
     ...(input.image ? { image: input.image } : {}),
     url: `${baseUrl()}${input.url}`,
     touristType: "Airport transfer travellers",
-    includesAttraction: [],
+    includesAttraction: (input.attractions ?? [])
+      .filter((a) => typeof a.name === "string" && a.name.trim())
+      .map((attraction) => ({
+        "@type": "TouristAttraction",
+        name: attraction.name,
+        ...(attraction.description
+          ? { description: attraction.description }
+          : {}),
+        ...(attraction.image ? { image: attraction.image } : {}),
+      })),
   }
 }
 
@@ -87,6 +97,48 @@ export function buildBreadcrumbJsonLd(
       name: item.name,
       item: `${site}${item.url}`,
     })),
+  }
+}
+
+export function buildServiceJsonLd(input: {
+  name: string
+  description: string
+  url: string
+  priceEur: number
+  currency?: string
+  areaServed?: string
+  providerName?: string
+}): JsonLdObject {
+  const site = baseUrl()
+  const pageUrl = input.url.startsWith("http")
+    ? input.url
+    : `${site}${input.url}`
+  return {
+    "@context": "https://schema.org",
+    "@type": "Service",
+    name: input.name,
+    description: input.description,
+    url: pageUrl,
+    provider: {
+      "@type": "LocalBusiness",
+      name: input.providerName ?? "Landed Albania",
+      url: site,
+      address: {
+        "@type": "PostalAddress",
+        addressCountry: "AL",
+      },
+    },
+    areaServed: {
+      "@type": "Country",
+      name: input.areaServed ?? "Albania",
+    },
+    offers: {
+      "@type": "Offer",
+      price: input.priceEur,
+      priceCurrency: input.currency ?? "EUR",
+      availability: "https://schema.org/InStock",
+      url: pageUrl,
+    },
   }
 }
 

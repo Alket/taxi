@@ -3,6 +3,14 @@ import { z } from "zod"
 import { prisma } from "@/lib/db"
 import { LOCALES, DEFAULT_LOCALE, type Locale, isLocale } from "@/lib/i18n/locales"
 import {
+  applyTextMapToDestinationDocument,
+  destinationDocumentToTextMap,
+  parseDestinationDocument,
+  serializeDestinationDocument,
+  type DestinationDocument,
+  type DestinationTextFields,
+} from "@/lib/destination-document"
+import {
   ensureMissingDefaultSections,
   listAdminPages,
   parseSections,
@@ -410,6 +418,7 @@ async function resolveEnglishTemplate(slug: string): Promise<{
   description: string
   ogImage: string
   sections: PageSection[]
+  destinationDocument?: DestinationDocument
 } | null> {
   // Prefer the EN DB row (admin source of truth), then built-in / custom
   // page definitions. Avoid public resolvePageContent() so soft-hidden
@@ -419,6 +428,37 @@ async function resolveEnglishTemplate(slug: string): Promise<{
   const english = await prisma.pageContent.findUnique({
     where: { slug_locale: { slug, locale: DEFAULT_LOCALE } },
   })
+
+  if (slug.startsWith("destinations/")) {
+    const id = slug.slice("destinations/".length)
+    const document = english
+      ? parseDestinationDocument(english.sections, {
+          id,
+          title: english.title,
+          description: english.description,
+          ogImage: english.ogImage,
+        })
+      : def?.defaults.destinationDocument
+        ? parseDestinationDocument(def.defaults.destinationDocument, { id })
+        : parseDestinationDocument(def?.defaults.sections ?? [], {
+            id,
+            title: def?.defaults.title,
+            description: def?.defaults.description,
+            ogImage: def?.defaults.ogImage,
+          })
+
+    return {
+      label: english?.label || def?.label || slug,
+      title: english?.title || def?.defaults.title || document.meta.title,
+      description:
+        english?.description ||
+        def?.defaults.description ||
+        document.meta.description,
+      ogImage: english?.ogImage || def?.defaults.ogImage || "",
+      sections: [],
+      destinationDocument: document,
+    }
+  }
 
   if (english) {
     const defaults = def?.defaults.sections ?? []
@@ -456,7 +496,9 @@ export async function exportPageI18nPack(): Promise<PageI18nPack> {
     if (!template) continue
 
     const byLocale: Partial<Record<Locale, PageLocaleText>> = {}
-    const templateSections = sectionsToTextMap(template.sections)
+    const templateSections = template.destinationDocument
+      ? destinationDocumentToTextMap(template.destinationDocument)
+      : sectionsToTextMap(template.sections)
 
     for (const locale of LOCALES) {
       if (locale === DEFAULT_LOCALE) {
@@ -472,13 +514,20 @@ export async function exportPageI18nPack(): Promise<PageI18nPack> {
         where: { slug_locale: { slug: item.slug, locale } },
       })
       if (row) {
+        const localeMap = template.destinationDocument
+          ? destinationDocumentToTextMap(
+              parseDestinationDocument(row.sections, {
+                id: item.slug.slice("destinations/".length),
+                title: row.title,
+                description: row.description,
+                ogImage: row.ogImage,
+              }),
+            )
+          : sectionsToTextMap(parseSections(row.sections))
         byLocale[locale] = {
           title: row.title,
           description: row.description,
-          sections: mergeLocaleSectionMap(
-            templateSections,
-            sectionsToTextMap(parseSections(row.sections)),
-          ),
+          sections: mergeLocaleSectionMap(templateSections, localeMap),
         }
       } else {
         // Empty shell with the same keys so translators know what to fill.
@@ -568,6 +617,79 @@ export async function importPageI18nPack(
       const existing = await prisma.pageContent.findUnique({
         where: { slug_locale: { slug: page.slug, locale } },
       })
+
+      // Destination v2 documents
+      if (template.destinationDocument) {
+        const destId = page.slug.slice("destinations/".length)
+        const previousFlags = existing
+          ? parseDestinationDocument(existing.sections, { id: destId }).flags
+          : template.destinationDocument.flags
+
+        let nextDoc: DestinationDocument
+        try {
+          nextDoc = applyTextMapToDestinationDocument(
+            template.destinationDocument,
+            (localeText.sections || {}) as Record<string, DestinationTextFields>,
+          )
+        } catch (error) {
+          errors.push(`${page.slug}/${locale}: ${(error as Error).message}`)
+          skipped += 1
+          continue
+        }
+
+        nextDoc = serializeDestinationDocument({
+          ...nextDoc,
+          meta: {
+            ...nextDoc.meta,
+            title: localeText.title || nextDoc.meta.title,
+            description: localeText.description || nextDoc.meta.description,
+          },
+          flags: previousFlags,
+        })
+
+        const nextTitle = localeText.title
+        const nextDescription = localeText.description
+        const hasText =
+          nextTitle.trim() ||
+          nextDescription.trim() ||
+          Object.values(localeText.sections || {}).some((fields) =>
+            Object.values(fields).some((v) => typeof v === "string" && v.trim()),
+          )
+        if (!hasText && locale !== DEFAULT_LOCALE && !existing) {
+          skipped += 1
+          continue
+        }
+
+        const ogImage = existing?.ogImage || template.ogImage || ""
+        const label = existing?.label || template.label || page.label || page.slug
+
+        if (existing) {
+          await prisma.pageContent.update({
+            where: { id: existing.id },
+            data: {
+              title: nextTitle,
+              description: nextDescription,
+              sections: nextDoc,
+            },
+          })
+          updated += 1
+        } else {
+          await prisma.pageContent.create({
+            data: {
+              slug: page.slug,
+              locale,
+              label,
+              title: nextTitle,
+              description: nextDescription,
+              ogImage,
+              sections: nextDoc,
+            },
+          })
+          created += 1
+        }
+        touchedLocales.add(locale)
+        continue
+      }
 
       const structureBase = ensureMissingDefaultSections(
         existing ? parseSections(existing.sections) : template.sections,
