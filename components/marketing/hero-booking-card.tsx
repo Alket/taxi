@@ -3,7 +3,7 @@
 import * as React from "react"
 import { createPortal } from "react-dom"
 import useSWR from "swr"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 import {
   ArrowDownIcon,
@@ -25,6 +25,7 @@ import {
 import { fetcher } from "@/lib/api"
 import type { AirportWithCoords } from "@/lib/airports"
 import { resolveAirportLocation } from "@/lib/airports"
+import { resolveZoneFromDestinationParam } from "@/lib/booking-destination-param"
 import {
   useBookingStore,
   VEHICLE_TYPES,
@@ -193,6 +194,7 @@ export function HeroBookingCard() {
   const setStep = useBookingStore((s) => s.setStep)
 
   const router = useRouter()
+  const searchParams = useSearchParams()
   const locale = useLocale()
   const tr = useT()
   const [calendarOpen, setCalendarOpen] = React.useState(false)
@@ -201,6 +203,7 @@ export function HeroBookingCard() {
   const [passengersOpen, setPassengersOpen] = React.useState(false)
   const [continuing, setContinuing] = React.useState(false)
   const [stepReloading, setStepReloading] = React.useState(false)
+  const appliedDestinationParam = React.useRef<string | null>(null)
 
   const { data: config } = useSWR<BookingConfig>("/api/booking/config", fetcher)
   const airports = config?.airports ?? []
@@ -260,6 +263,36 @@ export function HeroBookingCard() {
     applyEndpoints(direction ?? "airport_to_dest", airport, dest)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config, airports.length])
+
+  // Deep-link: /?destination=sarande#book (also accepts zone name / transfer slug)
+  React.useEffect(() => {
+    if (!config || zones.length === 0 || airports.length === 0) return
+    const param = searchParams.get("destination")?.trim()
+    if (!param) return
+    if (appliedDestinationParam.current === param) return
+    const zone = resolveZoneFromDestinationParam(zones, param)
+    if (!zone) return
+
+    appliedDestinationParam.current = param
+    const airport = resolveAirportLocation(airports, selectedAirportIata)
+    applyEndpoints(
+      "airport_to_dest",
+      airport,
+      {
+        address: zone.name,
+        lat: airport?.lat ?? 0,
+        lng: airport?.lng ?? 0,
+      },
+      zone.id,
+    )
+  }, [
+    config,
+    zones,
+    airports,
+    searchParams,
+    selectedAirportIata,
+    applyEndpoints,
+  ])
 
   const loadQuotes = React.useCallback(async () => {
     const state = useBookingStore.getState()

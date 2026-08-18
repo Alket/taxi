@@ -254,7 +254,10 @@ export default async function DestinationPage({ params }: PageProps) {
                     {description}
                   </p>
                   <HashLink
-                    href={localePath("/#book", locale)}
+                    href={localePath(
+                      `/?destination=${encodeURIComponent(destination.id)}#book`,
+                      locale,
+                    )}
                     className="mt-6 inline-flex h-11 w-fit items-center justify-center rounded-full bg-primary px-5 text-sm font-extrabold text-primary-foreground"
                   >
                     {t(locale, "cta.bookTransferFrom", { price: priceFrom })}

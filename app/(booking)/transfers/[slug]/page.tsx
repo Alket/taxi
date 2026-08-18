@@ -19,6 +19,7 @@ import {
   routeDestinationLabel,
   transferLinkForDestination,
 } from "@/lib/transfers/routes"
+import { homepageBookHref } from "@/lib/booking-destination-param"
 import {
   buildBreadcrumbJsonLd,
   buildFaqPageJsonLd,
@@ -36,11 +37,12 @@ type PageProps = {
  */
 export const dynamic = "force-dynamic"
 
-function bookHref(destinationSlug: string, locale: Awaited<ReturnType<typeof getRequestLocale>>) {
-  return localePath(
-    `/book?origin=TIA&destination=${encodeURIComponent(destinationSlug)}`,
-    locale,
-  )
+function bookHref(
+  route: { destinationId: string; zoneName: string; slug: string },
+  locale: Awaited<ReturnType<typeof getRequestLocale>>,
+) {
+  const key = route.destinationId || route.zoneName || route.slug
+  return localePath(homepageBookHref(key), locale)
 }
 
 export async function generateMetadata({
@@ -94,7 +96,7 @@ export default async function TransferRoutePage({ params }: PageProps) {
   const related = await getRelatedRoutes(route.slug, 3)
   const path = `/transfers/${route.slug}`
   const pageUrl = localePath(path, locale)
-  const ctaHref = bookHref(route.slug, locale)
+  const ctaHref = bookHref(route, locale)
 
   const homeLabel = t(locale, "nav.home") || "Home"
   const breadcrumbJsonLd = buildBreadcrumbJsonLd([

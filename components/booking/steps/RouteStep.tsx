@@ -2,11 +2,13 @@
 
 import * as React from "react"
 import useSWR from "swr"
+import { useSearchParams } from "next/navigation"
 import { PlaneTakeoffIcon, PlaneLandingIcon, CalendarIcon } from "lucide-react"
 
 import { fetcher } from "@/lib/api"
 import type { AirportWithCoords } from "@/lib/airports"
 import { resolveAirportLocation } from "@/lib/airports"
+import { resolveZoneFromDestinationParam } from "@/lib/booking-destination-param"
 import { isPickupTooSoon } from "@/lib/pickup-lead-time"
 import { useBookingFieldFocusListener } from "@/hooks/use-booking-field-focus"
 import {
@@ -91,6 +93,7 @@ async function fetchVehicleQuote(body: {
 
 export function RouteStep() {
   const tr = useT()
+  const searchParams = useSearchParams()
   const direction = useBookingStore((s) => s.direction)
   const selectedAirportIata = useBookingStore((s) => s.selectedAirportIata)
   const selectedZoneIdFromStore = useBookingStore((s) => s.selectedZoneId)
@@ -102,6 +105,7 @@ export function RouteStep() {
   const vehicleType = useBookingStore((s) => s.vehicleType)
   const patch = useBookingStore((s) => s.patch)
   const clearQuotes = useBookingStore((s) => s.clearQuotes)
+  const appliedDestinationParam = React.useRef<string | null>(null)
 
   const { data: config } = useSWR<BookingConfig>(
     "/api/booking/config",
@@ -172,6 +176,36 @@ export function RouteStep() {
     applyEndpoints(direction ?? "airport_to_dest", airport, dest)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- seed once when airports arrive
   }, [config, airports.length])
+
+  // Deep-link: /book?destination=sarande (also accepts zone name / transfer slug)
+  React.useEffect(() => {
+    if (!config || zones.length === 0 || airports.length === 0) return
+    const param = searchParams.get("destination")?.trim()
+    if (!param) return
+    if (appliedDestinationParam.current === param) return
+    const zone = resolveZoneFromDestinationParam(zones, param)
+    if (!zone) return
+
+    appliedDestinationParam.current = param
+    const airport = resolveAirportLocation(airports, selectedAirportIata)
+    applyEndpoints(
+      "airport_to_dest",
+      airport,
+      {
+        address: zone.name,
+        lat: airport?.lat ?? 0,
+        lng: airport?.lng ?? 0,
+      },
+      zone.id,
+    )
+  }, [
+    config,
+    zones,
+    airports,
+    searchParams,
+    selectedAirportIata,
+    applyEndpoints,
+  ])
 
   const loadQuotes = React.useCallback(async () => {
     const state = useBookingStore.getState()

@@ -155,7 +155,7 @@ export function slugifyDestinationId(raw: string): string {
     .slice(0, 60)
 }
 
-function normalizePlaceName(value: string) {
+export function normalizePlaceName(value: string) {
   return value
     .toLowerCase()
     .normalize("NFD")

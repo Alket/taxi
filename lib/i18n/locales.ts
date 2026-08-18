@@ -32,14 +32,13 @@ export function isPrefixedLocale(value: string): value is Exclude<Locale, "en"> 
  */
 export function localePath(path: string, locale: Locale): string {
   const raw = path.startsWith("/") ? path : `/${path}`
-  const [pathnamePart, query = ""] = raw.split("?")
-  const hashIndex = pathnamePart.indexOf("#")
-  const pathname =
-    hashIndex >= 0 ? pathnamePart.slice(0, hashIndex) : pathnamePart
-  const hash = hashIndex >= 0 ? pathnamePart.slice(hashIndex) : ""
+  const hashIndex = raw.indexOf("#")
+  const withoutHash = hashIndex >= 0 ? raw.slice(0, hashIndex) : raw
+  const hash = hashIndex >= 0 ? raw.slice(hashIndex) : ""
+  const [pathnamePart, query = ""] = withoutHash.split("?")
   const querySuffix = query ? `?${query}` : ""
 
-  const stripped = stripLocalePrefix(pathname)
+  const stripped = stripLocalePrefix(pathnamePart)
   if (locale === DEFAULT_LOCALE) {
     return `${stripped === "" ? "/" : stripped}${querySuffix}${hash}`
   }
