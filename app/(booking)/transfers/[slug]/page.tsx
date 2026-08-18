@@ -126,7 +126,7 @@ export default async function TransferRoutePage({ params }: PageProps) {
       <JsonLd data={serviceJsonLd} />
       {faqJsonLd ? <JsonLd data={faqJsonLd} /> : null}
 
-      <header className="relative isolate -mt-24 min-h-[58vh] overflow-hidden">
+      <header className="relative isolate -mt-24 min-h-[78vh] overflow-hidden sm:min-h-[58vh]">
         <Image
           src={route.heroImageUrl}
           alt={`Private transfer from Tirana Airport to ${route.destinationName}`}
@@ -137,7 +137,7 @@ export default async function TransferRoutePage({ params }: PageProps) {
           className="object-cover object-center"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-brand-panel/95 via-brand-panel/50 to-brand-panel/25" />
-        <MarketingContainer className="relative z-10 flex min-h-[58vh] flex-col justify-end py-12 pb-[max(3.5rem,env(safe-area-inset-bottom))] text-white">
+        <MarketingContainer className="relative z-10 flex min-h-[78vh] flex-col justify-end py-12 pb-[max(3.5rem,env(safe-area-inset-bottom))] text-white sm:min-h-[58vh]">
           <nav aria-label="Breadcrumb" className="mb-3">
             <ol className="flex flex-wrap items-center gap-1.5 text-xs font-semibold text-white/80">
               <li>
