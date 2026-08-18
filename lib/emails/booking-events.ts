@@ -75,6 +75,8 @@ const bookingSelect = {
   passengerPhone: true,
   passengerNoEmail: true,
   bookerRelation: true,
+  isRoundTrip: true,
+  roundTripId: true,
   customerId: true,
   driverId: true,
   customer: {
@@ -118,6 +120,8 @@ type BookingEmailRow = {
   passengerPhone: string | null
   passengerNoEmail: boolean
   bookerRelation: string | null
+  isRoundTrip: boolean
+  roundTripId: string | null
   customerId: string
   driverId: string | null
   customer: {
@@ -145,6 +149,144 @@ async function loadBooking(bookingId: string): Promise<BookingEmailRow | null> {
     where: { id: bookingId },
     select: bookingSelect,
   }) as Promise<BookingEmailRow | null>
+}
+
+/**
+ * Primary booking plus round-trip siblings (earliest pickup first).
+ * One-way trips return a single-leg array.
+ */
+async function loadTripLegs(
+  booking: BookingEmailRow,
+): Promise<BookingEmailRow[]> {
+  if (!booking.roundTripId) return [booking]
+  const legs = (await prisma.booking.findMany({
+    where: {
+      roundTripId: booking.roundTripId,
+      customerId: booking.customerId,
+      status: { not: "cancelled" },
+    },
+    select: bookingSelect,
+    orderBy: { pickupDateTime: "asc" },
+  })) as BookingEmailRow[]
+  return legs.length > 0 ? legs : [booking]
+}
+
+function sumMoneyField(
+  legs: BookingEmailRow[],
+  field: "totalPrice" | "depositPaid" | "balanceDue",
+): number {
+  return Number(
+    legs
+      .reduce((sum, leg) => sum + Number(leg[field]), 0)
+      .toFixed(2),
+  )
+}
+
+function tripReferenceLabel(legs: BookingEmailRow[]): string {
+  return legs.map((leg) => leg.referenceCode).join(" + ")
+}
+
+function legDetailRows(leg: BookingEmailRow, label: string): string {
+  return [
+    detailRow("Leg", label),
+    detailRow("Reference", leg.referenceCode),
+    leg.pickupPin ? detailRow("Pickup PIN", leg.pickupPin) : "",
+    detailRow("Pickup", leg.pickupAddress),
+    detailRow("Drop-off", leg.dropoffAddress),
+    detailRow("When", formatWhen(leg.pickupDateTime)),
+    leg.flightNumber ? detailRow("Flight", leg.flightNumber) : "",
+    detailRow(
+      "Leg fare",
+      money(Number(leg.totalPrice), leg.currency),
+    ),
+  ].join("")
+}
+
+function legDetailTextLines(leg: BookingEmailRow, label: string): string[] {
+  return [
+    `${label}:`,
+    `  Reference: ${leg.referenceCode}`,
+    leg.pickupPin ? `  Pickup PIN: ${leg.pickupPin}` : null,
+    `  Pickup: ${leg.pickupAddress}`,
+    `  Drop-off: ${leg.dropoffAddress}`,
+    `  When: ${formatWhen(leg.pickupDateTime)}`,
+    leg.flightNumber ? `  Flight: ${leg.flightNumber}` : null,
+    `  Leg fare: ${money(Number(leg.totalPrice), leg.currency)}`,
+  ].filter((line): line is string => Boolean(line))
+}
+
+/** Shared + per-leg rows for confirmation emails (one-way or round trip). */
+function tripCustomerRows(legs: BookingEmailRow[]): string {
+  const primary = legs[0]!
+  if (legs.length === 1) return baseCustomerRows(primary)
+
+  return [
+    detailRow("Trip", "Round trip"),
+    detailRow("Vehicle", vehicleLabel(primary.vehicleType)),
+    detailRow("Passengers", String(primary.passengerCount)),
+    detailRow("Luggage", String(primary.luggageCount)),
+    passengerEmailRows(primary),
+    legDetailRows(legs[0]!, "Outbound"),
+    legDetailRows(legs[1]!, "Return"),
+    ...legs.slice(2).map((leg, i) => legDetailRows(leg, `Leg ${i + 3}`)),
+  ].join("")
+}
+
+function tripCustomerTextLines(legs: BookingEmailRow[]): string[] {
+  const primary = legs[0]!
+  if (legs.length === 1) return baseCustomerTextLines(primary)
+
+  return [
+    "Trip: Round trip",
+    `Vehicle: ${vehicleLabel(primary.vehicleType)}`,
+    `Passengers: ${primary.passengerCount}`,
+    `Luggage: ${primary.luggageCount}`,
+    ...passengerEmailTextLines(primary),
+    "",
+    ...legDetailTextLines(legs[0]!, "Outbound"),
+    "",
+    ...legDetailTextLines(legs[1]!, "Return"),
+    ...legs.slice(2).flatMap((leg, i) => [
+      "",
+      ...legDetailTextLines(leg, `Leg ${i + 3}`),
+    ]),
+  ]
+}
+
+function tripPriceRows(legs: BookingEmailRow[]): string {
+  const primary = legs[0]!
+  const cashOnArrival = isCashOnArrivalBooking(primary)
+  const currency = primary.currency
+  if (legs.length === 1) return priceRows(primary)
+
+  return [
+    detailRow("Trip total", money(sumMoneyField(legs, "totalPrice"), currency)),
+    cashOnArrival
+      ? ""
+      : detailRow(
+          "Paid",
+          money(sumMoneyField(legs, "depositPaid"), currency),
+        ),
+    detailRow(
+      "Balance due",
+      money(sumMoneyField(legs, "balanceDue"), currency),
+    ),
+  ].join("")
+}
+
+function tripPriceTextLines(legs: BookingEmailRow[]): string[] {
+  const primary = legs[0]!
+  const cashOnArrival = isCashOnArrivalBooking(primary)
+  const currency = primary.currency
+  if (legs.length === 1) return priceTextLines(primary)
+
+  return [
+    `Trip total: ${money(sumMoneyField(legs, "totalPrice"), currency)}`,
+    cashOnArrival
+      ? null
+      : `Paid: ${money(sumMoneyField(legs, "depositPaid"), currency)}`,
+    `Balance due: ${money(sumMoneyField(legs, "balanceDue"), currency)}`,
+  ].filter((line): line is string => Boolean(line))
 }
 
 async function logAndSend(input: {
@@ -324,6 +466,34 @@ function adminCustomerRows(booking: BookingEmailRow): string {
   ].join("")
 }
 
+/**
+ * Confirmation trip snapshot (legs + combined totals + text body).
+ * Exported for QA scripts — same data used by confirmation emails.
+ */
+export async function getConfirmationTripSnapshot(bookingId: string) {
+  const booking = await loadBooking(bookingId)
+  if (!booking) return null
+  const legs = await loadTripLegs(booking)
+  return {
+    bookingId: booking.id,
+    customerId: booking.customerId,
+    roundTripId: booking.roundTripId,
+    isRoundTrip: legs.length > 1,
+    references: legs.map((leg) => leg.referenceCode),
+    legIds: legs.map((leg) => leg.id),
+    customerIds: [...new Set(legs.map((leg) => leg.customerId))],
+    pickupAddresses: legs.map((leg) => leg.pickupAddress),
+    tripTotal: sumMoneyField(legs, "totalPrice"),
+    depositPaid: sumMoneyField(legs, "depositPaid"),
+    balanceDue: sumMoneyField(legs, "balanceDue"),
+    textBody: [
+      ...tripCustomerTextLines(legs),
+      "",
+      ...tripPriceTextLines(legs),
+    ].join("\n"),
+  }
+}
+
 /** Sends customer confirmation first, then admin alert (sequential for shared SMTP hosts). */
 export async function sendBookingConfirmationEmail(
   bookingId: string,
@@ -358,17 +528,25 @@ export async function sendCustomerBookingConfirmation(
     const booking = await loadBooking(bookingId)
     if (!booking?.customer.email) return { sent: false }
 
+    const legs = await loadTripLegs(booking)
+    const isRoundTrip = legs.length > 1
+    const refs = tripReferenceLabel(legs)
     const company = companyName(settings)
     const manageUrl = manageBookingUrl()
     const cashOnArrival = isCashOnArrivalBooking(booking)
-    const subject = `Booking confirmed — ${booking.referenceCode}`
+    const subject = isRoundTrip
+      ? `Round trip confirmed — ${refs}`
+      : `Booking confirmed — ${booking.referenceCode}`
     const text = [
       `Hi ${booking.customer.name},`,
       "",
-      `Your transfer with ${company} is confirmed.`,
+      isRoundTrip
+        ? `Your round-trip transfer with ${company} is confirmed.`
+        : `Your transfer with ${company} is confirmed.`,
       "",
-      ...baseCustomerTextLines(booking),
-      ...priceTextLines(booking),
+      ...tripCustomerTextLines(legs),
+      "",
+      ...tripPriceTextLines(legs),
       "",
       ...(cashOnArrival
         ? [
@@ -387,12 +565,20 @@ export async function sendCustomerBookingConfirmation(
       company,
       eyebrow: "Confirmed",
       tone: "success",
-      preheader: `Booking ${booking.referenceCode} is confirmed`,
-      title: "Your transfer is booked",
-      introHtml: `Hi ${escapeHtml(booking.customer.name)}, thanks for choosing <strong>${escapeHtml(company)}</strong>. Your ride details are below.`,
+      preheader: isRoundTrip
+        ? `Round trip ${refs} is confirmed`
+        : `Booking ${booking.referenceCode} is confirmed`,
+      title: isRoundTrip
+        ? "Your round trip is booked"
+        : "Your transfer is booked",
+      introHtml: `Hi ${escapeHtml(booking.customer.name)}, thanks for choosing <strong>${escapeHtml(company)}</strong>. ${
+        isRoundTrip
+          ? "Your outbound and return ride details are below."
+          : "Your ride details are below."
+      }`,
       rowsHtml:
-        baseCustomerRows(booking) +
-        priceRows(booking) +
+        tripCustomerRows(legs) +
+        tripPriceRows(legs) +
         (cashOnArrival
           ? detailRow(
               "Payment",
@@ -434,14 +620,22 @@ export async function sendAdminNewBooking(
     const booking = await loadBooking(bookingId)
     if (!booking) return { sent: false }
 
+    const legs = await loadTripLegs(booking)
+    const isRoundTrip = legs.length > 1
+    const refs = tripReferenceLabel(legs)
     const link = adminBookingUrl(booking.id)
-    const subject = `New booking — ${booking.referenceCode}`
+    const subject = isRoundTrip
+      ? `New round trip — ${refs}`
+      : `New booking — ${booking.referenceCode}`
     const text = [
-      `New booking ${booking.referenceCode}`,
+      isRoundTrip
+        ? `New round trip ${refs}`
+        : `New booking ${booking.referenceCode}`,
       "",
       `Customer: ${booking.customer.name} (${booking.customer.email}, ${booking.customer.phone})`,
-      ...baseCustomerTextLines(booking),
-      `Total: ${money(Number(booking.totalPrice), booking.currency)}`,
+      ...tripCustomerTextLines(legs),
+      "",
+      ...tripPriceTextLines(legs),
       "",
       `Open: ${link}`,
     ].join("\n")
@@ -450,13 +644,17 @@ export async function sendAdminNewBooking(
       company: companyName(settings),
       eyebrow: "Ops alert",
       tone: "default",
-      preheader: `New booking ${booking.referenceCode}`,
-      title: "New booking received",
-      introHtml: `A customer just confirmed a transfer. Review and assign a driver when ready.`,
+      preheader: isRoundTrip
+        ? `New round trip ${refs}`
+        : `New booking ${booking.referenceCode}`,
+      title: isRoundTrip ? "New round trip received" : "New booking received",
+      introHtml: isRoundTrip
+        ? `A customer just confirmed a round-trip transfer (${escapeHtml(refs)}). Review and assign drivers when ready.`
+        : `A customer just confirmed a transfer. Review and assign a driver when ready.`,
       rowsHtml:
         adminCustomerRows(booking) +
-        baseCustomerRows(booking) +
-        priceRows(booking),
+        tripCustomerRows(legs) +
+        tripPriceRows(legs),
       cta: { href: link, label: "Open in admin" },
       footer: `Ops inbox · ${getAppBaseUrl()}`,
     })

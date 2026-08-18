@@ -12,6 +12,7 @@
     "test:i18n-pack": "tsx scripts/qa-i18n-pack.ts",
     "test:destination-sheet": "tsx scripts/qa-destination-sheet-scroll.ts",
     "test:booking": "tsx scripts/smoke-booking-flow.ts",
+    "test:roundtrip-email": "tsx scripts/qa-roundtrip-email.ts",
     "admin:create": "tsx scripts/create-admin.ts",
     "docker:up": "docker compose up --build",
     "docker:down": "docker compose down",

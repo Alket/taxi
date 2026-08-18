@@ -175,6 +175,18 @@ async function generateUniqueReferenceCode(): Promise<string> {
   throw new Error("Failed to generate a unique reference code.")
 }
 
+async function generateUniqueRoundTripId(): Promise<string> {
+  for (let i = 0; i < 10; i++) {
+    const id = `rtrip_${generateReferenceCode()}`
+    const exists = await prisma.booking.findFirst({
+      where: { roundTripId: id },
+      select: { id: true },
+    })
+    if (!exists) return id
+  }
+  throw new Error("Failed to generate a unique round-trip id.")
+}
+
 async function generateUniquePickupPin(): Promise<string> {
   for (let i = 0; i < 20; i++) {
     const pin = generatePickupPin()
@@ -444,7 +456,7 @@ export async function createBookingsFromInput(
   }
 
   const isRoundTrip = input.isRoundTrip
-  const roundTripId = isRoundTrip ? `rtrip_${generateReferenceCode()}` : null
+  const roundTripId = isRoundTrip ? await generateUniqueRoundTripId() : null
 
   const createdBookings: CreatedBookingSummary[] = []
 
