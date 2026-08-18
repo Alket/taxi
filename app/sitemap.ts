@@ -101,5 +101,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     addPath("/blog", { changeFrequency: "weekly", priority: 0.7 })
   }
 
+  // Transfer landing pages (built-in seeds + CMS-only routes).
+  try {
+    const { listTransferRouteSlugs } = await import("@/lib/transfers/routes")
+    for (const slug of await listTransferRouteSlugs()) {
+      addPath(`/transfers/${slug}`, {
+        lastModified: now,
+        changeFrequency: "weekly",
+        priority: 0.9,
+      })
+    }
+  } catch {
+    // Omit transfers if route resolution fails; other sitemap entries still ship.
+  }
+
   return entries
 }
