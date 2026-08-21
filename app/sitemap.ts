@@ -39,9 +39,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified?: Date
       changeFrequency?: MetadataRoute.Sitemap[number]["changeFrequency"]
       priority?: number
+      /** When true, only the English URL is listed (untranslated pages). */
+      englishOnly?: boolean
     },
   ) {
-    for (const locale of LOCALES) {
+    const locales = options?.englishOnly ? (["en"] as const) : LOCALES
+    for (const locale of locales) {
       entries.push({
         url: `${baseUrl}${localePath(path, locale)}`,
         lastModified: options?.lastModified ?? now,
@@ -102,6 +105,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }
 
   // Transfer landing pages (built-in seeds + CMS-only routes).
+  // English-only in sitemap until transfer body copy is localized — avoids
+  // GSC "duplicate / Google chose different canonical" on /it|/ru|/de variants.
   try {
     const { listTransferRouteSlugs } = await import("@/lib/transfers/routes")
     for (const slug of await listTransferRouteSlugs()) {
@@ -109,6 +114,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         lastModified: now,
         changeFrequency: "weekly",
         priority: 0.9,
+        englishOnly: true,
       })
     }
   } catch {

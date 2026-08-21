@@ -1567,8 +1567,21 @@ export async function resolveDestinationCards(
           : customRows.find(
               (r) => r.slug === row.slug && r.locale === DEFAULT_LOCALE,
             )
+      const card = destinationFromPage(id, page)
+      // Fares are EN-canonical — never show a translated/stale locale price.
+      if (enRow && row.locale !== DEFAULT_LOCALE) {
+        const enDoc = parseDestinationDocument(enRow.sections, {
+          id,
+          title: enRow.title,
+          description: enRow.description,
+          ogImage: enRow.ogImage,
+        })
+        if (enDoc?.meta.priceFrom) {
+          card.priceFrom = enDoc.meta.priceFrom
+        }
+      }
       return {
-        card: destinationFromPage(id, page),
+        card,
         featured: isDestinationFeatured(
           enRow?.sections ?? row.sections,
         ),

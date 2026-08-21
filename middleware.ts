@@ -77,7 +77,15 @@ function applyPublicLocale(request: NextRequest): NextResponse | null {
 }
 
 export async function middleware(request: NextRequest) {
-  const path = normalizePath(request.nextUrl.pathname)
+  const rawPath = request.nextUrl.pathname
+  const path = normalizePath(rawPath)
+
+  // Broken URL indexed by Google (`/$`) → home.
+  if (path === "/$" || rawPath === "/$" || rawPath === "/%24") {
+    const url = request.nextUrl.clone()
+    url.pathname = "/"
+    return NextResponse.redirect(url, 308)
+  }
 
   // ── Public locale handling (marketing + booking chrome) ────────
   const localeResponse = applyPublicLocale(request)

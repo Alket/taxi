@@ -691,7 +691,7 @@ export function destinationDocumentToTextMap(
   const out: Record<string, DestinationTextFields> = {
     "meta.region": { body: doc.meta.region },
     "meta.badge": { body: doc.meta.badge },
-    "meta.priceFrom": { body: doc.meta.priceFrom },
+    // priceFrom is EN-canonical (not localized via i18n packs).
     "meta.travelTime": { body: doc.meta.travelTime },
     "meta.primaryKeyword": { body: doc.meta.primaryKeyword },
   }
@@ -769,12 +769,11 @@ export function applyTextMapToDestinationDocument(
   const meta = { ...template.meta }
   const region = textByKey["meta.region"]?.body
   const badge = textByKey["meta.badge"]?.body
-  const priceFrom = textByKey["meta.priceFrom"]?.body
   const travelTime = textByKey["meta.travelTime"]?.body
   const primaryKeyword = textByKey["meta.primaryKeyword"]?.body
   if (typeof region === "string") meta.region = region
   if (typeof badge === "string") meta.badge = badge
-  if (typeof priceFrom === "string") meta.priceFrom = priceFrom
+  // priceFrom stays on the EN template — fares are not translated.
   if (typeof travelTime === "string") meta.travelTime = travelTime
   if (typeof primaryKeyword === "string") meta.primaryKeyword = primaryKeyword
 
@@ -869,8 +868,9 @@ export function mergeDestinationDocuments(
       ...merged.meta,
       title: localized.meta.title.trim() || base.meta.title,
       description: localized.meta.description.trim() || base.meta.description,
-      // Slug / currency / distanceKm stay on EN (canonical).
+      // Slug / price / currency / distanceKm stay on EN (canonical).
       slug: base.meta.slug,
+      priceFrom: base.meta.priceFrom,
       priceCurrency: base.meta.priceCurrency || "EUR",
       distanceKm: base.meta.distanceKm,
       canonicalUrl: base.meta.canonicalUrl,

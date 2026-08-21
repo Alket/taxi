@@ -29,8 +29,6 @@ export async function generateMetadata({
   const locale = await getRequestLocale()
   const { category } = await searchParams
   const filter = parseBlogFilter(category)
-  const path =
-    filter === "all" ? "/blog" : `/blog?category=${filter}`
   const [page, posts] = await Promise.all([
     resolvePageContent("blog", locale),
     listBlogPostsFromCms(locale),
@@ -51,14 +49,19 @@ export async function generateMetadata({
     description:
       page?.description ||
       "TIA transit tips, destination routes, and fixed-price airport transfer guides for Albania travellers.",
-    alternates: localizedAlternates(path, locale),
+    // Category filters are UI state over the same archive — canonicalize to /blog
+    // so Google doesn't treat ?category= as a separate duplicate page.
+    alternates: localizedAlternates("/blog", locale),
+    ...(filter !== "all"
+      ? { robots: { index: false, follow: true } }
+      : {}),
     openGraph: {
       title:
         page?.title || "Albania Airport Transport & Travel Guides",
       description:
         page?.description ||
         "Practical Tirana Airport guides—routes, meet & greet, and fixed-price transfers.",
-      url: `${base}${localePath(path, locale)}`,
+      url: `${base}${localePath("/blog", locale)}`,
       type: "website",
       ...(ogImage
         ? {

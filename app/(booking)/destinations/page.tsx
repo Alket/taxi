@@ -18,12 +18,26 @@ type PageProps = {
   searchParams: Promise<{ page?: string }>
 }
 
+function destinationsArchivePath(page: number) {
+  return page <= 1 ? "/destinations" : `/destinations?page=${page}`
+}
+
 export async function generateMetadata({
   searchParams,
 }: PageProps): Promise<Metadata> {
   const locale = await getRequestLocale()
   const { page: pageParam } = await searchParams
-  const path = pageParam ? `/destinations?page=${pageParam}` : "/destinations"
+  const destinations = await resolveDestinationCards(locale)
+  const totalPages = Math.max(
+    1,
+    Math.ceil(destinations.length / DESTINATIONS_PAGE_SIZE),
+  )
+  const parsed = Number.parseInt(pageParam ?? "1", 10)
+  const requested = Number.isFinite(parsed) && parsed > 0 ? parsed : 1
+  // Out-of-range / page=1 → canonical on the clean archive URL (matches redirect).
+  const page =
+    requested > totalPages || requested <= 1 ? 1 : requested
+  const path = destinationsArchivePath(page)
 
   return {
     title: t(locale, "destinations.archiveTitle"),
@@ -44,13 +58,10 @@ export default async function DestinationsArchivePage({
   const parsed = Number.parseInt(pageParam ?? "1", 10)
   const requested = Number.isFinite(parsed) && parsed > 0 ? parsed : 1
 
-  if (requested > totalPages) {
-    redirect(
-      localePath(
-        totalPages <= 1 ? "/destinations" : `/destinations?page=${totalPages}`,
-        locale,
-      ),
-    )
+  // Invalid or legacy high page numbers (e.g. ?page=3 after catalog shrank)
+  // → clean archive, not another paginated URL. Also strip ?page=1.
+  if (pageParam != null && (requested <= 1 || requested > totalPages)) {
+    redirect(localePath("/destinations", locale))
   }
 
   const page = requested

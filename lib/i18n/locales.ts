@@ -72,6 +72,23 @@ export function localizedAlternates(path: string, locale: Locale) {
   }
 }
 
+/**
+ * Alternates for pages whose body is still English-only (e.g. transfer seeds).
+ * Non-EN URLs must not claim to be unique language versions — that causes
+ * Search Console "Duplicate, Google chose different canonical than user".
+ * Canonical + hreflang point at the English URL until real translations ship.
+ */
+export function englishOnlyAlternates(path: string) {
+  const en = localePath(path, DEFAULT_LOCALE)
+  return {
+    canonical: en,
+    languages: {
+      en,
+      "x-default": en,
+    },
+  }
+}
+
 /** Detect locale from a pathname (`/it/foo` → it, `/foo` → en). */
 export function localeFromPathname(pathname: string): Locale {
   const first = pathname.split("/").filter(Boolean)[0]

@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Image from "next/image"
 import Link from "next/link"
-import { notFound } from "next/navigation"
+import { notFound, redirect } from "next/navigation"
 
 import { HashLink } from "@/components/marketing/hash-link"
 import { BlogFaq } from "@/components/marketing/blog/blog-faq"
@@ -17,6 +17,7 @@ import {
   getDestinationMore,
   getDestinationRoute,
 } from "@/lib/destination-document"
+import { DESTINATION_SLUG_ALIASES } from "@/lib/destinations"
 import { getRequestLocale } from "@/lib/i18n/get-locale"
 import { localePath, localizedAlternates } from "@/lib/i18n/locales"
 import { t } from "@/lib/i18n/t"
@@ -48,6 +49,10 @@ export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
   const { slug } = await params
+  const aliasTarget = DESTINATION_SLUG_ALIASES[slug.toLowerCase()]
+  if (aliasTarget && aliasTarget !== slug) {
+    return {}
+  }
   const locale = await getRequestLocale()
   const destination = await resolveDestination(slug, locale)
   if (destination) {
@@ -104,6 +109,12 @@ export async function generateMetadata({
 export default async function DestinationPage({ params }: PageProps) {
   const { slug } = await params
   const locale = await getRequestLocale()
+
+  const aliasTarget = DESTINATION_SLUG_ALIASES[slug.toLowerCase()]
+  if (aliasTarget && aliasTarget !== slug) {
+    redirect(localePath(`/destinations/${aliasTarget}`, locale))
+  }
+
   const destination = await resolveDestination(slug, locale)
   if (!destination) notFound()
 

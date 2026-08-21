@@ -15,6 +15,43 @@ const nextConfig = {
       { protocol: "https", hostname: "www.welcomepickups.com" },
     ],
   },
+  async redirects() {
+    const locale = "it|de|pl|tr|uk|ru"
+    return [
+      // Dual-spelling / legacy destination URLs → canonical CMS slugs.
+      {
+        source: "/destinations/saranda",
+        destination: "/destinations/sarande",
+        permanent: true,
+      },
+      {
+        source: `/:locale(${locale})/destinations/saranda`,
+        destination: "/:locale/destinations/sarande",
+        permanent: true,
+      },
+      {
+        source: "/destinations/vlora",
+        destination: "/destinations/vlore",
+        permanent: true,
+      },
+      {
+        source: `/:locale(${locale})/destinations/vlora`,
+        destination: "/:locale/destinations/vlore",
+        permanent: true,
+      },
+      // Broken URL picked up by Google Search Console.
+      {
+        source: "/\\$",
+        destination: "/",
+        permanent: true,
+      },
+      {
+        source: `/:locale(${locale})/\\$`,
+        destination: "/:locale",
+        permanent: true,
+      },
+    ]
+  },
   async rewrites() {
     return [
       {

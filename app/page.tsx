@@ -20,18 +20,36 @@ import {
 /** Always read live CMS content (destination cards, homepage copy). */
 export const dynamic = "force-dynamic"
 
-export async function generateMetadata(): Promise<Metadata> {
+type PageProps = {
+  searchParams: Promise<{ destination?: string }>
+}
+
+export async function generateMetadata({
+  searchParams,
+}: PageProps): Promise<Metadata> {
   const locale = await getRequestLocale()
+  const { destination } = await searchParams
+  const hasDestinationPrefill = Boolean(destination?.trim())
   const page = await resolvePageContent("home", locale)
-  if (!page) {
-    return {
-      title: "Albania Transfers · Airport transfers",
-      description:
-        "Book reliable airport transfers across Albania. Fixed prices, vetted drivers, clear cancellation terms.",
-      alternates: localizedAlternates("/", locale),
-    }
+
+  const base: Metadata = page
+    ? pageMetadataFields(page)
+    : {
+        title: "Albania Transfers · Airport transfers",
+        description:
+          "Book reliable airport transfers across Albania. Fixed prices, vetted drivers, clear cancellation terms.",
+        alternates: localizedAlternates("/", locale),
+      }
+
+  // Booking deep-links (?destination=ksamil) share homepage content — always
+  // canonicalize to clean `/` and keep query URLs out of the index.
+  return {
+    ...base,
+    alternates: localizedAlternates("/", locale),
+    ...(hasDestinationPrefill
+      ? { robots: { index: false, follow: true } }
+      : {}),
   }
-  return pageMetadataFields(page)
 }
 
 export default async function HomePage() {

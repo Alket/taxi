@@ -11,7 +11,11 @@ import {
 } from "@/components/marketing/marketing-container"
 import { BRAND_CLAIMS } from "@/lib/constants/brand"
 import { getRequestLocale } from "@/lib/i18n/get-locale"
-import { localePath, localizedAlternates } from "@/lib/i18n/locales"
+import {
+  DEFAULT_LOCALE,
+  englishOnlyAlternates,
+  localePath,
+} from "@/lib/i18n/locales"
 import { t } from "@/lib/i18n/t"
 import {
   getRelatedRoutes,
@@ -59,7 +63,9 @@ export async function generateMetadata({
   const destLabel = routeDestinationLabel(route)
   const description = `Book a direct private transfer from Tirana Airport (TIA) to ${destLabel}. Guaranteed €${route.priceEur} flat rate, live flight tracking, €0 deposit—pay cash on arrival. Private driver Tirana Airport pickup with fixed taxi rate TIA pricing.`
   const path = `/transfers/${route.slug}`
-  const alternates = localizedAlternates(path, locale)
+  // Transfer copy is English-only today. Self-canonical on /ru|/it|/de… made Google
+  // treat them as duplicates and pick EN instead — align signals with EN.
+  const alternates = englishOnlyAlternates(path)
 
   return {
     title,
@@ -69,6 +75,7 @@ export async function generateMetadata({
       title,
       description,
       url: alternates.canonical,
+      locale: locale === DEFAULT_LOCALE ? "en_US" : undefined,
       images: [
         {
           url: route.heroImageUrl,
@@ -95,7 +102,8 @@ export default async function TransferRoutePage({ params }: PageProps) {
 
   const related = await getRelatedRoutes(route.slug, 3)
   const path = `/transfers/${route.slug}`
-  const pageUrl = localePath(path, locale)
+  // Prefer EN URL in structured data to match the English-only canonical.
+  const pageUrl = localePath(path, DEFAULT_LOCALE)
   const ctaHref = bookHref(route, locale)
 
   const homeLabel = t(locale, "nav.home") || "Home"

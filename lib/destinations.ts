@@ -145,6 +145,15 @@ export function getDestination(id: string) {
   return DESTINATIONS.find((d) => d.id === id) ?? null
 }
 
+/**
+ * Legacy / dual-spelling public URL segments → canonical destination slug.
+ * Used for 301 redirects from old Google-indexed URLs.
+ */
+export const DESTINATION_SLUG_ALIASES: Record<string, string> = {
+  saranda: "sarande",
+  vlora: "vlore",
+}
+
 export function slugifyDestinationId(raw: string): string {
   return raw
     .toLowerCase()
