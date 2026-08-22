@@ -7,6 +7,7 @@ import {
   ArrowDown,
   ArrowLeft,
   ArrowUp,
+  Braces,
   FolderOpen,
   ImagePlus,
   Plus,
@@ -15,6 +16,7 @@ import {
 import { toast } from "sonner"
 
 import { MediaPickerDialog } from "@/components/admin/media-picker-dialog"
+import { BlogJsonDialog } from "@/components/admin/blog-json-dialog"
 import { DestinationDocumentEditor } from "@/components/admin/destination-document-editor"
 import { PageHeader } from "@/components/admin/page-header"
 import { Button } from "@/components/ui/button"
@@ -689,6 +691,7 @@ export function PageEditorView({ slug }: { slug: string }) {
   const [catalogDialog, setCatalogDialog] = useState<
     null | "categories" | "authors"
   >(null)
+  const [blogJsonOpen, setBlogJsonOpen] = useState(false)
   const { catalog, setCatalog } = useBlogCatalog()
 
   const load = useCallback(
@@ -1240,6 +1243,19 @@ export function PageEditorView({ slug }: { slug: string }) {
                   : canDelete
                     ? "Delete"
                     : "Reset defaults"}
+              </Button>
+            ) : null}
+            {isBlogSlug(page.slug) ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-10 w-full touch-manipulation gap-1.5 sm:h-8 sm:w-auto"
+                disabled={saving || deleting}
+                onClick={() => setBlogJsonOpen(true)}
+              >
+                <Braces className="size-3.5" />
+                JSON
               </Button>
             ) : null}
             <Button
@@ -2266,6 +2282,16 @@ export function PageEditorView({ slug }: { slug: string }) {
           initial={catalog}
           mode={catalogDialog === "authors" ? "authors" : "categories"}
           onSaved={(next) => setCatalog(next)}
+        />
+      ) : null}
+
+      {isBlogPage ? (
+        <BlogJsonDialog
+          open={blogJsonOpen}
+          onOpenChange={setBlogJsonOpen}
+          page={page}
+          locale={locale}
+          onApply={(next) => setPage(next)}
         />
       ) : null}
     </>

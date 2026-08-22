@@ -19,6 +19,8 @@
     "docker:dev": "docker compose -f docker-compose.dev.yml up --build",
     "test:destinations": "tsx scripts/qa-destinations.ts",
     "test:blog": "tsx scripts/qa-blog.ts",
+    "test:blog-json": "tsx scripts/qa-blog-json.ts",
+    "blog:upsert": "tsx scripts/upsert-blog-post.ts",
     "test:admin-pages": "tsx scripts/qa-admin-pages.ts"
   },
   "dependencies": {

@@ -39,3 +39,17 @@ export {
   isBlogCategoryId,
   parseBlogFilter,
 } from "@/lib/blog/posts"
+export {
+  blogPostJsonSchema,
+  parseBlogPostJson,
+  parseBlogPostJsonText,
+  safeParseBlogPostJson,
+  BLOG_JSON_TEXT_MAX,
+  BLOG_JSON_MAX_BLOCKS,
+  BLOG_JSON_MAX_FAQ,
+  type BlogPostJson,
+} from "@/lib/blog/blog-post-schema"
+export {
+  applyBlogPostJsonToPage,
+  type ApplyBlogPostJsonResult,
+} from "@/lib/blog/apply-blog-post-json"
