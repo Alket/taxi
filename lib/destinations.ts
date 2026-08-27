@@ -152,6 +152,11 @@ export function getDestination(id: string) {
 export const DESTINATION_SLUG_ALIASES: Record<string, string> = {
   saranda: "sarande",
   vlora: "vlore",
+  // Localized / alternate spellings often typed or linked from IT/other locales.
+  scutari: "shkoder",
+  shkodra: "shkoder",
+  durazzo: "durres",
+  valona: "vlore",
 }
 
 export function slugifyDestinationId(raw: string): string {

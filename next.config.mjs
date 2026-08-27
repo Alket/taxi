@@ -17,28 +17,30 @@ const nextConfig = {
   },
   async redirects() {
     const locale = "it|de|pl|tr|uk|ru"
+    const destAliases = [
+      ["saranda", "sarande"],
+      ["vlora", "vlore"],
+      ["scutari", "shkoder"],
+      ["shkodra", "shkoder"],
+      ["durazzo", "durres"],
+      ["valona", "vlore"],
+    ]
+
+    const destinationRedirects = destAliases.flatMap(([from, to]) => [
+      {
+        source: `/destinations/${from}`,
+        destination: `/destinations/${to}`,
+        permanent: true,
+      },
+      {
+        source: `/:locale(${locale})/destinations/${from}`,
+        destination: `/:locale/destinations/${to}`,
+        permanent: true,
+      },
+    ])
+
     return [
-      // Dual-spelling / legacy destination URLs → canonical CMS slugs.
-      {
-        source: "/destinations/saranda",
-        destination: "/destinations/sarande",
-        permanent: true,
-      },
-      {
-        source: `/:locale(${locale})/destinations/saranda`,
-        destination: "/:locale/destinations/sarande",
-        permanent: true,
-      },
-      {
-        source: "/destinations/vlora",
-        destination: "/destinations/vlore",
-        permanent: true,
-      },
-      {
-        source: `/:locale(${locale})/destinations/vlora`,
-        destination: "/:locale/destinations/vlore",
-        permanent: true,
-      },
+      ...destinationRedirects,
       // Broken URL picked up by Google Search Console.
       {
         source: "/\\$",
