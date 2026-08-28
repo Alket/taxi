@@ -1,29 +1,29 @@
 import { NextResponse } from "next/server"
-import { z } from "zod"
 
 import {
   createDriverSession,
+  findDriverForLoginPhone,
   normalizePhone,
   verifyDriverPin,
 } from "@/lib/driver-auth"
+import { driverLoginSchema } from "@/lib/driver-login-schema"
 import { prisma } from "@/lib/db"
 import { serializeDriver } from "@/lib/drivers"
-
-const loginSchema = z.object({
-  phone: z.string().trim().min(1),
-  pin: z.string().trim().min(4).max(12),
-})
 
 const INVALID = "Invalid phone or PIN."
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null)
-  const parsed = loginSchema.safeParse(body)
+  const parsed = driverLoginSchema.safeParse(body)
   if (!parsed.success) {
     return NextResponse.json({ error: INVALID }, { status: 400 })
   }
 
   const phoneNorm = normalizePhone(parsed.data.phone)
+  if (!phoneNorm) {
+    return NextResponse.json({ error: INVALID }, { status: 400 })
+  }
+
   const drivers = await prisma.driver.findMany({
     where: { active: true, pinHash: { not: null } },
     select: {
@@ -42,11 +42,7 @@ export async function POST(request: Request) {
     },
   })
 
-  const driver = drivers.find(
-    (d) =>
-      normalizePhone(d.phone) === phoneNorm ||
-      normalizePhone(d.whatsappNumber) === phoneNorm,
-  )
+  const driver = findDriverForLoginPhone(drivers, parsed.data.phone)
 
   if (!driver?.pinHash) {
     return NextResponse.json({ error: INVALID }, { status: 401 })

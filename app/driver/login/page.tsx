@@ -72,13 +72,14 @@ export default function DriverLoginPage() {
           <Input
             id="pin"
             type="password"
-            inputMode="numeric"
             value={pin}
             onChange={(e) => setPin(e.target.value)}
-            placeholder="••••"
+            placeholder="Letters & numbers"
             autoComplete="current-password"
             required
             minLength={4}
+            maxLength={12}
+            spellCheck={false}
           />
         </div>
 

@@ -20,6 +20,7 @@
     "test:destinations": "tsx scripts/qa-destinations.ts",
     "test:blog": "tsx scripts/qa-blog.ts",
     "test:blog-json": "tsx scripts/qa-blog-json.ts",
+    "test:driver-login": "tsx scripts/qa-driver-login.ts",
     "blog:upsert": "tsx scripts/upsert-blog-post.ts",
     "test:admin-pages": "tsx scripts/qa-admin-pages.ts"
   },

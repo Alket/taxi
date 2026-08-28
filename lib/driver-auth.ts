@@ -84,9 +84,25 @@ export async function requireDriverSession(): Promise<
   return { driver }
 }
 
-/** Normalize phone for loose matching (digits only, keep leading +). */
+/** Normalize phone for loose matching (digits only; leading + ignored). */
 export function normalizePhone(phone: string): string {
-  const trimmed = phone.trim()
-  const digits = trimmed.replace(/[^\d+]/g, "")
-  return digits
+  return phone.trim().replace(/\D/g, "")
 }
+
+/**
+ * Pick the best driver for a login phone.
+ * Prefer exact `phone` match over `whatsappNumber` so a shared WhatsApp
+ * number cannot steal another driver's login.
+ */
+export function findDriverForLoginPhone<
+  T extends { phone: string; whatsappNumber: string },
+>(drivers: T[], rawPhone: string): T | undefined {
+  const phoneNorm = normalizePhone(rawPhone)
+  if (!phoneNorm) return undefined
+
+  const byPhone = drivers.find((d) => normalizePhone(d.phone) === phoneNorm)
+  if (byPhone) return byPhone
+
+  return drivers.find((d) => normalizePhone(d.whatsappNumber) === phoneNorm)
+}
+
