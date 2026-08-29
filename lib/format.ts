@@ -9,6 +9,26 @@ import { APP_TIMEZONE } from "@/lib/timezone"
 
 export { APP_TIMEZONE } from "@/lib/timezone"
 
+/** Locale used for customer/admin time display (12-hour with AM/PM). */
+export const DISPLAY_TIME_LOCALE = "en-US"
+
+const dateTimeDisplayOptions: Intl.DateTimeFormatOptions = {
+  weekday: "short",
+  day: "2-digit",
+  month: "short",
+  hour: "numeric",
+  minute: "2-digit",
+  hour12: true,
+  timeZone: APP_TIMEZONE,
+}
+
+const timeDisplayOptions: Intl.DateTimeFormatOptions = {
+  hour: "numeric",
+  minute: "2-digit",
+  hour12: true,
+  timeZone: APP_TIMEZONE,
+}
+
 export function formatMoney(amount: number, currency = "EUR"): string {
   return new Intl.NumberFormat("en-GB", {
     style: "currency",
@@ -18,25 +38,28 @@ export function formatMoney(amount: number, currency = "EUR"): string {
 
 export function formatDateTime(value: string | null): string {
   if (!value) return "—"
-  return new Intl.DateTimeFormat("en-GB", {
-    weekday: "short",
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-    timeZone: APP_TIMEZONE,
-  }).format(new Date(value))
+  return new Intl.DateTimeFormat(
+    DISPLAY_TIME_LOCALE,
+    dateTimeDisplayOptions,
+  ).format(new Date(value))
 }
 
 export function formatTime(value: string | null): string {
   if (!value) return "—"
-  return new Intl.DateTimeFormat("en-GB", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-    timeZone: APP_TIMEZONE,
-  }).format(new Date(value))
+  return new Intl.DateTimeFormat(DISPLAY_TIME_LOCALE, timeDisplayOptions).format(
+    new Date(value),
+  )
+}
+
+/**
+ * Label for a 0–23 hour value in 12-hour pickers (value stays 0–23).
+ * Examples: 0 → "12 AM", 13 → "1 PM".
+ */
+export function formatHour12Option(hour24: number): string {
+  const hour = ((Math.floor(hour24) % 24) + 24) % 24
+  const period = hour < 12 ? "AM" : "PM"
+  const h12 = hour % 12 === 0 ? 12 : hour % 12
+  return `${h12} ${period}`
 }
 
 export function formatRelative(value: string): string {

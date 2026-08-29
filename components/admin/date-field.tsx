@@ -10,6 +10,7 @@ import {
 } from "lucide-react"
 
 import { useIsMobile } from "@/hooks/use-mobile"
+import { formatHour12Option } from "@/lib/format"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
@@ -88,12 +89,13 @@ function formatDateDisplay(value: string) {
 function formatDateTimeDisplay(value: string) {
   const d = parseDateTimeInputValue(value)
   if (!d) return null
-  return d.toLocaleString("en-GB", {
+  return d.toLocaleString("en-US", {
     day: "numeric",
     month: "short",
     year: "numeric",
-    hour: "2-digit",
+    hour: "numeric",
     minute: "2-digit",
+    hour12: true,
   })
 }
 
@@ -548,7 +550,7 @@ export function AdminDateTimeField({
           >
             {HOURS.map((h) => (
               <option key={h} value={h}>
-                {pad2(h)}
+                {formatHour12Option(h)}
               </option>
             ))}
           </select>

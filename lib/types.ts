@@ -105,8 +105,25 @@ export interface Booking {
   bookerRelation: BookerRelation | null
 }
 
+export type InternalNoteAction = "created" | "updated" | "deleted"
+
+export interface InternalNoteHistoryItem {
+  id: string
+  action: InternalNoteAction
+  actorName: string
+  actorId: string | null
+  previousText: string | null
+  nextText: string | null
+  createdAt: string
+}
+
 export interface BookingDetail extends Booking {
   payments: PaymentRecord[]
+  /** Staff-only; never shown to customers or drivers. Detail only — not list. */
+  internalNotes?: string | null
+  internalNotesUpdatedAt?: string | null
+  internalNotesUpdatedBy?: { id: string; name: string } | null
+  internalNoteHistory?: InternalNoteHistoryItem[]
 }
 
 export interface Driver {

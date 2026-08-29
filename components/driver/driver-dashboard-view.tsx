@@ -122,9 +122,9 @@ function formatPickupLabel(iso: string, locale: DriverLocale) {
     weekday: "short",
     day: "2-digit",
     month: "short",
-    hour: "2-digit",
+    hour: "numeric",
     minute: "2-digit",
-    hour12: false,
+    hour12: true,
     timeZone: APP_TIMEZONE,
   }).format(new Date(iso))
 }

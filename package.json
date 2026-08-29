@@ -21,6 +21,9 @@
     "test:blog": "tsx scripts/qa-blog.ts",
     "test:blog-json": "tsx scripts/qa-blog-json.ts",
     "test:driver-login": "tsx scripts/qa-driver-login.ts",
+    "test:time-12h": "tsx scripts/qa-time-12h.ts",
+    "test:calendar": "tsx scripts/qa-calendar.ts",
+    "test:internal-notes": "tsx scripts/qa-internal-notes.ts",
     "blog:upsert": "tsx scripts/upsert-blog-post.ts",
     "test:admin-pages": "tsx scripts/qa-admin-pages.ts"
   },

@@ -6,6 +6,7 @@ import {
   bookingListInclude,
   serializeBookingListItem,
 } from "@/lib/bookings"
+import { calendarApiMaxPageSize } from "@/lib/bookings-calendar"
 import {
   bookingCreateSchema,
   createBookingsFromInput,
@@ -51,8 +52,9 @@ export async function GET(request: Request) {
   const search = searchParams.get("search")?.trim()
   const sort = searchParams.get("sort")
   const page = parsePositiveInt(searchParams.get("page"), 1)
+  // Calendar month/week loads need a higher cap when the range is bounded.
   const pageSize = Math.min(
-    100,
+    calendarApiMaxPageSize(dateFrom, dateTo),
     parsePositiveInt(searchParams.get("pageSize"), 20),
   )
 

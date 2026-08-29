@@ -203,6 +203,10 @@ model Booking {
   isRoundTrip           Boolean       @default(false)
   roundTripId           String?
   notes                 String?
+  /** Staff-only internal notes. Never expose to customers, drivers, or public APIs. */
+  internalNotes         String?
+  internalNotesUpdatedAt DateTime?
+  internalNotesUpdatedById String?
   /** True when the Customer (booker) is booking for a different traveler. */
   bookedForOther        Boolean       @default(false)
   passengerName         String?
@@ -219,6 +223,7 @@ model Booking {
   customer           Customer             @relation(fields: [customerId], references: [id])
   driver             Driver?              @relation(fields: [driverId], references: [id], onDelete: SetNull)
   zone               Zone?                @relation(fields: [zoneId], references: [id], onDelete: SetNull)
+  internalNotesUpdatedBy AdminUser?       @relation("BookingInternalNotesUpdatedBy", fields: [internalNotesUpdatedById], references: [id], onDelete: SetNull)
   payments           Payment[]
   reviews            Review[]
   statusEvents       BookingStatusEvent[]
@@ -226,6 +231,7 @@ model Booking {
   notificationLogs   NotificationLog[]
   paypalOrderIntents PaypalOrderIntent[]
   pokOrderIntents    PokOrderIntent[]
+  internalNoteEvents BookingInternalNoteEvent[]
 
   @@index([status])
   @@index([paymentStatus])
@@ -234,6 +240,7 @@ model Booking {
   @@index([customerId])
   @@index([zoneId])
   @@index([roundTripId])
+  @@index([internalNotesUpdatedById])
 }
 
 /** Server-side PayPal checkout intent — binds orderId → booking/option/amount. */
@@ -287,6 +294,31 @@ model BookingStatusEvent {
   booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 
   @@index([bookingId, timestamp])
+}
+
+enum InternalNoteAction {
+  created
+  updated
+  deleted
+}
+
+/** Append-only audit log for staff-only booking internal notes. */
+model BookingInternalNoteEvent {
+  id           String             @id @default(cuid())
+  bookingId    String
+  actorId      String?
+  /** Denormalized so history stays readable if the admin user is removed. */
+  actorName    String
+  action       InternalNoteAction
+  previousText String?
+  nextText     String?
+  createdAt    DateTime           @default(now())
+
+  booking Booking    @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  actor   AdminUser? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([bookingId, createdAt])
+  @@index([actorId])
 }
 
 model Payment {
@@ -499,6 +531,9 @@ model AdminUser {
   requiresPasswordReset Boolean   @default(false)
   lastLoginAt           DateTime?
   createdAt             DateTime  @default(now())
+
+  internalNotesUpdatedBookings Booking[] @relation("BookingInternalNotesUpdatedBy")
+  internalNoteEvents           BookingInternalNoteEvent[]
 }
 
 /** Browser push subscriptions for admin / driver staff alerts. */

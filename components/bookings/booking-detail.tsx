@@ -6,6 +6,7 @@ import { toast } from "sonner"
 import {
   BanknoteIcon,
   CalendarClockIcon,
+  ChevronDownIcon,
   LuggageIcon,
   MailIcon,
   MapPinIcon,
@@ -13,6 +14,7 @@ import {
   PhoneIcon,
   PlaneIcon,
   ShieldCheckIcon,
+  StickyNoteIcon,
   Trash2Icon,
   TriangleAlertIcon,
   UsersIcon,
@@ -49,6 +51,7 @@ import { StatusTimeline } from "@/components/bookings/status-timeline"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
@@ -136,6 +139,11 @@ export function BookingDetail({
                 <TripFacts booking={booking} />
                 <Separator />
                 <CustomerBlock booking={booking} />
+                <Separator />
+                <InternalNotesSection
+                  booking={booking}
+                  onMutated={handleMutated}
+                />
                 <Separator />
                 <DriverAssign booking={booking} onAssigned={handleMutated} />
                 <StatusAdvanceButtons
@@ -412,6 +420,215 @@ function CustomerBlock({ booking }: { booking: Booking }) {
           </a>
         </div>
       </div>
+    </section>
+  )
+}
+
+function InternalNotesSection({
+  booking,
+  onMutated,
+}: {
+  booking: BookingDetail
+  onMutated: () => void
+}) {
+  const { isAdmin } = useAdminSession()
+  const saved = booking.internalNotes ?? ""
+  const [draft, setDraft] = React.useState(saved)
+  const [saving, setSaving] = React.useState(false)
+  const [deleting, setDeleting] = React.useState(false)
+  const [confirmDelete, setConfirmDelete] = React.useState(false)
+  const [historyOpen, setHistoryOpen] = React.useState(false)
+
+  React.useEffect(() => {
+    setDraft(booking.internalNotes ?? "")
+  }, [booking.id, booking.internalNotes])
+
+  const trimmed = draft.trim()
+  const savedTrimmed = saved.trim()
+  const dirty = trimmed !== savedTrimmed
+  const canSave =
+    dirty && (trimmed.length > 0 || (isAdmin && savedTrimmed.length > 0))
+  const history = booking.internalNoteHistory ?? []
+
+  async function save() {
+    if (!canSave || saving) return
+    if (!trimmed && !isAdmin) {
+      toast.error("Operators cannot delete internal notes.")
+      return
+    }
+    setSaving(true)
+    try {
+      await apiPatch(`/api/admin/bookings/${booking.id}/internal-notes`, {
+        internalNotes: trimmed,
+      })
+      toast.success(trimmed ? "Internal note saved" : "Internal note cleared")
+      onMutated()
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Could not save internal note",
+      )
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function remove() {
+    if (!isAdmin || deleting) return
+    setDeleting(true)
+    try {
+      await apiDelete(`/api/admin/bookings/${booking.id}/internal-notes`)
+      toast.success("Internal note deleted")
+      setConfirmDelete(false)
+      onMutated()
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Could not delete internal note",
+      )
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  return (
+    <section className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1">
+        <SectionLabel icon={StickyNoteIcon}>Internal note</SectionLabel>
+        <p className="text-xs text-muted-foreground">
+          Staff only — never shown to the customer, drivers, or confirmation
+          emails.
+        </p>
+        {booking.internalNotesUpdatedAt ? (
+          <p className="text-[11px] text-muted-foreground">
+            Last edited
+            {booking.internalNotesUpdatedBy?.name
+              ? ` by ${booking.internalNotesUpdatedBy.name}`
+              : ""}{" "}
+            · {formatDateTime(booking.internalNotesUpdatedAt)}
+          </p>
+        ) : null}
+      </div>
+      <Textarea
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        placeholder="Add a private note for the team…"
+        maxLength={4000}
+        rows={4}
+        className="min-h-24 resize-y"
+      />
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          type="button"
+          size="sm"
+          className="touch-manipulation"
+          disabled={!canSave || saving}
+          onClick={() => void save()}
+        >
+          {saving ? "Saving…" : savedTrimmed ? "Save changes" : "Add note"}
+        </Button>
+        {isAdmin && savedTrimmed ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="touch-manipulation text-destructive hover:text-destructive"
+            disabled={deleting}
+            onClick={() => setConfirmDelete(true)}
+          >
+            <Trash2Icon data-icon="inline-start" />
+            Delete
+          </Button>
+        ) : null}
+        {!isAdmin && savedTrimmed ? (
+          <span className="text-[11px] text-muted-foreground">
+            Only admins can delete this note
+          </span>
+        ) : null}
+      </div>
+
+      {history.length > 0 ? (
+        <div className="rounded-lg border bg-muted/20">
+          <button
+            type="button"
+            className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs font-medium touch-manipulation"
+            onClick={() => setHistoryOpen((open) => !open)}
+            aria-expanded={historyOpen}
+          >
+            <span>History ({history.length})</span>
+            <ChevronDownIcon
+              className={cn(
+                "size-3.5 text-muted-foreground transition-transform",
+                historyOpen && "rotate-180",
+              )}
+            />
+          </button>
+          {historyOpen ? (
+            <ul className="flex flex-col gap-2 border-t px-3 py-2">
+              {history.map((event) => (
+                <li
+                  key={event.id}
+                  className="rounded-md border bg-background px-2.5 py-2"
+                >
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
+                    <span className="text-xs font-medium capitalize">
+                      {event.action}
+                      <span className="font-normal text-muted-foreground">
+                        {" "}
+                        by {event.actorName}
+                      </span>
+                    </span>
+                    <span className="text-[10px] text-muted-foreground tabular-nums">
+                      {formatDateTime(event.createdAt)}
+                    </span>
+                  </div>
+                  {event.action === "deleted" ? (
+                    <p className="mt-1 whitespace-pre-wrap text-[11px] text-muted-foreground">
+                      Cleared note
+                      {event.previousText
+                        ? `: “${event.previousText.slice(0, 280)}${
+                            event.previousText.length > 280 ? "…" : ""
+                          }”`
+                        : ""}
+                    </p>
+                  ) : (
+                    <p className="mt-1 whitespace-pre-wrap text-[11px] text-foreground/90">
+                      {(event.nextText ?? "").slice(0, 400)}
+                      {(event.nextText?.length ?? 0) > 400 ? "…" : ""}
+                    </p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
+
+      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete internal note?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This clears the current staff-only note on{" "}
+              <span className="font-mono">{booking.referenceCode}</span>. The
+              change is recorded in history. The customer never sees this field.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={deleting}
+              onClick={(e) => {
+                e.preventDefault()
+                void remove()
+              }}
+            >
+              {deleting ? "Deleting…" : "Delete note"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   )
 }

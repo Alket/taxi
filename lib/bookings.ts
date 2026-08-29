@@ -2,10 +2,16 @@ import type {
   Booking,
   BookingDetail,
   BookingDriver,
+  InternalNoteHistoryItem,
   PaymentRecord,
   StatusEvent,
 } from "@/lib/types"
 import type { Prisma } from "@prisma/client"
+
+import {
+  INTERNAL_NOTE_HISTORY_LIMIT,
+  internalNoteHistorySelect,
+} from "@/lib/internal-notes"
 
 const bookingListInclude = {
   customer: true,
@@ -17,6 +23,12 @@ const bookingDetailInclude = {
   driver: true,
   statusEvents: { orderBy: { timestamp: "asc" as const } },
   payments: { orderBy: { createdAt: "asc" as const } },
+  internalNotesUpdatedBy: { select: { id: true, name: true } },
+  internalNoteEvents: {
+    orderBy: { createdAt: "desc" as const },
+    take: INTERNAL_NOTE_HISTORY_LIMIT,
+    select: internalNoteHistorySelect,
+  },
 } satisfies Prisma.BookingInclude
 
 export type BookingListRecord = Prisma.BookingGetPayload<{
@@ -62,6 +74,20 @@ function serializePayments(
     externalId: payment.externalId,
     paidAt: payment.paidAt?.toISOString() ?? null,
     createdAt: payment.createdAt.toISOString(),
+  }))
+}
+
+function serializeInternalNoteHistory(
+  events: BookingDetailRecord["internalNoteEvents"],
+): InternalNoteHistoryItem[] {
+  return events.map((event) => ({
+    id: event.id,
+    action: event.action,
+    actorName: event.actorName,
+    actorId: event.actorId,
+    previousText: event.previousText,
+    nextText: event.nextText,
+    createdAt: event.createdAt.toISOString(),
   }))
 }
 
@@ -127,6 +153,18 @@ export function serializeBookingDetail(
     ...serializeBookingBase(booking),
     timeline: serializeTimeline(booking.statusEvents),
     payments: serializePayments(booking.payments),
+    internalNotes: booking.internalNotes ?? null,
+    internalNotesUpdatedAt:
+      booking.internalNotesUpdatedAt?.toISOString() ?? null,
+    internalNotesUpdatedBy: booking.internalNotesUpdatedBy
+      ? {
+          id: booking.internalNotesUpdatedBy.id,
+          name: booking.internalNotesUpdatedBy.name,
+        }
+      : null,
+    internalNoteHistory: serializeInternalNoteHistory(
+      booking.internalNoteEvents,
+    ),
   }
 }
 
