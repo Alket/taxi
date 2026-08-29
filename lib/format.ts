@@ -9,23 +9,23 @@ import { APP_TIMEZONE } from "@/lib/timezone"
 
 export { APP_TIMEZONE } from "@/lib/timezone"
 
-/** Locale used for customer/admin time display (12-hour with AM/PM). */
-export const DISPLAY_TIME_LOCALE = "en-US"
+/** Locale used for customer/admin time display (24-hour, Europe-friendly). */
+export const DISPLAY_TIME_LOCALE = "en-GB"
 
 const dateTimeDisplayOptions: Intl.DateTimeFormatOptions = {
   weekday: "short",
   day: "2-digit",
   month: "short",
-  hour: "numeric",
+  hour: "2-digit",
   minute: "2-digit",
-  hour12: true,
+  hour12: false,
   timeZone: APP_TIMEZONE,
 }
 
 const timeDisplayOptions: Intl.DateTimeFormatOptions = {
-  hour: "numeric",
+  hour: "2-digit",
   minute: "2-digit",
-  hour12: true,
+  hour12: false,
   timeZone: APP_TIMEZONE,
 }
 
@@ -52,14 +52,17 @@ export function formatTime(value: string | null): string {
 }
 
 /**
- * Label for a 0–23 hour value in 12-hour pickers (value stays 0–23).
- * Examples: 0 → "12 AM", 13 → "1 PM".
+ * Label for a 0–23 hour value in 24-hour pickers (value stays 0–23).
+ * Examples: 0 → "00", 13 → "13", 9 → "09".
  */
-export function formatHour12Option(hour24: number): string {
+export function formatHour24Option(hour24: number): string {
   const hour = ((Math.floor(hour24) % 24) + 24) % 24
-  const period = hour < 12 ? "AM" : "PM"
-  const h12 = hour % 12 === 0 ? 12 : hour % 12
-  return `${h12} ${period}`
+  return String(hour).padStart(2, "0")
+}
+
+/** @deprecated Use formatHour24Option — kept as alias during migration. */
+export function formatHour12Option(hour24: number): string {
+  return formatHour24Option(hour24)
 }
 
 export function formatRelative(value: string): string {

@@ -12,7 +12,7 @@ import {
   earliestPickupAt,
   MIN_PICKUP_LEAD_LABEL,
 } from "@/lib/pickup-lead-time"
-import { APP_TIMEZONE, formatHour12Option } from "@/lib/format"
+import { APP_TIMEZONE, formatHour24Option } from "@/lib/format"
 import { useT } from "@/lib/i18n/use-locale"
 import {
   getZonedWallTime,
@@ -308,7 +308,7 @@ function CalendarPanel({
             </option>
             {hours.map((h) => (
               <option key={h} value={h}>
-                {formatHour12Option(h)}
+                {formatHour24Option(h)}
               </option>
             ))}
           </select>
@@ -477,10 +477,10 @@ export function formatHeroDateLabel(iso: string | null) {
     month: "short",
     timeZone: APP_TIMEZONE,
   })
-  const time = d.toLocaleTimeString("en-US", {
-    hour: "numeric",
+  const time = d.toLocaleTimeString("en-GB", {
+    hour: "2-digit",
     minute: "2-digit",
-    hour12: true,
+    hour12: false,
     timeZone: APP_TIMEZONE,
   })
   return `${day}, ${date}, ${time}`
