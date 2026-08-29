@@ -121,12 +121,19 @@ export function intersectFetchRange(
 }
 
 export function groupBookingsByDay(bookings: Booking[]) {
-  const map = new Map<string, Booking[]>()
-  for (const booking of bookings) {
-    const key = wallDateKey(booking.pickupDateTime)
+  return groupByPickupDay(bookings)
+}
+
+/** Group any pickup-timed records by wall-calendar day key. */
+export function groupByPickupDay<T extends { pickupDateTime: string }>(
+  items: T[],
+): Map<string, T[]> {
+  const map = new Map<string, T[]>()
+  for (const item of items) {
+    const key = wallDateKey(item.pickupDateTime)
     const list = map.get(key)
-    if (list) list.push(booking)
-    else map.set(key, [booking])
+    if (list) list.push(item)
+    else map.set(key, [item])
   }
   return map
 }

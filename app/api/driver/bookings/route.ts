@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 
 import { getNextFlowStatus } from "@/lib/booking-status"
 import { parseBookingNotes } from "@/lib/booking-notes"
+import { CALENDAR_PAGE_SIZE } from "@/lib/bookings-calendar"
 import { requireDriverSession } from "@/lib/driver-auth"
 import {
   cashCollectLabel,
@@ -21,6 +22,14 @@ function startOfLocalDay(d = new Date()) {
 
 function endOfLocalDay(d = new Date()) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999)
+}
+
+function parseDateBound(value: string, endOfDay: boolean): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null
+  const [y, m, d] = value.split("-").map(Number)
+  return endOfDay
+    ? new Date(y!, m! - 1, d!, 23, 59, 59, 999)
+    : new Date(y!, m! - 1, d!, 0, 0, 0, 0)
 }
 
 function serializeTrip(b: {
@@ -182,6 +191,43 @@ const tripSelect = {
 export async function GET(request: Request) {
   const session = await requireDriverSession()
   if ("error" in session) return session.error
+
+  const { searchParams } = new URL(request.url)
+  const dateFrom = searchParams.get("dateFrom")
+  const dateTo = searchParams.get("dateTo")
+
+  // Calendar range mode — only the session driver's trips in the window.
+  if (dateFrom && dateTo) {
+    const from = parseDateBound(dateFrom, false)
+    const to = parseDateBound(dateTo, true)
+    if (!from || !to) {
+      return NextResponse.json(
+        { error: "dateFrom and dateTo must be YYYY-MM-DD." },
+        { status: 400 },
+      )
+    }
+    if (from.getTime() > to.getTime()) {
+      return NextResponse.json(
+        { error: "dateFrom must be on or before dateTo." },
+        { status: 400 },
+      )
+    }
+
+    const rows = await prisma.booking.findMany({
+      where: {
+        driverId: session.driver.id,
+        pickupDateTime: { gte: from, lte: to },
+      },
+      orderBy: { pickupDateTime: "asc" },
+      select: tripSelect,
+      take: CALENDAR_PAGE_SIZE,
+    })
+
+    return NextResponse.json({
+      bookings: rows.map(serializeTrip),
+      total: rows.length,
+    })
+  }
 
   const now = new Date()
   const todayStart = startOfLocalDay(now)

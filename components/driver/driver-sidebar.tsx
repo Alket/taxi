@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation"
 import useSWR from "swr"
 import {
   BarChart3,
+  CalendarDays,
   CarFront,
   CalendarClock,
   LogOut,
@@ -47,6 +48,7 @@ export function DriverSidebar() {
 
   const navItems = [
     { title: t("nav.trips"), url: "/driver", icon: CalendarClock },
+    { title: t("nav.calendar"), url: "/driver/calendar", icon: CalendarDays },
     { title: t("nav.analytics"), url: "/driver/analytics", icon: BarChart3 },
   ]
 
