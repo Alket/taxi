@@ -53,7 +53,8 @@ export async function GET(request: Request) {
         : { driverId: driverIdParam }
       : undefined
 
-  const [paymentRows, forfeitedRows, outstandingRows] = await Promise.all([
+  const [paymentRows, forfeitedRows, outstandingRows, profitRows] =
+    await Promise.all([
     prisma.payment.findMany({
       where: {
         paidAt: { gte: range.start, lte: range.end },
@@ -86,7 +87,8 @@ export async function GET(request: Request) {
     }),
     prisma.booking.findMany({
       where: {
-        status: { notIn: ["cancelled"] },
+        // Pending / abandoned = unfinished checkout, not real cash-due trips.
+        status: { notIn: ["cancelled", "pending", "abandoned"] },
         paymentStatus: { in: ["unpaid", "deposit_paid", "failed"] },
       },
       select: {
@@ -94,6 +96,18 @@ export async function GET(request: Request) {
         balanceDue: true,
         depositPaid: true,
         paymentStatus: true,
+      },
+    }),
+    prisma.booking.findMany({
+      where: {
+        pickupDateTime: { gte: range.start, lte: range.end },
+        status: { notIn: ["cancelled", "pending", "abandoned"] },
+        driverCost: { not: null },
+        ...(bookingDriverFilter ?? {}),
+      },
+      select: {
+        totalPrice: true,
+        driverCost: true,
       },
     }),
   ])
@@ -214,6 +228,15 @@ export async function GET(request: Request) {
     forfeitedRows.reduce((sum, row) => sum + Number(row.depositPaid), 0),
   )
 
+  let profit = 0
+  let profitTripCount = 0
+  for (const booking of profitRows) {
+    if (booking.driverCost == null) continue
+    profit += Number(booking.totalPrice) - Number(booking.driverCost)
+    profitTripCount += 1
+  }
+  profit = roundMoney(profit)
+
   const completedTripCount = await prisma.booking.count({
     where: {
       status: "completed",
@@ -256,6 +279,9 @@ export async function GET(request: Request) {
       completedTripCount,
       forfeitedDeposits,
       forfeitedDepositsLabel: formatMoney(forfeitedDeposits, currency),
+      profit,
+      profitLabel: formatMoney(profit, currency),
+      profitTripCount,
     },
     outstanding: {
       unpaidBalances: roundMoney(unpaidBalances),

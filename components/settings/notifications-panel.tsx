@@ -42,6 +42,12 @@ const CHANNELS: {
     description: "Customer email about 24 hours before pickup.",
   },
   {
+    key: "checkoutAbandoned",
+    label: "Abandoned checkout recovery",
+    description:
+      "Customer email when an unpaid public checkout is marked Abandoned, with a link to finish the same booking.",
+  },
+  {
     key: "completedReceipt",
     label: "Completed trip receipt",
     description: "Customer email when the trip is marked completed.",

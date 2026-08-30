@@ -76,6 +76,7 @@ const STATUS_OPTIONS: { value: string; label: string }[] = [
     label: BOOKING_STATUS_LABELS[s],
   })),
   { value: "cancelled", label: BOOKING_STATUS_LABELS.cancelled },
+  { value: "abandoned", label: BOOKING_STATUS_LABELS.abandoned },
 ]
 
 const PAYMENT_OPTIONS: { value: string; label: string }[] = [

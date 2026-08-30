@@ -1092,6 +1092,100 @@ export async function sendCustomerPickupReminder(
   }
 }
 
+/**
+ * One recovery email after a public checkout is marked Abandoned.
+ * Skips when a newer confirmed+ booking already exists for the same email.
+ */
+export async function sendCheckoutAbandonedEmail(
+  bookingId: string,
+): Promise<SendResult> {
+  try {
+    if (!(await isMailConfigured())) return { sent: false }
+    const settings = await getSettings()
+    if (!channelEnabled(settings, "checkoutAbandoned")) return { sent: false }
+
+    const booking = await loadBooking(bookingId)
+    if (!booking?.customer.email) return { sent: false }
+
+    if (
+      booking.status !== "abandoned" ||
+      booking.paymentStatus !== "unpaid"
+    ) {
+      return { sent: false }
+    }
+
+    const already = await prisma.notificationLog.findFirst({
+      where: {
+        bookingId: booking.id,
+        type: "checkout_abandoned",
+        status: { in: ["sent", "pending"] },
+      },
+      select: { id: true },
+    })
+    if (already) return { sent: false }
+
+    const newerConfirmed = await prisma.booking.findFirst({
+      where: {
+        customerId: booking.customerId,
+        createdAt: { gt: booking.createdAt },
+        status: {
+          notIn: ["pending", "abandoned", "cancelled"],
+        },
+      },
+      select: { id: true },
+    })
+    if (newerConfirmed) return { sent: false }
+
+    const {
+      checkoutContinueUrl,
+      signCheckoutResumeToken,
+    } = await import("@/lib/checkout-resume")
+    const token = await signCheckoutResumeToken(booking.id)
+    const continueUrl = checkoutContinueUrl(booking.referenceCode, token)
+
+    const subject = `Complete your booking — ${booking.referenceCode}`
+    const text = [
+      `Hi ${booking.customer.name},`,
+      "",
+      `You started booking ${booking.referenceCode} but did not finish checkout.`,
+      ...baseCustomerTextLines(booking),
+      "",
+      `Continue here: ${continueUrl}`,
+      "",
+      "If you already made another booking, you can ignore this email.",
+      supportLine(settings),
+    ]
+      .filter(Boolean)
+      .join("\n")
+
+    const html = wrapEmail({
+      company: companyName(settings),
+      eyebrow: "Checkout incomplete",
+      tone: "warning",
+      preheader: `Finish ${booking.referenceCode}`,
+      title: "Continue your booking",
+      introHtml: `Hi ${escapeHtml(booking.customer.name)}, you started transfer <strong>${escapeHtml(booking.referenceCode)}</strong> but did not complete payment. You can finish the same booking below.`,
+      rowsHtml: baseCustomerRows(booking),
+      cta: { href: continueUrl, label: "Continue booking" },
+      footer: supportLine(settings),
+    })
+
+    return logAndSend({
+      to: booking.customer.email,
+      subject,
+      text,
+      html,
+      type: "checkout_abandoned",
+      bookingId: booking.id,
+      customerId: booking.customerId,
+      replyTo: safeReplyTo(settings),
+    })
+  } catch (error) {
+    console.error("[mail] checkout abandoned setup failed:", error)
+    return { sent: false }
+  }
+}
+
 export async function sendCustomerCompletedReceipt(
   bookingId: string,
 ): Promise<SendResult> {

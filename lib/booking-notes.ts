@@ -10,6 +10,32 @@ export type BookingNoteItem = {
 const AWAITING_DEPOSIT_NOTE =
   /source:\s*public booking\s*[·•-]?\s*awaiting deposit\s*\(unpaid pending checkout\)\.?/i
 
+/** Appended when a newer public checkout supersedes this unpaid one. */
+export const CHECKOUT_SUPERSEDED_NOTE =
+  "Checkout superseded by newer booking."
+
+const SUPERSEDED_NOTE_RE = /checkout superseded by newer booking\.?/i
+
+export function isPublicAwaitingDeposit(
+  notes: string | null | undefined,
+): boolean {
+  return Boolean(notes && AWAITING_DEPOSIT_NOTE.test(notes))
+}
+
+export function isCheckoutSuperseded(
+  notes: string | null | undefined,
+): boolean {
+  return Boolean(notes && SUPERSEDED_NOTE_RE.test(notes))
+}
+
+/** Mark notes so payment/resume rejects this checkout. */
+export function appendCheckoutSupersededNote(
+  notes: string | null | undefined,
+): string {
+  const base = (notes ?? "").trim()
+  if (SUPERSEDED_NOTE_RE.test(base)) return base
+  return [base, CHECKOUT_SUPERSEDED_NOTE].filter(Boolean).join(" ")
+}
 const KNOWN_NOTES: {
   match: RegExp
   id: string
@@ -17,6 +43,13 @@ const KNOWN_NOTES: {
   detail?: string | ((match: RegExpMatchArray) => string | undefined)
   tone: BookingNoteTone
 }[] = [
+  {
+    match: /checkout superseded by newer booking\.?/i,
+    id: "checkout-superseded",
+    label: "Checkout",
+    detail: "Superseded by newer booking",
+    tone: "muted",
+  },
   {
     match: /meet\s*&\s*greet\s*requested\.?/i,
     id: "meet-and-greet",

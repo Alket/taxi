@@ -13,10 +13,14 @@ import {
   UsersIcon,
 } from "lucide-react"
 
-import { formatDateTime } from "@/lib/format"
-import { useDriverT } from "@/lib/i18n/driver"
+import {
+  formatDriverDateTime,
+  useDriverLocale,
+  useDriverT,
+} from "@/lib/i18n/driver"
 import type { BookingStatus, PaymentStatus } from "@/lib/types"
 import { cn } from "@/lib/utils"
+import { CopyBookingInfoButton } from "@/components/driver/copy-booking-info-button"
 import { buttonVariants } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
@@ -58,6 +62,19 @@ export type DriverTripDetail = {
   paymentStatus: PaymentStatus
 }
 
+function cashHintLabel(
+  t: (key: string) => string,
+  cashAmount: number,
+  paymentStatus: PaymentStatus,
+  cashCollected: boolean,
+) {
+  if (cashAmount <= 0) {
+    return cashCollected ? t("cash.collected") : t("cash.nothing")
+  }
+  if (paymentStatus === "deposit_paid") return t("cash.balance")
+  return t("cash.full")
+}
+
 function SectionLabel({
   icon: Icon,
   children,
@@ -87,6 +104,19 @@ export function DriverTripDetailSheet({
   onOpenChange: (open: boolean) => void
 }) {
   const t = useDriverT()
+  const locale = useDriverLocale()
+  const pickupLabel = trip
+    ? formatDriverDateTime(trip.pickupDateTime, locale)
+    : ""
+  const cashHint = trip
+    ? cashHintLabel(
+        t,
+        trip.cashToCollect,
+        trip.paymentStatus,
+        trip.cashCollected,
+      )
+    : ""
+  const statusLabel = trip ? t(`status.${trip.status}`) : ""
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -102,11 +132,11 @@ export function DriverTripDetailSheet({
                   {trip.referenceCode}
                 </SheetTitle>
                 <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium">
-                  {trip.statusLabel}
+                  {statusLabel || trip.statusLabel}
                 </span>
               </div>
               <SheetDescription>
-                {trip.pickupLabel || formatDateTime(trip.pickupDateTime)}
+                {pickupLabel}
               </SheetDescription>
             </SheetHeader>
 
@@ -157,7 +187,7 @@ export function DriverTripDetailSheet({
                       {
                         icon: CalendarClockIcon,
                         label: t("calendar.sheetPickupTime"),
-                        value: formatDateTime(trip.pickupDateTime),
+                        value: pickupLabel,
                         fullRow: true,
                       },
                       {
@@ -262,6 +292,10 @@ export function DriverTripDetailSheet({
                       ) : null}
                     </div>
                   ) : null}
+                  <CopyBookingInfoButton
+                    trip={trip}
+                    className="w-full sm:w-auto"
+                  />
                 </section>
 
                 <Separator />
@@ -281,16 +315,19 @@ export function DriverTripDetailSheet({
                     <BanknoteIcon className="mt-0.5 size-4 shrink-0" />
                     <div className="min-w-0">
                       <p className="text-xs text-muted-foreground">
-                        {trip.cashHint}
+                        {cashHint}
                       </p>
                       <p className="text-base font-semibold tabular-nums">
                         {trip.cashToCollectLabel}
                       </p>
-                      <p className="text-[11px] text-muted-foreground">
-                        {t("trips.tripTotal", { amount: trip.totalPriceLabel })}
+                      <p className="mt-1.5 text-xs text-muted-foreground">
+                        {t("trips.tripTotalLabel")}
                         {trip.hadOnlineDeposit
                           ? ` · ${t("trips.depositPaid")}`
                           : ""}
+                      </p>
+                      <p className="text-base font-semibold tabular-nums">
+                        {trip.totalPriceLabel}
                       </p>
                     </div>
                   </div>

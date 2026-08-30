@@ -18,6 +18,7 @@ import {
 import { toast } from "sonner"
 
 import { DriverPageHeader } from "@/components/driver/driver-page-header"
+import { CopyBookingInfoButton } from "@/components/driver/copy-booking-info-button"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,13 +40,12 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { apiPatch, apiPost, fetcher } from "@/lib/api"
 import {
-  DRIVER_INTL_LOCALE,
+  formatDriverDateTime,
   useDriverLocale,
   useDriverT,
   type DriverLocale,
   type DriverMessageKey,
 } from "@/lib/i18n/driver"
-import { APP_TIMEZONE } from "@/lib/timezone"
 import type { BookingStatus, Driver, PaymentStatus } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
@@ -118,15 +118,7 @@ function plural(
 }
 
 function formatPickupLabel(iso: string, locale: DriverLocale) {
-  return new Intl.DateTimeFormat(DRIVER_INTL_LOCALE[locale], {
-    weekday: "short",
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-    timeZone: APP_TIMEZONE,
-  }).format(new Date(iso))
+  return formatDriverDateTime(iso, locale)
 }
 
 function statusLabel(t: Translate, status: BookingStatus) {
@@ -717,6 +709,8 @@ function TripCard({
               ) : null}
             </div>
           ) : null}
+
+          <CopyBookingInfoButton trip={trip} className="w-full sm:w-auto" />
 
           {trip.childSeats || trip.driverNotes ? (
             <div className="flex flex-col gap-2">

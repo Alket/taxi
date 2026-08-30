@@ -145,6 +145,11 @@ export function BookingDetail({
                   onMutated={handleMutated}
                 />
                 <Separator />
+                <DriverCostSection
+                  booking={booking}
+                  onMutated={handleMutated}
+                />
+                <Separator />
                 <DriverAssign booking={booking} onAssigned={handleMutated} />
                 <StatusAdvanceButtons
                   booking={booking}
@@ -625,6 +630,259 @@ function InternalNotesSection({
               }}
             >
               {deleting ? "Deleting…" : "Delete note"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </section>
+  )
+}
+
+function DriverCostSection({
+  booking,
+  onMutated,
+}: {
+  booking: BookingDetail
+  onMutated: () => void
+}) {
+  const { isAdmin } = useAdminSession()
+  const saved =
+    booking.driverCost == null || Number.isNaN(Number(booking.driverCost))
+      ? ""
+      : String(booking.driverCost)
+  const [draft, setDraft] = React.useState(saved)
+  const [saving, setSaving] = React.useState(false)
+  const [deleting, setDeleting] = React.useState(false)
+  const [confirmDelete, setConfirmDelete] = React.useState(false)
+  const [historyOpen, setHistoryOpen] = React.useState(false)
+
+  React.useEffect(() => {
+    setDraft(
+      booking.driverCost == null || Number.isNaN(Number(booking.driverCost))
+        ? ""
+        : String(booking.driverCost),
+    )
+  }, [booking.id, booking.driverCost])
+
+  const parsedDraft = draft.trim() === "" ? null : Number(draft)
+  const draftInvalid =
+    draft.trim() !== "" &&
+    (!Number.isFinite(parsedDraft) || (parsedDraft as number) < 0)
+  const savedNum =
+    booking.driverCost == null ? null : Number(booking.driverCost)
+  const nextNum =
+    parsedDraft == null || draftInvalid ? null : Math.round(parsedDraft * 100) / 100
+  const dirty =
+    (savedNum == null && nextNum != null) ||
+    (savedNum != null && nextNum == null && draft.trim() === "") ||
+    (savedNum != null && nextNum != null && savedNum !== nextNum)
+  const clearing = dirty && nextNum == null && draft.trim() === ""
+  const canSave =
+    dirty &&
+    !draftInvalid &&
+    (nextNum != null || (isAdmin && clearing && savedNum != null))
+  const history = isAdmin ? (booking.driverCostHistory ?? []) : []
+
+  async function save() {
+    if (!canSave || saving) return
+    if (nextNum == null && !isAdmin) {
+      toast.error("Operators cannot clear driver cost.")
+      return
+    }
+    setSaving(true)
+    try {
+      await apiPatch(`/api/admin/bookings/${booking.id}/driver-cost`, {
+        driverCost: nextNum,
+      })
+      toast.success(
+        nextNum == null ? "Driver cost cleared" : "Driver cost saved",
+      )
+      onMutated()
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Could not save driver cost",
+      )
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function remove() {
+    if (!isAdmin || deleting) return
+    setDeleting(true)
+    try {
+      await apiDelete(`/api/admin/bookings/${booking.id}/driver-cost`)
+      toast.success("Driver cost cleared")
+      setConfirmDelete(false)
+      onMutated()
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Could not clear driver cost",
+      )
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  function formatAmount(value: number | null) {
+    if (value == null) return "—"
+    return formatMoney(value, booking.currency)
+  }
+
+  return (
+    <section className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1">
+        <SectionLabel icon={BanknoteIcon}>Driver cost</SectionLabel>
+        <p className="text-xs text-muted-foreground">
+          Amount paid to the driver or subcontractor. Staff only — never shown
+          to customers or drivers. Profit = client price − driver cost.
+        </p>
+        {booking.driverCostUpdatedAt ? (
+          <p className="text-[11px] text-muted-foreground">
+            Last edited
+            {booking.driverCostUpdatedBy?.name
+              ? ` by ${booking.driverCostUpdatedBy.name}`
+              : ""}{" "}
+            · {formatDateTime(booking.driverCostUpdatedAt)}
+          </p>
+        ) : null}
+      </div>
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="flex min-w-[8rem] flex-1 flex-col gap-1">
+          <label
+            htmlFor={`driver-cost-${booking.id}`}
+            className="text-[11px] font-medium text-muted-foreground"
+          >
+            Amount ({booking.currency})
+          </label>
+          <Input
+            id={`driver-cost-${booking.id}`}
+            type="number"
+            inputMode="decimal"
+            min={0}
+            step="0.01"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="0.00"
+            className="tabular-nums"
+          />
+        </div>
+        <Button
+          type="button"
+          size="sm"
+          className="touch-manipulation"
+          disabled={!canSave || saving}
+          onClick={() => void save()}
+        >
+          {saving
+            ? "Saving…"
+            : savedNum != null
+              ? "Save changes"
+              : "Add cost"}
+        </Button>
+        {isAdmin && savedNum != null ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="touch-manipulation text-destructive hover:text-destructive"
+            disabled={deleting}
+            onClick={() => setConfirmDelete(true)}
+          >
+            <Trash2Icon data-icon="inline-start" />
+            Clear
+          </Button>
+        ) : null}
+        {!isAdmin && savedNum != null ? (
+          <span className="text-[11px] text-muted-foreground">
+            Only admins can clear driver cost
+          </span>
+        ) : null}
+      </div>
+      {draftInvalid ? (
+        <p className="text-xs text-destructive">Enter a valid amount ≥ 0.</p>
+      ) : null}
+      {savedNum != null ? (
+        <p className="text-xs text-muted-foreground">
+          Client price {formatMoney(booking.totalPrice, booking.currency)}
+          {" · "}
+          Est. profit{" "}
+          {formatMoney(booking.totalPrice - savedNum, booking.currency)}
+        </p>
+      ) : null}
+
+      {isAdmin && history.length > 0 ? (
+        <div className="rounded-lg border bg-muted/20">
+          <button
+            type="button"
+            className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs font-medium touch-manipulation"
+            onClick={() => setHistoryOpen((open) => !open)}
+            aria-expanded={historyOpen}
+          >
+            <span>History ({history.length})</span>
+            <ChevronDownIcon
+              className={cn(
+                "size-3.5 text-muted-foreground transition-transform",
+                historyOpen && "rotate-180",
+              )}
+            />
+          </button>
+          {historyOpen ? (
+            <ul className="flex flex-col gap-2 border-t px-3 py-2">
+              {history.map((event) => (
+                <li
+                  key={event.id}
+                  className="rounded-md border bg-background px-2.5 py-2"
+                >
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
+                    <span className="text-xs font-medium capitalize">
+                      {event.action === "created"
+                        ? "Added"
+                        : event.action === "deleted"
+                          ? "Deleted"
+                          : "Edited"}
+                      <span className="font-normal text-muted-foreground">
+                        {" "}
+                        by {event.actorName}
+                      </span>
+                    </span>
+                    <span className="text-[10px] text-muted-foreground tabular-nums">
+                      {formatDateTime(event.createdAt)}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-[11px] text-foreground/90 tabular-nums">
+                    {formatAmount(event.previousAmount)} →{" "}
+                    {formatAmount(event.nextAmount)}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
+
+      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear driver cost?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Removes the current amount from this booking. History is kept for
+              audit.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={deleting}
+              onClick={(e) => {
+                e.preventDefault()
+                void remove()
+              }}
+            >
+              {deleting ? "Clearing…" : "Clear cost"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1128,10 +1386,12 @@ function EditBookingSection({
   }, [open, booking])
 
   if (isBookingLockedForEdit(booking.status)) {
-    if (booking.status === "pending") {
+    if (booking.status === "pending" || booking.status === "abandoned") {
       return (
         <p className="rounded-lg border bg-muted/30 px-3 py-2.5 text-center text-xs text-muted-foreground">
-          Confirm the booking before editing trip details.
+          {booking.status === "abandoned"
+            ? "Abandoned checkout — customer must finish payment or start a new booking."
+            : "Confirm the booking before editing trip details."}
         </p>
       )
     }

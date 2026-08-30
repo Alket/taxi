@@ -98,7 +98,8 @@ export async function recordBookingPayment({
 
     for (let i = 0; i < targets.length; i++) {
       const target = targets[i]
-      const shouldConfirm = target.status === "pending"
+      const shouldConfirm =
+        target.status === "pending" || target.status === "abandoned"
       const total = Number(target.totalPrice)
       const expectedShare = expectedShares[i]
       const amountPaid =

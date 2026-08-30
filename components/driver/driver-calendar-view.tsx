@@ -12,7 +12,6 @@ import { fetcher } from "@/lib/api"
 import { toDateInputValue } from "@/components/admin/date-field"
 import {
   CALENDAR_VIEW_OPTIONS,
-  CALENDAR_WEEKDAYS,
   type CalendarViewMode,
   groupByPickupDay,
   isCalendarViewMode,
@@ -22,6 +21,7 @@ import {
 import { formatTime } from "@/lib/format"
 import {
   DRIVER_INTL_LOCALE,
+  driverWeekdayShortLabels,
   useDriverLocale,
   useDriverT,
 } from "@/lib/i18n/driver"
@@ -53,6 +53,7 @@ const statusAccent: Record<BookingStatus, string> = {
   in_progress: "border-l-primary",
   completed: "border-l-success",
   cancelled: "border-l-destructive",
+  abandoned: "border-l-muted-foreground",
 }
 
 function addDaysLocal(d: Date, n: number) {
@@ -121,6 +122,10 @@ export function DriverCalendarView() {
   const t = useDriverT()
   const locale = useDriverLocale()
   const intlLocale = DRIVER_INTL_LOCALE[locale]
+  const weekdayLabels = React.useMemo(
+    () => driverWeekdayShortLabels(locale),
+    [locale],
+  )
   const router = useRouter()
   const searchParams = useSearchParams()
   const todayKey = toDateInputValue(new Date())
@@ -327,7 +332,7 @@ export function DriverCalendarView() {
         ) : view === "month" ? (
           <div className="overflow-hidden rounded-xl border bg-card">
             <div className="grid grid-cols-7 border-b bg-muted/40">
-              {CALENDAR_WEEKDAYS.map((day) => (
+              {weekdayLabels.map((day) => (
                 <div
                   key={day}
                   className="px-1 py-2 text-center text-[10px] font-semibold tracking-wide text-muted-foreground uppercase sm:text-xs"
@@ -419,7 +424,7 @@ export function DriverCalendarView() {
                       }}
                     >
                       <p className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
-                        {CALENDAR_WEEKDAYS[dayDate.getDay()]}
+                        {weekdayLabels[dayDate.getDay()]}
                       </p>
                       <p
                         className={cn(

@@ -22,6 +22,7 @@ const BOOKING_STATUSES = new Set<string>([
   "arrived",
   "completed",
   "cancelled",
+  "abandoned",
 ])
 
 const PAYMENT_STATUSES = new Set<string>([
@@ -81,6 +82,9 @@ export async function GET(request: Request) {
     } else if (statuses.length > 1) {
       where.status = { in: statuses as BookingStatus[] }
     }
+  } else {
+    // Default list hides abandoned checkouts (use status=abandoned to see them).
+    where.status = { not: "abandoned" }
   }
 
   if (paymentStatus && PAYMENT_STATUSES.has(paymentStatus)) {

@@ -25,6 +25,7 @@ export type BookingStatus =
   | "in_progress"
   | "completed"
   | "cancelled"
+  | "abandoned"
 
 export type VehicleType = "sedan" | "minivan"
 
@@ -117,6 +118,18 @@ export interface InternalNoteHistoryItem {
   createdAt: string
 }
 
+export type DriverCostAction = "created" | "updated" | "deleted"
+
+export interface DriverCostHistoryItem {
+  id: string
+  action: DriverCostAction
+  actorName: string
+  actorId: string | null
+  previousAmount: number | null
+  nextAmount: number | null
+  createdAt: string
+}
+
 export interface BookingDetail extends Booking {
   payments: PaymentRecord[]
   /** Staff-only; never shown to customers or drivers. Detail only — not list. */
@@ -124,6 +137,12 @@ export interface BookingDetail extends Booking {
   internalNotesUpdatedAt?: string | null
   internalNotesUpdatedBy?: { id: string; name: string } | null
   internalNoteHistory?: InternalNoteHistoryItem[]
+  /** Staff-only driver/subcontractor cost. Detail only — never public/driver. */
+  driverCost?: number | null
+  driverCostUpdatedAt?: string | null
+  driverCostUpdatedBy?: { id: string; name: string } | null
+  /** Admin-only audit trail. Operators receive empty array. */
+  driverCostHistory?: DriverCostHistoryItem[]
 }
 
 export interface Driver {
@@ -239,6 +258,10 @@ export interface AnalyticsReport {
     completedTripCount: number
     forfeitedDeposits: number
     forfeitedDepositsLabel: string
+    /** Sum of (totalPrice − driverCost) for trips with driver cost in range. */
+    profit: number
+    profitLabel: string
+    profitTripCount: number
   }
   outstanding: {
     unpaidBalances: number
@@ -312,6 +335,7 @@ export interface NotificationChannels {
   dateChange: boolean
   completedReceipt: boolean
   reviewRequest: boolean
+  checkoutAbandoned: boolean
 }
 
 export interface Settings {

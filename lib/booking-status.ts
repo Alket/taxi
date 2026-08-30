@@ -17,14 +17,22 @@ export const DRIVER_SETTABLE_STATUSES: BookingStatus[] = [
   "completed",
 ]
 
-/** Pending (awaiting confirm) or trip in progress/done — admin cannot edit trip details. */
+/** Pending / abandoned checkout or trip in progress/done — admin cannot edit trip details. */
 export function isBookingLockedForEdit(status: BookingStatus): boolean {
-  return status === "pending" || isTripInProgressOrDone(status)
+  return (
+    status === "pending" ||
+    status === "abandoned" ||
+    isTripInProgressOrDone(status)
+  )
 }
 
-/** Pending (awaiting confirm) or trip in progress/done — admin cannot assign/reassign. */
+/** Pending / abandoned checkout or trip in progress/done — admin cannot assign/reassign. */
 export function isBookingLockedForDriverAssign(status: BookingStatus): boolean {
-  return status === "pending" || isTripInProgressOrDone(status)
+  return (
+    status === "pending" ||
+    status === "abandoned" ||
+    isTripInProgressOrDone(status)
+  )
 }
 
 /** Once the driver has arrived (or the trip is finished/cancelled), the booking cannot be cancelled. */
@@ -82,6 +90,12 @@ export function validateStatusTransition(
 ): { ok: true } | { ok: false; error: string } {
   if (current === "cancelled") {
     return { ok: false, error: "Cancelled bookings cannot change status." }
+  }
+  if (current === "abandoned") {
+    return {
+      ok: false,
+      error: "Abandoned checkouts cannot change status. Customer must complete payment or start a new booking.",
+    }
   }
   if (current === "completed") {
     return { ok: false, error: "Completed bookings cannot change status." }

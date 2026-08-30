@@ -3,7 +3,7 @@ import { z } from "zod"
 
 import { prisma } from "@/lib/db"
 import { normalizePaymentOption } from "@/lib/payment-options"
-import { PENDING_CHECKOUT_TTL_MS } from "@/lib/payment-session"
+import { assertCheckoutPayable } from "@/lib/payment-session"
 import { getSettingsRow } from "@/lib/settings"
 import { ensureStripeCustomer } from "@/lib/stripe-booking-payments"
 import { getStripe, getStripeConfig } from "@/lib/stripe"
@@ -43,25 +43,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Booking not found." }, { status: 404 })
   }
 
-  if (booking.paymentStatus !== "unpaid" || booking.status === "cancelled") {
+  const gate = assertCheckoutPayable(booking)
+  if (!gate.ok) {
     return NextResponse.json(
-      {
-        error: "This booking is no longer awaiting payment.",
-        code: "NOT_PAYABLE",
-      },
-      { status: 409 },
-    )
-  }
-
-  // Abandoned / stale pending checkouts from the public flow.
-  if (Date.now() - booking.createdAt.getTime() > PENDING_CHECKOUT_TTL_MS) {
-    return NextResponse.json(
-      {
-        error:
-          "This payment session has expired. Please start a new booking.",
-        code: "SESSION_EXPIRED",
-      },
-      { status: 410 },
+      { error: gate.error, code: gate.code },
+      { status: gate.status },
     )
   }
 

@@ -87,6 +87,7 @@ export const BOOKING_STATUS_LABELS: Record<BookingStatus, string> = {
   in_progress: "In Progress",
   completed: "Completed",
   cancelled: "Cancelled",
+  abandoned: "Abandoned",
 }
 
 export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {

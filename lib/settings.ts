@@ -63,6 +63,7 @@ export function parseNotificationChannels(value: unknown): NotificationChannels 
     dateChange: true,
     completedReceipt: true,
     reviewRequest: true,
+    checkoutAbandoned: true,
   }
 
   if (!value || typeof value !== "object") return defaults
@@ -99,6 +100,10 @@ export function parseNotificationChannels(value: unknown): NotificationChannels 
       typeof record.reviewRequest === "boolean"
         ? record.reviewRequest
         : defaults.reviewRequest,
+    checkoutAbandoned:
+      typeof record.checkoutAbandoned === "boolean"
+        ? record.checkoutAbandoned
+        : defaults.checkoutAbandoned,
   }
 }
 
@@ -227,6 +232,7 @@ export async function getSettingsRow() {
         dateChange: true,
         completedReceipt: true,
         reviewRequest: true,
+        checkoutAbandoned: true,
       },
       flightDelayThresholdMinutes: 45,
     },

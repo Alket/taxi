@@ -6,7 +6,9 @@ import { formatDateTime } from "@/lib/format"
 
 /**
  * Recent staff-worthy bookings for in-app toasts (polling fallback).
- * Skips unpaid public checkouts still awaiting deposit.
+ * - Newly created bookings (skips unpaid public checkouts awaiting deposit)
+ * - Existing bookings that just received a payment (not staff-only edits like
+ *   driver cost / internal notes, which only bump updatedAt)
  */
 export async function GET(request: Request) {
   const session = await requireStaffSession(request)
@@ -21,7 +23,7 @@ export async function GET(request: Request) {
 
   const bookings = await prisma.booking.findMany({
     where: {
-      status: { not: "cancelled" },
+      status: { notIn: ["cancelled", "abandoned"] },
       OR: [
         {
           createdAt: { gt: since },
@@ -30,9 +32,14 @@ export async function GET(request: Request) {
           },
         },
         {
-          updatedAt: { gt: since },
           createdAt: { lte: since },
           paymentStatus: { in: ["deposit_paid", "paid", "fully_paid"] },
+          payments: {
+            some: {
+              paidAt: { gt: since },
+              status: { in: ["deposit_paid", "paid", "fully_paid"] },
+            },
+          },
         },
       ],
     },

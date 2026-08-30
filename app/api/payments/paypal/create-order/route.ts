@@ -4,7 +4,7 @@ import { z } from "zod"
 import { prisma } from "@/lib/db"
 import { normalizePaymentOption } from "@/lib/payment-options"
 import { createPaypalOrder, isPaypalConfigured } from "@/lib/paypal"
-import { PENDING_CHECKOUT_TTL_MS } from "@/lib/payment-session"
+import { assertCheckoutPayable } from "@/lib/payment-session"
 import { getPublicOrigin } from "@/lib/public-origin"
 import { getSettingsRow } from "@/lib/settings"
 import { round2 } from "@/lib/vehicles"
@@ -48,20 +48,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Booking not found." }, { status: 404 })
   }
 
-  if (booking.paymentStatus !== "unpaid") {
+  const gate = assertCheckoutPayable(booking)
+  if (!gate.ok) {
     return NextResponse.json(
-      { error: "This booking is no longer awaiting payment.", code: "NOT_PAYABLE" },
-      { status: 409 },
-    )
-  }
-
-  if (Date.now() - booking.createdAt.getTime() > PENDING_CHECKOUT_TTL_MS) {
-    return NextResponse.json(
-      {
-        error: "This payment session has expired. Please start a new booking.",
-        code: "SESSION_EXPIRED",
-      },
-      { status: 410 },
+      { error: gate.error, code: gate.code },
+      { status: gate.status },
     )
   }
 

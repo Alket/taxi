@@ -545,5 +545,16 @@ export async function createBookingsFromInput(
     }
   }
 
+  // Newer public checkout replaces older unpaid pending/abandoned ones.
+  if (input.source === "public" && createdBookings.length > 0) {
+    const { supersedeOlderPublicCheckouts } = await import(
+      "@/lib/abandon-checkouts"
+    )
+    await supersedeOlderPublicCheckouts({
+      customerId: customer.id,
+      keepBookingIds: createdBookings.map((b) => b.id),
+    })
+  }
+
   return { bookings: createdBookings }
 }

@@ -1134,6 +1134,10 @@ export function PaymentStep() {
         setCashError("Cash on arrival is not available right now.")
       } else if (error.code === "SESSION_EXPIRED") {
         setCashError("This session has expired. Please start again.")
+      } else if (error.code === "SUPERSEDED") {
+        setCashError(
+          "This checkout was replaced by a newer booking. Continue with your latest booking.",
+        )
       } else {
         setCashError(error.message || "Could not confirm cash booking.")
       }

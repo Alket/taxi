@@ -172,7 +172,7 @@ export function DashboardView() {
                 value={String(data.unassignedCount)}
                 icon={UserX}
                 tone="warning"
-                href="/admin/bookings?driverId=null&status=pending,confirmed"
+                href="/admin/bookings?driverId=null&status=confirmed"
                 hint="Need a driver assigned"
               />
               <StatCard

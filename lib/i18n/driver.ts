@@ -4,6 +4,7 @@ import { useCallback, useSyncExternalStore } from "react"
 
 import driverEn from "@/messages/driver-en.json"
 import driverSq from "@/messages/driver-sq.json"
+import { APP_TIMEZONE } from "@/lib/timezone"
 
 export const DRIVER_LOCALES = ["en", "sq"] as const
 export type DriverLocale = (typeof DRIVER_LOCALES)[number]
@@ -23,6 +24,91 @@ export const DRIVER_LOCALE_LABELS: Record<
 export const DRIVER_INTL_LOCALE: Record<DriverLocale, string> = {
   en: "en-GB",
   sq: "sq-AL",
+}
+
+const SQ_WEEKDAY_SHORT = [
+  "die",
+  "hën",
+  "mar",
+  "mër",
+  "enj",
+  "pre",
+  "sht",
+] as const
+
+const SQ_MONTH_SHORT = [
+  "jan",
+  "shk",
+  "mar",
+  "pri",
+  "maj",
+  "qer",
+  "kor",
+  "gush",
+  "sht",
+  "tet",
+  "nën",
+  "dhj",
+] as const
+
+/** Parts of `value` in Europe/Tirane (weekday 0=Sun … 6=Sat). */
+function tiraneDateParts(value: string) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: APP_TIMEZONE,
+    weekday: "short",
+    month: "numeric",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date(value))
+  const get = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((p) => p.type === type)?.value ?? ""
+  const weekdayIndex = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(
+    get("weekday"),
+  )
+  return {
+    weekdayIndex: weekdayIndex >= 0 ? weekdayIndex : 0,
+    day: get("day"),
+    monthIndex: Number(get("month")) - 1,
+    hour: get("hour").padStart(2, "0"),
+    minute: get("minute").padStart(2, "0"),
+  }
+}
+
+/** Sunday-first short weekday labels for calendar grids (matches week start). */
+export function driverWeekdayShortLabels(locale: DriverLocale): string[] {
+  if (locale === "sq") return [...SQ_WEEKDAY_SHORT]
+  // 2021-01-03 was a Sunday in local interpretation via UTC noon.
+  const sunday = new Date(Date.UTC(2021, 0, 3, 12, 0, 0))
+  return Array.from({ length: 7 }, (_, i) => {
+    const day = new Date(sunday)
+    day.setUTCDate(sunday.getUTCDate() + i)
+    return new Intl.DateTimeFormat("en-GB", { weekday: "short" }).format(day)
+  })
+}
+
+/** Pickup-style label: e.g. en "Sun 30 Aug, 14:01" / sq "die 30 gush, 14:01". */
+export function formatDriverDateTime(
+  value: string | null | undefined,
+  locale: DriverLocale,
+): string {
+  if (!value) return "—"
+  if (locale === "sq") {
+    const p = tiraneDateParts(value)
+    const weekday = SQ_WEEKDAY_SHORT[p.weekdayIndex] ?? SQ_WEEKDAY_SHORT[0]
+    const month = SQ_MONTH_SHORT[p.monthIndex] ?? SQ_MONTH_SHORT[0]
+    return `${weekday} ${p.day} ${month}, ${p.hour}:${p.minute}`
+  }
+  return new Intl.DateTimeFormat("en-GB", {
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: APP_TIMEZONE,
+  }).format(new Date(value))
 }
 
 type MessageDict = Record<string, string>

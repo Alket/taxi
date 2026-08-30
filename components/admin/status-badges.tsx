@@ -63,6 +63,7 @@ const bookingTone: Record<BookingStatus, Tone> = {
   in_progress: "primary",
   completed: "success",
   cancelled: "destructive",
+  abandoned: "neutral",
 }
 
 export function BookingStatusBadge({ status }: { status: BookingStatus }) {

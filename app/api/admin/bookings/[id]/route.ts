@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 
-import { requireAdmin, requireCanDelete, requireStaffSession } from "@/lib/auth"
+import { requireAdmin, requireCanDelete, requireStaffSession, isAdmin } from "@/lib/auth"
 import { isBookingLockedForEdit } from "@/lib/booking-status"
 import {
   bookingDetailInclude,
@@ -55,7 +55,11 @@ export async function GET(request: Request, context: RouteContext) {
     return NextResponse.json({ error: "Booking not found" }, { status: 404 })
   }
 
-  return NextResponse.json({ booking: serializeBookingDetail(booking) })
+  return NextResponse.json({
+    booking: serializeBookingDetail(booking, {
+      includeDriverCostHistory: isAdmin(session.user),
+    }),
+  })
 }
 
 export async function PATCH(request: Request, context: RouteContext) {

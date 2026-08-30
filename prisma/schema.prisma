@@ -30,6 +30,8 @@ enum BookingStatus {
   in_progress
   completed
   cancelled
+  /** Public unpaid checkout left unfinished (cron after TTL). */
+  abandoned
 }
 
 enum CancellationOutcome {
@@ -82,6 +84,7 @@ enum NotificationType {
   completed_receipt
   review_request
   review_submitted
+  checkout_abandoned
 }
 
 enum ReviewStatus {
@@ -207,6 +210,10 @@ model Booking {
   internalNotes         String?
   internalNotesUpdatedAt DateTime?
   internalNotesUpdatedById String?
+  /** Staff-only amount paid to driver/subcontractor. Never expose to customers or drivers. */
+  driverCost            Decimal?      @db.Decimal(10, 2)
+  driverCostUpdatedAt   DateTime?
+  driverCostUpdatedById String?
   /** True when the Customer (booker) is booking for a different traveler. */
   bookedForOther        Boolean       @default(false)
   passengerName         String?
@@ -224,6 +231,7 @@ model Booking {
   driver             Driver?              @relation(fields: [driverId], references: [id], onDelete: SetNull)
   zone               Zone?                @relation(fields: [zoneId], references: [id], onDelete: SetNull)
   internalNotesUpdatedBy AdminUser?       @relation("BookingInternalNotesUpdatedBy", fields: [internalNotesUpdatedById], references: [id], onDelete: SetNull)
+  driverCostUpdatedBy    AdminUser?       @relation("BookingDriverCostUpdatedBy", fields: [driverCostUpdatedById], references: [id], onDelete: SetNull)
   payments           Payment[]
   reviews            Review[]
   statusEvents       BookingStatusEvent[]
@@ -232,6 +240,7 @@ model Booking {
   paypalOrderIntents PaypalOrderIntent[]
   pokOrderIntents    PokOrderIntent[]
   internalNoteEvents BookingInternalNoteEvent[]
+  driverCostEvents   BookingDriverCostEvent[]
 
   @@index([status])
   @@index([paymentStatus])
@@ -241,6 +250,7 @@ model Booking {
   @@index([zoneId])
   @@index([roundTripId])
   @@index([internalNotesUpdatedById])
+  @@index([driverCostUpdatedById])
 }
 
 /** Server-side PayPal checkout intent — binds orderId → booking/option/amount. */
@@ -302,6 +312,12 @@ enum InternalNoteAction {
   deleted
 }
 
+enum DriverCostAction {
+  created
+  updated
+  deleted
+}
+
 /** Append-only audit log for staff-only booking internal notes. */
 model BookingInternalNoteEvent {
   id           String             @id @default(cuid())
@@ -313,6 +329,24 @@ model BookingInternalNoteEvent {
   previousText String?
   nextText     String?
   createdAt    DateTime           @default(now())
+
+  booking Booking    @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  actor   AdminUser? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([bookingId, createdAt])
+  @@index([actorId])
+}
+
+/** Append-only audit log for staff-only driver cost. Survives clearing current value. */
+model BookingDriverCostEvent {
+  id             String           @id @default(cuid())
+  bookingId      String
+  actorId        String?
+  actorName      String
+  action         DriverCostAction
+  previousAmount Decimal?         @db.Decimal(10, 2)
+  nextAmount     Decimal?         @db.Decimal(10, 2)
+  createdAt      DateTime         @default(now())
 
   booking Booking    @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   actor   AdminUser? @relation(fields: [actorId], references: [id], onDelete: SetNull)
@@ -533,7 +567,9 @@ model AdminUser {
   createdAt             DateTime  @default(now())
 
   internalNotesUpdatedBookings Booking[] @relation("BookingInternalNotesUpdatedBy")
+  driverCostUpdatedBookings    Booking[] @relation("BookingDriverCostUpdatedBy")
   internalNoteEvents           BookingInternalNoteEvent[]
+  driverCostEvents             BookingDriverCostEvent[]
 }
 
 /** Browser push subscriptions for admin / driver staff alerts. */

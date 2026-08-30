@@ -54,7 +54,8 @@ export async function GET(request: Request) {
     prisma.booking.count({
       where: {
         driverId: null,
-        status: { notIn: ["cancelled", "completed"] },
+        // Pending / abandoned = unfinished checkout — not ready to assign.
+        status: { notIn: ["cancelled", "completed", "pending", "abandoned"] },
       },
     }),
     prisma.booking.findMany({
@@ -71,7 +72,7 @@ export async function GET(request: Request) {
       where: {
         driverId: null,
         pickupDateTime: { gte: now, lte: urgentEnd },
-        status: { notIn: ["cancelled", "completed"] },
+        status: { notIn: ["cancelled", "completed", "pending", "abandoned"] },
       },
       include: bookingListInclude,
       orderBy: { pickupDateTime: "asc" },

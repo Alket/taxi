@@ -66,6 +66,7 @@ const STATUS_OPTIONS: { value: string; label: string }[] = [
     label: BOOKING_STATUS_LABELS[s],
   })),
   { value: "cancelled", label: BOOKING_STATUS_LABELS.cancelled },
+  { value: "abandoned", label: BOOKING_STATUS_LABELS.abandoned },
 ]
 
 const PAYMENT_OPTIONS: { value: string; label: string }[] = [
@@ -86,6 +87,7 @@ const statusAccent: Record<Booking["status"], string> = {
   in_progress: "border-l-primary",
   completed: "border-l-success",
   cancelled: "border-l-destructive",
+  abandoned: "border-l-muted-foreground",
 }
 
 function normalizeDriverFilter(value: string | null): DriverFilterValue {

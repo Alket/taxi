@@ -2,12 +2,17 @@ import type {
   Booking,
   BookingDetail,
   BookingDriver,
+  DriverCostHistoryItem,
   InternalNoteHistoryItem,
   PaymentRecord,
   StatusEvent,
 } from "@/lib/types"
 import type { Prisma } from "@prisma/client"
 
+import {
+  DRIVER_COST_HISTORY_LIMIT,
+  driverCostHistorySelect,
+} from "@/lib/driver-cost"
 import {
   INTERNAL_NOTE_HISTORY_LIMIT,
   internalNoteHistorySelect,
@@ -28,6 +33,12 @@ const bookingDetailInclude = {
     orderBy: { createdAt: "desc" as const },
     take: INTERNAL_NOTE_HISTORY_LIMIT,
     select: internalNoteHistorySelect,
+  },
+  driverCostUpdatedBy: { select: { id: true, name: true } },
+  driverCostEvents: {
+    orderBy: { createdAt: "desc" as const },
+    take: DRIVER_COST_HISTORY_LIMIT,
+    select: driverCostHistorySelect,
   },
 } satisfies Prisma.BookingInclude
 
@@ -91,6 +102,21 @@ function serializeInternalNoteHistory(
   }))
 }
 
+function serializeDriverCostHistory(
+  events: BookingDetailRecord["driverCostEvents"],
+): DriverCostHistoryItem[] {
+  return events.map((event) => ({
+    id: event.id,
+    action: event.action,
+    actorName: event.actorName,
+    actorId: event.actorId,
+    previousAmount:
+      event.previousAmount == null ? null : toNumber(event.previousAmount),
+    nextAmount: event.nextAmount == null ? null : toNumber(event.nextAmount),
+    createdAt: event.createdAt.toISOString(),
+  }))
+}
+
 function serializeBookingBase(
   booking: BookingListRecord | BookingDetailRecord,
 ): Booking {
@@ -148,6 +174,7 @@ export function serializeBookingListItem(booking: BookingListRecord): Booking {
 
 export function serializeBookingDetail(
   booking: BookingDetailRecord,
+  opts?: { includeDriverCostHistory?: boolean },
 ): BookingDetail {
   return {
     ...serializeBookingBase(booking),
@@ -165,6 +192,18 @@ export function serializeBookingDetail(
     internalNoteHistory: serializeInternalNoteHistory(
       booking.internalNoteEvents,
     ),
+    driverCost:
+      booking.driverCost == null ? null : toNumber(booking.driverCost),
+    driverCostUpdatedAt: booking.driverCostUpdatedAt?.toISOString() ?? null,
+    driverCostUpdatedBy: booking.driverCostUpdatedBy
+      ? {
+          id: booking.driverCostUpdatedBy.id,
+          name: booking.driverCostUpdatedBy.name,
+        }
+      : null,
+    driverCostHistory: opts?.includeDriverCostHistory
+      ? serializeDriverCostHistory(booking.driverCostEvents)
+      : [],
   }
 }
 

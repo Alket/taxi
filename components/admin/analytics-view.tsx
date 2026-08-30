@@ -88,6 +88,8 @@ function exportCsv(report: AnalyticsReport) {
     `Payments,${report.summary.paymentCount}`,
     `Completed trips (pickup date),${report.summary.completedTripCount}`,
     `Forfeited deposits,${report.summary.forfeitedDeposits}`,
+    `Profit (client price − driver cost),${report.summary.profit}`,
+    `Profit trips with driver cost,${report.summary.profitTripCount}`,
     `Outstanding unpaid,${report.outstanding.unpaidBalances}`,
     "",
     "Revenue by driver",
@@ -304,9 +306,9 @@ export function AnalyticsView() {
         </Card>
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         {isLoading && !data ? (
-          Array.from({ length: 4 }).map((_, index) => (
+          Array.from({ length: 5 }).map((_, index) => (
             <Skeleton key={index} className="h-28 rounded-xl" />
           ))
         ) : data ? (
@@ -328,6 +330,12 @@ export function AnalyticsView() {
               value={data.summary.onlineCollectedLabel}
               hint="Stripe + PayPal + POK"
               icon={WalletIcon}
+            />
+            <SummaryCard
+              label="Profit"
+              value={data.summary.profitLabel}
+              hint={`${data.summary.profitTripCount} trips with driver cost set`}
+              icon={TrendingUpIcon}
             />
             <SummaryCard
               label="Outstanding"

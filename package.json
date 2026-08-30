@@ -13,6 +13,7 @@
     "test:destination-sheet": "tsx scripts/qa-destination-sheet-scroll.ts",
     "test:booking": "tsx scripts/smoke-booking-flow.ts",
     "test:booking-e2e": "tsx scripts/qa-booking-e2e.ts",
+    "test:abandoned-checkout": "tsx scripts/qa-abandoned-checkout.ts",
     "test:roundtrip-email": "tsx scripts/qa-roundtrip-email.ts",
     "admin:create": "tsx scripts/create-admin.ts",
     "docker:up": "docker compose up --build",
@@ -27,6 +28,7 @@
     "test:time-12h": "tsx scripts/qa-time-24h.ts",
     "test:calendar": "tsx scripts/qa-calendar.ts",
     "test:internal-notes": "tsx scripts/qa-internal-notes.ts",
+    "test:driver-cost": "tsx scripts/qa-driver-cost.ts",
     "blog:upsert": "tsx scripts/upsert-blog-post.ts",
     "test:admin-pages": "tsx scripts/qa-admin-pages.ts"
   },
