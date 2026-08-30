@@ -36,6 +36,16 @@ const SQ_WEEKDAY_SHORT = [
   "sht",
 ] as const
 
+const SQ_WEEKDAY_LONG = [
+  "e diel",
+  "e hënë",
+  "e martë",
+  "e mërkurë",
+  "e enjte",
+  "e premte",
+  "e shtunë",
+] as const
+
 const SQ_MONTH_SHORT = [
   "jan",
   "shk",
@@ -51,13 +61,28 @@ const SQ_MONTH_SHORT = [
   "dhj",
 ] as const
 
+const SQ_MONTH_LONG = [
+  "janar",
+  "shkurt",
+  "mars",
+  "prill",
+  "maj",
+  "qershor",
+  "korrik",
+  "gusht",
+  "shtator",
+  "tetor",
+  "nëntor",
+  "dhjetor",
+] as const
+
 /** Parts of `value` in Europe/Tirane (weekday 0=Sun … 6=Sat). */
 function tiraneDateParts(value: string) {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: APP_TIMEZONE,
     weekday: "short",
     month: "numeric",
-    day: "2-digit",
+    day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
@@ -76,6 +101,31 @@ function tiraneDateParts(value: string) {
   }
 }
 
+const EN_WEEKDAY_LONG = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+] as const
+
+const EN_MONTH_LONG = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+] as const
+
 /** Sunday-first short weekday labels for calendar grids (matches week start). */
 export function driverWeekdayShortLabels(locale: DriverLocale): string[] {
   if (locale === "sq") return [...SQ_WEEKDAY_SHORT]
@@ -88,27 +138,22 @@ export function driverWeekdayShortLabels(locale: DriverLocale): string[] {
   })
 }
 
-/** Pickup-style label: e.g. en "Sun 30 Aug, 14:01" / sq "die 30 gush, 14:01". */
+/** Pickup-style label: e.g. en "Sunday 30 August, 14:01" / sq "E diel 30 gusht, 14:01". */
 export function formatDriverDateTime(
   value: string | null | undefined,
   locale: DriverLocale,
 ): string {
   if (!value) return "—"
+  const p = tiraneDateParts(value)
   if (locale === "sq") {
-    const p = tiraneDateParts(value)
-    const weekday = SQ_WEEKDAY_SHORT[p.weekdayIndex] ?? SQ_WEEKDAY_SHORT[0]
-    const month = SQ_MONTH_SHORT[p.monthIndex] ?? SQ_MONTH_SHORT[0]
-    return `${weekday} ${p.day} ${month}, ${p.hour}:${p.minute}`
+    const weekday = SQ_WEEKDAY_LONG[p.weekdayIndex] ?? SQ_WEEKDAY_LONG[0]
+    const month = SQ_MONTH_LONG[p.monthIndex] ?? SQ_MONTH_LONG[0]
+    const raw = `${weekday} ${p.day} ${month}, ${p.hour}:${p.minute}`
+    return raw.charAt(0).toLocaleUpperCase("sq-AL") + raw.slice(1)
   }
-  return new Intl.DateTimeFormat("en-GB", {
-    weekday: "short",
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-    timeZone: APP_TIMEZONE,
-  }).format(new Date(value))
+  const weekday = EN_WEEKDAY_LONG[p.weekdayIndex] ?? EN_WEEKDAY_LONG[0]
+  const month = EN_MONTH_LONG[p.monthIndex] ?? EN_MONTH_LONG[0]
+  return `${weekday} ${p.day} ${month}, ${p.hour}:${p.minute}`
 }
 
 type MessageDict = Record<string, string>

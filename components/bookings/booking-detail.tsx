@@ -149,6 +149,10 @@ export function BookingDetail({
                   booking={booking}
                   onMutated={handleMutated}
                 />
+                <ProfitCollectedSection
+                  booking={booking}
+                  onMutated={handleMutated}
+                />
                 <Separator />
                 <DriverAssign booking={booking} onAssigned={handleMutated} />
                 <StatusAdvanceButtons
@@ -735,10 +739,12 @@ function DriverCostSection({
     <section className="flex flex-col gap-3">
       <div className="flex flex-col gap-1">
         <SectionLabel icon={BanknoteIcon}>Driver cost</SectionLabel>
-        <p className="text-xs text-muted-foreground">
-          Amount paid to the driver or subcontractor. Staff only — never shown
-          to customers or drivers. Profit = client price − driver cost.
-        </p>
+        {isAdmin ? (
+          <p className="text-xs text-muted-foreground">
+            Amount paid to the driver or subcontractor. Staff only — never shown
+            to customers or drivers. Profit = client price − driver cost.
+          </p>
+        ) : null}
         {booking.driverCostUpdatedAt ? (
           <p className="text-[11px] text-muted-foreground">
             Last edited
@@ -794,11 +800,6 @@ function DriverCostSection({
             <Trash2Icon data-icon="inline-start" />
             Clear
           </Button>
-        ) : null}
-        {!isAdmin && savedNum != null ? (
-          <span className="text-[11px] text-muted-foreground">
-            Only admins can clear driver cost
-          </span>
         ) : null}
       </div>
       {draftInvalid ? (
@@ -883,6 +884,216 @@ function DriverCostSection({
               }}
             >
               {deleting ? "Clearing…" : "Clear cost"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </section>
+  )
+}
+
+function ProfitCollectedSection({
+  booking,
+  onMutated,
+}: {
+  booking: BookingDetail
+  onMutated: () => void
+}) {
+  const { isAdmin } = useAdminSession()
+  const [pending, setPending] = React.useState(false)
+  const [confirmCollect, setConfirmCollect] = React.useState(false)
+  const [confirmUndo, setConfirmUndo] = React.useState(false)
+  const hasProfit = booking.profit != null && booking.driverCost != null
+  const isCompleted = booking.status === "completed"
+  const canMarkCollected = hasProfit && isCompleted
+  const collected = Boolean(booking.profitCollected)
+  /** Prefer frozen amount once collected; otherwise live profit. */
+  const displayProfit =
+    collected && booking.profitCollectedAmount != null
+      ? booking.profitCollectedAmount
+      : booking.profit
+  const profitLabel =
+    displayProfit != null
+      ? formatMoney(displayProfit, booking.currency)
+      : null
+  const confirmLabel = hasProfit
+    ? formatMoney(booking.profit as number, booking.currency)
+    : null
+
+  async function setCollected(next: boolean) {
+    if (pending) return
+    if (next && !hasProfit) {
+      toast.error("Set a driver cost before marking profit collected.")
+      return
+    }
+    if (next && !isCompleted) {
+      toast.error("Complete the trip before marking profit collected.")
+      return
+    }
+    if (!next && !isAdmin) {
+      toast.error("Only admins can undo Profit Collected.")
+      return
+    }
+    setPending(true)
+    try {
+      await apiPatch(`/api/admin/bookings/${booking.id}/profit-collected`, {
+        collected: next,
+      })
+      toast.success(
+        next ? "Marked as Profit Collected" : "Profit collection undone",
+      )
+      setConfirmCollect(false)
+      setConfirmUndo(false)
+      onMutated()
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Could not update profit collected",
+      )
+    } finally {
+      setPending(false)
+    }
+  }
+
+  return (
+    <section className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1">
+        <SectionLabel icon={BanknoteIcon}>Profit collected</SectionLabel>
+        {isAdmin ? (
+          <p className="text-xs text-muted-foreground">
+            Mark when the driver has handed office the company profit in cash
+            (client price − driver cost). Staff only. Amount is frozen at mark
+            time.
+          </p>
+        ) : null}
+      </div>
+
+      <div
+        className={
+          collected
+            ? "flex flex-col gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2.5"
+            : "flex flex-col gap-2 rounded-lg border bg-muted/30 px-3 py-2.5"
+        }
+      >
+        <dl className="grid gap-1.5 text-sm">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+            <dt className="text-xs text-muted-foreground">Profit</dt>
+            <dd className="font-semibold tabular-nums">
+              {profitLabel ?? "—"}
+            </dd>
+          </div>
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+            <dt className="text-xs text-muted-foreground">Status</dt>
+            <dd>
+              {collected ? (
+                <span className="font-medium text-emerald-700 dark:text-emerald-300">
+                  ✓ Collected
+                </span>
+              ) : hasProfit ? (
+                <span className="font-medium text-amber-700 dark:text-amber-300">
+                  Not Collected
+                </span>
+              ) : (
+                <span className="text-muted-foreground">—</span>
+              )}
+            </dd>
+          </div>
+          {collected ? (
+            <>
+              <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+                <dt className="text-xs text-muted-foreground">Collected by</dt>
+                <dd className="font-medium">
+                  {booking.profitCollectedBy?.name ?? "—"}
+                </dd>
+              </div>
+              <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+                <dt className="text-xs text-muted-foreground">Collected at</dt>
+                <dd className="tabular-nums text-muted-foreground">
+                  {booking.profitCollectedAt
+                    ? formatDateTime(booking.profitCollectedAt)
+                    : "—"}
+                </dd>
+              </div>
+            </>
+          ) : null}
+        </dl>
+
+        <div className="flex flex-wrap gap-2 pt-0.5">
+          {!collected ? (
+            <Button
+              type="button"
+              size="sm"
+              className="touch-manipulation"
+              disabled={!canMarkCollected || pending}
+              onClick={() => setConfirmCollect(true)}
+            >
+              Mark as Collected
+            </Button>
+          ) : isAdmin ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="touch-manipulation"
+              disabled={pending}
+              onClick={() => setConfirmUndo(true)}
+            >
+              Undo Collection
+            </Button>
+          ) : null}
+        </div>
+        {!collected && hasProfit && !isCompleted ? (
+          <p className="text-[11px] text-muted-foreground">
+            Available after the trip is completed.
+          </p>
+        ) : null}
+      </div>
+
+      <AlertDialog open={confirmCollect} onOpenChange={setConfirmCollect}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Profit Collection</AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmLabel
+                ? `Are you sure you have collected ${confirmLabel} in cash from the driver?`
+                : "Are you sure you have collected this profit in cash from the driver?"}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={pending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={pending}
+              onClick={(e) => {
+                e.preventDefault()
+                void setCollected(true)
+              }}
+            >
+              {pending ? "Saving…" : "Yes, Mark as Collected"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={confirmUndo} onOpenChange={setConfirmUndo}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Undo Profit Collection?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to mark this profit as not collected?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={pending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={pending}
+              onClick={(e) => {
+                e.preventDefault()
+                void setCollected(false)
+              }}
+            >
+              {pending ? "Saving…" : "Yes, Undo Collection"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

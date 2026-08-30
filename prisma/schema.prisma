@@ -214,6 +214,11 @@ model Booking {
   driverCost            Decimal?      @db.Decimal(10, 2)
   driverCostUpdatedAt   DateTime?
   driverCostUpdatedById String?
+  /** Staff-only: office received company profit cash from the driver. */
+  profitCollectedAt     DateTime?
+  profitCollectedById   String?
+  /** Frozen profit (€) at mark time: totalPrice − driverCost. Cleared on undo. */
+  profitCollectedAmount Decimal?      @db.Decimal(10, 2)
   /** True when the Customer (booker) is booking for a different traveler. */
   bookedForOther        Boolean       @default(false)
   passengerName         String?
@@ -232,6 +237,7 @@ model Booking {
   zone               Zone?                @relation(fields: [zoneId], references: [id], onDelete: SetNull)
   internalNotesUpdatedBy AdminUser?       @relation("BookingInternalNotesUpdatedBy", fields: [internalNotesUpdatedById], references: [id], onDelete: SetNull)
   driverCostUpdatedBy    AdminUser?       @relation("BookingDriverCostUpdatedBy", fields: [driverCostUpdatedById], references: [id], onDelete: SetNull)
+  profitCollectedBy      AdminUser?       @relation("BookingProfitCollectedBy", fields: [profitCollectedById], references: [id], onDelete: SetNull)
   payments           Payment[]
   reviews            Review[]
   statusEvents       BookingStatusEvent[]
@@ -251,6 +257,8 @@ model Booking {
   @@index([roundTripId])
   @@index([internalNotesUpdatedById])
   @@index([driverCostUpdatedById])
+  @@index([profitCollectedAt])
+  @@index([profitCollectedById])
 }
 
 /** Server-side PayPal checkout intent — binds orderId → booking/option/amount. */
@@ -568,6 +576,7 @@ model AdminUser {
 
   internalNotesUpdatedBookings Booking[] @relation("BookingInternalNotesUpdatedBy")
   driverCostUpdatedBookings    Booking[] @relation("BookingDriverCostUpdatedBy")
+  profitCollectedBookings      Booking[] @relation("BookingProfitCollectedBy")
   internalNoteEvents           BookingInternalNoteEvent[]
   driverCostEvents             BookingDriverCostEvent[]
 }

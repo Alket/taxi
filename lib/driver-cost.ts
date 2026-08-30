@@ -58,6 +58,13 @@ export async function applyDriverCostChange(input: {
         driverCost: nextNorm,
         driverCostUpdatedAt: now,
         driverCostUpdatedById: input.actor.id,
+        ...(nextNorm == null
+          ? {
+              profitCollectedAt: null,
+              profitCollectedById: null,
+              profitCollectedAmount: null,
+            }
+          : {}),
       },
     })
     await tx.bookingDriverCostEvent.create({

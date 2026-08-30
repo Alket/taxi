@@ -408,6 +408,8 @@ export function BookingsView() {
                 <TableHead>Vehicle</TableHead>
                 <TableHead>Driver</TableHead>
                 <TableHead>Payment</TableHead>
+                <TableHead className="text-right">Total</TableHead>
+                <TableHead className="text-right">Profit</TableHead>
                 <TableHead className="pr-4">Status</TableHead>
               </TableRow>
             </TableHeader>
@@ -415,7 +417,7 @@ export function BookingsView() {
               {isLoading ? (
                 Array.from({ length: 6 }).map((_, i) => (
                   <TableRow key={i}>
-                    <TableCell colSpan={9} className="pl-4">
+                    <TableCell colSpan={11} className="pl-4">
                       <Skeleton className="h-8 w-full" />
                     </TableCell>
                   </TableRow>
@@ -481,6 +483,47 @@ export function BookingsView() {
                     <TableCell>
                       <PaymentStatusBadge status={b.paymentStatus} />
                     </TableCell>
+                    <TableCell className="text-right tabular-nums text-sm font-medium">
+                      {formatMoney(b.totalPrice, b.currency)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-sm">
+                      {(() => {
+                        const amount =
+                          b.profitCollected && b.profitCollectedAmount != null
+                            ? b.profitCollectedAmount
+                            : b.profit
+                        if (amount == null) {
+                          return (
+                            <span className="text-muted-foreground">—</span>
+                          )
+                        }
+                        return (
+                          <div className="flex flex-col items-end gap-0.5">
+                            <span
+                              className={
+                                b.profitCollected
+                                  ? "font-medium"
+                                  : "font-medium text-muted-foreground"
+                              }
+                            >
+                              {formatMoney(amount, b.currency)}
+                            </span>
+                            {b.profitCollected ? (
+                              <Badge
+                                variant="secondary"
+                                className="font-normal"
+                              >
+                                Collected
+                              </Badge>
+                            ) : (
+                              <span className="text-[11px] text-muted-foreground">
+                                Due
+                              </span>
+                            )}
+                          </div>
+                        )
+                      })()}
+                    </TableCell>
                     <TableCell className="pr-4">
                       <BookingStatusBadge status={b.status} />
                     </TableCell>
@@ -488,7 +531,7 @@ export function BookingsView() {
                 ))
               ) : (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={9}>
+                  <TableCell colSpan={11}>
                     <Empty className="py-12">
                       <EmptyTitle>No bookings found</EmptyTitle>
                       <EmptyDescription>
@@ -632,6 +675,11 @@ function BookingMobileCard({
         )}
         <span className="text-xs text-muted-foreground">
           {VEHICLE_LABELS[b.vehicleType]} · {formatMoney(b.totalPrice, b.currency)}
+          {b.profitCollected && b.profitCollectedAmount != null
+            ? ` · Profit ${formatMoney(b.profitCollectedAmount, b.currency)} (collected)`
+            : b.profit != null
+              ? ` · Profit ${formatMoney(b.profit, b.currency)} (due)`
+              : ""}
         </span>
       </div>
     </button>

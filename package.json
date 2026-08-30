@@ -29,6 +29,7 @@
     "test:calendar": "tsx scripts/qa-calendar.ts",
     "test:internal-notes": "tsx scripts/qa-internal-notes.ts",
     "test:driver-cost": "tsx scripts/qa-driver-cost.ts",
+    "test:profit-collected": "tsx scripts/qa-profit-collected.ts",
     "blog:upsert": "tsx scripts/upsert-blog-post.ts",
     "test:admin-pages": "tsx scripts/qa-admin-pages.ts"
   },

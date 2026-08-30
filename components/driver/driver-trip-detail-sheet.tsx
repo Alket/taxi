@@ -20,7 +20,7 @@ import {
 } from "@/lib/i18n/driver"
 import type { BookingStatus, PaymentStatus } from "@/lib/types"
 import { cn } from "@/lib/utils"
-import { CopyBookingInfoButton } from "@/components/driver/copy-booking-info-button"
+import { BookingInfoShareActions } from "@/components/driver/copy-booking-info-button"
 import { buttonVariants } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
@@ -292,10 +292,7 @@ export function DriverTripDetailSheet({
                       ) : null}
                     </div>
                   ) : null}
-                  <CopyBookingInfoButton
-                    trip={trip}
-                    className="w-full sm:w-auto"
-                  />
+                  <BookingInfoShareActions trip={trip} />
                 </section>
 
                 <Separator />
@@ -305,6 +302,24 @@ export function DriverTripDetailSheet({
                   <SectionLabel icon={BanknoteIcon}>
                     {t("calendar.sheetPayment")}
                   </SectionLabel>
+                  <div className="flex items-center gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-3">
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
+                      <BanknoteIcon className="size-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium tracking-wide text-emerald-700 uppercase dark:text-emerald-300">
+                        {t("trips.tripTotalLabel")}
+                      </p>
+                      <p className="text-2xl font-bold tabular-nums text-foreground sm:text-3xl">
+                        {trip.totalPriceLabel}
+                      </p>
+                      {trip.hadOnlineDeposit ? (
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {t("trips.depositPaid")}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
                   <div
                     className={
                       trip.cashToCollect > 0
@@ -319,15 +334,6 @@ export function DriverTripDetailSheet({
                       </p>
                       <p className="text-base font-semibold tabular-nums">
                         {trip.cashToCollectLabel}
-                      </p>
-                      <p className="mt-1.5 text-xs text-muted-foreground">
-                        {t("trips.tripTotalLabel")}
-                        {trip.hadOnlineDeposit
-                          ? ` · ${t("trips.depositPaid")}`
-                          : ""}
-                      </p>
-                      <p className="text-base font-semibold tabular-nums">
-                        {trip.totalPriceLabel}
                       </p>
                     </div>
                   </div>

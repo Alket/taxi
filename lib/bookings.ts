@@ -17,10 +17,12 @@ import {
   INTERNAL_NOTE_HISTORY_LIMIT,
   internalNoteHistorySelect,
 } from "@/lib/internal-notes"
+import { round2 } from "@/lib/vehicles"
 
 const bookingListInclude = {
   customer: true,
   driver: true,
+  profitCollectedBy: { select: { id: true, name: true } },
 } satisfies Prisma.BookingInclude
 
 const bookingDetailInclude = {
@@ -40,6 +42,7 @@ const bookingDetailInclude = {
     take: DRIVER_COST_HISTORY_LIMIT,
     select: driverCostHistorySelect,
   },
+  profitCollectedBy: { select: { id: true, name: true } },
 } satisfies Prisma.BookingInclude
 
 export type BookingListRecord = Prisma.BookingGetPayload<{
@@ -168,8 +171,49 @@ function serializeBookingBase(
   }
 }
 
+function staffDriverCostFields(booking: {
+  totalPrice: Prisma.Decimal | number
+  driverCost: Prisma.Decimal | number | null
+  profitCollectedAt: Date | null
+  profitCollectedBy: { id: string; name: string } | null
+  profitCollectedAmount: Prisma.Decimal | number | null
+}): Pick<
+  Booking,
+  | "driverCost"
+  | "profit"
+  | "profitCollected"
+  | "profitCollectedAt"
+  | "profitCollectedBy"
+  | "profitCollectedAmount"
+> {
+  const driverCost =
+    booking.driverCost == null ? null : toNumber(booking.driverCost)
+  return {
+    driverCost,
+    profit:
+      driverCost == null
+        ? null
+        : round2(toNumber(booking.totalPrice) - driverCost),
+    profitCollected: booking.profitCollectedAt != null,
+    profitCollectedAt: booking.profitCollectedAt?.toISOString() ?? null,
+    profitCollectedBy: booking.profitCollectedBy
+      ? {
+          id: booking.profitCollectedBy.id,
+          name: booking.profitCollectedBy.name,
+        }
+      : null,
+    profitCollectedAmount:
+      booking.profitCollectedAmount == null
+        ? null
+        : toNumber(booking.profitCollectedAmount),
+  }
+}
+
 export function serializeBookingListItem(booking: BookingListRecord): Booking {
-  return serializeBookingBase(booking)
+  return {
+    ...serializeBookingBase(booking),
+    ...staffDriverCostFields(booking),
+  }
 }
 
 export function serializeBookingDetail(
@@ -178,6 +222,7 @@ export function serializeBookingDetail(
 ): BookingDetail {
   return {
     ...serializeBookingBase(booking),
+    ...staffDriverCostFields(booking),
     timeline: serializeTimeline(booking.statusEvents),
     payments: serializePayments(booking.payments),
     internalNotes: booking.internalNotes ?? null,
@@ -192,8 +237,6 @@ export function serializeBookingDetail(
     internalNoteHistory: serializeInternalNoteHistory(
       booking.internalNoteEvents,
     ),
-    driverCost:
-      booking.driverCost == null ? null : toNumber(booking.driverCost),
     driverCostUpdatedAt: booking.driverCostUpdatedAt?.toISOString() ?? null,
     driverCostUpdatedBy: booking.driverCostUpdatedBy
       ? {

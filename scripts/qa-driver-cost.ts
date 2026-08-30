@@ -125,16 +125,15 @@ async function main() {
   if (
     serializer.includes("driverCost") &&
     serializer.includes("includeDriverCostHistory") &&
-    serializer.indexOf("export function serializeBookingListItem") <
-      serializer.indexOf("driverCost:")
+    serializer.includes("staffDriverCostFields")
   ) {
-    // list item should not set driverCost — detail does
     const listFn = serializer.slice(
       serializer.indexOf("export function serializeBookingListItem"),
       serializer.indexOf("export function serializeBookingDetail"),
     )
-    if (!listFn.includes("driverCost")) pass("A3 list serializer omits driverCost")
-    else fail("A3 list serializer omits driverCost")
+    if (listFn.includes("staffDriverCostFields") && listFn.includes("profit")) {
+      pass("A3 list serializer includes staff profit/driverCost")
+    } else fail("A3 list serializer includes staff profit/driverCost")
   } else {
     fail("A3 serializer wiring")
   }

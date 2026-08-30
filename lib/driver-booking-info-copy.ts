@@ -2,6 +2,7 @@ import type { DriverLocale } from "@/lib/i18n/driver"
 import { APP_TIMEZONE } from "@/lib/timezone"
 
 export type DriverBookingInfoSource = {
+  referenceCode: string
   pickupPin: string
   contactName: string
   flightNumber: string | null
@@ -113,7 +114,10 @@ export function buildDriverBookingInfoText(
 ): string {
   const blocks: string[][] = [
     [t("trips.copyHeading")],
-    [line(t("trips.pickupPin"), trip.pickupPin)],
+    [
+      line(t("trips.copyReference"), trip.referenceCode),
+      line(t("trips.pickupPin"), trip.pickupPin),
+    ],
   ]
 
   const passengerBlock = [

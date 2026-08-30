@@ -104,6 +104,22 @@ export interface Booking {
   passengerPhone: string | null
   passengerNoEmail: boolean
   bookerRelation: BookerRelation | null
+  /**
+   * Staff-only driver/subcontractor cost (admin list + detail).
+   * Never exposed on public/driver APIs.
+   */
+  driverCost?: number | null
+  /** Staff-only: totalPrice − driverCost when cost is set; otherwise null. */
+  profit?: number | null
+  /** Staff-only: office received company profit cash from the driver. */
+  profitCollected?: boolean
+  profitCollectedAt?: string | null
+  profitCollectedBy?: { id: string; name: string } | null
+  /**
+   * Frozen profit at mark time (totalPrice − driverCost then).
+   * Prefer this over live `profit` when profitCollected is true.
+   */
+  profitCollectedAmount?: number | null
 }
 
 export type InternalNoteAction = "created" | "updated" | "deleted"
@@ -137,8 +153,6 @@ export interface BookingDetail extends Booking {
   internalNotesUpdatedAt?: string | null
   internalNotesUpdatedBy?: { id: string; name: string } | null
   internalNoteHistory?: InternalNoteHistoryItem[]
-  /** Staff-only driver/subcontractor cost. Detail only — never public/driver. */
-  driverCost?: number | null
   driverCostUpdatedAt?: string | null
   driverCostUpdatedBy?: { id: string; name: string } | null
   /** Admin-only audit trail. Operators receive empty array. */
