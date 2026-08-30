@@ -136,8 +136,11 @@ export default function ContinueBookingPage() {
             Cannot continue this booking
           </h1>
           <p className="text-sm text-muted-foreground">{error}</p>
-          <Button asChild>
-            <Link href="/">Start a new booking</Link>
+          <Button
+            nativeButton={false}
+            render={<Link href="/" />}
+          >
+            Start a new booking
           </Button>
         </>
       )}

@@ -14,6 +14,7 @@ import {
 } from "@/lib/dashboard"
 import { prisma } from "@/lib/db"
 import type { DashboardSummary } from "@/lib/types"
+import type { Prisma } from "@prisma/client"
 
 export async function GET(request: Request) {
   const session = await requireStaffSession(request)
@@ -40,9 +41,9 @@ export async function GET(request: Request) {
     profitCollectedAt: null,
   }
 
-  const profitThisMonthWhere = {
+  const profitThisMonthWhere: Prisma.BookingWhereInput = {
     pickupDateTime: { gte: monthStart, lt: monthEnd },
-    status: { notIn: ["cancelled", "pending", "abandoned"] as const },
+    status: { notIn: ["cancelled", "pending", "abandoned"] },
     driverCost: { not: null },
   }
 

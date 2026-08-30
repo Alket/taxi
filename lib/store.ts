@@ -523,6 +523,7 @@ const settings: Settings = {
     dateChange: true,
     completedReceipt: true,
     reviewRequest: true,
+    checkoutAbandoned: true,
   },
   flightDelayThresholdMinutes: 45,
   whatsappConnectionStatus: "connected",

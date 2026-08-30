@@ -57,6 +57,7 @@ const bookingSelect = {
   pickupAddress: true,
   dropoffAddress: true,
   pickupDateTime: true,
+  createdAt: true,
   flightNumber: true,
   vehicleType: true,
   passengerCount: true,
@@ -102,6 +103,7 @@ type BookingEmailRow = {
   pickupAddress: string
   dropoffAddress: string
   pickupDateTime: Date
+  createdAt: Date
   flightNumber: string | null
   vehicleType: string
   passengerCount: number
