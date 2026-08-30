@@ -41,6 +41,11 @@ export async function GET(request: Request) {
     profitCollectedAt: null,
   }
 
+  const revenueThisMonthWhere: Prisma.BookingWhereInput = {
+    status: "completed",
+    pickupDateTime: { gte: monthStart, lt: monthEnd },
+  }
+
   const profitThisMonthWhere: Prisma.BookingWhereInput = {
     pickupDateTime: { gte: monthStart, lt: monthEnd },
     status: { notIn: ["cancelled", "pending", "abandoned"] },
@@ -76,14 +81,8 @@ export async function GET(request: Request) {
       },
     }),
     prisma.booking.findMany({
-      where: {
-        createdAt: { gte: monthStart, lt: monthEnd },
-        depositPaid: { gt: 0 },
-      },
-      select: {
-        depositAmount: true,
-        balanceDue: true,
-      },
+      where: revenueThisMonthWhere,
+      select: { depositPaid: true },
     }),
     prisma.booking.findMany({
       where: profitThisMonthWhere,
@@ -112,8 +111,7 @@ export async function GET(request: Request) {
   ])
 
   const revenueThisMonth = revenueBookings.reduce(
-    (sum, booking) =>
-      sum + Number(booking.depositAmount) + Number(booking.balanceDue),
+    (sum, booking) => sum + Number(booking.depositPaid),
     0,
   )
 
@@ -135,6 +133,7 @@ export async function GET(request: Request) {
     bookingsThisWeek,
     unassignedCount,
     revenueThisMonth: Number(revenueThisMonth.toFixed(2)),
+    revenueThisMonthTripCount: revenueBookings.length,
     profitThisMonth: Number(profitThisMonth.toFixed(2)),
     profitThisMonthTripCount: profitThisMonthRows.length,
     currency,

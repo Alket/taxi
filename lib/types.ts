@@ -195,7 +195,9 @@ export interface DashboardSummary {
   bookingsToday: number
   bookingsThisWeek: number
   unassignedCount: number
+  /** Sum of depositPaid on completed trips with pickup this month. */
   revenueThisMonth: number
+  revenueThisMonthTripCount: number
   /** Sum of (totalPrice − driverCost) for pickups this month with driver cost set. */
   profitThisMonth: number
   profitThisMonthTripCount: number

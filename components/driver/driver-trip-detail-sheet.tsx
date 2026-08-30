@@ -7,8 +7,6 @@ import {
   KeyRoundIcon,
   LuggageIcon,
   MapPinIcon,
-  MessageSquareIcon,
-  PhoneIcon,
   PlaneIcon,
   UsersIcon,
 } from "lucide-react"
@@ -20,8 +18,7 @@ import {
 } from "@/lib/i18n/driver"
 import type { BookingStatus, PaymentStatus } from "@/lib/types"
 import { cn } from "@/lib/utils"
-import { BookingInfoShareActions } from "@/components/driver/copy-booking-info-button"
-import { buttonVariants } from "@/components/ui/button"
+import { DriverContactShareBlock } from "@/components/driver/copy-booking-info-button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import {
@@ -264,35 +261,7 @@ export function DriverTripDetailSheet({
                     {t("calendar.sheetPassenger")}
                   </SectionLabel>
                   <p className="text-sm font-medium">{trip.contactName}</p>
-                  {trip.contactPhone ? (
-                    <div className="flex flex-wrap gap-2">
-                      <a
-                        href={`tel:${trip.contactPhone}`}
-                        className={cn(
-                          buttonVariants({ variant: "outline", size: "sm" }),
-                          "h-9 flex-1 touch-manipulation sm:flex-none",
-                        )}
-                      >
-                        <PhoneIcon data-icon="inline-start" />
-                        {t("trips.phone")}
-                      </a>
-                      {trip.contactWhatsappUrl ? (
-                        <a
-                          href={trip.contactWhatsappUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className={cn(
-                            buttonVariants({ variant: "outline", size: "sm" }),
-                            "h-9 flex-1 touch-manipulation sm:flex-none",
-                          )}
-                        >
-                          <MessageSquareIcon data-icon="inline-start" />
-                          {t("trips.whatsapp")}
-                        </a>
-                      ) : null}
-                    </div>
-                  ) : null}
-                  <BookingInfoShareActions trip={trip} />
+                  <DriverContactShareBlock trip={trip} />
                 </section>
 
                 <Separator />

@@ -1,7 +1,12 @@
 "use client"
 
 import * as React from "react"
-import { CheckIcon, CopyIcon, MessageSquareIcon } from "lucide-react"
+import {
+  CheckIcon,
+  CopyIcon,
+  MessageSquareIcon,
+  PhoneIcon,
+} from "lucide-react"
 import { toast } from "sonner"
 
 import {
@@ -10,7 +15,7 @@ import {
 } from "@/lib/driver-booking-info-copy"
 import { useDriverLocale, useDriverT } from "@/lib/i18n/driver"
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 
 function bookingInfoWhatsAppUrl(text: string) {
   return `https://wa.me/?text=${encodeURIComponent(text)}`
@@ -43,7 +48,7 @@ export function CopyBookingInfoButton({
     <Button
       type="button"
       variant="outline"
-      size="lg"
+      size="sm"
       className={cn("h-9 touch-manipulation", className)}
       onClick={onCopy}
     >
@@ -77,7 +82,7 @@ export function WhatsAppBookingInfoButton({
     <Button
       type="button"
       variant="outline"
-      size="lg"
+      size="sm"
       className={cn("h-9 touch-manipulation", className)}
       onClick={onShare}
     >
@@ -87,17 +92,70 @@ export function WhatsAppBookingInfoButton({
   )
 }
 
-export function BookingInfoShareActions({
+export type DriverContactShareTrip = DriverBookingInfoSource & {
+  contactPhone: string
+  contactWhatsappUrl: string | null
+}
+
+/**
+ * Phone / WhatsApp / booking-info actions in one muted block —
+ * kept visually separate from Arrive / Cash Paid / Complete.
+ */
+export function DriverContactShareBlock({
   trip,
   className,
 }: {
-  trip: DriverBookingInfoSource
+  trip: DriverContactShareTrip
   className?: string
 }) {
+  const t = useDriverT()
+  const hasPhone = Boolean(trip.contactPhone)
+
   return (
-    <div className={cn("flex flex-wrap gap-2", className)}>
-      <CopyBookingInfoButton trip={trip} className="flex-1 sm:flex-none" />
-      <WhatsAppBookingInfoButton trip={trip} className="flex-1 sm:flex-none" />
+    <div
+      className={cn(
+        "flex flex-col gap-2.5 rounded-xl border border-border bg-muted/40 p-3",
+        className,
+      )}
+    >
+      <p className="text-xs font-medium text-muted-foreground">
+        {t("trips.contactShare")}
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {hasPhone ? (
+          <a
+            href={`tel:${trip.contactPhone}`}
+            aria-label={t("trips.callPassenger")}
+            className={cn(
+              buttonVariants({ variant: "outline", size: "sm" }),
+              "h-9 flex-1 touch-manipulation sm:flex-none",
+            )}
+          >
+            <PhoneIcon data-icon="inline-start" />
+            {t("trips.phone")}
+          </a>
+        ) : null}
+        {hasPhone && trip.contactWhatsappUrl ? (
+          <a
+            href={trip.contactWhatsappUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={t("trips.whatsappPassenger")}
+            className={cn(
+              buttonVariants({ variant: "outline", size: "sm" }),
+              "h-9 flex-1 touch-manipulation sm:flex-none",
+            )}
+          >
+            <MessageSquareIcon data-icon="inline-start" />
+            {t("trips.whatsapp")}
+          </a>
+        ) : null}
+        <CopyBookingInfoButton trip={trip} className="flex-1 sm:flex-none" />
+        <WhatsAppBookingInfoButton
+          trip={trip}
+          className="flex-1 sm:flex-none"
+        />
+      </div>
     </div>
   )
 }

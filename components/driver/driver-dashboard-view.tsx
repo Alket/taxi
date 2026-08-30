@@ -12,13 +12,12 @@ import {
   Loader2Icon,
   MapPinIcon,
   MessageSquareIcon,
-  PhoneIcon,
   UsersIcon,
 } from "lucide-react"
 import { toast } from "sonner"
 
 import { DriverPageHeader } from "@/components/driver/driver-page-header"
-import { BookingInfoShareActions } from "@/components/driver/copy-booking-info-button"
+import { DriverContactShareBlock } from "@/components/driver/copy-booking-info-button"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,7 +28,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Button, buttonVariants } from "@/components/ui/button"
+import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
@@ -692,39 +691,6 @@ function TripCard({
             {trip.meetAndGreet ? <span>{t("trips.meetGreet")}</span> : null}
           </div>
 
-          {trip.contactPhone ? (
-            <div className="flex flex-wrap gap-2">
-              <a
-                href={`tel:${trip.contactPhone}`}
-                aria-label={t("trips.callPassenger")}
-                className={cn(
-                  buttonVariants({ variant: "outline", size: "sm" }),
-                  "h-9 flex-1 touch-manipulation sm:flex-none",
-                )}
-              >
-                <PhoneIcon data-icon="inline-start" />
-                {t("trips.phone")}
-              </a>
-              {trip.contactWhatsappUrl ? (
-                <a
-                  href={trip.contactWhatsappUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={t("trips.whatsappPassenger")}
-                  className={cn(
-                    buttonVariants({ variant: "outline", size: "sm" }),
-                    "h-9 flex-1 touch-manipulation sm:flex-none",
-                  )}
-                >
-                  <MessageSquareIcon data-icon="inline-start" />
-                  {t("trips.whatsapp")}
-                </a>
-              ) : null}
-            </div>
-          ) : null}
-
-          <BookingInfoShareActions trip={trip} />
-
           {trip.childSeats || trip.driverNotes ? (
             <div className="flex flex-col gap-2">
               {trip.childSeats ? (
@@ -756,8 +722,16 @@ function TripCard({
             </div>
           ) : null}
 
-          {!readOnly ? (
-            <div className="mt-auto flex flex-col gap-2">
+          <DriverContactShareBlock trip={trip} />
+
+          {!readOnly &&
+          (trip.needsResponse ||
+            trip.canMarkCashPaid ||
+            trip.nextStatus) ? (
+            <div className="mt-1 flex flex-col gap-2.5 rounded-xl border border-primary/25 bg-primary/5 p-3">
+              <p className="text-xs font-medium text-muted-foreground">
+                {t("trips.statusActions")}
+              </p>
               {trip.needsResponse ? (
                 <>
                   <p className="text-xs text-muted-foreground">
@@ -767,7 +741,7 @@ function TripCard({
                     <Button
                       type="button"
                       size="lg"
-                      className="w-full"
+                      className="h-11 w-full touch-manipulation"
                       disabled={pending}
                       onClick={onAccept}
                     >
@@ -787,7 +761,7 @@ function TripCard({
                       type="button"
                       size="lg"
                       variant="outline"
-                      className="w-full"
+                      className="h-11 w-full touch-manipulation"
                       disabled={pending}
                       onClick={onReject}
                     >
@@ -801,7 +775,7 @@ function TripCard({
                 <Button
                   type="button"
                   size="lg"
-                  className="w-full"
+                  className="h-11 w-full touch-manipulation"
                   disabled={pending}
                   onClick={onCashPaid}
                 >
@@ -827,7 +801,7 @@ function TripCard({
                   type="button"
                   size="lg"
                   variant={trip.canMarkCashPaid ? "outline" : "default"}
-                  className="w-full"
+                  className="h-11 w-full touch-manipulation"
                   disabled={pending}
                   onClick={onAdvance}
                 >

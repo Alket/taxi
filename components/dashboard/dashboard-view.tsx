@@ -198,7 +198,8 @@ export function DashboardView() {
                 value={formatMoney(data.revenueThisMonth, data.currency)}
                 icon={Wallet}
                 tone="success"
-                hint="Bookings with deposit paid (created this month)"
+                href={`/admin/bookings?status=completed&dateFrom=${monthFrom}&dateTo=${monthTo}`}
+                hint={`${data.revenueThisMonthTripCount} completed trip${data.revenueThisMonthTripCount === 1 ? "" : "s"} — money collected (pickup this month)`}
               />
               <StatCard
                 label="Profit this month"

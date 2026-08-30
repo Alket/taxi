@@ -68,6 +68,8 @@
   "trips.whatsapp": "WhatsApp",
   "trips.callPassenger": "Call passenger",
   "trips.whatsappPassenger": "WhatsApp passenger",
+  "trips.contactShare": "Contact & booking info",
+  "trips.statusActions": "Trip status",
   "trips.copyBookingInfo": "Copy Booking info",
   "trips.whatsappBookingInfo": "WhatsApp Booking info",
   "trips.copyHeading": "Booking Information",
