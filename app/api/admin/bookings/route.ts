@@ -91,6 +91,15 @@ export async function GET(request: Request) {
     where.paymentStatus = paymentStatus as PaymentStatus
   }
 
+  const profitCollected = searchParams.get("profitCollected")
+  if (profitCollected === "due") {
+    where.status = "completed"
+    where.driverCost = { not: null }
+    where.profitCollectedAt = null
+  } else if (profitCollected === "collected") {
+    where.profitCollectedAt = { not: null }
+  }
+
   if (driverId) {
     if (driverId === "unassigned" || driverId === "null") {
       where.driverId = null

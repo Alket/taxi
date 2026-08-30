@@ -196,8 +196,15 @@ export interface DashboardSummary {
   bookingsThisWeek: number
   unassignedCount: number
   revenueThisMonth: number
+  /** Sum of (totalPrice − driverCost) for pickups this month with driver cost set. */
+  profitThisMonth: number
+  profitThisMonthTripCount: number
   currency: string
   upcomingUrgent: Booking[]
+  /** Completed trips with driver cost set but profit not marked collected. */
+  uncollectedProfitCount: number
+  uncollectedProfitTotal: number
+  uncollectedProfit: Booking[]
 }
 
 export interface AnalyticsProviderRow {

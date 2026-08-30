@@ -6,10 +6,13 @@ import Link from "next/link"
 import {
   AlertTriangle,
   ArrowUpRight,
+  Banknote,
   CalendarCheck,
   CalendarDays,
+  ChevronDown,
   Clock,
   RefreshCw,
+  TrendingUp,
   UserX,
   Wallet,
 } from "lucide-react"
@@ -18,6 +21,7 @@ import { fetcher } from "@/lib/api"
 import {
   addDays,
   startOfDay,
+  startOfMonth,
   startOfWeek,
   toDateInputValue,
 } from "@/lib/dashboard"
@@ -109,6 +113,7 @@ export function DashboardView() {
   const [selectedBookingId, setSelectedBookingId] = React.useState<
     string | null
   >(null)
+  const [uncollectedOpen, setUncollectedOpen] = React.useState(false)
 
   const { data, isLoading, mutate, isValidating } = useSWR<DashboardSummary>(
     "/api/admin/dashboard-summary",
@@ -119,6 +124,8 @@ export function DashboardView() {
   const today = toDateInputValue(startOfDay(new Date()))
   const weekFrom = toDateInputValue(startOfWeek(new Date()))
   const weekTo = toDateInputValue(addDays(startOfWeek(new Date()), 6))
+  const monthFrom = toDateInputValue(startOfMonth(new Date()))
+  const monthTo = today
 
   return (
     <>
@@ -141,9 +148,9 @@ export function DashboardView() {
         }
       />
       <div className="flex flex-col gap-5 p-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:gap-6 sm:p-4 md:p-6">
-        <section className="grid grid-cols-2 gap-2.5 sm:gap-4 xl:grid-cols-4">
+        <section className="grid grid-cols-2 gap-2.5 sm:gap-4 xl:grid-cols-3">
           {isLoading || !data ? (
-            Array.from({ length: 4 }).map((_, i) => (
+            Array.from({ length: 6 }).map((_, i) => (
               <Card key={i}>
                 <CardHeader>
                   <Skeleton className="h-4 w-24" />
@@ -176,15 +183,147 @@ export function DashboardView() {
                 hint="Need a driver assigned"
               />
               <StatCard
+                label="Uncollected profit"
+                value={formatMoney(
+                  data.uncollectedProfitTotal,
+                  data.currency,
+                )}
+                icon={Banknote}
+                tone="warning"
+                href="/admin/bookings?status=completed&profitCollected=due&dateFrom=&dateTo="
+                hint={`${data.uncollectedProfitCount} completed trip${data.uncollectedProfitCount === 1 ? "" : "s"} with profit due`}
+              />
+              <StatCard
                 label="Revenue this month"
                 value={formatMoney(data.revenueThisMonth, data.currency)}
                 icon={Wallet}
                 tone="success"
                 hint="Bookings with deposit paid (created this month)"
               />
+              <StatCard
+                label="Profit this month"
+                value={formatMoney(data.profitThisMonth, data.currency)}
+                icon={TrendingUp}
+                tone="success"
+                href={`/admin/analytics?dateFrom=${monthFrom}&dateTo=${monthTo}`}
+                hint={`${data.profitThisMonthTripCount} trip${data.profitThisMonthTripCount === 1 ? "" : "s"} with driver cost (pickups this month)`}
+              />
             </>
           )}
         </section>
+
+        <Card className="gap-0 py-0">
+          <CardHeader className="flex-col items-stretch gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <button
+              type="button"
+              className="flex min-w-0 flex-1 items-start gap-2.5 text-left touch-manipulation sm:items-center"
+              onClick={() => setUncollectedOpen((open) => !open)}
+              aria-expanded={uncollectedOpen}
+            >
+              <Banknote className="mt-0.5 size-4 shrink-0 text-warning sm:mt-0" />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-sm">Uncollected profit</CardTitle>
+                  {!isLoading && data ? (
+                    <span className="rounded-md bg-warning/15 px-1.5 py-0.5 text-xs font-medium tabular-nums text-warning">
+                      {data.uncollectedProfitCount}
+                    </span>
+                  ) : null}
+                </div>
+                <CardDescription className="text-xs">
+                  Completed trips with driver cost set — profit not marked
+                  collected yet
+                </CardDescription>
+              </div>
+              <ChevronDown
+                className={cn(
+                  "mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform sm:mt-0",
+                  uncollectedOpen && "rotate-180",
+                )}
+              />
+            </button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-10 w-full touch-manipulation sm:h-8 sm:w-auto"
+              nativeButton={false}
+              render={
+                <Link href="/admin/bookings?status=completed&profitCollected=due&dateFrom=&dateTo=" />
+              }
+            >
+              View all
+              <ArrowUpRight data-icon="inline-end" />
+            </Button>
+          </CardHeader>
+          {uncollectedOpen ? (
+            <CardContent className="border-t p-0">
+              {isLoading ? (
+                <div className="flex flex-col gap-3 p-4">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <Skeleton key={i} className="h-16 w-full" />
+                  ))}
+                </div>
+              ) : data && data.uncollectedProfit.length > 0 ? (
+                <ul className="divide-y">
+                  {data.uncollectedProfit.map((b) => (
+                    <li key={b.id}>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedBookingId(b.id)}
+                        className="flex w-full touch-manipulation gap-3 px-3 py-3.5 text-left transition-colors hover:bg-muted/50 active:bg-muted/60 sm:px-4 md:px-6"
+                      >
+                        <div className="flex w-16 shrink-0 flex-col items-center justify-center rounded-lg bg-warning/15 px-2 py-2 text-center">
+                          <span className="text-sm font-semibold tabular-nums text-warning">
+                            {b.profit != null
+                              ? formatMoney(b.profit, b.currency)
+                              : "—"}
+                          </span>
+                        </div>
+                        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-semibold">
+                                {b.customer.name}
+                              </p>
+                              <p className="font-mono text-xs text-muted-foreground">
+                                {b.referenceCode}
+                              </p>
+                            </div>
+                            <BookingStatusBadge status={b.status} />
+                          </div>
+                          <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+                            {b.pickupAddress} → {b.dropoffAddress}
+                          </p>
+                          <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                            <span>{formatTime(b.pickupDateTime)}</span>
+                            <span>·</span>
+                            <span>
+                              Total {formatMoney(b.totalPrice, b.currency)}
+                            </span>
+                            {b.driver ? (
+                              <>
+                                <span>·</span>
+                                <span>{b.driver.name}</span>
+                              </>
+                            ) : null}
+                          </div>
+                        </div>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <Empty className="py-10">
+                  <EmptyTitle>No uncollected profit</EmptyTitle>
+                  <EmptyDescription>
+                    All completed trips with a driver cost have profit marked
+                    collected.
+                  </EmptyDescription>
+                </Empty>
+              )}
+            </CardContent>
+          ) : null}
+        </Card>
 
         <Card className="gap-0 py-0">
           <CardHeader className="flex-col items-stretch gap-3 border-b py-4 sm:flex-row sm:items-center sm:justify-between">

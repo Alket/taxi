@@ -135,6 +135,9 @@ export function BookingsView() {
     const fromUrl = searchParams.get("sort")
     return isSortValue(fromUrl) ? fromUrl : "pickup_asc"
   })
+  const [profitCollected, setProfitCollected] = React.useState(
+    () => searchParams.get("profitCollected") ?? "all",
+  )
   const [page, setPage] = React.useState(1)
   const [filtersOpen, setFiltersOpen] = React.useState(false)
   const search = useDebounced(searchInput)
@@ -163,6 +166,9 @@ export function BookingsView() {
     if (searchParams.has("driverId") || searchParams.has("driver")) {
       setDriverId(nextDriver)
     }
+    if (searchParams.has("profitCollected")) {
+      setProfitCollected(searchParams.get("profitCollected") ?? "all")
+    }
   }, [searchParams])
 
   const statusSelectValue =
@@ -178,7 +184,7 @@ export function BookingsView() {
 
   React.useEffect(() => {
     setPage(1)
-  }, [status, paymentStatus, driverId, search, dateFrom, dateTo, sort])
+  }, [status, paymentStatus, driverId, search, dateFrom, dateTo, sort, profitCollected])
 
   // Keep range valid when "From" moves past "To" (string YYYY-MM-DD compares safely).
   React.useEffect(() => {
@@ -196,10 +202,23 @@ export function BookingsView() {
     if (dateFrom) params.set("dateFrom", dateFrom)
     if (dateTo) params.set("dateTo", dateTo)
     if (sort !== "pickup_asc") params.set("sort", sort)
+    if (profitCollected === "due" || profitCollected === "collected") {
+      params.set("profitCollected", profitCollected)
+    }
     params.set("page", String(page))
     params.set("pageSize", String(PAGE_SIZE))
     return params.toString()
-  }, [status, paymentStatus, driverId, search, dateFrom, dateTo, sort, page])
+  }, [
+    status,
+    paymentStatus,
+    driverId,
+    search,
+    dateFrom,
+    dateTo,
+    sort,
+    profitCollected,
+    page,
+  ])
 
   const { data, isLoading, mutate } = useSWR<BookingsResponse>(
     `/api/admin/bookings?${query}`,
@@ -215,6 +234,7 @@ export function BookingsView() {
     status !== "all",
     paymentStatus !== "all",
     driverId !== "all",
+    profitCollected !== "all",
     !!dateFrom && dateFrom !== todayKey,
     !!dateTo,
   ].filter(Boolean).length
@@ -230,6 +250,7 @@ export function BookingsView() {
     setStatus("all")
     setPaymentStatus("all")
     setDriverId("all")
+    setProfitCollected("all")
     setDateFrom(toDateInputValue(new Date()))
     setDateTo("")
     setSearchInput("")
@@ -339,6 +360,17 @@ export function BookingsView() {
               value={driverId}
               onChange={setDriverId}
               drivers={drivers}
+            />
+            <AdminFilterSelectField
+              label="Profit"
+              value={profitCollected}
+              onChange={setProfitCollected}
+              options={[
+                { value: "all", label: "All profit" },
+                { value: "due", label: "Uncollected (completed)" },
+                { value: "collected", label: "Profit collected" },
+              ]}
+              icon={CircleDollarSignIcon}
             />
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <AdminDateField
