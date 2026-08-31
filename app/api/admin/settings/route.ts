@@ -394,6 +394,8 @@ export async function PATCH(request: Request) {
         "cancellation",
         "dateChange",
         "completedReceipt",
+        "reviewRequest",
+        "checkoutAbandoned",
       ]
       const next = parseNotificationChannels(current.notificationChannelsEnabled)
       for (const key of keys) {

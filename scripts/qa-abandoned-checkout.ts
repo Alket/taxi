@@ -1,11 +1,12 @@
 /**
  * QA: abandoned public checkout — mark after TTL, resume within 24h,
- * supersede on newer booking, expire after resume window.
+ * supersede on newer booking, expire after resume window, and admin
+ * notification toggle for Abandoned checkout recovery emails.
  *
  * Run: npm run test:abandoned-checkout
  * Docker: docker compose -f docker-compose.dev.yml exec -T app npm run test:abandoned-checkout
  */
-import { existsSync } from "fs"
+import { existsSync, readFileSync } from "fs"
 import { resolve } from "path"
 
 import { config as loadEnv } from "dotenv"
@@ -30,11 +31,18 @@ import {
   checkoutContinueUrl,
   signCheckoutResumeToken,
 } from "../lib/checkout-resume"
+import { sendCheckoutAbandonedEmail } from "../lib/emails/booking-events"
 import {
   ABANDONED_RESUME_TTL_MS,
   PENDING_CHECKOUT_TTL_MS,
 } from "../lib/payment-session"
-import { SETTINGS_ID } from "../lib/settings"
+import { SESSION_COOKIE, signSessionToken } from "../lib/session"
+import {
+  SETTINGS_ID,
+  getSettings,
+  parseNotificationChannels,
+} from "../lib/settings"
+import type { NotificationChannels } from "../lib/types"
 
 const base = (
   process.env.QA_BASE_URL ||
@@ -62,7 +70,11 @@ function printSummary() {
   console.log(`\n${passes} PASS / ${fails} FAIL (${results.length} checks)\n`)
 }
 
-async function waitForApp(timeoutMs = 120_000) {
+function read(rel: string) {
+  return readFileSync(resolve(rel), "utf8")
+}
+
+async function waitForApp(timeoutMs = 20_000) {
   const started = Date.now()
   while (Date.now() - started < timeoutMs) {
     try {
@@ -81,16 +93,17 @@ async function waitForApp(timeoutMs = 120_000) {
 
 async function api(
   path: string,
-  init?: RequestInit,
+  init?: RequestInit & { token?: string },
 ): Promise<{ status: number; body: any }> {
-  const res = await fetch(`${base}${path}`, {
-    ...init,
-    headers: {
-      "content-type": "application/json",
-      "ngrok-skip-browser-warning": "true",
-      ...(init?.headers as Record<string, string> | undefined),
-    },
-  })
+  const { token, ...rest } = init ?? {}
+  const headers: Record<string, string> = {
+    "content-type": "application/json",
+    "ngrok-skip-browser-warning": "true",
+    ...(rest.headers as Record<string, string> | undefined),
+  }
+  if (token) headers.cookie = `${SESSION_COOKIE}=${token}`
+
+  const res = await fetch(`${base}${path}`, { ...rest, headers })
   const text = await res.text()
   let body: any = null
   try {
@@ -159,19 +172,133 @@ async function main() {
     `TTL abandon=${PENDING_CHECKOUT_TTL_MS / 3600000}h resume=${ABANDONED_RESUME_TTL_MS / 3600000}h\n`,
   )
 
+  // --- Static: settings PATCH must accept checkoutAbandoned ---
+  const settingsRoute = read("app/api/admin/settings/route.ts")
+  if (
+    settingsRoute.includes('"checkoutAbandoned"') &&
+    settingsRoute.includes('"reviewRequest"')
+  ) {
+    pass("S1 settings PATCH keys include checkoutAbandoned + reviewRequest")
+  } else {
+    fail(
+      "S1 settings PATCH keys",
+      "checkoutAbandoned/reviewRequest missing from notificationChannelsEnabled allowlist",
+    )
+  }
+
+  const panel = read("components/settings/notifications-panel.tsx")
+  if (panel.includes('key: "checkoutAbandoned"')) {
+    pass("S2 notifications panel has Abandoned checkout recovery toggle")
+  } else {
+    fail("S2 notifications panel toggle missing")
+  }
+
+  const emailSrc = read("lib/emails/booking-events.ts")
+  if (
+    emailSrc.includes('channelEnabled(settings, "checkoutAbandoned")') &&
+    emailSrc.includes("sendCheckoutAbandonedEmail")
+  ) {
+    pass("S3 sendCheckoutAbandonedEmail gates on checkoutAbandoned channel")
+  } else {
+    fail("S3 email channel gate")
+  }
+
+  const parsedOff = parseNotificationChannels({ checkoutAbandoned: false })
+  if (parsedOff.checkoutAbandoned === false) {
+    pass("S4 parseNotificationChannels respects checkoutAbandoned:false")
+  } else {
+    fail("S4 parseNotificationChannels", String(parsedOff.checkoutAbandoned))
+  }
+
   if (!(await waitForApp())) {
-    fail("app reachable", base)
+    console.log("\nApp not reachable — offline channel toggle checks only\n")
+    pass("app reachable skipped", base)
+    const row = await prisma.settings.findUnique({
+      where: { id: SETTINGS_ID },
+      select: { notificationChannelsEnabled: true },
+    })
+    const before = parseNotificationChannels(row?.notificationChannelsEnabled)
+    try {
+      await prisma.settings.update({
+        where: { id: SETTINGS_ID },
+        data: {
+          notificationChannelsEnabled: {
+            ...before,
+            checkoutAbandoned: false,
+          },
+        },
+      })
+      const off = await getSettings()
+      if (off.notificationChannelsEnabled.checkoutAbandoned === false) {
+        pass("N-offline getSettings checkoutAbandoned:false after DB write")
+      } else {
+        fail("N-offline getSettings", "still true")
+      }
+      const customer = await prisma.customer.create({
+        data: {
+          name: "QA Abandon Offline",
+          email: `qa-abandon-offline-${Date.now()}@example.com`,
+          phone: "+355691000998",
+        },
+      })
+      const booking = await prisma.booking.create({
+        data: {
+          referenceCode: `QA-AB-${Date.now().toString(36).toUpperCase()}`,
+          pickupPin: String(Date.now() % 1_000_000).padStart(6, "0"),
+          direction: "airport_to_dest",
+          pickupAddress: "TIA",
+          dropoffAddress: "Offline QA",
+          pickupDateTime: new Date(Date.now() + 48 * 3600_000),
+          flightNumber: "QA0",
+          passengerCount: 1,
+          luggageCount: 1,
+          vehicleType: "sedan",
+          totalPrice: 50,
+          depositAmount: 50,
+          depositPaid: 0,
+          balanceDue: 50,
+          paymentStatus: "unpaid",
+          status: "abandoned",
+          currency: "EUR",
+          freeCancellationUntil: new Date(Date.now() + 24 * 3600_000),
+          notes:
+            "Source: public booking · awaiting deposit (unpaid pending checkout).",
+          customerId: customer.id,
+        },
+      })
+      const send = await sendCheckoutAbandonedEmail(booking.id)
+      if (send.sent === false) {
+        pass("N-offline email skipped when channel off")
+      } else {
+        fail("N-offline email skipped", "sent unexpectedly")
+      }
+      await prisma.booking.delete({ where: { id: booking.id } })
+      await prisma.customer.delete({ where: { id: customer.id } })
+    } finally {
+      await prisma.settings.update({
+        where: { id: SETTINGS_ID },
+        data: { notificationChannelsEnabled: before },
+      })
+    }
     printSummary()
-    process.exit(1)
+    const fails = results.filter((r) => r.status === "FAIL").length
+    await prisma.$disconnect()
+    process.exit(fails > 0 ? 1 : 0)
   }
   pass("app reachable", base)
 
-  const settingsBefore = await prisma.settings.findUnique({
+  const settingsRow = await prisma.settings.findUnique({
     where: { id: SETTINGS_ID },
-    select: { cashOnArrivalEnabled: true },
+    select: {
+      cashOnArrivalEnabled: true,
+      notificationChannelsEnabled: true,
+    },
   })
+  const channelsBefore = parseNotificationChannels(
+    settingsRow?.notificationChannelsEnabled,
+  )
   let restoredCash = false
-  if (settingsBefore && !settingsBefore.cashOnArrivalEnabled) {
+  if (settingsRow && !settingsRow.cashOnArrivalEnabled) {
     await prisma.settings.update({
       where: { id: SETTINGS_ID },
       data: { cashOnArrivalEnabled: true },
@@ -183,8 +310,163 @@ async function main() {
   let bookingA: string | null = null
   let bookingB: string | null = null
   let bookingExpire: string | null = null
+  let bookingNotify: string | null = null
+  let channelsRestored = false
 
   try {
+    // --- N: admin toggle for Abandoned checkout recovery ---
+    let admin = await prisma.adminUser.findFirst({
+      where: { email: "ops@transfers.co" },
+    })
+    if (!admin) {
+      admin = await prisma.adminUser.findFirst({
+        where: { role: "admin", suspended: false },
+      })
+    }
+    if (!admin) {
+      fail("N0 admin fixture", "none")
+    } else {
+      if (admin.requiresPasswordReset || admin.suspended) {
+        admin = await prisma.adminUser.update({
+          where: { id: admin.id },
+          data: { requiresPasswordReset: false, suspended: false },
+        })
+      }
+      pass("N0 admin fixture", admin.email)
+      const adminToken = await signSessionToken(admin.id)
+
+      const allOn: NotificationChannels = {
+        ...channelsBefore,
+        checkoutAbandoned: true,
+        reviewRequest: channelsBefore.reviewRequest,
+      }
+      const turnOff = await api("/api/admin/settings", {
+        method: "PATCH",
+        token: adminToken,
+        body: JSON.stringify({
+          notificationChannelsEnabled: {
+            ...allOn,
+            checkoutAbandoned: false,
+          },
+        }),
+      })
+      if (turnOff.status === 200) {
+        pass("N1 PATCH checkoutAbandoned:false accepted")
+      } else {
+        fail(
+          "N1 PATCH checkoutAbandoned:false",
+          `${turnOff.status} ${JSON.stringify(turnOff.body).slice(0, 120)}`,
+        )
+      }
+
+      const afterOff = turnOff.body?.settings?.notificationChannelsEnabled
+      if (afterOff?.checkoutAbandoned === false) {
+        pass("N2 PATCH response returns checkoutAbandoned:false")
+      } else {
+        fail(
+          "N2 PATCH response checkoutAbandoned",
+          String(afterOff?.checkoutAbandoned),
+        )
+      }
+
+      const getSettingsApi = await api("/api/admin/settings", {
+        token: adminToken,
+      })
+      const got =
+        getSettingsApi.body?.settings?.notificationChannelsEnabled
+          ?.checkoutAbandoned
+      if (getSettingsApi.status === 200 && got === false) {
+        pass("N3 GET settings persists checkoutAbandoned:false")
+      } else {
+        fail(
+          "N3 GET settings checkoutAbandoned",
+          `${getSettingsApi.status} value=${got}`,
+        )
+      }
+
+      const runtime = await getSettings()
+      if (runtime.notificationChannelsEnabled.checkoutAbandoned === false) {
+        pass("N4 getSettings() reads checkoutAbandoned:false")
+      } else {
+        fail("N4 getSettings()", "still true")
+      }
+
+      // Create abandoned booking and ensure recovery email is skipped when off
+      const emailN = `qa-abandon-notify-${Date.now()}@example.com`
+      const n = await createPublicBooking(emailN, "[qa-abandon] notify-off")
+      bookingNotify = n.bookingId
+      await prisma.booking.update({
+        where: { id: bookingNotify },
+        data: {
+          status: "abandoned",
+          createdAt: new Date(Date.now() - PENDING_CHECKOUT_TTL_MS - 60_000),
+        },
+      })
+      await prisma.bookingStatusEvent.create({
+        data: {
+          bookingId: bookingNotify,
+          status: "abandoned",
+          timestamp: new Date(),
+        },
+      })
+
+      const sendOff = await sendCheckoutAbandonedEmail(bookingNotify)
+      if (sendOff.sent === false) {
+        pass("N5 sendCheckoutAbandonedEmail skipped when channel off")
+      } else {
+        fail("N5 send when channel off", "email was sent")
+      }
+
+      const logOff = await prisma.notificationLog.count({
+        where: {
+          bookingId: bookingNotify,
+          type: "checkout_abandoned",
+        },
+      })
+      if (logOff === 0) {
+        pass("N6 no checkout_abandoned notification log when channel off")
+      } else {
+        fail("N6 notification log", `count=${logOff}`)
+      }
+
+      // Turn channel back on and confirm save works both ways
+      const turnOn = await api("/api/admin/settings", {
+        method: "PATCH",
+        token: adminToken,
+        body: JSON.stringify({
+          notificationChannelsEnabled: {
+            ...allOn,
+            checkoutAbandoned: true,
+          },
+        }),
+      })
+      if (
+        turnOn.status === 200 &&
+        turnOn.body?.settings?.notificationChannelsEnabled
+          ?.checkoutAbandoned === true
+      ) {
+        pass("N7 PATCH checkoutAbandoned:true persists")
+      } else {
+        fail(
+          "N7 PATCH checkoutAbandoned:true",
+          `${turnOn.status} ${turnOn.body?.settings?.notificationChannelsEnabled?.checkoutAbandoned}`,
+        )
+      }
+
+      await api("/api/admin/settings", {
+        method: "PATCH",
+        token: adminToken,
+        body: JSON.stringify({
+          notificationChannelsEnabled: channelsBefore,
+        }),
+      })
+      channelsRestored = true
+      pass(
+        "N8 restored prior notification channels",
+        `checkoutAbandoned=${channelsBefore.checkoutAbandoned}`,
+      )
+    }
+
     // --- A: create → age → abandon → resume cash ---
     const a = await createPublicBooking(emailA, "[qa-abandon] A")
     bookingA = a.bookingId
@@ -212,9 +494,7 @@ async function main() {
       fail("A status abandoned/unpaid", `${snapA.status}/${snapA.paymentStatus}`)
     }
 
-    // Default admin list excludes abandoned
     const listDefault = await api("/api/admin/bookings?pageSize=50")
-    // May be 401 without auth — skip if so
     if (listDefault.status === 401) {
       pass("admin list auth required (skip hide check without cookie)")
     } else if (listDefault.status === 200) {
@@ -293,7 +573,8 @@ async function main() {
     })
     if (
       payOld.status === 409 &&
-      (payOld.body?.code === "SUPERSEDED" || /newer booking/i.test(payOld.body?.error || ""))
+      (payOld.body?.code === "SUPERSEDED" ||
+        /newer booking/i.test(payOld.body?.error || ""))
     ) {
       pass("pay superseded B1 → 409 SUPERSEDED")
     } else {
@@ -332,6 +613,14 @@ async function main() {
   } catch (err) {
     fail("fatal", (err as Error).message)
   } finally {
+    if (!channelsRestored) {
+      await prisma.settings.update({
+        where: { id: SETTINGS_ID },
+        data: {
+          notificationChannelsEnabled: channelsBefore,
+        },
+      })
+    }
     if (restoredCash) {
       await prisma.settings.update({
         where: { id: SETTINGS_ID },
@@ -340,6 +629,7 @@ async function main() {
     }
     void bookingB
     void bookingExpire
+    void bookingNotify
   }
 
   printSummary()

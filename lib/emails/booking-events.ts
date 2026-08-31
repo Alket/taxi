@@ -1102,9 +1102,9 @@ export async function sendCheckoutAbandonedEmail(
   bookingId: string,
 ): Promise<SendResult> {
   try {
-    if (!(await isMailConfigured())) return { sent: false }
     const settings = await getSettings()
     if (!channelEnabled(settings, "checkoutAbandoned")) return { sent: false }
+    if (!(await isMailConfigured())) return { sent: false }
 
     const booking = await loadBooking(bookingId)
     if (!booking?.customer.email) return { sent: false }
