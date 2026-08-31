@@ -310,6 +310,8 @@ async function main() {
         "statusLabel",
         "totalPriceLabel",
         "cashToCollectLabel",
+        "cashCollected",
+        "cashCollectedAmountLabel",
       ]
       const missing = required.filter((k) => !(k in sample))
       if (missing.length === 0) pass("B8 serializeTrip has sheet fields")

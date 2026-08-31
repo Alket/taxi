@@ -80,6 +80,8 @@ type DriverTrip = {
   cashToCollect: number
   cashToCollectLabel: string
   cashCollected: boolean
+  cashCollectedAmount: number
+  cashCollectedAmountLabel: string
   hadOnlineDeposit: boolean
   cashHint: string
   canMarkCashPaid: boolean
@@ -547,6 +549,10 @@ function TripCard({
     trip.paymentStatus,
     trip.cashCollected,
   )
+  const cashAmountLabel =
+    trip.cashCollected && trip.cashToCollect <= 0
+      ? trip.cashCollectedAmountLabel
+      : trip.cashToCollectLabel
 
   React.useEffect(() => {
     if (!focused) return
@@ -665,14 +671,16 @@ function TripCard({
             className={
               trip.cashToCollect > 0
                 ? "flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2"
-                : "flex items-start gap-2 rounded-lg border bg-muted/40 px-3 py-2"
+                : trip.cashCollected
+                  ? "flex items-start gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2"
+                  : "flex items-start gap-2 rounded-lg border bg-muted/40 px-3 py-2"
             }
           >
             <BanknoteIcon className="mt-0.5 size-4 shrink-0" />
             <div className="min-w-0">
               <p className="text-xs text-muted-foreground">{hint}</p>
               <p className="text-base font-semibold tabular-nums">
-                {trip.cashToCollectLabel}
+                {cashAmountLabel}
               </p>
             </div>
           </div>

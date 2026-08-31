@@ -164,6 +164,10 @@ export function DriverAnalyticsView() {
   const presets = React.useMemo(() => buildPresets(), [])
   const [dateFrom, setDateFrom] = React.useState(presets[2]!.from)
   const [dateTo, setDateTo] = React.useState(presets[2]!.to)
+  // Track preset by id — on Monday, "today" and "week" share the same dates.
+  const [activePresetId, setActivePresetId] = React.useState<string | null>(
+    presets[2]!.id,
+  )
 
   const now = React.useMemo(() => new Date(), [])
   const months = React.useMemo(() => monthOptions(now, locale), [now, locale])
@@ -177,6 +181,16 @@ export function DriverAnalyticsView() {
       setDateTo(dateFrom)
     }
   }, [dateFrom, dateTo])
+
+  function applyCustomFrom(next: string) {
+    setActivePresetId(null)
+    setDateFrom(next)
+  }
+
+  function applyCustomTo(next: string) {
+    setActivePresetId(null)
+    setDateTo(next)
+  }
 
   const query = React.useMemo(() => {
     const params = new URLSearchParams()
@@ -216,12 +230,11 @@ export function DriverAnalyticsView() {
                   type="button"
                   size="sm"
                   variant={
-                    dateFrom === preset.from && dateTo === preset.to
-                      ? "default"
-                      : "outline"
+                    activePresetId === preset.id ? "default" : "outline"
                   }
                   className="h-9 touch-manipulation"
                   onClick={() => {
+                    setActivePresetId(preset.id)
                     setDateFrom(preset.from)
                     setDateTo(preset.to)
                   }}
@@ -235,12 +248,12 @@ export function DriverAnalyticsView() {
             <AdminDateField
               label={t("analytics.from")}
               value={dateFrom}
-              onChange={setDateFrom}
+              onChange={applyCustomFrom}
             />
             <AdminDateField
               label={t("analytics.to")}
               value={dateTo}
-              onChange={setDateTo}
+              onChange={applyCustomTo}
             />
           </CardContent>
         </Card>

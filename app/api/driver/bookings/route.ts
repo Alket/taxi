@@ -7,6 +7,7 @@ import { requireDriverSession } from "@/lib/driver-auth"
 import {
   cashCollectLabel,
   cashToCollect,
+  isDriverCashPayment,
 } from "@/lib/driver-cash"
 import { prisma } from "@/lib/db"
 import {
@@ -69,10 +70,14 @@ function serializeTrip(b: {
     paymentStatus: b.paymentStatus,
   })
   const cashStillDue = cashAmount > 0
-  const cashCollected = b.payments.some(
-    (payment) =>
-      payment.provider === "manual" &&
-      Boolean(payment.externalId?.startsWith("cash:")),
+  const cashCollected = b.payments.some((payment) =>
+    isDriverCashPayment(payment),
+  )
+  const cashCollectedAmount = Number(
+    b.payments
+      .filter((payment) => isDriverCashPayment(payment))
+      .reduce((sum, payment) => sum + Number(payment.amount), 0)
+      .toFixed(2),
   )
   // Real online deposit/full payment — not the post-cash depositPaid overwrite.
   const hadOnlineDeposit = b.payments.some(
@@ -150,6 +155,8 @@ function serializeTrip(b: {
     cashToCollect: cashAmount,
     cashToCollectLabel: formatMoney(cashAmount, b.currency),
     cashCollected,
+    cashCollectedAmount,
+    cashCollectedAmountLabel: formatMoney(cashCollectedAmount, b.currency),
     hadOnlineDeposit,
     cashHint: cashCollectLabel({
       cashAmount,
@@ -184,7 +191,7 @@ const tripSelect = {
   passengerPhone: true,
   customer: { select: { name: true, phone: true } },
   payments: {
-    select: { provider: true, externalId: true, type: true },
+    select: { provider: true, externalId: true, type: true, amount: true },
   },
 } as const
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 
 import { requireDriverSession } from "@/lib/driver-auth"
+import { splitCollected } from "@/lib/driver-cash"
 import { prisma } from "@/lib/db"
 import { formatMoney } from "@/lib/format"
 
@@ -39,7 +40,11 @@ export async function GET(request: Request) {
       totalPrice: true,
       currency: true,
       balanceDue: true,
+      depositPaid: true,
       paymentStatus: true,
+      payments: {
+        select: { amount: true, externalId: true },
+      },
     },
   })
 
@@ -49,16 +54,14 @@ export async function GET(request: Request) {
     0,
   )
   const revenueCash = revenueRows.reduce((sum, row) => {
-    if (
-      row.paymentStatus === "fully_paid" ||
-      row.paymentStatus === "paid"
-    ) {
-      return sum
-    }
-    if (row.paymentStatus === "deposit_paid") {
-      return sum + Number(row.balanceDue)
-    }
-    return sum + Number(row.totalPrice)
+    const { cash } = splitCollected({
+      totalPrice: Number(row.totalPrice),
+      balanceDue: Number(row.balanceDue),
+      depositPaid: Number(row.depositPaid),
+      paymentStatus: row.paymentStatus,
+      payments: row.payments,
+    })
+    return sum + cash
   }, 0)
 
   return NextResponse.json({

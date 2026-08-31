@@ -1,15 +1,13 @@
 import { NextResponse } from "next/server"
 
 import {
-  buildDailySeries,
-  buildDriverRouteRevenueBuckets,
   parseAnalyticsDateRange,
   roundMoney,
-  type PaymentRow,
 } from "@/lib/analytics"
-import { startOfMonth } from "@/lib/dashboard"
+import { startOfMonth, toDateInputValue } from "@/lib/dashboard"
 import { prisma } from "@/lib/db"
 import { requireDriverSession } from "@/lib/driver-auth"
+import { splitCollected } from "@/lib/driver-cash"
 import { formatMoney } from "@/lib/format"
 import type { DriverAnalyticsReport } from "@/lib/types"
 
@@ -33,57 +31,102 @@ export async function GET(request: Request) {
   })
   const currency = settings?.displayCurrencies?.[0] ?? "EUR"
 
-  const paymentRows = await prisma.payment.findMany({
+  // Only completed trips in the range (by pickup) — same rule as dashboard
+  // history / monthly “Completed trip totals”.
+  const bookings = await prisma.booking.findMany({
     where: {
-      paidAt: { gte: range.start, lte: range.end },
-      status: { in: ["deposit_paid", "paid", "fully_paid"] },
-      booking: { driverId: driver.id },
+      driverId: driver.id,
+      status: "completed",
+      pickupDateTime: { gte: range.start, lte: range.end },
     },
     select: {
-      amount: true,
-      provider: true,
-      paidAt: true,
-      bookingId: true,
-      booking: {
+      id: true,
+      totalPrice: true,
+      balanceDue: true,
+      depositPaid: true,
+      paymentStatus: true,
+      pickupDateTime: true,
+      zoneId: true,
+      zone: { select: { name: true } },
+      payments: {
         select: {
-          driverId: true,
-          zoneId: true,
-          vehicleType: true,
-          driver: { select: { name: true } },
-          zone: { select: { name: true } },
+          amount: true,
+          externalId: true,
+          status: true,
         },
       },
     },
-    orderBy: { paidAt: "asc" },
+    orderBy: { pickupDateTime: "asc" },
   })
 
-  const payments: PaymentRow[] = paymentRows.map((row) => ({
-    amount: Number(row.amount),
-    provider: row.provider,
-    paidAt: row.paidAt,
-    bookingId: row.bookingId,
-    driverId: row.booking.driverId,
-    driverName: row.booking.driver?.name ?? driver.name,
-    zoneId: row.booking.zoneId,
-    zoneName: row.booking.zone?.name ?? null,
-    vehicleType: row.booking.vehicleType,
-  }))
+  let totalCollected = 0
+  let cashCollected = 0
+  let paymentCount = 0
 
-  const totalCollected = roundMoney(
-    payments.reduce((sum, row) => sum + row.amount, 0),
-  )
-  const cashCollected = roundMoney(
-    payments
-      .filter((row) => row.provider === "manual")
-      .reduce((sum, row) => sum + row.amount, 0),
-  )
+  type RouteBucket = {
+    zoneId: string | null
+    routeLabel: string
+    cash: number
+    online: number
+    tripCount: number
+  }
+  const byRouteMap = new Map<string, RouteBucket>()
+  const byDate = new Map<string, { total: number; cash: number; online: number }>()
+
+  const [fromY, fromM, fromD] = range.dateFrom.split("-").map(Number)
+  const [toY, toM, toD] = range.dateTo.split("-").map(Number)
+  const cursor = new Date(fromY!, fromM! - 1, fromD!, 12, 0, 0, 0)
+  const endDay = new Date(toY!, toM! - 1, toD!, 12, 0, 0, 0)
+  while (cursor.getTime() <= endDay.getTime()) {
+    byDate.set(toDateInputValue(cursor), { total: 0, cash: 0, online: 0 })
+    cursor.setDate(cursor.getDate() + 1)
+  }
+
+  for (const booking of bookings) {
+    const total = Number(booking.totalPrice)
+    const { cash, online } = splitCollected({
+      totalPrice: total,
+      balanceDue: Number(booking.balanceDue),
+      depositPaid: Number(booking.depositPaid),
+      paymentStatus: booking.paymentStatus,
+      payments: booking.payments,
+    })
+
+    totalCollected += total
+    cashCollected += cash
+    paymentCount += booking.payments.filter((payment) =>
+      ["deposit_paid", "paid", "fully_paid"].includes(payment.status),
+    ).length
+
+    const zoneKey = booking.zoneId ?? "__unknown__"
+    const route = byRouteMap.get(zoneKey) ?? {
+      zoneId: booking.zoneId,
+      routeLabel: booking.zone?.name ?? "Unknown route",
+      cash: 0,
+      online: 0,
+      tripCount: 0,
+    }
+    route.cash += cash
+    route.online += online
+    route.tripCount += 1
+    byRouteMap.set(zoneKey, route)
+
+    const dayKey = toDateInputValue(booking.pickupDateTime)
+    const day = byDate.get(dayKey)
+    if (day) {
+      day.total += total
+      day.cash += cash
+      day.online += online
+    }
+  }
+
+  totalCollected = roundMoney(totalCollected)
+  cashCollected = roundMoney(cashCollected)
   const onlineCollected = roundMoney(totalCollected - cashCollected)
 
-  const tripCount = new Set(payments.map((row) => row.bookingId)).size
-
-  const byRoute = [...buildDriverRouteRevenueBuckets(payments).values()]
+  const byRoute = [...byRouteMap.values()]
     .map((row) => {
-      const total = row.cash + row.online
+      const total = roundMoney(row.cash + row.online)
       return {
         zoneId: row.zoneId,
         routeLabel: row.routeLabel,
@@ -91,9 +134,9 @@ export async function GET(request: Request) {
         cashCollectedLabel: formatMoney(row.cash, currency),
         onlineCollected: roundMoney(row.online),
         onlineCollectedLabel: formatMoney(row.online, currency),
-        totalCollected: roundMoney(total),
+        totalCollected: total,
         totalCollectedLabel: formatMoney(total, currency),
-        tripCount: row.bookingIds.size,
+        tripCount: row.tripCount,
       }
     })
     .sort((a, b) => b.totalCollected - a.totalCollected)
@@ -110,11 +153,16 @@ export async function GET(request: Request) {
       cashCollectedLabel: formatMoney(cashCollected, currency),
       onlineCollected,
       onlineCollectedLabel: formatMoney(onlineCollected, currency),
-      paymentCount: payments.length,
-      tripCount,
+      paymentCount,
+      tripCount: bookings.length,
     },
     byRoute,
-    dailySeries: buildDailySeries(payments, range.dateFrom, range.dateTo),
+    dailySeries: [...byDate.entries()].map(([date, values]) => ({
+      date,
+      total: roundMoney(values.total),
+      cash: roundMoney(values.cash),
+      online: roundMoney(values.online),
+    })),
   }
 
   return NextResponse.json(report)
