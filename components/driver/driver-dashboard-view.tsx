@@ -536,8 +536,8 @@ function TripCard({
   const t = useDriverT()
   const locale = useDriverLocale()
   const cardRef = React.useRef<HTMLLIElement>(null)
-  // Today/Upcoming start expanded; History starts collapsed.
-  const [detailsOpen, setDetailsOpen] = React.useState(!readOnly || focused)
+  // Collapsed by default; open when opened from a notification (?bookingId=).
+  const [detailsOpen, setDetailsOpen] = React.useState(Boolean(focused))
 
   const pickupLabel = formatPickupLabel(trip.pickupDateTime, locale)
   const tripStatus = statusLabel(t, trip.status)

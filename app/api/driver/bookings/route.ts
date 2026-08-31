@@ -255,7 +255,7 @@ export async function GET(request: Request) {
           },
         ],
       },
-      orderBy: { pickupDateTime: "desc" },
+      orderBy: { pickupDateTime: "asc" },
       select: tripSelect,
     }),
     prisma.booking.findMany({

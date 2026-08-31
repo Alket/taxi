@@ -5,6 +5,8 @@ export type DriverBookingInfoSource = {
   referenceCode: string
   pickupPin: string
   contactName: string
+  /** Passenger / booker phone — included in copy & WhatsApp text when set. */
+  contactPhone?: string | null
   flightNumber: string | null
   passengerCount: number
   luggageCount: number
@@ -123,6 +125,9 @@ export function buildDriverBookingInfoText(
   const passengerBlock = [
     line(t("trips.passenger"), trip.contactName),
   ]
+  if (trip.contactPhone?.trim()) {
+    passengerBlock.push(line(t("trips.phone"), trip.contactPhone.trim()))
+  }
   if (trip.flightNumber?.trim()) {
     passengerBlock.push(
       line(t("trips.copyFlightNumber"), trip.flightNumber.trim()),
