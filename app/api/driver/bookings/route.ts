@@ -57,6 +57,7 @@ function serializeTrip(b: {
     provider: string
     externalId: string | null
     type: string
+    amount: { toString(): string } | number
   }[]
 }) {
   const status = b.status
