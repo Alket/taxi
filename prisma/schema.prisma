@@ -226,6 +226,11 @@ model Booking {
   passengerPhone        String?
   passengerNoEmail      Boolean       @default(false)
   bookerRelation        BookerRelation?
+  /**
+   * Set when a Trustpilot invite payload was issued to the browser (one-shot claim).
+   * Prevents reference-code visitors from re-triggering invites.
+   */
+  trustpilotInviteClaimedAt DateTime?
   customerId            String
   driverId              String?
   zoneId                String?
@@ -273,6 +278,11 @@ model PaypalOrderIntent {
   currency       String
   /** created | captured */
   status         String   @default("created")
+  /**
+   * Browser-bound secret set at order creation (HttpOnly cookie).
+   * Required to mint Trustpilot invite cookie after capture.
+   */
+  checkoutNonce  String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -294,6 +304,11 @@ model PokOrderIntent {
   currency       String
   /** created | captured */
   status         String   @default("created")
+  /**
+   * Browser-bound secret set at order creation (HttpOnly cookie).
+   * Required to mint Trustpilot invite cookie after confirm.
+   */
+  checkoutNonce  String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

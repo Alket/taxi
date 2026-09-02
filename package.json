@@ -34,7 +34,8 @@
     "test:driver-cost": "tsx scripts/qa-driver-cost.ts",
     "test:profit-collected": "tsx scripts/qa-profit-collected.ts",
     "blog:upsert": "tsx scripts/upsert-blog-post.ts",
-    "test:admin-pages": "tsx scripts/qa-admin-pages.ts"
+    "test:admin-pages": "tsx scripts/qa-admin-pages.ts",
+    "test:trustpilot": "tsx scripts/qa-trustpilot.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",

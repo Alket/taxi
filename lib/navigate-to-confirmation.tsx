@@ -27,6 +27,9 @@ function readClientLocale(): Locale {
  * Show a confirming preloader, clear the draft, then hard-navigate to the
  * thank-you page. Avoids soft-nav glitches where the booking wizard flashes
  * empty after resetBooking() before confirmation paints.
+ *
+ * Trustpilot invite JWT is delivered via HttpOnly cookie from payment APIs —
+ * never put it in the confirmation URL.
  */
 export function navigateToBookingConfirmation(referenceCode: string) {
   const code = referenceCode.trim().toUpperCase()

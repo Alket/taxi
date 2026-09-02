@@ -5,6 +5,10 @@ import { prisma } from "@/lib/db"
 import { normalizePaymentOption } from "@/lib/payment-options"
 import { createPaypalOrder, isPaypalConfigured } from "@/lib/paypal"
 import { assertCheckoutPayable } from "@/lib/payment-session"
+import {
+  generateCheckoutNonce,
+  setCheckoutNonceCookie,
+} from "@/lib/checkout-nonce"
 import { getPublicOrigin } from "@/lib/public-origin"
 import { getSettingsRow } from "@/lib/settings"
 import { round2 } from "@/lib/vehicles"
@@ -83,8 +87,9 @@ export async function POST(request: Request) {
   }
 
   const origin = getPublicOrigin(request)
-  // bookingId in return URL is UX-only; capture trusts server-side intent + PayPal.
-  const returnUrl = `${origin}/book/payment/paypal/return?bookingId=${booking.id}`
+  // Capture trusts server-side PaypalOrderIntent + PayPal order id — do not put
+  // bookingId in the return URL (it would leak a capability for other APIs).
+  const returnUrl = `${origin}/book/payment/paypal/return`
   const cancelUrl = `${origin}/?payment=cancelled`
 
   try {
@@ -105,6 +110,8 @@ export async function POST(request: Request) {
       )
     }
 
+    const checkoutNonce = generateCheckoutNonce()
+
     await prisma.paypalOrderIntent.create({
       data: {
         orderId: order.orderId,
@@ -113,10 +120,11 @@ export async function POST(request: Request) {
         expectedAmount: chargeAmount,
         currency: booking.currency.toUpperCase(),
         status: "created",
+        checkoutNonce,
       },
     })
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       orderId: order.orderId,
       approveUrl: order.approveUrl,
       paymentOption,
@@ -125,6 +133,7 @@ export async function POST(request: Request) {
       currency: booking.currency,
       referenceCode: booking.referenceCode,
     })
+    return setCheckoutNonceCookie(response, checkoutNonce)
   } catch (error) {
     return NextResponse.json(
       { error: (error as Error).message || "Failed to create PayPal order." },

@@ -4,11 +4,22 @@ import { z } from "zod"
 import { prisma } from "@/lib/db"
 import { recordBookingPayment } from "@/lib/record-deposit"
 import { getStripe } from "@/lib/stripe"
+import { jsonWithTrustpilotInviteCookie } from "@/lib/trustpilot-invite-cookie"
 
-const bodySchema = z.object({
-  bookingId: z.string().min(1),
-  paymentIntentId: z.string().min(1),
-})
+const bodySchema = z
+  .object({
+    bookingId: z.string().min(1).optional(),
+    referenceCode: z.string().min(3).max(32).optional(),
+    paymentIntentId: z.string().min(1),
+    /**
+     * Required for invite-cookie minting. Proves possession of the Stripe
+     * PaymentIntent (blocks bookingId + payment_intent id replay).
+     */
+    paymentIntentClientSecret: z.string().min(10).max(512),
+  })
+  .refine((v) => Boolean(v.bookingId || v.referenceCode), {
+    message: "bookingId or referenceCode is required",
+  })
 
 /** Client-side success path after Stripe Elements confirmPayment. */
 export async function POST(request: Request) {
@@ -18,10 +29,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid payload." }, { status: 400 })
   }
 
-  const booking = await prisma.booking.findUnique({
-    where: { id: parsed.data.bookingId },
-    select: { id: true, referenceCode: true },
-  })
+  const booking = parsed.data.bookingId
+    ? await prisma.booking.findUnique({
+        where: { id: parsed.data.bookingId },
+        select: { id: true, referenceCode: true },
+      })
+    : await prisma.booking.findUnique({
+        where: {
+          referenceCode: parsed.data.referenceCode!.trim().toUpperCase(),
+        },
+        select: { id: true, referenceCode: true },
+      })
+
   if (!booking) {
     return NextResponse.json({ error: "Booking not found." }, { status: 404 })
   }
@@ -42,6 +61,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Payment mismatch." }, { status: 400 })
     }
 
+    const secret = parsed.data.paymentIntentClientSecret.trim()
+    if (!intent.client_secret || secret !== intent.client_secret) {
+      return NextResponse.json(
+        { error: "Payment verification failed." },
+        { status: 401 },
+      )
+    }
+
     const paymentOption =
       intent.metadata?.paymentType === "full" ? "full" : "deposit"
 
@@ -60,7 +87,7 @@ export async function POST(request: Request) {
       gatewayAmount,
     })
 
-    return NextResponse.json({
+    return jsonWithTrustpilotInviteCookie(booking.id, {
       ok: true,
       referenceCode: booking.referenceCode,
     })

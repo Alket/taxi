@@ -501,6 +501,7 @@ function StripeCheckoutForm({
   bookingId,
   referenceCode,
   paymentIntentId,
+  clientSecret,
   termsAccepted,
   customerName,
   customerEmail,
@@ -512,6 +513,7 @@ function StripeCheckoutForm({
   bookingId: string
   referenceCode: string
   paymentIntentId: string
+  clientSecret: string
   termsAccepted: boolean
   customerName: string
   customerEmail: string
@@ -578,6 +580,7 @@ function StripeCheckoutForm({
         await apiPost("/api/payments/confirm-deposit", {
           bookingId,
           paymentIntentId: intent.id || paymentIntentId,
+          paymentIntentClientSecret: clientSecret,
         })
         navigateToBookingConfirmation(referenceCode)
         return
@@ -1363,6 +1366,7 @@ export function PaymentStep() {
                 bookingId={intent.bookingId}
                 referenceCode={intent.referenceCode}
                 paymentIntentId={intent.paymentIntentId}
+                clientSecret={intent.clientSecret}
                 termsAccepted={termsAccepted && !switchingIntent}
                 customerName={store.customer.name}
                 customerEmail={store.customer.email}

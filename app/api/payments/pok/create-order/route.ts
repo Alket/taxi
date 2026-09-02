@@ -1,13 +1,16 @@
-import { NextResponse } from "next/server"
-import { z } from "zod"
-
 import { prisma } from "@/lib/db"
 import { normalizePaymentOption } from "@/lib/payment-options"
 import { assertCheckoutPayable } from "@/lib/payment-session"
+import {
+  generateCheckoutNonce,
+  setCheckoutNonceCookie,
+} from "@/lib/checkout-nonce"
 import { createPokOrder, getPokConfig } from "@/lib/pok"
 import { getPublicOrigin } from "@/lib/public-origin"
 import { getSettingsRow } from "@/lib/settings"
 import { round2 } from "@/lib/vehicles"
+import { NextResponse } from "next/server"
+import { z } from "zod"
 
 const bodySchema = z.object({
   bookingId: z.string().min(1),
@@ -98,6 +101,8 @@ export async function POST(request: Request) {
       webhookUrl: `${origin}/api/webhooks/pok`,
     })
 
+    const checkoutNonce = generateCheckoutNonce()
+
     await prisma.pokOrderIntent.create({
       data: {
         orderId: order.id,
@@ -106,10 +111,11 @@ export async function POST(request: Request) {
         expectedAmount: chargeAmount,
         currency: booking.currency.toUpperCase(),
         status: "created",
+        checkoutNonce,
       },
     })
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       orderId: order.id,
       environment: config.environment,
       paymentOption,
@@ -118,6 +124,7 @@ export async function POST(request: Request) {
       bookingId: booking.id,
       referenceCode: booking.referenceCode,
     })
+    return setCheckoutNonceCookie(response, checkoutNonce)
   } catch (error) {
     return NextResponse.json(
       { error: (error as Error).message || "Failed to create POK order." },

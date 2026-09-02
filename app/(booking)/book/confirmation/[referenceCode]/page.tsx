@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { Suspense } from "react"
 import {
   AlertCircleIcon,
   BellIcon,
@@ -10,6 +11,7 @@ import {
 } from "lucide-react"
 
 import { CopyableReference } from "@/components/booking/copyable-reference"
+import { TrustpilotCreateInvitation } from "@/components/marketing/trustpilot-invite"
 import { Separator } from "@/components/ui/separator"
 import { prisma } from "@/lib/db"
 import { formatDateTime, formatMoney, VEHICLE_LABELS } from "@/lib/format"
@@ -426,8 +428,17 @@ export default async function BookingConfirmationPage({ params }: PageProps) {
     return <PendingPaymentState booking={booking} locale={locale} />
   }
 
+  const trustpilotKey =
+    process.env.NEXT_PUBLIC_TRUSTPILOT_INTEGRATION_KEY?.trim() || ""
+
   return (
     <div className="mx-auto flex w-full max-w-lg animate-in fade-in-0 slide-in-from-bottom-2 flex-col gap-6 px-4 py-10 duration-500 md:px-6">
+      {trustpilotKey ? (
+        <Suspense fallback={null}>
+          <TrustpilotCreateInvitation referenceId={booking.referenceCode} />
+        </Suspense>
+      ) : null}
+
       <div className="flex flex-col items-center gap-3 text-center">
         <CheckCircle2Icon className="size-12 text-emerald-600" />
         <div>

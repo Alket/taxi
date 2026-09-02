@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db"
 import { markPublicBookingPaid } from "@/lib/booking-notes"
 import { assertCheckoutPayable } from "@/lib/payment-session"
 import { getSettingsRow } from "@/lib/settings"
+import { jsonWithTrustpilotInviteCookie } from "@/lib/trustpilot-invite-cookie"
 import { round2 } from "@/lib/vehicles"
 
 const bodySchema = z.object({
@@ -45,6 +46,7 @@ export async function POST(request: Request) {
     booking.paymentStatus === "fully_paid" ||
     booking.paymentStatus === "paid"
   ) {
+    // Already paid — never remint invite cookie (bookingId alone is not proof).
     return NextResponse.json({
       bookingId: booking.id,
       referenceCode: booking.referenceCode,
@@ -53,6 +55,7 @@ export async function POST(request: Request) {
   }
 
   if (booking.status !== "pending" && booking.status !== "abandoned") {
+    // Already confirmed (e.g. prior cash) — same: no invite remint.
     return NextResponse.json({
       bookingId: booking.id,
       referenceCode: booking.referenceCode,
@@ -156,7 +159,7 @@ export async function POST(request: Request) {
     // ignore
   }
 
-  return NextResponse.json({
+  return jsonWithTrustpilotInviteCookie(booking.id, {
     bookingId: booking.id,
     referenceCode: booking.referenceCode,
     alreadyConfirmed: false,

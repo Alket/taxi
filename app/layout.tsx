@@ -6,6 +6,7 @@ import { AppThemeProvider } from "@/components/admin/theme-provider"
 import {
   GoogleTagManager,
 } from "@/components/marketing/google-tag-manager"
+import { TrustpilotInviteBootstrap } from "@/components/marketing/trustpilot-invite"
 import { getRequestLocale } from "@/lib/i18n/get-locale"
 import { getAppBaseUrl } from "@/lib/mail"
 import { DEFAULT_OG_IMAGE } from "@/lib/page-content"
@@ -147,6 +148,8 @@ export default async function RootLayout({
     getRequestLocale(),
     resolveGtmContainerId(),
   ])
+  const trustpilotKey =
+    process.env.NEXT_PUBLIC_TRUSTPILOT_INTEGRATION_KEY?.trim() || ""
   return (
     <html
       lang={locale}
@@ -155,6 +158,7 @@ export default async function RootLayout({
     >
       <body className="font-sans antialiased">
         <GoogleTagManager containerId={gtmContainerId} />
+        <TrustpilotInviteBootstrap integrationKey={trustpilotKey} />
         <AppThemeProvider>
           <TooltipProvider>{children}</TooltipProvider>
           <Toaster richColors position="top-right" />

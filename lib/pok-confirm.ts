@@ -11,6 +11,8 @@ import type { PaymentOption } from "@/lib/types"
 export async function confirmPokOrder(orderId: string): Promise<{
   status: number
   body: Record<string, unknown>
+  /** When set, HTTP handlers may attach a Trustpilot invite cookie. */
+  inviteBookingId?: string | null
 }> {
   const intent = await prisma.pokOrderIntent.findUnique({ where: { orderId } })
   if (!intent) {
@@ -34,6 +36,7 @@ export async function confirmPokOrder(orderId: string): Promise<{
         referenceCode: booking?.referenceCode ?? null,
         alreadyPaid: true,
       },
+      inviteBookingId: booking?.id ?? null,
     }
   }
 
@@ -57,6 +60,7 @@ export async function confirmPokOrder(orderId: string): Promise<{
         referenceCode: booking.referenceCode,
         alreadyPaid: true,
       },
+      inviteBookingId: booking.id,
     }
   }
 
@@ -125,6 +129,7 @@ export async function confirmPokOrder(orderId: string): Promise<{
         referenceCode: booking.referenceCode,
         alreadyPaid: recorded.alreadyRecorded,
       },
+      inviteBookingId: booking.id,
     }
   } catch (error) {
     return {
