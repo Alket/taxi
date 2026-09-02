@@ -3,6 +3,11 @@ import { NextResponse } from "next/server"
 import { z } from "zod"
 
 import { requireAdmin } from "@/lib/auth"
+import {
+  DEFAULT_LOCALE,
+  isLocale,
+  type Locale,
+} from "@/lib/i18n/locales"
 import { revalidateAllLocales } from "@/lib/revalidate-locales"
 import {
   deleteOrResetTransfer,
@@ -51,6 +56,13 @@ const seedSchema = z.object({
   relatedSlugs: z.array(z.string().max(80)).max(12),
 })
 
+function localeFromRequest(request: Request, bodyLocale?: unknown): Locale {
+  const fromBody = typeof bodyLocale === "string" ? bodyLocale : null
+  const fromQuery = new URL(request.url).searchParams.get("locale")
+  const raw = fromBody || fromQuery || DEFAULT_LOCALE
+  return isLocale(raw) ? raw : DEFAULT_LOCALE
+}
+
 function revalidateTransferPaths(routeSlug: string) {
   revalidateAllLocales("/transfers")
   revalidatePath(`/transfers/${routeSlug}`)
@@ -61,16 +73,21 @@ function revalidateTransferPaths(routeSlug: string) {
 
 type Params = { params: Promise<{ slug: string }> }
 
-export async function GET(_request: Request, { params }: Params) {
+export async function GET(request: Request, { params }: Params) {
   const denied = await requireAdmin()
   if (denied) return denied
 
   const { slug } = await params
-  const transfer = await getAdminTransfer(slug)
+  const locale = localeFromRequest(request)
+  const transfer = await getAdminTransfer(slug, locale)
   if (!transfer) {
     return NextResponse.json({ error: "Transfer not found." }, { status: 404 })
   }
-  return NextResponse.json({ transfer })
+  return NextResponse.json({
+    transfer,
+    hasLocaleRow: transfer.hasLocaleRow,
+    locale: transfer.locale,
+  })
 }
 
 export async function PUT(request: Request, { params }: Params) {
@@ -83,6 +100,11 @@ export async function PUT(request: Request, { params }: Params) {
     body && typeof body === "object" && "seed" in body
       ? (body as { seed: unknown }).seed
       : body
+  const bodyLocale =
+    body && typeof body === "object" && "locale" in body
+      ? (body as { locale: unknown }).locale
+      : undefined
+  const locale = localeFromRequest(request, bodyLocale)
 
   const parsed = seedSchema.safeParse(seedBody)
   if (!parsed.success) {
@@ -100,10 +122,18 @@ export async function PUT(request: Request, { params }: Params) {
   }
 
   try {
-    const seed = await saveTransferSeed(parsed.data as TransferRouteSeed)
+    const seed = await saveTransferSeed(
+      parsed.data as TransferRouteSeed,
+      locale,
+    )
     revalidateTransferPaths(slug)
-    const transfer = await getAdminTransfer(slug)
-    return NextResponse.json({ seed, transfer })
+    const transfer = await getAdminTransfer(slug, locale)
+    return NextResponse.json({
+      seed,
+      transfer,
+      hasLocaleRow: transfer?.hasLocaleRow ?? true,
+      locale,
+    })
   } catch (error) {
     return NextResponse.json(
       { error: (error as Error).message || "Could not save transfer." },
@@ -117,7 +147,7 @@ export async function DELETE(_request: Request, { params }: Params) {
   if (denied) return denied
 
   const { slug } = await params
-  const existing = await getAdminTransfer(slug)
+  const existing = await getAdminTransfer(slug, DEFAULT_LOCALE)
   if (!existing) {
     return NextResponse.json({ error: "Transfer not found." }, { status: 404 })
   }

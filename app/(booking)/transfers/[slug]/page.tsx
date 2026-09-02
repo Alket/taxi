@@ -13,7 +13,7 @@ import { BRAND_CLAIMS } from "@/lib/constants/brand"
 import { getRequestLocale } from "@/lib/i18n/get-locale"
 import {
   DEFAULT_LOCALE,
-  englishOnlyAlternates,
+  localizedAlternates,
   localePath,
 } from "@/lib/i18n/locales"
 import { t } from "@/lib/i18n/t"
@@ -54,7 +54,7 @@ export async function generateMetadata({
 }: PageProps): Promise<Metadata> {
   const { slug } = await params
   const locale = await getRequestLocale()
-  const route = await getRouteData(slug)
+  const route = await getRouteData(slug, locale)
   if (!route) {
     return { title: "Airport transfer" }
   }
@@ -63,9 +63,7 @@ export async function generateMetadata({
   const destLabel = routeDestinationLabel(route)
   const description = `Book a direct private transfer from Tirana Airport (TIA) to ${destLabel}. Guaranteed €${route.priceEur} flat rate, live flight tracking, €0 deposit—pay cash on arrival. Private driver Tirana Airport pickup with fixed taxi rate TIA pricing.`
   const path = `/transfers/${route.slug}`
-  // Transfer copy is English-only today. Self-canonical on /ru|/it|/de… made Google
-  // treat them as duplicates and pick EN instead — align signals with EN.
-  const alternates = englishOnlyAlternates(path)
+  const alternates = localizedAlternates(path, locale)
 
   return {
     title,
@@ -97,13 +95,12 @@ export async function generateMetadata({
 export default async function TransferRoutePage({ params }: PageProps) {
   const { slug } = await params
   const locale = await getRequestLocale()
-  const route = await getRouteData(slug)
+  const route = await getRouteData(slug, locale)
   if (!route) notFound()
 
-  const related = await getRelatedRoutes(route.slug, 3)
+  const related = await getRelatedRoutes(route.slug, 3, locale)
   const path = `/transfers/${route.slug}`
-  // Prefer EN URL in structured data to match the English-only canonical.
-  const pageUrl = localePath(path, DEFAULT_LOCALE)
+  const pageUrl = localePath(path, locale)
   const ctaHref = bookHref(route, locale)
 
   const homeLabel = t(locale, "nav.home") || "Home"

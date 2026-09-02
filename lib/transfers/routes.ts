@@ -366,16 +366,17 @@ export function listTransferSeeds(): TransferRouteSeed[] {
 
 /**
  * Resolve a programmatic transfer route by URL slug.
- * Prefers CMS override (`PageContent` transfers/*), then code seed.
+ * Prefers locale CMS → EN CMS → code seed.
  * Live sedan fare comes from `calculatePriceForZone` when the zone exists.
  */
 export async function getRouteData(
   slug: string,
+  locale?: string | null,
 ): Promise<TransferRoute | null> {
   const { resolveTransferSeed, hydrateTransferRoute } = await import(
     "@/lib/transfers/cms"
   )
-  const seed = await resolveTransferSeed(slug)
+  const seed = await resolveTransferSeed(slug, locale)
   if (!seed) return null
   return hydrateTransferRoute(seed)
 }
@@ -397,9 +398,10 @@ export function routeDestinationLabel(route: TransferRoute): string {
 export async function getRelatedRoutes(
   slug: string,
   limit = 3,
+  locale?: string | null,
 ): Promise<TransferRoute[]> {
   const { listCmsTransferSlugs } = await import("@/lib/transfers/cms")
-  const current = await getRouteData(slug)
+  const current = await getRouteData(slug, locale)
   const preferred = current?.relatedSlugs ?? getTransferSeed(slug)?.relatedSlugs ?? []
   const cmsSlugs = await listCmsTransferSlugs()
   const all = [
@@ -413,6 +415,6 @@ export async function getRelatedRoutes(
     ...all.filter((s) => !preferred.includes(s)),
   ].slice(0, limit)
 
-  const routes = await Promise.all(ordered.map((s) => getRouteData(s)))
+  const routes = await Promise.all(ordered.map((s) => getRouteData(s, locale)))
   return routes.filter((r): r is TransferRoute => Boolean(r))
 }

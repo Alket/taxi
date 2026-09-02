@@ -4,7 +4,11 @@
  */
 
 import { prisma } from "@/lib/db"
-import { DEFAULT_LOCALE } from "@/lib/i18n/locales"
+import {
+  DEFAULT_LOCALE,
+  isLocale,
+  type Locale,
+} from "@/lib/i18n/locales"
 import {
   type ComparisonOption,
   type RouteFaq,
@@ -210,14 +214,37 @@ async function resolveLivePriceEur(
   }
 }
 
-export async function loadTransferSeedFromCms(
+function normalizeLocale(locale?: string | null): Locale {
+  return isLocale(locale) ? locale : DEFAULT_LOCALE
+}
+
+export async function hasTransferLocaleRow(
   routeSlug: string,
-): Promise<{ seed: TransferRouteSeed; hidden: boolean; updatedAt: string | null } | null> {
+  localeInput?: string | null,
+): Promise<boolean> {
+  const locale = normalizeLocale(localeInput)
   const row = await prisma.pageContent.findUnique({
     where: {
       slug_locale: {
         slug: transferCmsSlug(routeSlug),
-        locale: DEFAULT_LOCALE,
+        locale,
+      },
+    },
+    select: { id: true },
+  })
+  return Boolean(row)
+}
+
+export async function loadTransferSeedFromCms(
+  routeSlug: string,
+  localeInput?: string | null,
+): Promise<{ seed: TransferRouteSeed; hidden: boolean; updatedAt: string | null } | null> {
+  const locale = normalizeLocale(localeInput)
+  const row = await prisma.pageContent.findUnique({
+    where: {
+      slug_locale: {
+        slug: transferCmsSlug(routeSlug),
+        locale,
       },
     },
   })
@@ -231,13 +258,23 @@ export async function loadTransferSeedFromCms(
   }
 }
 
-/** Resolve editable seed: CMS override → code seed. */
+/** Resolve editable seed: locale CMS → EN CMS → code seed. */
 export async function resolveTransferSeed(
   routeSlug: string,
+  localeInput?: string | null,
 ): Promise<TransferRouteSeed | null> {
-  const cms = await loadTransferSeedFromCms(routeSlug)
-  if (cms?.hidden) return null
-  if (cms) return cms.seed
+  const locale = normalizeLocale(localeInput)
+  const localized = await loadTransferSeedFromCms(routeSlug, locale)
+  if (localized && !localized.hidden) return localized.seed
+
+  if (locale !== DEFAULT_LOCALE) {
+    const en = await loadTransferSeedFromCms(routeSlug, DEFAULT_LOCALE)
+    if (en?.hidden) return null
+    if (en) return en.seed
+  } else if (localized?.hidden) {
+    return null
+  }
+
   return getTransferSeed(routeSlug)
 }
 
@@ -346,31 +383,55 @@ export async function listAdminTransfers(): Promise<AdminTransferListItem[]> {
 
 export async function getAdminTransfer(
   routeSlug: string,
+  localeInput?: string | null,
 ): Promise<{
   seed: TransferRouteSeed
   fromDatabase: boolean
   isBuiltIn: boolean
   livePriceEur: number | null
   updatedAt: string | null
+  hasLocaleRow: boolean
+  locale: Locale
 } | null> {
-  const cms = await loadTransferSeedFromCms(routeSlug)
-  if (cms?.hidden) return null
-  const builtIn = getTransferSeed(routeSlug)
-  const seed = cms?.seed ?? builtIn
+  const locale = normalizeLocale(localeInput)
+  const localeCms = await loadTransferSeedFromCms(routeSlug, locale)
+  if (localeCms?.hidden) return null
+
+  const hasLocaleRow = Boolean(localeCms)
+  // Prefer locale row; otherwise prefill from EN CMS / code seed for editors.
+  let seed = localeCms?.seed ?? null
+  let updatedAt = localeCms?.updatedAt ?? null
+  let fromDatabase = Boolean(localeCms)
+
+  if (!seed) {
+    const enCms =
+      locale === DEFAULT_LOCALE
+        ? null
+        : await loadTransferSeedFromCms(routeSlug, DEFAULT_LOCALE)
+    if (enCms?.hidden) return null
+    seed = enCms?.seed ?? getTransferSeed(routeSlug) ?? null
+    updatedAt = enCms?.updatedAt ?? null
+    fromDatabase = false
+  }
+
   if (!seed) return null
   const live = await resolveLivePriceEur(seed.zoneName)
   return {
     seed,
-    fromDatabase: Boolean(cms),
+    fromDatabase,
     isBuiltIn: isBuiltInTransferSlug(routeSlug),
     livePriceEur: live,
-    updatedAt: cms?.updatedAt ?? null,
+    updatedAt,
+    hasLocaleRow,
+    locale,
   }
 }
 
 export async function saveTransferSeed(
   seedInput: TransferRouteSeed,
+  localeInput?: string | null,
 ): Promise<TransferRouteSeed> {
+  const locale = normalizeLocale(localeInput)
   const seed = normalizeTransferSeed(seedInput, seedInput.slug)
   if (!seed.slug) throw new Error("Slug is required.")
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(seed.slug)) {
@@ -381,18 +442,18 @@ export async function saveTransferSeed(
   }
 
   const cmsSlug = transferCmsSlug(seed.slug)
-  const existing = await loadTransferSeedFromCms(seed.slug)
+  const existing = await loadTransferSeedFromCms(seed.slug, locale)
   const doc = serializeTransferDocument(seed, {
     hidden: existing?.hidden ? false : false,
   })
 
   await prisma.pageContent.upsert({
     where: {
-      slug_locale: { slug: cmsSlug, locale: DEFAULT_LOCALE },
+      slug_locale: { slug: cmsSlug, locale },
     },
     create: {
       slug: cmsSlug,
-      locale: DEFAULT_LOCALE,
+      locale,
       label: `Transfer · ${seed.destinationName}`,
       title: `Tirana Airport to ${seed.destinationName} Transfer`,
       description: seed.travelDescription.slice(0, 2000),

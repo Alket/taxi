@@ -104,9 +104,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     addPath("/blog", { changeFrequency: "weekly", priority: 0.7 })
   }
 
-  // Transfer landing pages (built-in seeds + CMS-only routes).
-  // English-only in sitemap until transfer body copy is localized — avoids
-  // GSC "duplicate / Google chose different canonical" on /it|/ru|/de variants.
+  // Transfer landing pages (built-in seeds + CMS-only routes) — all locales.
   try {
     const { listTransferRouteSlugs } = await import("@/lib/transfers/routes")
     for (const slug of await listTransferRouteSlugs()) {
@@ -114,7 +112,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         lastModified: now,
         changeFrequency: "weekly",
         priority: 0.9,
-        englishOnly: true,
       })
     }
   } catch {

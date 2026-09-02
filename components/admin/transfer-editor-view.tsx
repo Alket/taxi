@@ -8,6 +8,7 @@ import { toast } from "sonner"
 import {
   ArrowDown,
   ArrowUp,
+  Braces,
   ExternalLink,
   FolderOpen,
   Plus,
@@ -17,6 +18,7 @@ import {
 
 import { MediaPickerDialog } from "@/components/admin/media-picker-dialog"
 import { PageHeader } from "@/components/admin/page-header"
+import { TransferJsonDialog } from "@/components/admin/transfer-json-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -33,7 +35,15 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { apiDelete, apiPut, fetcher } from "@/lib/api"
+import {
+  DEFAULT_LOCALE,
+  LOCALE_LABELS,
+  LOCALES,
+  localePath,
+  type Locale,
+} from "@/lib/i18n/locales"
 import type { TransferRouteSeed } from "@/lib/transfers/routes"
+import { cn } from "@/lib/utils"
 
 type AdminTransferPayload = {
   seed: TransferRouteSeed
@@ -41,6 +51,8 @@ type AdminTransferPayload = {
   isBuiltIn: boolean
   livePriceEur: number | null
   updatedAt: string | null
+  hasLocaleRow?: boolean
+  locale?: Locale
 }
 
 function emptyComparison() {
@@ -55,13 +67,17 @@ function emptyComparison() {
 
 export function TransferEditorView({ slug }: { slug: string }) {
   const router = useRouter()
+  const [locale, setLocale] = React.useState<Locale>(DEFAULT_LOCALE)
   const { data, isLoading, mutate, error } = useSWR<{
     transfer: AdminTransferPayload
-  }>(`/api/admin/transfers/${slug}`, fetcher)
+    hasLocaleRow: boolean
+    locale: Locale
+  }>(`/api/admin/transfers/${slug}?locale=${locale}`, fetcher)
 
   const [seed, setSeed] = React.useState<TransferRouteSeed | null>(null)
   const [saving, setSaving] = React.useState(false)
   const [mediaOpen, setMediaOpen] = React.useState(false)
+  const [jsonOpen, setJsonOpen] = React.useState(false)
   const [confirm, setConfirm] = React.useState<"reset" | "delete" | null>(null)
   const [acting, setActing] = React.useState(false)
 
@@ -73,12 +89,21 @@ export function TransferEditorView({ slug }: { slug: string }) {
     setSeed((prev) => (prev ? { ...prev, ...partial } : prev))
   }
 
+  function switchLocale(next: Locale) {
+    if (next === locale) return
+    setSeed(null)
+    setLocale(next)
+  }
+
   async function handleSave() {
     if (!seed) return
     setSaving(true)
     try {
-      await apiPut(`/api/admin/transfers/${slug}`, { seed })
-      toast.success("Transfer saved")
+      await apiPut(`/api/admin/transfers/${slug}?locale=${locale}`, {
+        seed,
+        locale,
+      })
+      toast.success(`Transfer saved (${LOCALE_LABELS[locale].short})`)
       await mutate()
     } catch (err) {
       toast.error((err as Error).message || "Could not save")
@@ -102,6 +127,7 @@ export function TransferEditorView({ slug }: { slug: string }) {
         router.push("/admin/transfers")
         return
       }
+      setLocale(DEFAULT_LOCALE)
       await mutate()
     } catch (err) {
       toast.error((err as Error).message || "Action failed")
@@ -134,30 +160,36 @@ export function TransferEditorView({ slug }: { slug: string }) {
   }
 
   const meta = data.transfer
+  const hasLocaleRow = data.hasLocaleRow ?? meta.hasLocaleRow ?? true
+  const previewHref = localePath(`/transfers/${slug}`, locale)
 
   return (
     <div className="flex flex-1 flex-col">
       <PageHeader
         title={seed.destinationName || slug}
-        description={`/transfers/${slug}`}
+        description={previewHref}
         actions={
           <>
             <Button
               variant="outline"
               size="sm"
+              onClick={() => setJsonOpen(true)}
+            >
+              <Braces className="size-3.5" />
+              JSON
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               nativeButton={false}
               render={
-                <Link
-                  href={`/transfers/${slug}`}
-                  target="_blank"
-                  rel="noreferrer"
-                />
+                <Link href={previewHref} target="_blank" rel="noreferrer" />
               }
             >
               <ExternalLink className="size-3.5" />
               View
             </Button>
-            {meta.isBuiltIn && meta.fromDatabase ? (
+            {meta.isBuiltIn && (meta.fromDatabase || hasLocaleRow) ? (
               <Button
                 variant="outline"
                 size="sm"
@@ -186,12 +218,58 @@ export function TransferEditorView({ slug }: { slug: string }) {
       />
 
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-3 pb-16 sm:p-4 md:p-6">
+        <section className="rounded-xl border bg-card p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold">Language</h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Edit transfer copy per locale. English is the public fallback.
+              </p>
+            </div>
+            <div
+              className="flex flex-wrap gap-1.5"
+              role="tablist"
+              aria-label="Content locale"
+            >
+              {LOCALES.map((code) => {
+                const active = code === locale
+                return (
+                  <button
+                    key={code}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    disabled={saving}
+                    onClick={() => switchLocale(code)}
+                    className={cn(
+                      "rounded-full px-2.5 py-1 text-xs font-bold tracking-wide transition-colors",
+                      active
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground hover:bg-accent hover:text-foreground",
+                    )}
+                  >
+                    {LOCALE_LABELS[code].short}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+          {hasLocaleRow === false && locale !== DEFAULT_LOCALE ? (
+            <p className="mt-3 rounded-lg border border-dashed border-amber-500/40 bg-amber-500/5 px-3 py-2 text-xs text-amber-900 dark:text-amber-100">
+              No translation yet — showing English as a starting point; save to
+              create the {LOCALE_LABELS[locale].label} row.
+            </p>
+          ) : null}
+        </section>
+
         <p className="text-xs text-muted-foreground">
-          {meta.fromDatabase
+          {hasLocaleRow
             ? meta.isBuiltIn
-              ? "Editing CMS override of a built-in seed."
-              : "Custom CMS transfer."
-            : "Editing built-in seed — Save writes a CMS override."}
+              ? `Editing ${LOCALE_LABELS[locale].label} CMS override.`
+              : `Custom CMS transfer (${LOCALE_LABELS[locale].label}).`
+            : locale === DEFAULT_LOCALE
+              ? "Editing built-in seed — Save writes a CMS override."
+              : `Prefilling from English — Save creates ${LOCALE_LABELS[locale].label}.`}
           {meta.livePriceEur != null
             ? ` Live sedan fare: €${meta.livePriceEur}.`
             : " No live zone fare (catalog used on site)."}
@@ -599,6 +677,14 @@ export function TransferEditorView({ slug }: { slug: string }) {
           </Button>
         </div>
       </div>
+
+      <TransferJsonDialog
+        open={jsonOpen}
+        onOpenChange={setJsonOpen}
+        seed={seed}
+        locale={locale}
+        onApply={(next) => setSeed(next)}
+      />
 
       <MediaPickerDialog
         open={mediaOpen}

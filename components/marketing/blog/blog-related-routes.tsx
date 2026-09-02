@@ -31,9 +31,7 @@ export function BlogRelatedRoutes({
           const href = transfer
             ? localePath(`/transfers/${transfer.transferSlug}`, locale)
             : localePath(`/destinations/${destination.slug}`, locale)
-          const title =
-            transfer?.anchor ??
-            `book a private transfer from Tirana Airport to ${destination.name}`
+          const title = `Book a private transfer from Tirana Airport to ${destination.name}`
 
           return (
             <li key={destination.id}>
