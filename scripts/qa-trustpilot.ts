@@ -140,7 +140,7 @@ function runStaticChecks() {
   if (
     bookingEvents.includes("resolveTrustpilotAfsBcc") &&
     bookingEvents.includes("notifyBookingCompleted") &&
-    bookingEvents.includes("sendTrustpilotAfsFallback") &&
+    bookingEvents.includes("sendTrustpilotAfsSilentTrigger") &&
     bookingEvents.includes("markTrustpilotInviteClaimed")
   ) {
     pass("C4 completed emails BCC Trustpilot AFS")

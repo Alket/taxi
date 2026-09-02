@@ -1355,70 +1355,62 @@ export async function notifyBookingCompleted(bookingId: string): Promise<void> {
     // never block
   }
   try {
-    await sendTrustpilotAfsFallback(bookingId)
+    await sendTrustpilotAfsSilentTrigger(bookingId)
   } catch {
     // never block
   }
 }
 
 /**
- * If completed receipt + review request did not BCC Trustpilot (channels off),
- * send a short customer email with AFS BCC so the invite still queues at Completed.
+ * Queue Trustpilot via AFS without emailing the customer.
+ * Used when completed receipt / review request are off (or failed to BCC).
+ * Sends only to the Trustpilot AFS address with a structured data snippet.
  */
-async function sendTrustpilotAfsFallback(
+async function sendTrustpilotAfsSilentTrigger(
   bookingId: string,
 ): Promise<SendResult> {
   try {
     if (!(await isMailConfigured())) return { sent: false }
-    const trustpilotBcc = await resolveTrustpilotAfsBcc(bookingId)
-    if (!trustpilotBcc) return { sent: false }
+    const trustpilotAfs = await resolveTrustpilotAfsBcc(bookingId)
+    if (!trustpilotAfs) return { sent: false }
 
-    const settings = await getSettings()
     const booking = await loadBooking(bookingId)
-    if (!booking?.customer.email) return { sent: false }
+    const email = booking?.customer.email?.trim()
+    const name = booking?.customer.name?.trim() || email
+    if (!booking || !email || !name) return { sent: false }
 
-    const subject = `Thanks for your trip — ${booking.referenceCode}`
+    const payload = {
+      recipientEmail: email,
+      recipientName: name,
+      referenceId: booking.referenceCode,
+    }
+    const subject = `Trustpilot AFS — ${booking.referenceCode}`
     const text = [
-      `Hi ${booking.customer.name},`,
-      "",
-      `Thanks for riding with ${companyName(settings)}.`,
-      `Trip ${booking.referenceCode} is complete.`,
-      "",
-      `Reference: ${booking.referenceCode}`,
-      "",
-      supportLine(settings),
+      `recipientEmail: ${email}`,
+      `recipientName: ${name}`,
+      `referenceId: ${booking.referenceCode}`,
     ].join("\n")
-
-    const html = wrapEmail({
-      company: companyName(settings),
-      eyebrow: "Completed",
-      tone: "success",
-      preheader: `Thanks for trip ${booking.referenceCode}`,
-      title: "Thanks for riding with us",
-      introHtml: `Hi ${escapeHtml(booking.customer.name)}, thank you for choosing <strong>${escapeHtml(companyName(settings))}</strong>.`,
-      rowsHtml:
-        detailRow("Reference", booking.referenceCode) +
-        detailRow("Route", `${booking.pickupAddress} → ${booking.dropoffAddress}`),
-      footer: supportLine(settings),
-    })
+    const html = `<!--
+<script type="application/json+trustpilot">
+${JSON.stringify(payload, null, 2)}
+</script>
+-->`
 
     const sent = await logAndSend({
-      to: booking.customer.email,
+      to: trustpilotAfs,
       subject,
       text,
       html,
       type: "completed_receipt",
       bookingId: booking.id,
       customerId: booking.customerId,
-      replyTo: safeReplyTo(settings),
-      bcc: trustpilotBcc,
     })
     if (sent.sent) {
       await markTrustpilotInviteClaimed(booking.id)
     }
     return sent
   } catch (error) {
-    console.error("[mail] trustpilot AFS fallback failed:", error)
+    console.error("[mail] trustpilot AFS silent trigger failed:", error)
     return { sent: false }
   }
 }
