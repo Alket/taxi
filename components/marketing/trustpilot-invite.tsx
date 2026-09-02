@@ -1,18 +1,7 @@
 "use client"
 
-import Script from "next/script"
-import { usePathname, useSearchParams } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import { useEffect, useRef } from "react"
-
-import {
-  isTrustpilotStaffPath,
-  normalizeTrustpilotIntegrationKey,
-} from "@/lib/trustpilot"
-
-export {
-  isTrustpilotStaffPath,
-  normalizeTrustpilotIntegrationKey,
-} from "@/lib/trustpilot"
 
 declare global {
   interface Window {
@@ -34,36 +23,6 @@ function ensureTpQueue() {
   tp.q = []
   window.tp = tp
   window.TrustpilotObject = "tp"
-}
-
-/**
- * Trustpilot invitation bootstrap (invitejs).
- * Loads on public pages when NEXT_PUBLIC_TRUSTPILOT_INTEGRATION_KEY is set.
- * Never on /admin or /driver.
- */
-export function TrustpilotInviteBootstrap({
-  integrationKey,
-}: {
-  integrationKey: string | null | undefined
-}) {
-  const key = normalizeTrustpilotIntegrationKey(integrationKey)
-  const pathname = usePathname() || "/"
-  const staff = isTrustpilotStaffPath(pathname)
-
-  if (!key || staff) return null
-
-  const register = `
-    (function(w,d,s,r,n){w.TrustpilotObject=n;w[n]=w[n]||function(){(w[n].q=w[n].q||[]).push(arguments)};
-    var a=d.createElement(s);a.async=1;a.src=r;a.type='text/java'+s;var f=d.getElementsByTagName(s)[0];
-    f.parentNode.insertBefore(a,f)})(window,document,'script','https://invitejs.trustpilot.com/tp.min.js','tp');
-    tp('register', ${JSON.stringify(key)});
-  `
-
-  return (
-    <Script id="trustpilot-invite-bootstrap" strategy="afterInteractive">
-      {register}
-    </Script>
-  )
 }
 
 /**

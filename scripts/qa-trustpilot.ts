@@ -113,33 +113,39 @@ function runStaticChecks() {
     else fail(`S2 public path ${p}`)
   }
 
-  const inviteSrc = read("components/marketing/trustpilot-invite.tsx")
+  const inviteSrc = read("components/marketing/trustpilot-invite-bootstrap.tsx")
   if (inviteSrc.includes("invitejs.trustpilot.com/tp.min.js")) {
     pass("C1 loads invitejs URL")
   } else fail("C1 loads invitejs URL")
 
-  if (inviteSrc.includes("tp('register'") || inviteSrc.includes('tp(\'register\'')) {
+  if (inviteSrc.includes("tp('register'") || inviteSrc.includes("tp('register'")) {
     pass("C2 registers integration key")
   } else fail("C2 registers integration key")
 
+  // Server bootstrap (not "use client") so Trustpilot domain verify can see the snippet
+  if (!inviteSrc.includes('"use client"')) {
+    pass("C2b bootstrap is server-rendered for domain verify")
+  } else fail("C2b bootstrap is server-rendered for domain verify")
+
+  const createSrc = read("components/marketing/trustpilot-invite.tsx")
   if (
-    inviteSrc.includes('createInvitation') &&
-    inviteSrc.includes("source: \"InvitationScript\"")
+    createSrc.includes("createInvitation") &&
+    createSrc.includes('source: "InvitationScript"')
   ) {
     pass("C3 createInvitation + InvitationScript source")
   } else fail("C3 createInvitation + InvitationScript source")
 
   if (
-    inviteSrc.includes("/api/bookings/trustpilot-invite") &&
-    !inviteSrc.includes('searchParams.get("tp")')
+    createSrc.includes("/api/bookings/trustpilot-invite") &&
+    !createSrc.includes('searchParams.get("tp")')
   ) {
     pass("C4 client claims via cookie API (no ?tp=)")
   } else fail("C4 client claims via cookie API (no ?tp=)")
 
   if (
-    inviteSrc.includes("export function TrustpilotCreateInvitation") &&
-    inviteSrc.includes("referenceId: string") &&
-    !inviteSrc.includes("recipientEmail: string")
+    createSrc.includes("export function TrustpilotCreateInvitation") &&
+    createSrc.includes("referenceId: string") &&
+    !createSrc.includes("recipientEmail: string")
   ) {
     pass("C5 CreateInvitation props are reference-only")
   } else fail("C5 CreateInvitation props are reference-only")
@@ -163,6 +169,12 @@ function runStaticChecks() {
 
   const layout = read("app/layout.tsx")
   if (
+    layout.includes("TrustpilotInviteBootstrap") &&
+    layout.includes("trustpilot-invite-bootstrap") &&
+    layout.includes("NEXT_PUBLIC_TRUSTPILOT_INTEGRATION_KEY")
+  ) {
+    pass("W1 root layout wires bootstrap")
+  } else if (
     layout.includes("TrustpilotInviteBootstrap") &&
     layout.includes("NEXT_PUBLIC_TRUSTPILOT_INTEGRATION_KEY")
   ) {

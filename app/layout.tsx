@@ -6,7 +6,7 @@ import { AppThemeProvider } from "@/components/admin/theme-provider"
 import {
   GoogleTagManager,
 } from "@/components/marketing/google-tag-manager"
-import { TrustpilotInviteBootstrap } from "@/components/marketing/trustpilot-invite"
+import { TrustpilotInviteBootstrap } from "@/components/marketing/trustpilot-invite-bootstrap"
 import { getRequestLocale } from "@/lib/i18n/get-locale"
 import { getAppBaseUrl } from "@/lib/mail"
 import { DEFAULT_OG_IMAGE } from "@/lib/page-content"
@@ -156,9 +156,12 @@ export default async function RootLayout({
       suppressHydrationWarning
       className={`${inter.variable} ${jetbrainsMono.variable} ${museoSans.variable}`}
     >
+      <head>
+        {/* Trustpilot asks for the invitejs register snippet in <head> on every page */}
+        <TrustpilotInviteBootstrap integrationKey={trustpilotKey} />
+      </head>
       <body className="font-sans antialiased">
         <GoogleTagManager containerId={gtmContainerId} />
-        <TrustpilotInviteBootstrap integrationKey={trustpilotKey} />
         <AppThemeProvider>
           <TooltipProvider>{children}</TooltipProvider>
           <Toaster richColors position="top-right" />
