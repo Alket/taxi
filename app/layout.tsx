@@ -7,6 +7,7 @@ import {
   GoogleTagManager,
 } from "@/components/marketing/google-tag-manager"
 import { TrustpilotInviteBootstrap } from "@/components/marketing/trustpilot-invite-bootstrap"
+import { TrustpilotWidgetBootstrap } from "@/components/marketing/trustpilot-widget-bootstrap"
 import { getRequestLocale } from "@/lib/i18n/get-locale"
 import { getAppBaseUrl } from "@/lib/mail"
 import { DEFAULT_OG_IMAGE } from "@/lib/page-content"
@@ -159,6 +160,8 @@ export default async function RootLayout({
       <head>
         {/* Trustpilot asks for the invitejs register snippet in <head> on every page */}
         <TrustpilotInviteBootstrap integrationKey={trustpilotKey} />
+        {/* TrustBox widget bootstrap (Review Collector, etc.) */}
+        <TrustpilotWidgetBootstrap />
       </head>
       <body className="font-sans antialiased">
         <GoogleTagManager containerId={gtmContainerId} />

@@ -877,14 +877,14 @@ export async function resolvePageDefinition(
 
 export function serializePageContent(
   row: {
-    slug: string
+  slug: string
     locale?: string
-    label: string
-    title: string
-    description: string
-    ogImage: string
-    sections: unknown
-    updatedAt: Date
+  label: string
+  title: string
+  description: string
+  ogImage: string
+  sections: unknown
+  updatedAt: Date
   },
   opts?: { hasLocaleRow?: boolean },
 ): PageContentRecord {
@@ -997,11 +997,11 @@ export async function resolvePageContent(
     }
 
     const row = localized ?? english
-    if (!row) {
+  if (!row) {
       if (isCustomDestination) return null
       const hero = destinationHeroImage(document)
-      return {
-        slug: def.slug,
+    return {
+      slug: def.slug,
         locale: DEFAULT_LOCALE,
         label: def.label,
         title: def.defaults.title,
@@ -1524,10 +1524,10 @@ export async function resolveDestinationCards(
   const locale = normalizeLocale(localeInput)
   const builtInCards = (
     await Promise.all(
-      DESTINATIONS.map(async (dest) => {
+    DESTINATIONS.map(async (dest) => {
         const page = await resolvePageContent(`destinations/${dest.id}`, locale)
         if (!page) return null
-        return {
+      return {
           card: destinationFromPage(dest.id, page, dest),
           featured: Boolean(page.destinationDocument?.flags?.featured) ||
             isDestinationFeatured(page.sections),

@@ -9,6 +9,7 @@ import { DestinationsSection } from "@/components/marketing/destinations-section
 import { FaqSection } from "@/components/marketing/faq-section"
 import { HeroBookingCard } from "@/components/marketing/hero-booking-card"
 import { MarketingContainer } from "@/components/marketing/marketing-container"
+import { TrustpilotReviewCollector } from "@/components/marketing/trustpilot-review-collector"
 import { MarketingPageEnter } from "@/components/marketing/marketing-page-enter"
 import { MarketingPreloader } from "@/components/marketing/marketing-preloader"
 import { PeaceOfMindSection } from "@/components/marketing/peace-of-mind-section"
@@ -115,7 +116,7 @@ export function HomeLanding({
             <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(8,18,22,0.55)_0%,rgba(8,18,22,0.35)_45%,rgba(8,18,22,0.55)_100%)] md:bg-[linear-gradient(105deg,rgba(8,18,22,0.78)_0%,rgba(8,18,22,0.55)_42%,rgba(8,18,22,0.28)_100%)]" />
 
             <div className="absolute inset-0 z-10 flex flex-col justify-center px-5 pt-[calc(80px+2.5rem)] pb-16 md:hidden">
-              <div className="home-fade-up text-white">
+              <div className="home-fade-up flex w-full flex-col items-start text-white">
                 <p
                   aria-hidden
                   className="text-[2.35rem] font-extrabold leading-[1.05] tracking-tight text-balance"
@@ -125,6 +126,7 @@ export function HomeLanding({
                 <p className="home-fade-up-delay mt-3 max-w-sm text-base leading-relaxed text-white/90">
                   {copy.hero.text}
                 </p>
+                <TrustpilotReviewCollector className="home-fade-up-delay mt-4 -ml-4 w-fit max-w-full" />
               </div>
             </div>
           </div>
@@ -141,6 +143,7 @@ export function HomeLanding({
                 <p className="home-fade-up-delay mt-4 max-w-xl text-base leading-relaxed text-white/85">
                   {copy.hero.text}
                 </p>
+                <TrustpilotReviewCollector className="home-fade-up-delay mt-8 -ml-4 w-fit max-w-full" />
               </div>
 
               <div
