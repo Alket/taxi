@@ -4,7 +4,6 @@ import { z } from "zod"
 import { prisma } from "@/lib/db"
 import { recordBookingPayment } from "@/lib/record-deposit"
 import { getStripe } from "@/lib/stripe"
-import { jsonWithTrustpilotInviteCookie } from "@/lib/trustpilot-invite-cookie"
 
 const bodySchema = z
   .object({
@@ -12,8 +11,8 @@ const bodySchema = z
     referenceCode: z.string().min(3).max(32).optional(),
     paymentIntentId: z.string().min(1),
     /**
-     * Required for invite-cookie minting. Proves possession of the Stripe
-     * PaymentIntent (blocks bookingId + payment_intent id replay).
+     * Required. Proves possession of the Stripe PaymentIntent (blocks
+     * bookingId + payment_intent id replay).
      */
     paymentIntentClientSecret: z.string().min(10).max(512),
   })
@@ -87,7 +86,7 @@ export async function POST(request: Request) {
       gatewayAmount,
     })
 
-    return jsonWithTrustpilotInviteCookie(booking.id, {
+    return NextResponse.json({
       ok: true,
       referenceCode: booking.referenceCode,
     })

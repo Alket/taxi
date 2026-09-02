@@ -9,7 +9,6 @@ import {
   parsePaypalCustomId,
 } from "@/lib/paypal"
 import { recordBookingPayment } from "@/lib/record-deposit"
-import { jsonWithTrustpilotInviteCookieIfCheckoutBound } from "@/lib/trustpilot-invite-cookie"
 import type { PaymentOption } from "@/lib/types"
 
 const bodySchema = z.object({
@@ -52,16 +51,11 @@ export async function POST(request: Request) {
   })
   // Short-circuit before hitting PayPal again on retries.
   if (intent.status === "captured") {
-    return jsonWithTrustpilotInviteCookieIfCheckoutBound(
-      request,
-      intent.checkoutNonce,
-      booking?.id,
-      {
-        ok: true,
-        referenceCode: booking?.referenceCode ?? null,
-        alreadyPaid: true,
-      },
-    )
+    return NextResponse.json({
+      ok: true,
+      referenceCode: booking?.referenceCode ?? null,
+      alreadyPaid: true,
+    })
   }
 
   if (!booking) {
@@ -77,16 +71,11 @@ export async function POST(request: Request) {
       where: { orderId, status: "created" },
       data: { status: "captured" },
     })
-    return jsonWithTrustpilotInviteCookieIfCheckoutBound(
-      request,
-      intent.checkoutNonce,
-      booking.id,
-      {
-        ok: true,
-        referenceCode: booking.referenceCode,
-        alreadyPaid: true,
-      },
-    )
+    return NextResponse.json({
+      ok: true,
+      referenceCode: booking.referenceCode,
+      alreadyPaid: true,
+    })
   }
 
   try {
@@ -161,16 +150,11 @@ export async function POST(request: Request) {
       claimPaypalOrderId: orderId,
     })
 
-    return jsonWithTrustpilotInviteCookieIfCheckoutBound(
-      request,
-      intent.checkoutNonce,
-      booking.id,
-      {
-        ok: true,
-        referenceCode: booking.referenceCode,
-        alreadyPaid: recorded.alreadyRecorded,
-      },
-    )
+    return NextResponse.json({
+      ok: true,
+      referenceCode: booking.referenceCode,
+      alreadyPaid: recorded.alreadyRecorded,
+    })
   } catch (error) {
     return NextResponse.json(
       { error: (error as Error).message || "PayPal capture failed." },

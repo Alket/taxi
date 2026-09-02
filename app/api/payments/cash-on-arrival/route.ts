@@ -5,7 +5,6 @@ import { prisma } from "@/lib/db"
 import { markPublicBookingPaid } from "@/lib/booking-notes"
 import { assertCheckoutPayable } from "@/lib/payment-session"
 import { getSettingsRow } from "@/lib/settings"
-import { jsonWithTrustpilotInviteCookie } from "@/lib/trustpilot-invite-cookie"
 import { round2 } from "@/lib/vehicles"
 
 const bodySchema = z.object({
@@ -159,7 +158,7 @@ export async function POST(request: Request) {
     // ignore
   }
 
-  return jsonWithTrustpilotInviteCookie(booking.id, {
+  return NextResponse.json({
     bookingId: booking.id,
     referenceCode: booking.referenceCode,
     alreadyConfirmed: false,

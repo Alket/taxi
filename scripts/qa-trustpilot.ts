@@ -127,54 +127,42 @@ function runStaticChecks() {
     pass("C2b bootstrap is server-rendered for domain verify")
   } else fail("C2b bootstrap is server-rendered for domain verify")
 
-  const createSrc = read("components/marketing/trustpilot-invite.tsx")
+  const afsLib = read("lib/trustpilot-afs.ts")
   if (
-    createSrc.includes("createInvitation") &&
-    createSrc.includes('source: "InvitationScript"')
+    afsLib.includes("resolveTrustpilotAfsBcc") &&
+    afsLib.includes("markTrustpilotInviteClaimed") &&
+    afsLib.includes("TRUSTPILOT_AFS_EMAIL")
   ) {
-    pass("C3 createInvitation + InvitationScript source")
-  } else fail("C3 createInvitation + InvitationScript source")
+    pass("C3 AFS helpers for Completed-time invites")
+  } else fail("C3 AFS helpers for Completed-time invites")
+
+  const bookingEvents = read("lib/emails/booking-events.ts")
+  if (
+    bookingEvents.includes("resolveTrustpilotAfsBcc") &&
+    bookingEvents.includes("notifyBookingCompleted") &&
+    bookingEvents.includes("sendTrustpilotAfsFallback") &&
+    bookingEvents.includes("markTrustpilotInviteClaimed")
+  ) {
+    pass("C4 completed emails BCC Trustpilot AFS")
+  } else fail("C4 completed emails BCC Trustpilot AFS")
 
   if (
-    createSrc.includes("/api/bookings/trustpilot-invite") &&
-    !createSrc.includes('searchParams.get("tp")')
+    bookingEvents.includes("sendCustomerCompletedReceipt") &&
+    bookingEvents.includes("bcc: trustpilotBcc")
   ) {
-    pass("C4 client claims via cookie API (no ?tp=)")
-  } else fail("C4 client claims via cookie API (no ?tp=)")
-
-  if (
-    createSrc.includes("export function TrustpilotCreateInvitation") &&
-    createSrc.includes("referenceId: string") &&
-    !createSrc.includes("recipientEmail: string")
-  ) {
-    pass("C5 CreateInvitation props are reference-only")
-  } else fail("C5 CreateInvitation props are reference-only")
-
-  const claimApi = read("app/api/bookings/trustpilot-invite/route.ts")
-  if (
-    claimApi.includes("claimTrustpilotInvite") &&
-    claimApi.includes("takeRateLimit") &&
-    claimApi.includes("TRUSTPILOT_INVITE_COOKIE")
-  ) {
-    pass("C6 claim API uses HttpOnly cookie + rate limit")
-  } else fail("C6 claim API uses HttpOnly cookie + rate limit")
+    pass("C5 completed receipt can carry AFS BCC")
+  } else fail("C5 completed receipt can carry AFS BCC")
 
   const inviteLib = read("lib/trustpilot-invite.ts")
   if (
     inviteLib.includes("trustpilotInviteClaimedAt") &&
     inviteLib.includes("updateMany")
   ) {
-    pass("C7 one-shot DB claim")
-  } else fail("C7 one-shot DB claim")
+    pass("C7 one-shot DB claim field still used")
+  } else fail("C7 one-shot DB claim field still used")
 
   const layout = read("app/layout.tsx")
   if (
-    layout.includes("TrustpilotInviteBootstrap") &&
-    layout.includes("trustpilot-invite-bootstrap") &&
-    layout.includes("NEXT_PUBLIC_TRUSTPILOT_INTEGRATION_KEY")
-  ) {
-    pass("W1 root layout wires bootstrap")
-  } else if (
     layout.includes("TrustpilotInviteBootstrap") &&
     layout.includes("NEXT_PUBLIC_TRUSTPILOT_INTEGRATION_KEY")
   ) {
@@ -185,20 +173,21 @@ function runStaticChecks() {
     "app/(booking)/book/confirmation/[referenceCode]/page.tsx",
   )
   if (
-    confirm.includes("TrustpilotCreateInvitation") &&
+    !confirm.includes("TrustpilotCreateInvitation") &&
     !confirm.includes("inviteEmail") &&
     !/customer:\s*\{\s*select:\s*\{\s*email/.test(confirm)
   ) {
-    pass("W2 confirmation mounts invite without loading booker email")
-  } else fail("W2 confirmation mounts invite without loading booker email")
+    pass("W2 confirmation does not trigger Trustpilot invite")
+  } else fail("W2 confirmation does not trigger Trustpilot invite")
 
+  const driverStatus = read("app/api/driver/bookings/[id]/status/route.ts")
+  const adminStatus = read("app/api/admin/bookings/[id]/status/route.ts")
   if (
-    confirm.includes("paymentSucceeded") &&
-    confirm.includes("cashOnArrival") &&
-    confirm.includes("TrustpilotCreateInvitation")
+    driverStatus.includes("notifyBookingCompleted") &&
+    adminStatus.includes("notifyBookingCompleted")
   ) {
-    pass("W3 invite component only on success confirmation view")
-  } else fail("W3 invite component only on success confirmation view")
+    pass("W3 completed status calls notifyBookingCompleted")
+  } else fail("W3 completed status calls notifyBookingCompleted")
 
   // Public confirmation JSON API must still omit PII
   const confirmApi = read("app/api/bookings/confirmation/[referenceCode]/route.ts")
@@ -211,62 +200,47 @@ function runStaticChecks() {
   } else fail("W4 confirmation JSON API still omits email")
 
   const nav = read("lib/navigate-to-confirmation.tsx")
-  const cookieHelper = read("lib/trustpilot-invite-cookie.ts")
-  if (
-    !nav.includes("tp=") &&
-    !nav.includes("trustpilotInviteToken") &&
-    cookieHelper.includes("httpOnly: true") &&
-    cookieHelper.includes("TRUSTPILOT_INVITE_COOKIE")
-  ) {
-    pass("W5 invite JWT via HttpOnly cookie (not URL)")
-  } else fail("W5 invite JWT via HttpOnly cookie (not URL)")
+  if (!nav.includes("tp=") && !nav.includes("trustpilotInviteToken")) {
+    pass("W5 confirmation URL has no invite token")
+  } else fail("W5 confirmation URL has no invite token")
 
   const confirmDeposit = read("app/api/payments/confirm-deposit/route.ts")
-  if (
-    confirmDeposit.includes("paymentIntentClientSecret") &&
-    confirmDeposit.includes("client_secret") &&
-    !confirmDeposit.includes("if (!byBookingId)")
-  ) {
-    pass("W6 confirm-deposit always requires client_secret")
-  } else fail("W6 confirm-deposit always requires client_secret")
-
   const cashRoute = read("app/api/payments/cash-on-arrival/route.ts")
-  const cashIdempotentNoMint =
-    cashRoute.includes('alreadyConfirmed: true') &&
-    !/alreadyConfirmed:\s*true[\s\S]{0,80}jsonWithTrustpilotInviteCookie/.test(
-      cashRoute,
-    ) &&
-    cashRoute.includes("jsonWithTrustpilotInviteCookie") &&
-    cashRoute.includes("alreadyConfirmed: false")
-  if (cashIdempotentNoMint) {
-    pass("W8 cash idempotent paths do not remint invite cookie")
-  } else fail("W8 cash idempotent paths do not remint invite cookie")
-
-  const checkoutNonce = read("lib/checkout-nonce.ts")
   const paypalCapture = read("app/api/payments/paypal/capture/route.ts")
   const pokConfirm = read("app/api/payments/pok/confirm/route.ts")
-  const paypalCreate = read("app/api/payments/paypal/create-order/route.ts")
-  const pokCreate = read("app/api/payments/pok/create-order/route.ts")
   if (
-    checkoutNonce.includes("CHECKOUT_NONCE_COOKIE") &&
-    checkoutNonce.includes("timingSafeEqual") &&
-    paypalCreate.includes("checkoutNonce") &&
-    pokCreate.includes("checkoutNonce") &&
-    paypalCapture.includes("jsonWithTrustpilotInviteCookieIfCheckoutBound") &&
-    pokConfirm.includes("jsonWithTrustpilotInviteCookieIfCheckoutBound")
+    !confirmDeposit.includes("jsonWithTrustpilotInviteCookie") &&
+    !cashRoute.includes("jsonWithTrustpilotInviteCookie") &&
+    !paypalCapture.includes("jsonWithTrustpilotInviteCookie") &&
+    !pokConfirm.includes("jsonWithTrustpilotInviteCookie")
   ) {
-    pass("W7 PayPal/POK invite mint requires checkout nonce")
-  } else fail("W7 PayPal/POK invite mint requires checkout nonce")
+    pass("W6 payment routes no longer mint invite cookies")
+  } else fail("W6 payment routes no longer mint invite cookies")
+
+  if (confirmDeposit.includes("paymentIntentClientSecret")) {
+    pass("W7 confirm-deposit still requires client_secret")
+  } else fail("W7 confirm-deposit still requires client_secret")
+
+  const mail = read("lib/mail.ts")
+  if (mail.includes("bcc") && mail.includes("sanitizeMailHeader(input.bcc")) {
+    pass("W8 sendMail supports BCC for AFS")
+  } else fail("W8 sendMail supports BCC for AFS")
 
   const envExample = read(".env.example")
-  if (envExample.includes("NEXT_PUBLIC_TRUSTPILOT_INTEGRATION_KEY")) {
-    pass("E1 .env.example documents key")
-  } else fail("E1 .env.example documents key")
+  if (
+    envExample.includes("NEXT_PUBLIC_TRUSTPILOT_INTEGRATION_KEY") &&
+    envExample.includes("TRUSTPILOT_AFS_EMAIL")
+  ) {
+    pass("E1 .env.example documents key + AFS email")
+  } else fail("E1 .env.example documents key + AFS email")
 
   const dockerExample = read(".env.docker.example")
-  if (dockerExample.includes("NEXT_PUBLIC_TRUSTPILOT_INTEGRATION_KEY")) {
-    pass("E2 .env.docker.example documents key")
-  } else fail("E2 .env.docker.example documents key")
+  if (
+    dockerExample.includes("NEXT_PUBLIC_TRUSTPILOT_INTEGRATION_KEY") &&
+    dockerExample.includes("TRUSTPILOT_AFS_EMAIL")
+  ) {
+    pass("E2 .env.docker.example documents key + AFS email")
+  } else fail("E2 .env.docker.example documents key + AFS email")
 
   const compose = read("docker-compose.yml")
   const composeDev = read("docker-compose.dev.yml")
@@ -395,7 +369,7 @@ async function runLiveChecks() {
       )
     }
 
-    // Claim without cookie must fail
+    // Claim API is no longer used for invites (AFS on Completed). Soft-check 401 still.
     const badClaim = await fetch(`${base}/api/bookings/trustpilot-invite`, {
       method: "POST",
       headers: {
@@ -407,85 +381,37 @@ async function runLiveChecks() {
       }),
     })
     if (badClaim.status === 401 || badClaim.status === 400) {
-      pass("L4b claim rejects missing cookie", String(badClaim.status))
+      pass("L4b legacy claim API still rejects missing cookie", String(badClaim.status))
     } else {
-      fail("L4b claim rejects missing cookie", `status ${badClaim.status}`)
+      fail("L4b legacy claim API still rejects missing cookie", `status ${badClaim.status}`)
     }
 
-    // Valid cookie claim (restore claimedAt after)
-    const { issueTrustpilotInviteToken, claimTrustpilotInvite } = await import(
-      "../lib/trustpilot-invite"
-    )
-    const { TRUSTPILOT_INVITE_COOKIE } = await import(
-      "../lib/trustpilot-invite-cookie"
-    )
-    await prisma.booking.update({
-      where: { id: booking.id },
-      data: { trustpilotInviteClaimedAt: null },
-    })
-    const token = await issueTrustpilotInviteToken(booking.id)
-    if (!token) {
-      fail("L4c issue claim token", "null token")
+    const {
+      normalizeTrustpilotAfsEmail,
+      getTrustpilotAfsEmail,
+      canTrustpilotAfsBcc,
+    } = await import("../lib/trustpilot-afs")
+    if (normalizeTrustpilotAfsEmail("bad") === null) {
+      pass("L4c AFS email validator rejects invalid")
+    } else fail("L4c AFS email validator rejects invalid")
+    if (
+      normalizeTrustpilotAfsEmail("  Foo@Invite.Example.COM ") ===
+      "foo@invite.example.com"
+    ) {
+      pass("L4d AFS email validator normalizes")
+    } else fail("L4d AFS email validator normalizes")
+
+    // Without TRUSTPILOT_AFS_EMAIL, helpers stay inactive
+    if (!process.env.TRUSTPILOT_AFS_EMAIL?.trim()) {
+      if (getTrustpilotAfsEmail() === null) {
+        pass("L4e AFS inactive when env unset")
+      } else fail("L4e AFS inactive when env unset")
+      const can = await canTrustpilotAfsBcc(booking.id)
+      if (!can) pass("L4f canTrustpilotAfsBcc false without AFS env")
+      else fail("L4f canTrustpilotAfsBcc false without AFS env")
     } else {
-      const first = await claimTrustpilotInvite({
-        referenceCode: booking.referenceCode,
-        token,
-      })
-      if (
-        first.ok &&
-        first.recipientEmail === email &&
-        first.referenceId === booking.referenceCode
-      ) {
-        pass("L4c claim succeeds once with valid token")
-      } else {
-        fail("L4c claim succeeds once with valid token", JSON.stringify(first))
-      }
-
-      const second = await claimTrustpilotInvite({
-        referenceCode: booking.referenceCode,
-        token,
-      })
-      if (!second.ok && second.code === "already_claimed") {
-        pass("L4d second claim blocked")
-      } else {
-        fail("L4d second claim blocked", JSON.stringify(second))
-      }
-
-      // HTTP claim with Cookie header
-      await prisma.booking.update({
-        where: { id: booking.id },
-        data: { trustpilotInviteClaimedAt: null },
-      })
-      const token2 = await issueTrustpilotInviteToken(booking.id)
-      const cookieClaim = await fetch(`${base}/api/bookings/trustpilot-invite`, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "ngrok-skip-browser-warning": "true",
-          cookie: `${TRUSTPILOT_INVITE_COOKIE}=${token2}`,
-        },
-        body: JSON.stringify({ referenceCode: booking.referenceCode }),
-      })
-      const cookieBody = await cookieClaim.json().catch(() => ({}))
-      if (
-        cookieClaim.status === 200 &&
-        cookieBody.recipientEmail === email
-      ) {
-        pass("L4e HTTP claim accepts HttpOnly cookie")
-      } else {
-        fail(
-          "L4e HTTP claim accepts HttpOnly cookie",
-          `status ${cookieClaim.status} ${JSON.stringify(cookieBody).slice(0, 120)}`,
-        )
-      }
-    }
-
-    // Restore prior claimed state if we cleared it for the test
-    if (booking.trustpilotInviteClaimedAt) {
-      await prisma.booking.update({
-        where: { id: booking.id },
-        data: { trustpilotInviteClaimedAt: booking.trustpilotInviteClaimedAt },
-      })
+      pass("L4e AFS env set — skip inactive asserts", "configured")
+      pass("L4f AFS env set — skip inactive asserts", "configured")
     }
   }
 

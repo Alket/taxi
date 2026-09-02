@@ -10,6 +10,8 @@ export type SendMailInput = {
   text: string
   html?: string
   replyTo?: string
+  /** Blind-carbon-copy (e.g. Trustpilot AFS unique address). */
+  bcc?: string
 }
 
 type SmtpConfig = {
@@ -248,6 +250,9 @@ export async function sendMail(
     text: input.text,
     html: input.html,
     replyTo,
+    ...(input.bcc
+      ? { bcc: sanitizeMailHeader(input.bcc, "bcc") }
+      : {}),
   })
 
   const accepted = (info.accepted ?? []).map(String)

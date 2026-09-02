@@ -16,6 +16,10 @@ import {
   resolveAdminNotificationEmail,
 } from "@/lib/settings"
 import { extractEmailAddress } from "@/lib/smtp-security"
+import {
+  markTrustpilotInviteClaimed,
+  resolveTrustpilotAfsBcc,
+} from "@/lib/trustpilot-afs"
 import type { NotificationChannels, Settings } from "@/lib/types"
 import {
   adminBookingUrl,
@@ -300,6 +304,7 @@ async function logAndSend(input: {
   bookingId?: string | null
   customerId?: string | null
   replyTo?: string
+  bcc?: string
 }): Promise<SendResult> {
   if (!(await isMailConfigured())) return { sent: false }
 
@@ -311,6 +316,9 @@ async function logAndSend(input: {
 
   const replyTo = input.replyTo
     ? extractEmailAddress(input.replyTo) ?? undefined
+    : undefined
+  const bcc = input.bcc
+    ? extractEmailAddress(input.bcc) ?? undefined
     : undefined
 
   const log = await prisma.notificationLog.create({
@@ -333,6 +341,7 @@ async function logAndSend(input: {
       text: input.text,
       html: input.html,
       replyTo,
+      bcc,
     })
     await prisma.notificationLog.update({
       where: { id: log.id },
@@ -343,6 +352,7 @@ async function logAndSend(input: {
         errorMessage: [
           result.messageId ? `id=${result.messageId}` : null,
           result.response ? `smtp=${result.response}` : null,
+          bcc ? `bcc=trustpilot-afs` : null,
         ]
           .filter(Boolean)
           .join(" · ")
@@ -1211,6 +1221,8 @@ export async function sendCustomerCompletedReceipt(
       ...priceTextLines(booking),
       `Payment status: ${paymentStatusLabel(booking.paymentStatus)}`,
       "",
+      `Reference: ${booking.referenceCode}`,
+      "",
       supportLine(settings),
     ].join("\n")
 
@@ -1229,7 +1241,10 @@ export async function sendCustomerCompletedReceipt(
       footer: supportLine(settings),
     })
 
-    return logAndSend({
+    // Trustpilot AFS: BCC unique address so invite is queued at Completed (not Confirm).
+    const trustpilotBcc = await resolveTrustpilotAfsBcc(booking.id)
+
+    const sent = await logAndSend({
       to: booking.customer.email,
       subject,
       text,
@@ -1238,7 +1253,12 @@ export async function sendCustomerCompletedReceipt(
       bookingId: booking.id,
       customerId: booking.customerId,
       replyTo: safeReplyTo(settings),
+      bcc: trustpilotBcc ?? undefined,
     })
+    if (sent.sent && trustpilotBcc) {
+      await markTrustpilotInviteClaimed(booking.id)
+    }
+    return sent
   } catch (error) {
     console.error("[mail] completed receipt setup failed:", error)
     return { sent: false }
@@ -1299,7 +1319,8 @@ export async function sendCustomerReviewRequest(
       footer: supportLine(settings),
     })
 
-    return logAndSend({
+    const trustpilotBcc = await resolveTrustpilotAfsBcc(booking.id)
+    const sent = await logAndSend({
       to: booking.customer.email,
       subject,
       text,
@@ -1308,7 +1329,13 @@ export async function sendCustomerReviewRequest(
       bookingId: booking.id,
       customerId: booking.customerId,
       replyTo: safeReplyTo(settings),
+      // If completed receipt was off / failed, still queue Trustpilot at Completed.
+      bcc: trustpilotBcc ?? undefined,
     })
+    if (sent.sent && trustpilotBcc) {
+      await markTrustpilotInviteClaimed(booking.id)
+    }
+    return sent
   } catch (error) {
     console.error("[mail] review request setup failed:", error)
     return { sent: false }
@@ -1326,6 +1353,73 @@ export async function notifyBookingCompleted(bookingId: string): Promise<void> {
     await sendCustomerReviewRequest(bookingId)
   } catch {
     // never block
+  }
+  try {
+    await sendTrustpilotAfsFallback(bookingId)
+  } catch {
+    // never block
+  }
+}
+
+/**
+ * If completed receipt + review request did not BCC Trustpilot (channels off),
+ * send a short customer email with AFS BCC so the invite still queues at Completed.
+ */
+async function sendTrustpilotAfsFallback(
+  bookingId: string,
+): Promise<SendResult> {
+  try {
+    if (!(await isMailConfigured())) return { sent: false }
+    const trustpilotBcc = await resolveTrustpilotAfsBcc(bookingId)
+    if (!trustpilotBcc) return { sent: false }
+
+    const settings = await getSettings()
+    const booking = await loadBooking(bookingId)
+    if (!booking?.customer.email) return { sent: false }
+
+    const subject = `Thanks for your trip — ${booking.referenceCode}`
+    const text = [
+      `Hi ${booking.customer.name},`,
+      "",
+      `Thanks for riding with ${companyName(settings)}.`,
+      `Trip ${booking.referenceCode} is complete.`,
+      "",
+      `Reference: ${booking.referenceCode}`,
+      "",
+      supportLine(settings),
+    ].join("\n")
+
+    const html = wrapEmail({
+      company: companyName(settings),
+      eyebrow: "Completed",
+      tone: "success",
+      preheader: `Thanks for trip ${booking.referenceCode}`,
+      title: "Thanks for riding with us",
+      introHtml: `Hi ${escapeHtml(booking.customer.name)}, thank you for choosing <strong>${escapeHtml(companyName(settings))}</strong>.`,
+      rowsHtml:
+        detailRow("Reference", booking.referenceCode) +
+        detailRow("Route", `${booking.pickupAddress} → ${booking.dropoffAddress}`),
+      footer: supportLine(settings),
+    })
+
+    const sent = await logAndSend({
+      to: booking.customer.email,
+      subject,
+      text,
+      html,
+      type: "completed_receipt",
+      bookingId: booking.id,
+      customerId: booking.customerId,
+      replyTo: safeReplyTo(settings),
+      bcc: trustpilotBcc,
+    })
+    if (sent.sent) {
+      await markTrustpilotInviteClaimed(booking.id)
+    }
+    return sent
+  } catch (error) {
+    console.error("[mail] trustpilot AFS fallback failed:", error)
+    return { sent: false }
   }
 }
 
