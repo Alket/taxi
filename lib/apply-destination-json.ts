@@ -3,6 +3,7 @@ import {
   parseDestinationDocument,
   type DestinationDocument,
 } from "@/lib/destination-document"
+import { isSafeDestinationCanonicalUrl } from "@/lib/destination-json-schema"
 import type { PageContentRecord } from "@/lib/page-content-shared"
 
 export type ApplyDestinationJsonResult = {
@@ -50,6 +51,10 @@ export function applyDestinationJsonToPage(
     meta: {
       ...doc.meta,
       slug: pageSlug || jsonSlug,
+      // Drop absolute / unsafe canonicals (SEO hijack).
+      canonicalUrl: isSafeDestinationCanonicalUrl(doc.meta.canonicalUrl)
+        ? doc.meta.canonicalUrl.trim()
+        : "",
     },
   }
 

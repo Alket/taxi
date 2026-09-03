@@ -7,12 +7,12 @@ import { prisma } from "@/lib/db"
 import { DEFAULT_LOCALE, isLocale, type Locale } from "@/lib/i18n/locales"
 import { revalidateAllLocales } from "@/lib/revalidate-locales"
 import {
-  DESTINATION_DOCUMENT_FORMAT,
   destinationHeroImage,
   parseDestinationDocument,
   serializeDestinationDocument,
   withDestinationHeroImage,
 } from "@/lib/destination-document"
+import { destinationDocumentJsonSchema } from "@/lib/destination-json-schema"
 import {
   PAGE_SECTION_TYPES,
   deleteAdminPage,
@@ -48,81 +48,6 @@ const sectionSchema = z.object({
   listStyle: z.enum(["ul", "ol"]).optional(),
 })
 
-const attractionItemSchema = z.object({
-  id: z.string().min(1),
-  heading: z.string().max(500),
-  body: z.string().max(20000),
-  src: z.string().max(2000),
-  alt: z.string().max(500),
-})
-
-const faqItemSchema = z.object({
-  id: z.string().min(1),
-  question: z.string().max(500),
-  answer: z.string().max(10000),
-})
-
-const destinationSectionSchema = z.discriminatedUnion("type", [
-  z.object({
-    id: z.string().min(1),
-    type: z.literal("hero"),
-    heading: z.string().max(500),
-    body: z.string().max(20000).optional(),
-    src: z.string().max(2000),
-    alt: z.string().max(500),
-  }),
-  z.object({
-    id: z.string().min(1),
-    type: z.literal("route_details"),
-    heading: z.string().max(500),
-    distance: z.string().max(2000),
-    duration: z.string().max(2000),
-    whyBook: z.string().max(20000),
-  }),
-  z.object({
-    id: z.string().min(1),
-    type: z.literal("attractions_grid"),
-    heading: z.string().max(500),
-    items: z.array(attractionItemSchema).max(50),
-  }),
-  z.object({
-    id: z.string().min(1),
-    type: z.literal("more_destinations"),
-    heading: z.string().max(500),
-  }),
-  z.object({
-    id: z.string().min(1),
-    type: z.literal("faq_accordion"),
-    heading: z.string().max(500).optional(),
-    items: z.array(faqItemSchema).max(50),
-  }),
-])
-
-const destinationDocumentSchema = z.object({
-  format: z.literal(DESTINATION_DOCUMENT_FORMAT),
-  meta: z.object({
-    title: z.string().max(500),
-    description: z.string().max(2000),
-    primaryKeyword: z.string().max(500),
-    slug: z.string().max(120),
-    canonicalUrl: z.string().max(2000),
-    region: z.string().max(200),
-    badge: z.string().max(120),
-    priceFrom: z.string().max(120),
-    priceCurrency: z.string().max(12),
-    travelTime: z.string().max(120),
-    distanceKm: z.number().nullable(),
-    updatedAt: z.string().max(64),
-  }),
-  sections: z.array(destinationSectionSchema).max(20),
-  flags: z
-    .object({
-      featured: z.boolean().optional(),
-      hidden: z.boolean().optional(),
-    })
-    .optional(),
-})
-
 const updateSchema = z.object({
   locale: z.string().optional(),
   label: z.string().trim().max(200).optional(),
@@ -130,7 +55,7 @@ const updateSchema = z.object({
   description: z.string().trim().max(2000).optional(),
   ogImage: z.string().trim().max(2000).optional(),
   sections: z.array(sectionSchema).max(200).optional(),
-  destinationDocument: destinationDocumentSchema.optional(),
+  destinationDocument: destinationDocumentJsonSchema.optional(),
 })
 
 const featuredToggleSchema = z.object({
@@ -251,8 +176,13 @@ export async function PATCH(request: Request, context: RouteContext) {
       },
     )
 
+    // URL slug is owned by the CMS path (`destinations/{destId}`), never JSON/meta.
     let nextDoc = serializeDestinationDocument({
       ...parsed.data.destinationDocument,
+      meta: {
+        ...parsed.data.destinationDocument.meta,
+        slug: destId,
+      },
       flags: {
         featured:
           parsed.data.destinationDocument.flags?.featured ??
@@ -285,11 +215,12 @@ export async function PATCH(request: Request, context: RouteContext) {
       nextDoc.meta.description ||
       def.defaults.description
 
-    // Keep meta in sync with mirrored SEO columns
+    // Keep meta in sync with mirrored SEO columns; re-assert slug lock.
     nextDoc = serializeDestinationDocument({
       ...nextDoc,
       meta: {
         ...nextDoc.meta,
+        slug: destId,
         title: nextDoc.meta.title || mirroredTitle,
         description: nextDoc.meta.description || mirroredDescription,
       },
@@ -358,6 +289,10 @@ export async function PATCH(request: Request, context: RouteContext) {
     })
     nextDoc = serializeDestinationDocument({
       ...nextDoc,
+      meta: {
+        ...nextDoc.meta,
+        slug: destId,
+      },
       flags: previousDoc.flags,
     })
     const heroSrc = destinationHeroImage(nextDoc)

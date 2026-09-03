@@ -141,23 +141,26 @@ function main() {
           ...reparsed.meta,
           slug: "wrong-slug",
           title: "Translated Tirana",
+          canonicalUrl: "https://evil.example/hijack",
         },
       })
       if (
         applied.slugMismatch &&
         applied.pageSlug === "tirana" &&
         applied.page.destinationDocument?.meta.slug === "tirana" &&
-        applied.page.title === "Translated Tirana"
+        applied.page.title === "Translated Tirana" &&
+        applied.page.destinationDocument?.meta.canonicalUrl === ""
       ) {
-        pass("R2 apply locks URL slug + syncs title")
+        pass("R2 apply locks URL slug + strips absolute canonical")
       } else {
         fail(
-          "R2 apply locks URL slug + syncs title",
+          "R2 apply locks URL slug + strips absolute canonical",
           JSON.stringify({
             mismatch: applied.slugMismatch,
             pageSlug: applied.pageSlug,
             metaSlug: applied.page.destinationDocument?.meta.slug,
             title: applied.page.title,
+            canonical: applied.page.destinationDocument?.meta.canonicalUrl,
           }),
         )
       }
@@ -181,12 +184,116 @@ function main() {
     fail("R3 non-destination export null", "expected null")
   }
 
+  // --- Security guards ---
+  const hero = seed.sections.find((s) => s.type === "hero")
+  if (!hero || hero.type !== "hero") throw new Error("seed missing hero")
+
+  const rejectCases: { name: string; patch: (d: typeof seed) => typeof seed }[] =
+    [
+      {
+        name: "S1 reject javascript: image src",
+        patch: (d) => ({
+          ...d,
+          sections: d.sections.map((s) =>
+            s.type === "hero" ? { ...s, src: "javascript:alert(1)" } : s,
+          ),
+        }),
+      },
+      {
+        name: "S2 reject protocol-relative image src",
+        patch: (d) => ({
+          ...d,
+          sections: d.sections.map((s) =>
+            s.type === "hero" ? { ...s, src: "//evil.example/x.jpg" } : s,
+          ),
+        }),
+      },
+      {
+        name: "S3 reject absolute canonical URL",
+        patch: (d) => ({
+          ...d,
+          meta: { ...d.meta, canonicalUrl: "https://evil.example/" },
+        }),
+      },
+      {
+        name: "S4 reject Infinity distanceKm",
+        patch: (d) => ({
+          ...d,
+          meta: { ...d.meta, distanceKm: Number.POSITIVE_INFINITY },
+        }),
+      },
+      {
+        name: "S5 reject oversized section id",
+        patch: (d) => ({
+          ...d,
+          sections: d.sections.map((s) =>
+            s.type === "hero" ? { ...s, id: "x".repeat(200) } : s,
+          ),
+        }),
+      },
+      {
+        name: "S7 reject percent-encoded // image src",
+        patch: (d) => ({
+          ...d,
+          sections: d.sections.map((s) =>
+            s.type === "hero"
+              ? { ...s, src: "/%2f%2fevil.example/x.jpg" }
+              : s,
+          ),
+        }),
+      },
+      {
+        name: "S8 reject double-encoded // canonical",
+        patch: (d) => ({
+          ...d,
+          meta: { ...d.meta, canonicalUrl: "/%252f%252fevil.example/" },
+        }),
+      },
+      {
+        name: "S9 reject 6-level encoded // canonical",
+        patch: (d) => {
+          let slash = "/"
+          for (let i = 0; i < 6; i++) slash = encodeURIComponent(slash)
+          return {
+            ...d,
+            meta: {
+              ...d.meta,
+              canonicalUrl: `/${slash}${slash}evil.example/`,
+            },
+          }
+        },
+      },
+    ]
+
+  for (const { name, patch } of rejectCases) {
+    const result = safeParseDestinationDocumentJson(patch(seed))
+    if (!result.success) {
+      pass(name)
+    } else {
+      fail(name, "unexpected success")
+    }
+  }
+
+  const relativeOk = safeParseDestinationDocumentJson({
+    ...seed,
+    meta: { ...seed.meta, canonicalUrl: "/destinations/tirana" },
+  })
+  if (relativeOk.success) {
+    pass("S6 allow relative canonical")
+  } else {
+    fail("S6 allow relative canonical", relativeOk.error.message)
+  }
+
   const editor = readFileSync(
     resolve("components/admin/page-editor-view.tsx"),
     "utf8",
   )
   const dialog = readFileSync(
     resolve("components/admin/destination-json-dialog.tsx"),
+    "utf8",
+  )
+  const apiRoute = readFileSync(
+    resolve("app/api/admin/pages/[...slug]/route.ts"),
     "utf8",
   )
   if (
@@ -197,6 +304,14 @@ function main() {
     pass("W1 page editor wires DestinationJsonDialog")
   } else {
     fail("W1 page editor wires DestinationJsonDialog")
+  }
+  if (
+    apiRoute.includes("destinationDocumentJsonSchema") &&
+    apiRoute.includes("slug: destId")
+  ) {
+    pass("W2 API uses shared schema + locks slug")
+  } else {
+    fail("W2 API uses shared schema + locks slug")
   }
 
   const fails = results.filter((r) => r.status === "FAIL").length

@@ -17,6 +17,7 @@ import {
   getDestinationMore,
   getDestinationRoute,
 } from "@/lib/destination-document"
+import { isSafeDestinationCanonicalUrl } from "@/lib/destination-json-schema"
 import { DESTINATION_SLUG_ALIASES } from "@/lib/destinations"
 import { getRequestLocale } from "@/lib/i18n/get-locale"
 import { localePath, localizedAlternates } from "@/lib/i18n/locales"
@@ -61,9 +62,13 @@ export async function generateMetadata({
       const { page, document } = resolved
       const hero = getDestinationHero(document)
       const meta = pageMetadataFields(page)
-      const canonical =
-        document.meta.canonicalUrl ||
-        localePath(`/destinations/${document.meta.slug || destination.slug}`, locale)
+      const publicSlug = document.meta.slug || destination.slug
+      const cmsCanonical = document.meta.canonicalUrl?.trim() ?? ""
+      // Absolute CMS canonicals are ignored (SEO hijack). Relative paths only.
+      const canonicalPath =
+        cmsCanonical && isSafeDestinationCanonicalUrl(cmsCanonical)
+          ? cmsCanonical
+          : localePath(`/destinations/${publicSlug}`, locale)
       return {
         ...meta,
         title: page.title || document.meta.title || meta.title,
@@ -71,11 +76,12 @@ export async function generateMetadata({
           page.description || document.meta.description || meta.description,
         alternates: {
           ...meta.alternates,
-          canonical: canonical.startsWith("http")
-            ? canonical
-            : undefined,
+          // Prefer relative canonical; never emit absolute external URLs from CMS.
+          canonical: canonicalPath.startsWith("http")
+            ? undefined
+            : canonicalPath,
           languages: localizedAlternates(
-            `/destinations/${document.meta.slug || destination.slug}`,
+            `/destinations/${publicSlug}`,
             locale,
           ).languages,
         },
