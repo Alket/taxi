@@ -145,6 +145,10 @@ export default async function DestinationPage({ params }: PageProps) {
     "/marketing/logo.svg"
   const imageAlt = hero?.alt || name
   const priceFrom = meta.priceFrom || destination.priceFrom
+  // Same label as hero <h1> (CMS Hero Heading, with i18n fallback).
+  const pageHeading =
+    hero?.heading?.trim() ||
+    t(locale, "destinations.airportTransfer", { name })
   const moreHeading =
     more?.heading || t(locale, "destinations.moreHeading")
   const attractionsHeading =
@@ -179,7 +183,10 @@ export default async function DestinationPage({ params }: PageProps) {
   const breadcrumbJsonLd = buildBreadcrumbJsonLd([
     { name: homeLabel, url: localePath("/", locale) },
     { name: destinationsLabel, url: localePath("/destinations", locale) },
-    { name, url: localePath(`/destinations/${publicSlug}`, locale) },
+    {
+      name: pageHeading,
+      url: localePath(`/destinations/${publicSlug}`, locale),
+    },
   ])
   const touristDestinationJsonLd = buildTouristDestinationJsonLd({
     name,
@@ -251,7 +258,7 @@ export default async function DestinationPage({ params }: PageProps) {
                         /
                       </li>
                       <li aria-current="page" className="text-white">
-                        {name}
+                        {pageHeading}
                       </li>
                     </ol>
                   </nav>
@@ -259,7 +266,7 @@ export default async function DestinationPage({ params }: PageProps) {
                     {region}
                   </p>
                   <h1 className="mt-2 font-brand text-4xl font-extrabold tracking-tight sm:text-5xl">
-                    {t(locale, "destinations.airportTransfer", { name })}
+                    {pageHeading}
                   </h1>
                   <p className="mt-3 max-w-xl text-base text-white/85">
                     {description}

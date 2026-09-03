@@ -57,7 +57,7 @@ export function DestinationCard({
             {destination.primaryKeyword}
           </p>
         ) : null}
-        <h3 className="mb-1.5 text-2xl font-extrabold md:mb-2">
+        <h3 className="mb-1.5 font-brand text-2xl font-extrabold tracking-tight md:mb-2">
           {destination.name}
         </h3>
         {destination.travelTime ? (

@@ -17,6 +17,7 @@ import { toast } from "sonner"
 
 import { MediaPickerDialog } from "@/components/admin/media-picker-dialog"
 import { BlogJsonDialog } from "@/components/admin/blog-json-dialog"
+import { DestinationJsonDialog } from "@/components/admin/destination-json-dialog"
 import { DestinationDocumentEditor } from "@/components/admin/destination-document-editor"
 import { PageHeader } from "@/components/admin/page-header"
 import { Button } from "@/components/ui/button"
@@ -693,6 +694,7 @@ export function PageEditorView({ slug }: { slug: string }) {
     null | "categories" | "authors"
   >(null)
   const [blogJsonOpen, setBlogJsonOpen] = useState(false)
+  const [destinationJsonOpen, setDestinationJsonOpen] = useState(false)
   const { catalog, setCatalog } = useBlogCatalog()
 
   const load = useCallback(
@@ -1254,6 +1256,19 @@ export function PageEditorView({ slug }: { slug: string }) {
                 className="h-10 w-full touch-manipulation gap-1.5 sm:h-8 sm:w-auto"
                 disabled={saving || deleting}
                 onClick={() => setBlogJsonOpen(true)}
+              >
+                <Braces className="size-3.5" />
+                JSON
+              </Button>
+            ) : null}
+            {isDestinationPage ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-10 w-full touch-manipulation gap-1.5 sm:h-8 sm:w-auto"
+                disabled={saving || deleting}
+                onClick={() => setDestinationJsonOpen(true)}
               >
                 <Braces className="size-3.5" />
                 JSON
@@ -2346,6 +2361,16 @@ export function PageEditorView({ slug }: { slug: string }) {
         <BlogJsonDialog
           open={blogJsonOpen}
           onOpenChange={setBlogJsonOpen}
+          page={page}
+          locale={locale}
+          onApply={(next) => setPage(next)}
+        />
+      ) : null}
+
+      {isDestinationPage ? (
+        <DestinationJsonDialog
+          open={destinationJsonOpen}
+          onOpenChange={setDestinationJsonOpen}
           page={page}
           locale={locale}
           onApply={(next) => setPage(next)}

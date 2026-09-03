@@ -1475,7 +1475,9 @@ function destinationFromPage(
     image: hero?.src || page.ogImage || fallback?.image || "",
     imageAlt: hero?.alt || fallback?.name || document.meta.title,
   })
-  const name = card.name || fallback?.name || id
+  // Prefer Hero section Heading (same as /destinations/[slug] h1).
+  const name =
+    hero?.heading?.trim() || card.name || fallback?.name || id
   const imageCandidates = [
     card.image,
     page.ogImage ?? "",

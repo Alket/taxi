@@ -22,6 +22,7 @@
     "test:destinations": "tsx scripts/qa-destinations.ts",
     "test:blog": "tsx scripts/qa-blog.ts",
     "test:blog-json": "tsx scripts/qa-blog-json.ts",
+    "test:destination-json": "tsx scripts/qa-destination-json.ts",
     "test:transfer-json": "tsx scripts/qa-transfer-json.ts",
     "test:transfer-locale": "tsx scripts/qa-transfer-locale.ts",
     "test:driver-login": "tsx scripts/qa-driver-login.ts",
