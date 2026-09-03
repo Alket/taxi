@@ -1,4 +1,15 @@
 import { getDestination } from "@/lib/destinations"
+import {
+  DESTINATION_TRANSFER_LINKS,
+  resolveDestinationTransferLink,
+  transferLinkForDestination,
+} from "@/lib/transfers/destination-transfer-links"
+
+export {
+  DESTINATION_TRANSFER_LINKS,
+  resolveDestinationTransferLink,
+  transferLinkForDestination,
+}
 
 export type DurationRange = {
   /** Lower bound in minutes (inclusive). */
@@ -74,29 +85,6 @@ export function routeSlugFromCmsSlug(cmsSlug: string): string | null {
 }
 
 const ORIGIN = "Tirana International Airport (TIA)"
-
-/** Keyword-rich anchors + URLs for destination ↔ transfer internal linking. */
-export const DESTINATION_TRANSFER_LINKS: Record<
-  string,
-  { transferSlug: string; anchor: string }
-> = {
-  sarande: {
-    transferSlug: "tirana-airport-to-saranda",
-    anchor: "book a private transfer from Tirana Airport to Sarandë",
-  },
-  ksamil: {
-    transferSlug: "tirana-airport-to-ksamil",
-    anchor: "view fixed driver rates for Tirana to Ksamil",
-  },
-  vlore: {
-    transferSlug: "tirana-airport-to-vlore",
-    anchor: "reserve a direct TIA airport taxi to Vlorë",
-  },
-}
-
-export function transferLinkForDestination(destinationId: string) {
-  return DESTINATION_TRANSFER_LINKS[destinationId] ?? null
-}
 
 /** Shared high-intent FAQs appended to every seeded transfer route. */
 function sharedHighIntentFaqs(destinationLabel: string): RouteFaq[] {

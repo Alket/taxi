@@ -183,6 +183,44 @@ export function DestinationDocumentEditor({
               }
             />
           </div>
+          <div className="flex flex-col gap-1.5 sm:col-span-2">
+            <Label className="text-xs text-muted-foreground">
+              Transfer page slug
+            </Label>
+            <Input
+              value={meta.transferLinkSlug}
+              placeholder="tirana-airport-to-saranda"
+              onChange={(e) =>
+                onChange(
+                  patchMeta(doc, { transferLinkSlug: e.target.value.trim() }),
+                )
+              }
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Public segment for{" "}
+              <code className="rounded bg-muted px-1">/transfers/…</code> —
+              leave empty to hide the hero transfer link (unless a code
+              fallback exists).
+            </p>
+          </div>
+          <div className="flex flex-col gap-1.5 sm:col-span-2">
+            <Label className="text-xs text-muted-foreground">
+              Transfer link text
+            </Label>
+            <Input
+              value={meta.transferLinkAnchor}
+              placeholder="book a private transfer from Tirana Airport to…"
+              onChange={(e) =>
+                onChange(
+                  patchMeta(doc, { transferLinkAnchor: e.target.value }),
+                )
+              }
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Shown under the destination hero CTA when both slug and text are
+              set. Translate per language; slug stays English-canonical.
+            </p>
+          </div>
         </div>
       </section>
 

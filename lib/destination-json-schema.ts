@@ -171,6 +171,19 @@ export const destinationDocumentJsonSchema = z.object({
       .max(DISTANCE_KM_MAX)
       .nullable(),
     updatedAt: z.string().max(META_DATE),
+    transferLinkSlug: z
+      .string()
+      .max(META_SLUG)
+      .default("")
+      .refine(
+        (value) =>
+          value === "" || /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value),
+        {
+          message:
+            "must be empty or a lowercase slug (letters, numbers, hyphens)",
+        },
+      ),
+    transferLinkAnchor: z.string().max(HEADING_MAX).default(""),
   }),
   sections: z.array(destinationSectionSchema).max(DESTINATION_JSON_MAX_SECTIONS),
   flags: z

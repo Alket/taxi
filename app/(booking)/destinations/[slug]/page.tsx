@@ -28,7 +28,7 @@ import {
   resolveDestinationCards,
   resolveDestinationPage,
 } from "@/lib/page-content"
-import { transferLinkForDestination } from "@/lib/transfers/routes"
+import { resolveDestinationTransferLink } from "@/lib/transfers/routes"
 import {
   buildBreadcrumbJsonLd,
   buildTouristDestinationJsonLd,
@@ -214,7 +214,7 @@ export default async function DestinationPage({ params }: PageProps) {
         answer: item.answer,
       })) ?? []
 
-  const transferLink = transferLinkForDestination(destination.id)
+  const transferLink = resolveDestinationTransferLink(destination.id, meta)
 
   return (
     <>

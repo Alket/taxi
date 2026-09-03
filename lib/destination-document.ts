@@ -9,6 +9,7 @@ import {
   sectionHeading,
   sectionValue,
 } from "@/lib/page-content-shared"
+import { DESTINATION_TRANSFER_LINKS } from "@/lib/transfers/destination-transfer-links"
 
 export const DESTINATION_DOCUMENT_FORMAT = "destination_v2" as const
 
@@ -26,6 +27,13 @@ export type DestinationMeta = {
   travelTime: string
   distanceKm: number | null
   updatedAt: string
+  /**
+   * Public transfer URL segment (`/transfers/{slug}`), EN-canonical.
+   * Empty → use code fallback map when resolving the hero link.
+   */
+  transferLinkSlug: string
+  /** Visible SEO anchor under the destination hero CTA (localizable). */
+  transferLinkAnchor: string
 }
 
 export type DestinationAttractionItem = {
@@ -267,6 +275,8 @@ function normalizeMeta(
     travelTime: asString(m.travelTime),
     distanceKm: asNumberOrNull(m.distanceKm),
     updatedAt: asString(m.updatedAt) || asString(fallbacks.updatedAt),
+    transferLinkSlug: asString(m.transferLinkSlug),
+    transferLinkAnchor: asString(m.transferLinkAnchor),
   }
 }
 
@@ -420,6 +430,10 @@ export function legacyDestinationSectionsToDocument(
     })
   }
 
+  const transferLink =
+    DESTINATION_TRANSFER_LINKS[slugRaw] ||
+    (id ? DESTINATION_TRANSFER_LINKS[id] : undefined)
+
   return {
     format: DESTINATION_DOCUMENT_FORMAT,
     meta: {
@@ -435,6 +449,8 @@ export function legacyDestinationSectionsToDocument(
       travelTime: sectionValue(legacySections, "travelTime"),
       distanceKm: parseDistanceKm(distance),
       updatedAt: asString(pageRow.updatedAt),
+      transferLinkSlug: transferLink?.transferSlug ?? "",
+      transferLinkAnchor: transferLink?.anchor ?? "",
     },
     sections,
     flags: { featured, hidden },
@@ -625,6 +641,7 @@ export function destinationDocumentFromSeed(
   dest: Destination,
   route?: { distance: string; duration: string; whyBook: string },
 ): DestinationDocument {
+  const transferLink = DESTINATION_TRANSFER_LINKS[dest.id]
   return {
     format: DESTINATION_DOCUMENT_FORMAT,
     meta: {
@@ -640,6 +657,8 @@ export function destinationDocumentFromSeed(
       travelTime: dest.travelTime || "",
       distanceKm: route ? parseDistanceKm(route.distance) : null,
       updatedAt: "",
+      transferLinkSlug: transferLink?.transferSlug ?? "",
+      transferLinkAnchor: transferLink?.anchor ?? "",
     },
     sections: [
       {
@@ -694,6 +713,7 @@ export function destinationDocumentToTextMap(
     // priceFrom is EN-canonical (not localized via i18n packs).
     "meta.travelTime": { body: doc.meta.travelTime },
     "meta.primaryKeyword": { body: doc.meta.primaryKeyword },
+    "meta.transferLinkAnchor": { body: doc.meta.transferLinkAnchor },
   }
 
   for (const section of doc.sections) {
@@ -771,11 +791,15 @@ export function applyTextMapToDestinationDocument(
   const badge = textByKey["meta.badge"]?.body
   const travelTime = textByKey["meta.travelTime"]?.body
   const primaryKeyword = textByKey["meta.primaryKeyword"]?.body
+  const transferLinkAnchor = textByKey["meta.transferLinkAnchor"]?.body
   if (typeof region === "string") meta.region = region
   if (typeof badge === "string") meta.badge = badge
   // priceFrom stays on the EN template — fares are not translated.
   if (typeof travelTime === "string") meta.travelTime = travelTime
   if (typeof primaryKeyword === "string") meta.primaryKeyword = primaryKeyword
+  if (typeof transferLinkAnchor === "string") {
+    meta.transferLinkAnchor = transferLinkAnchor
+  }
 
   const sections = template.sections.map((section) => {
     switch (section.type) {
@@ -868,12 +892,17 @@ export function mergeDestinationDocuments(
       ...merged.meta,
       title: localized.meta.title.trim() || base.meta.title,
       description: localized.meta.description.trim() || base.meta.description,
-      // Slug / price / currency / distanceKm stay on EN (canonical).
+      // Slug / price / currency / distanceKm / transferLinkSlug stay on EN (canonical).
       slug: base.meta.slug,
       priceFrom: base.meta.priceFrom,
       priceCurrency: base.meta.priceCurrency || "EUR",
       distanceKm: base.meta.distanceKm,
       canonicalUrl: base.meta.canonicalUrl,
+      transferLinkSlug: base.meta.transferLinkSlug,
+      transferLinkAnchor:
+        localized.meta.transferLinkAnchor.trim() ||
+        merged.meta.transferLinkAnchor ||
+        base.meta.transferLinkAnchor,
       updatedAt: localized.meta.updatedAt || base.meta.updatedAt,
     },
     flags: base.flags,
@@ -905,6 +934,8 @@ export function blankDestinationDocumentForLocale(
       priceCurrency: base.meta.priceCurrency,
       distanceKm: base.meta.distanceKm,
       canonicalUrl: base.meta.canonicalUrl,
+      transferLinkSlug: base.meta.transferLinkSlug,
+      priceFrom: base.meta.priceFrom,
     },
     flags: base.flags,
   }

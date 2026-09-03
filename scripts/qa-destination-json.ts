@@ -18,6 +18,7 @@ import {
 } from "../lib/destination-json-schema"
 import { DESTINATIONS } from "../lib/destinations"
 import type { PageContentRecord } from "../lib/page-content-shared"
+import { resolveDestinationTransferLink } from "../lib/transfers/destination-transfer-links"
 
 type Result = { status: "PASS" | "FAIL"; case: string; detail?: string }
 const results: Result[] = []
@@ -284,6 +285,70 @@ function main() {
     fail("S6 allow relative canonical", relativeOk.error.message)
   }
 
+  const transferSlugOk = safeParseDestinationDocumentJson({
+    ...seed,
+    meta: {
+      ...seed.meta,
+      transferLinkSlug: "tirana-airport-to-berat",
+      transferLinkAnchor: "book a private transfer to Berat",
+    },
+  })
+  if (transferSlugOk.success) {
+    pass("T1 allow transfer link slug + anchor")
+  } else {
+    fail("T1 allow transfer link slug + anchor", transferSlugOk.error.message)
+  }
+
+  const transferSlugBad = safeParseDestinationDocumentJson({
+    ...seed,
+    meta: {
+      ...seed.meta,
+      transferLinkSlug: "Bad_Slug!",
+      transferLinkAnchor: "x",
+    },
+  })
+  if (!transferSlugBad.success) {
+    pass("T2 reject invalid transfer link slug")
+  } else {
+    fail("T2 reject invalid transfer link slug", "unexpected success")
+  }
+
+  const cmsPreferred = resolveDestinationTransferLink("sarande", {
+    transferLinkSlug: "tirana-airport-to-saranda",
+    transferLinkAnchor: "CMS custom Sarandë anchor",
+  })
+  if (
+    cmsPreferred?.transferSlug === "tirana-airport-to-saranda" &&
+    cmsPreferred.anchor === "CMS custom Sarandë anchor"
+  ) {
+    pass("T3 resolver prefers CMS over code map")
+  } else {
+    fail("T3 resolver prefers CMS over code map", JSON.stringify(cmsPreferred))
+  }
+
+  const codeFallback = resolveDestinationTransferLink("sarande", {
+    transferLinkSlug: "",
+    transferLinkAnchor: "",
+  })
+  if (
+    codeFallback?.transferSlug === "tirana-airport-to-saranda" &&
+    codeFallback.anchor.includes("Sarandë")
+  ) {
+    pass("T4 resolver falls back to code map")
+  } else {
+    fail("T4 resolver falls back to code map", JSON.stringify(codeFallback))
+  }
+
+  const none = resolveDestinationTransferLink("tirana", {
+    transferLinkSlug: "",
+    transferLinkAnchor: "",
+  })
+  if (none === null) {
+    pass("T5 resolver null when no CMS and no map")
+  } else {
+    fail("T5 resolver null when no CMS and no map", JSON.stringify(none))
+  }
+
   const editor = readFileSync(
     resolve("components/admin/page-editor-view.tsx"),
     "utf8",
@@ -312,6 +377,30 @@ function main() {
     pass("W2 API uses shared schema + locks slug")
   } else {
     fail("W2 API uses shared schema + locks slug")
+  }
+
+  const destEditor = readFileSync(
+    resolve("components/admin/destination-document-editor.tsx"),
+    "utf8",
+  )
+  if (
+    destEditor.includes("transferLinkSlug") &&
+    destEditor.includes("transferLinkAnchor") &&
+    destEditor.includes("Transfer page slug")
+  ) {
+    pass("W3 destination editor has transfer link fields")
+  } else {
+    fail("W3 destination editor has transfer link fields")
+  }
+
+  const destPage = readFileSync(
+    resolve("app/(booking)/destinations/[slug]/page.tsx"),
+    "utf8",
+  )
+  if (destPage.includes("resolveDestinationTransferLink(destination.id, meta)")) {
+    pass("W4 destination page resolves CMS transfer link")
+  } else {
+    fail("W4 destination page resolves CMS transfer link")
   }
 
   const fails = results.filter((r) => r.status === "FAIL").length
