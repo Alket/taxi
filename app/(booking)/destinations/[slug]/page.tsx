@@ -226,7 +226,7 @@ export default async function DestinationPage({ params }: PageProps) {
             return (
               <section
                 key={section.id}
-                className="relative isolate -mt-24 h-[60vh] min-h-[60vh] overflow-hidden"
+                className="relative isolate -mt-24 h-[70vh] min-h-[70vh] overflow-hidden sm:h-[60vh] sm:min-h-[60vh]"
               >
                 <Image
                   src={image}
