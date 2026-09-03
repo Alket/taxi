@@ -304,6 +304,8 @@ export type HomeMarketingCopy = {
     text: string
     image: string
     imageAlt: string
+    /** Trustpilot Review Collector under hero copy. Default true. */
+    showTrustpilot: boolean
   }
   uberAlt: {
     eyebrow: string
@@ -421,6 +423,18 @@ export function ensureMissingDefaultSections(
   return result
 }
 
+function sectionFlag(
+  sections: PageSection[],
+  key: string,
+  defaultValue = true,
+): boolean {
+  const raw = sectionValue(sections, key).trim().toLowerCase()
+  if (!raw) return defaultValue
+  if (["1", "true", "yes", "on", "show"].includes(raw)) return true
+  if (["0", "false", "no", "off", "hide"].includes(raw)) return false
+  return defaultValue
+}
+
 export function homeCopyFromSections(sections: PageSection[]): HomeMarketingCopy {
   return {
     hero: {
@@ -434,6 +448,7 @@ export function homeCopyFromSections(sections: PageSection[]): HomeMarketingCopy
         sectionValue(sections, "hero.image", "src") ||
         "https://www.welcomepickups.com/wp-content/themes/welcomepickups_new/images/conversion-v2/hero_photo_desktop_2.jpg",
       imageAlt: sectionValue(sections, "hero.image", "alt"),
+      showTrustpilot: sectionFlag(sections, "hero.showTrustpilot", true),
     },
     uberAlt: {
       eyebrow:

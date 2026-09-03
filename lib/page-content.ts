@@ -119,6 +119,9 @@ const HOME_DEFAULTS: PageDefinition["defaults"] = {
     section("image", "hero.image", {
       src: "https://www.welcomepickups.com/wp-content/themes/welcomepickups_new/images/conversion-v2/hero_photo_desktop_2.jpg",
     }),
+    section("text", "hero.showTrustpilot", {
+      body: "true",
+    }),
     section("text", "uberAlt.eyebrow", {
       body: "No Uber in Albania?",
     }),

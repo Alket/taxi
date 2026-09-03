@@ -142,7 +142,8 @@ function splitSections(sections: PageSection[]) {
         !s.key.startsWith("meta.") &&
         !s.key.startsWith("body.") &&
         s.key !== "title.heading" &&
-        s.key !== "hero.image",
+        s.key !== "hero.image" &&
+        s.key !== "hero.showTrustpilot",
     ),
     settings: sections.filter(
       (s) => s.key.startsWith("meta.") || s.key === "title.heading",
@@ -1997,6 +1998,62 @@ export function PageEditorView({ slug }: { slug: string }) {
                   }
                   uploading={uploading}
                 />
+                <div className="mt-4 flex items-start gap-2 border-t pt-4">
+                  <input
+                    id="home-show-trustpilot"
+                    type="checkbox"
+                    className="mt-0.5 size-4 rounded border"
+                    checked={(() => {
+                      const raw = (
+                        page.sections.find(
+                          (s) => s.key === "hero.showTrustpilot",
+                        )?.body ?? "true"
+                      )
+                        .trim()
+                        .toLowerCase()
+                      return !["0", "false", "no", "off", "hide"].includes(raw)
+                    })()}
+                    onChange={(e) => {
+                      const body = e.target.checked ? "true" : "false"
+                      const idx = page.sections.findIndex(
+                        (s) => s.key === "hero.showTrustpilot",
+                      )
+                      if (idx >= 0) {
+                        updateSection(idx, {
+                          ...page.sections[idx]!,
+                          type: "text",
+                          key: "hero.showTrustpilot",
+                          body,
+                        })
+                        return
+                      }
+                      setPage({
+                        ...page,
+                        sections: [
+                          ...page.sections,
+                          {
+                            id: crypto.randomUUID(),
+                            type: "text",
+                            key: "hero.showTrustpilot",
+                            body,
+                          },
+                        ],
+                      })
+                    }}
+                  />
+                  <div>
+                    <Label
+                      htmlFor="home-show-trustpilot"
+                      className="text-sm font-normal"
+                    >
+                      Show Trustpilot review on homepage hero
+                    </Label>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      Uncheck to hide the Trustpilot Review Collector under the
+                      hero headline.
+                    </p>
+                  </div>
+                </div>
               </div>
             </section>
           ) : null}

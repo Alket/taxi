@@ -126,7 +126,9 @@ export function HomeLanding({
                 <p className="home-fade-up-delay mt-3 max-w-sm text-base leading-relaxed text-white/90">
                   {copy.hero.text}
                 </p>
-                <TrustpilotReviewCollector className="home-fade-up-delay mt-4 -ml-4 w-fit max-w-full" />
+                {copy.hero.showTrustpilot ? (
+                  <TrustpilotReviewCollector className="home-fade-up-delay mt-4 -ml-4 w-fit max-w-full" />
+                ) : null}
               </div>
             </div>
           </div>
@@ -143,7 +145,9 @@ export function HomeLanding({
                 <p className="home-fade-up-delay mt-4 max-w-xl text-base leading-relaxed text-white/85">
                   {copy.hero.text}
                 </p>
-                <TrustpilotReviewCollector className="home-fade-up-delay mt-8 -ml-4 w-fit max-w-full" />
+                {copy.hero.showTrustpilot ? (
+                  <TrustpilotReviewCollector className="home-fade-up-delay mt-8 -ml-4 w-fit max-w-full" />
+                ) : null}
               </div>
 
               <div
