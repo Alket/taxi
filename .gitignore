@@ -14,6 +14,8 @@ node_modules
 
 # Next.js
 .next/
+.next-dev/
+.next-local/
 out/
 
 # TypeScript
