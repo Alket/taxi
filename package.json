@@ -35,6 +35,7 @@
     "test:driver-cost": "tsx scripts/qa-driver-cost.ts",
     "test:profit-collected": "tsx scripts/qa-profit-collected.ts",
     "test:cash-paid": "tsx scripts/qa-cash-paid.ts",
+    "test:admin-new-booking": "tsx scripts/qa-admin-new-booking.ts",
     "repair:cash-paid": "tsx scripts/repair-cash-paid-booking.ts",
     "blog:upsert": "tsx scripts/upsert-blog-post.ts",
     "test:admin-pages": "tsx scripts/qa-admin-pages.ts",

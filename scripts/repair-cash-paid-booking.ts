@@ -16,10 +16,16 @@
 import { existsSync } from "fs"
 import { resolve } from "path"
 
-import { config as loadEnv } from "dotenv"
 import { PrismaClient } from "@prisma/client"
 
-loadEnv({ path: resolve(process.cwd(), ".env") })
+// Optional: host/dev may use .env. Prod Docker already injects DATABASE_URL.
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { config: loadEnv } = require("dotenv") as typeof import("dotenv")
+  loadEnv({ path: resolve(process.cwd(), ".env") })
+} catch {
+  /* dotenv not installed in slim prod image — fine when env is set */
+}
 
 const runningInDocker = existsSync("/.dockerenv")
 if (!process.env.DATABASE_URL) {

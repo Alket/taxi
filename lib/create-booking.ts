@@ -366,6 +366,11 @@ export async function createBookingsFromInput(
       noteParts.push("Marked paid on admin create.")
     }
 
+    // Admin /admin/bookings creates land Confirmed. Public /book stays Pending
+    // until deposit/cash confirms (marketing checkouts must not skip that gate).
+    const initialStatus =
+      input.source === "admin" ? ("confirmed" as const) : ("pending" as const)
+
     const now = new Date()
     const booking = await prisma.booking.create({
       data: {
@@ -387,7 +392,7 @@ export async function createBookingsFromInput(
         balanceChargedAt: markAsPaid ? now : undefined,
         balanceChargedBy: markAsPaid ? "admin:manual-create" : undefined,
         paymentStatus: markAsPaid ? "fully_paid" : "unpaid",
-        status: "pending",
+        status: initialStatus,
         currency,
         freeCancellationUntil,
         notes: noteParts.length > 0 ? noteParts.join(" ") : undefined,
@@ -403,7 +408,7 @@ export async function createBookingsFromInput(
         customerId: customer.id,
         zoneId: zone.id,
         statusEvents: {
-          create: [{ status: "pending", timestamp: now }],
+          create: [{ status: initialStatus, timestamp: now }],
         },
         ...(markAsPaid
           ? {
