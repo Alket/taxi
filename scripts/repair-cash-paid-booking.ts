@@ -38,7 +38,10 @@ if (!process.env.DATABASE_URL) {
   )
 }
 
-import { round2 } from "../lib/vehicles"
+/** Inline — avoid importing lib/vehicles (pulls zod, missing in slim prod image). */
+function round2(value: number) {
+  return Math.round(value * 100) / 100
+}
 
 const prisma = new PrismaClient()
 
