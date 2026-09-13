@@ -8,10 +8,13 @@ import {
   serializeBookingDetail,
 } from "@/lib/bookings"
 import { validateStatusTransition } from "@/lib/booking-status"
+import { cashToCollect } from "@/lib/driver-cash"
 import { prisma } from "@/lib/db"
 
 const bodySchema = z.object({
   status: z.nativeEnum(BookingStatus),
+  /** Staff override when completing a trip that still has cash due. */
+  confirmUnpaidComplete: z.boolean().optional(),
 })
 
 export async function PATCH(
@@ -31,7 +34,7 @@ export async function PATCH(
     )
   }
 
-  const { status: nextStatus } = parsed.data
+  const { status: nextStatus, confirmUnpaidComplete } = parsed.data
 
   const booking = await prisma.booking.findUnique({ where: { id } })
   if (!booking) {
@@ -41,6 +44,26 @@ export async function PATCH(
   const transition = validateStatusTransition(booking.status, nextStatus)
   if (!transition.ok) {
     return NextResponse.json({ error: transition.error }, { status: 409 })
+  }
+
+  if (nextStatus === "completed") {
+    const cashDue = cashToCollect({
+      totalPrice: Number(booking.totalPrice),
+      balanceDue: Number(booking.balanceDue),
+      depositPaid: Number(booking.depositPaid),
+      paymentStatus: booking.paymentStatus,
+    })
+    if (cashDue > 0 && !confirmUnpaidComplete) {
+      return NextResponse.json(
+        {
+          error:
+            "Cash is still due on this booking. Confirm unpaid complete, or record Cash Paid first.",
+          code: "CASH_DUE",
+          cashDue,
+        },
+        { status: 409 },
+      )
+    }
   }
 
   await prisma.$transaction(async (tx) => {

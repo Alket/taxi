@@ -36,6 +36,7 @@ import {
   formatMoney,
 } from "@/lib/format"
 import { getNextFlowStatus, isBookingLockedForCancel, isBookingLockedForEdit } from "@/lib/booking-status"
+import { cashToCollect } from "@/lib/driver-cash"
 import type { Booking, BookingDetail, BookingStatus, VehicleType } from "@/lib/types"
 import { getEnabledVehicleTypes } from "@/lib/vehicles"
 import { cn } from "@/lib/utils"
@@ -1268,20 +1269,40 @@ function StatusAdvanceButtons({
 }) {
   const next = getNextFlowStatus(booking.status as BookingStatus)
   const [pending, setPending] = React.useState(false)
+  const [confirmUnpaidOpen, setConfirmUnpaidOpen] = React.useState(false)
 
   if (next !== "arrived" && next !== "completed") return null
 
-  async function advance() {
+  const cashDue =
+    next === "completed"
+      ? cashToCollect({
+          totalPrice: booking.totalPrice,
+          balanceDue: booking.balanceDue,
+          depositPaid: booking.depositPaid,
+          paymentStatus: booking.paymentStatus,
+        })
+      : 0
+
+  async function advance(opts?: { confirmUnpaidComplete?: boolean }) {
     if (!next) return
     setPending(true)
     try {
       await apiPatch(`/api/admin/bookings/${booking.id}/status`, {
         status: next,
+        ...(opts?.confirmUnpaidComplete
+          ? { confirmUnpaidComplete: true }
+          : {}),
       })
       toast.success(`Status updated to ${BOOKING_STATUS_LABELS[next]}.`)
+      setConfirmUnpaidOpen(false)
       onAdvanced()
     } catch (err) {
-      toast.error((err as Error).message)
+      const error = err as Error & { code?: string }
+      if (error.code === "CASH_DUE" && next === "completed") {
+        setConfirmUnpaidOpen(true)
+      } else {
+        toast.error(error.message)
+      }
     } finally {
       setPending(false)
     }
@@ -1292,13 +1313,21 @@ function StatusAdvanceButtons({
       <p className="text-xs text-muted-foreground">
         {next === "arrived"
           ? "Mark Arrived when the passenger is in the taxi."
-          : "Mark Completed after drop-off at the destination."}
+          : cashDue > 0
+            ? `Mark Completed after drop-off. Cash still due: ${formatMoney(cashDue, booking.currency)}.`
+            : "Mark Completed after drop-off at the destination."}
       </p>
       <Button
         type="button"
         size="sm"
         disabled={pending}
-        onClick={() => void advance()}
+        onClick={() => {
+          if (next === "completed" && cashDue > 0) {
+            setConfirmUnpaidOpen(true)
+            return
+          }
+          void advance()
+        }}
       >
         {pending
           ? "Updating…"
@@ -1306,6 +1335,34 @@ function StatusAdvanceButtons({
             ? "Mark Arrived"
             : "Mark Completed"}
       </Button>
+
+      <AlertDialog open={confirmUnpaidOpen} onOpenChange={setConfirmUnpaidOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Complete with unpaid cash?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This booking still has{" "}
+              {formatMoney(cashDue, booking.currency)} cash due and Payment is{" "}
+              {PAYMENT_STATUS_LABELS[booking.paymentStatus] ??
+                booking.paymentStatus}
+              . Completing now leaves Payment as Unpaid unless Cash Paid is
+              recorded.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={pending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={pending}
+              onClick={(e) => {
+                e.preventDefault()
+                void advance({ confirmUnpaidComplete: true })
+              }}
+            >
+              {pending ? "Updating…" : "Complete unpaid"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

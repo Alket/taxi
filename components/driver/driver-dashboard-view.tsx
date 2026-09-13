@@ -38,6 +38,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { apiPatch, apiPost, fetcher } from "@/lib/api"
+import { formatMoney } from "@/lib/format"
 import {
   formatDriverDateTime,
   useDriverLocale,
@@ -223,10 +224,26 @@ export function DriverDashboardView() {
   async function markCashPaid(trip: DriverTrip) {
     setPendingId(trip.id)
     try {
-      await apiPost(`/api/driver/bookings/${trip.id}/cash-paid`)
-      toast.success(
-        t("trips.toastCashPaid", { amount: trip.cashToCollectLabel }),
-      )
+      const res = await apiPost<{
+        ok: boolean
+        alreadyRecorded?: boolean
+        repaired?: boolean
+        amount?: number
+      }>(`/api/driver/bookings/${trip.id}/cash-paid`)
+      if (res.repaired) {
+        toast.success(t("trips.toastCashPaidRepaired"))
+      } else if (res.alreadyRecorded) {
+        toast.success(t("trips.toastCashPaidAlready"))
+      } else {
+        toast.success(
+          t("trips.toastCashPaid", {
+            amount:
+              res.amount != null && res.amount > 0
+                ? formatMoney(res.amount, trip.currency)
+                : trip.cashToCollectLabel,
+          }),
+        )
+      }
       await mutate()
     } catch (err) {
       toast.error((err as Error).message)

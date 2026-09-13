@@ -90,6 +90,8 @@
   "trips.toastArrived": "Marked Arrived — passenger on board.",
   "trips.toastCompleted": "Trip completed.",
   "trips.toastCashPaid": "Cash paid recorded — {amount}. You can mark the trip completed.",
+  "trips.toastCashPaidAlready": "Cash was already recorded for this trip.",
+  "trips.toastCashPaidRepaired": "Payment status fixed — now shows Paid in Full.",
   "trips.toastAccepted": "Trip accepted. You can mark Arrived when you are there.",
   "trips.toastRejected": "Trip rejected. Ops can assign another driver.",
   "cash.nothing": "Nothing to collect (paid online)",

@@ -90,6 +90,8 @@
   "trips.toastArrived": "U shënua si i mbërritur — pasagjeri është në bord.",
   "trips.toastCompleted": "Udhëtimi përfundoi.",
   "trips.toastCashPaid": "Pagesa në cash u regjistrua — {amount}. Mund ta shënoni udhëtimin si të përfunduar.",
+  "trips.toastCashPaidAlready": "Pagesa në cash ishte regjistruar tashmë për këtë udhëtim.",
+  "trips.toastCashPaidRepaired": "Statusi i pagesës u rregullua — tani shfaqet I paguar plotësisht.",
   "trips.toastAccepted": "Udhëtimi u pranua. Mund ta shënoni si të mbërritur kur jeni aty.",
   "trips.toastRejected": "Udhëtimi u refuzua. Operacionet mund të caktojnë një shofer tjetër.",
   "cash.nothing": "Asgjë për t’u mbledhur (paguar online)",
