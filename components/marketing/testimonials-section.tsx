@@ -13,6 +13,7 @@ import {
   MarketingContainer,
   MARKETING_SECTION_TITLE,
 } from "@/components/marketing/marketing-container"
+import { TrustpilotTestimonialsContent } from "@/components/marketing/trustpilot-testimonials-section"
 import { fetcher } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
@@ -25,6 +26,16 @@ type PublicReview = {
   customerFirstName: string
   routeLabel: string
   dropoffAddress: string
+}
+
+type PublicTpResponse = {
+  visible: boolean
+  summary: {
+    score: number
+    count: number
+    profileUrl: string
+  } | null
+  testimonials: unknown[]
 }
 
 function Stars({ value }: { value: number }) {
@@ -74,15 +85,7 @@ function ReviewCard({ review }: { review: PublicReview }) {
   )
 }
 
-export function TestimonialsSection({
-  destination,
-  eyebrow = "Traveller stories",
-  heading,
-}: {
-  destination?: string
-  eyebrow?: string
-  heading?: string
-}) {
+function CustomerReviewsCarousel({ destination }: { destination?: string }) {
   const { emblaRef, emblaApi, scrollPrev, scrollNext, canScroll } =
     useMarketingCarousel()
   const params = new URLSearchParams({ limit: "6" })
@@ -99,55 +102,119 @@ export function TestimonialsSection({
 
   if (reviews.length === 0) return null
 
-  const title =
-    heading ||
-    (destination
-      ? "Guest reviews"
-      : "Trusted by travellers across Albania")
+  return (
+    <div>
+      {canScroll ? (
+        <div className="mb-4 flex justify-end gap-1.5 sm:gap-2">
+          <button
+            type="button"
+            aria-label="Previous reviews"
+            className="flex size-9 items-center justify-center rounded-full border border-border bg-card text-brand transition-colors hover:bg-muted sm:size-10"
+            onClick={scrollPrev}
+          >
+            <ChevronLeft className="size-4 sm:size-5" />
+          </button>
+          <button
+            type="button"
+            aria-label="Next reviews"
+            className="flex size-9 items-center justify-center rounded-full border border-border bg-card text-brand transition-colors hover:bg-muted sm:size-10"
+            onClick={scrollNext}
+          >
+            <ChevronRight className="size-4 sm:size-5" />
+          </button>
+        </div>
+      ) : null}
+
+      <MarketingCarousel emblaRef={emblaRef}>
+        {reviews.map((review) => (
+          <div
+            key={review.id}
+            className={cn(MARKETING_CAROUSEL_SLIDE, "flex h-auto")}
+          >
+            <ReviewCard review={review} />
+          </div>
+        ))}
+      </MarketingCarousel>
+    </div>
+  )
+}
+
+export function TestimonialsSection({
+  destination,
+  eyebrow = "Traveller stories",
+  heading,
+  showCustomerReviews = true,
+  showTrustpilotTestimonials = false,
+}: {
+  destination?: string
+  eyebrow?: string
+  heading?: string
+  showCustomerReviews?: boolean
+  showTrustpilotTestimonials?: boolean
+}) {
+  const params = new URLSearchParams({ limit: "6" })
+  if (destination) params.set("destination", destination)
+
+  const { data: customerData } = useSWR<{ reviews: PublicReview[] }>(
+    showCustomerReviews ? `/api/reviews/public?${params.toString()}` : null,
+    fetcher,
+  )
+  const { data: trustpilotData } = useSWR<PublicTpResponse>(
+    showTrustpilotTestimonials ? "/api/trustpilot-testimonials/public" : null,
+    fetcher,
+  )
+
+  const hasCustomer =
+    showCustomerReviews && (customerData?.reviews?.length ?? 0) > 0
+  const hasTrustpilot =
+    showTrustpilotTestimonials &&
+    Boolean(trustpilotData?.visible) &&
+    Boolean(trustpilotData?.summary) &&
+    ((trustpilotData?.testimonials?.length ?? 0) > 0 ||
+      (trustpilotData?.summary?.count ?? 0) > 0)
+
+  // While loading customer/trustpilot, keep a shell if the toggle is on so the
+  // section does not flash away; hide only when we know there is nothing to show.
+  const customerPending = showCustomerReviews && customerData === undefined
+  const trustpilotPending =
+    showTrustpilotTestimonials && trustpilotData === undefined
+
+  if (
+    !showCustomerReviews &&
+    !showTrustpilotTestimonials
+  ) {
+    return null
+  }
+
+  if (
+    !customerPending &&
+    !trustpilotPending &&
+    !hasCustomer &&
+    !hasTrustpilot
+  ) {
+    return null
+  }
+
+  const title = heading || "Trusted by travellers across Albania"
 
   return (
     <section className="bg-white py-10 md:py-24">
       <MarketingContainer>
-        <div className="mb-8 flex items-end justify-between gap-4 md:mb-12">
-          <div className="min-w-0 flex-1">
-            <span className="mb-2 block text-xs font-extrabold tracking-widest text-primary uppercase sm:mb-3">
-              {eyebrow}
-            </span>
-            <h2 className={MARKETING_SECTION_TITLE}>{title}</h2>
-          </div>
-
-          {canScroll ? (
-            <div className="flex shrink-0 gap-1.5 sm:gap-2">
-              <button
-                type="button"
-                aria-label="Previous reviews"
-                className="flex size-9 items-center justify-center rounded-full border border-border bg-card text-brand transition-colors hover:bg-muted sm:size-10"
-                onClick={scrollPrev}
-              >
-                <ChevronLeft className="size-4 sm:size-5" />
-              </button>
-              <button
-                type="button"
-                aria-label="Next reviews"
-                className="flex size-9 items-center justify-center rounded-full border border-border bg-card text-brand transition-colors hover:bg-muted sm:size-10"
-                onClick={scrollNext}
-              >
-                <ChevronRight className="size-4 sm:size-5" />
-              </button>
-            </div>
-          ) : null}
+        <div className="mb-8 md:mb-12">
+          <span className="mb-2 block text-xs font-extrabold tracking-widest text-primary uppercase sm:mb-3">
+            {eyebrow}
+          </span>
+          <h2 className={MARKETING_SECTION_TITLE}>{title}</h2>
         </div>
 
-        <MarketingCarousel emblaRef={emblaRef}>
-          {reviews.map((review) => (
-            <div
-              key={review.id}
-              className={cn(MARKETING_CAROUSEL_SLIDE, "flex h-auto")}
-            >
-              <ReviewCard review={review} />
-            </div>
-          ))}
-        </MarketingCarousel>
+        <div className="flex flex-col gap-10 md:gap-12">
+          {showCustomerReviews ? (
+            <CustomerReviewsCarousel destination={destination} />
+          ) : null}
+          {showTrustpilotTestimonials ? (
+            <TrustpilotTestimonialsContent />
+          ) : null}
+        </div>
       </MarketingContainer>
     </section>
   )

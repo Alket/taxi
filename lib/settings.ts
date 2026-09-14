@@ -1,6 +1,11 @@
 import type { Prisma } from "@prisma/client"
 
 import { prisma } from "@/lib/db"
+import {
+  DEFAULT_TRUSTPILOT_DISCLAIMER,
+  DEFAULT_TRUSTPILOT_PROFILE_URL,
+  normalizeTrustpilotUrl,
+} from "@/lib/trustpilot-testimonials"
 import type {
   AirportEntry,
   ConnectionStatus,
@@ -172,6 +177,16 @@ export function serializeSettings(
     smtpFrom: row.smtpFrom ?? "",
     smtpTlsRejectUnauthorized: row.smtpTlsRejectUnauthorized ?? true,
     smtpPassSet: Boolean(row.smtpPass),
+    customerReviewsVisibleOnSite: row.customerReviewsVisibleOnSite ?? true,
+    trustpilotTestimonialsVisibleOnSite:
+      row.trustpilotTestimonialsVisibleOnSite ?? false,
+    trustpilotDisplayScore: Number(row.trustpilotDisplayScore ?? 0),
+    trustpilotDisplayCount: row.trustpilotDisplayCount ?? 0,
+    trustpilotProfileUrl:
+      normalizeTrustpilotUrl(row.trustpilotProfileUrl) ||
+      DEFAULT_TRUSTPILOT_PROFILE_URL,
+    trustpilotDisclaimer:
+      row.trustpilotDisclaimer?.trim() || DEFAULT_TRUSTPILOT_DISCLAIMER,
   }
 }
 

@@ -553,6 +553,13 @@ const settings: Settings = {
   smtpFrom: "",
   smtpTlsRejectUnauthorized: true,
   smtpPassSet: false,
+  customerReviewsVisibleOnSite: true,
+  trustpilotTestimonialsVisibleOnSite: false,
+  trustpilotDisplayScore: 0,
+  trustpilotDisplayCount: 0,
+  trustpilotProfileUrl: "https://www.trustpilot.com/review/landedalbania.com",
+  trustpilotDisclaimer:
+    "Selection of 5 star reviews from verified customers.",
 }
 
 const adminUsers: AdminUser[] = [

@@ -29,6 +29,7 @@ import {
   resolveDestinationPage,
 } from "@/lib/page-content"
 import { resolveDestinationTransferLink } from "@/lib/transfers/routes"
+import { getSettings } from "@/lib/settings"
 import {
   buildBreadcrumbJsonLd,
   buildTouristDestinationJsonLd,
@@ -124,11 +125,16 @@ export default async function DestinationPage({ params }: PageProps) {
   const destination = await resolveDestination(slug, locale)
   if (!destination) notFound()
 
-  const [resolved, destinationCards] = await Promise.all([
+  const [resolved, destinationCards, settings] = await Promise.all([
     resolveDestinationPage(destination.id, locale),
     resolveDestinationCards(locale),
+    getSettings().catch(() => null),
   ])
   if (!resolved) notFound()
+
+  const showCustomerReviews = settings?.customerReviewsVisibleOnSite ?? true
+  const showTrustpilotTestimonials =
+    settings?.trustpilotTestimonialsVisibleOnSite ?? false
 
   const { document } = resolved
   const meta = document.meta
@@ -351,7 +357,13 @@ export default async function DestinationPage({ params }: PageProps) {
                   heading={attractionsHeading}
                   attractions={attractions}
                 />
-                <TestimonialsSection destination={reviewKeyword} />
+                {showCustomerReviews || showTrustpilotTestimonials ? (
+                  <TestimonialsSection
+                    destination={reviewKeyword}
+                    showCustomerReviews={showCustomerReviews}
+                    showTrustpilotTestimonials={showTrustpilotTestimonials}
+                  />
+                ) : null}
               </div>
             )
           case "more_destinations":

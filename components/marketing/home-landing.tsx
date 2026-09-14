@@ -42,10 +42,14 @@ export function HomeLanding({
   copy,
   destinations,
   footer,
+  showCustomerReviews = true,
+  showTrustpilotTestimonials = false,
 }: {
   copy: HomeMarketingCopy
   destinations: Destination[]
   footer?: ReactNode
+  showCustomerReviews?: boolean
+  showTrustpilotTestimonials?: boolean
 }) {
   useEffect(() => {
     const id = window.location.hash.replace(/^#/, "")
@@ -174,10 +178,14 @@ export function HomeLanding({
 
         <PeaceOfMindSection copy={copy.peace} />
 
-        <TestimonialsSection
-          eyebrow={copy.testimonials.eyebrow}
-          heading={copy.testimonials.heading}
-        />
+        {showCustomerReviews || showTrustpilotTestimonials ? (
+          <TestimonialsSection
+            eyebrow={copy.testimonials.eyebrow}
+            heading={copy.testimonials.heading}
+            showCustomerReviews={showCustomerReviews}
+            showTrustpilotTestimonials={showTrustpilotTestimonials}
+          />
+        ) : null}
 
         <FaqSection items={copy.faq} />
       </MarketingPageEnter>

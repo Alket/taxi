@@ -85,6 +85,10 @@ export default async function HomePage() {
         copy={copy}
         destinations={destinations}
         footer={<SiteFooter />}
+        showCustomerReviews={settings?.customerReviewsVisibleOnSite ?? true}
+        showTrustpilotTestimonials={
+          settings?.trustpilotTestimonialsVisibleOnSite ?? false
+        }
       />
     </>
   )

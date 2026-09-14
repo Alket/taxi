@@ -32,9 +32,13 @@ export function useMarketingCarousel(options?: EmblaOptionsType) {
     ...options,
   })
   const [canScroll, setCanScroll] = useState(false)
+  const [canScrollPrev, setCanScrollPrev] = useState(false)
+  const [canScrollNext, setCanScrollNext] = useState(false)
 
   const sync = useCallback((api: EmblaCarouselType) => {
     setCanScroll(api.canScrollPrev() || api.canScrollNext())
+    setCanScrollPrev(api.canScrollPrev())
+    setCanScrollNext(api.canScrollNext())
   }, [])
 
   useEffect(() => {
@@ -60,6 +64,8 @@ export function useMarketingCarousel(options?: EmblaOptionsType) {
     emblaRef,
     emblaApi,
     canScroll,
+    canScrollPrev,
+    canScrollNext,
     scrollPrev,
     scrollNext,
   }

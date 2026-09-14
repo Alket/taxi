@@ -14,6 +14,10 @@ import {
 } from "lucide-react"
 
 import { PageHeader } from "@/components/admin/page-header"
+import {
+  CustomerReviewsVisibilityCard,
+  TrustpilotTestimonialsAdmin,
+} from "@/components/admin/trustpilot-testimonials-admin"
 import { PanelCard } from "@/components/settings/shared"
 import { apiDelete, apiPatch, fetcher } from "@/lib/api"
 import { formatDateTime } from "@/lib/format"
@@ -436,53 +440,66 @@ export function ReviewsView() {
 
   return (
     <>
-      <PageHeader title="Reviews" description="Customer feedback moderation" />
-      <div className="p-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-4 md:p-6">
-        <Tabs
-          defaultValue={initialTab}
-          orientation={isMobile ? "horizontal" : "vertical"}
-          className={cn(
-            "gap-4 md:gap-6",
-            isMobile ? "flex-col" : "items-start",
-          )}
-        >
-          <TabsList
-            variant="line"
+      <PageHeader
+        title="Reviews"
+        description="Customer feedback moderation and Trustpilot quotes"
+      />
+      <div className="flex flex-col gap-8 p-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-4 md:p-6">
+        <section>
+          <h2 className="mb-3 text-sm font-semibold tracking-tight">
+            Customer reviews
+          </h2>
+          <CustomerReviewsVisibilityCard />
+          <Tabs
+            defaultValue={initialTab}
+            orientation={isMobile ? "horizontal" : "vertical"}
             className={cn(
-              "w-full shrink-0 gap-1",
-              isMobile
-                ? "h-auto max-w-full justify-start overflow-x-auto overscroll-x-contain pb-px [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-                : "md:sticky md:top-20 md:w-52",
+              "gap-4 md:gap-6",
+              isMobile ? "flex-col" : "items-start",
             )}
           >
-            {TABS.map((t) => (
-              <TabsTrigger
-                key={t.value}
-                value={t.value}
-                className={cn(
-                  "gap-2 px-3 py-2.5 touch-manipulation sm:py-2",
-                  isMobile
-                    ? "shrink-0 justify-center"
-                    : "w-full justify-start",
-                )}
-              >
-                <t.icon data-icon="inline-start" />
-                <span className="sm:hidden">{t.short}</span>
-                <span className="hidden sm:inline">{t.label}</span>
-              </TabsTrigger>
-            ))}
-          </TabsList>
+            <TabsList
+              variant="line"
+              className={cn(
+                "w-full shrink-0 gap-1",
+                isMobile
+                  ? "h-auto max-w-full justify-start overflow-x-auto overscroll-x-contain pb-px [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                  : "md:sticky md:top-20 md:w-52",
+              )}
+            >
+              {TABS.map((t) => (
+                <TabsTrigger
+                  key={t.value}
+                  value={t.value}
+                  className={cn(
+                    "gap-2 px-3 py-2.5 touch-manipulation sm:py-2",
+                    isMobile
+                      ? "shrink-0 justify-center"
+                      : "w-full justify-start",
+                  )}
+                >
+                  <t.icon data-icon="inline-start" />
+                  <span className="sm:hidden">{t.short}</span>
+                  <span className="hidden sm:inline">{t.label}</span>
+                </TabsTrigger>
+              ))}
+            </TabsList>
 
-          <div className="min-w-0 flex-1">
-            {TABS.map((t) => (
-              <TabsContent key={t.value} value={t.value}>
-                <PanelCard title={t.title} description={t.description}>
-                  <ReviewList status={t.value as ReviewStatus | "all"} />
-                </PanelCard>
-              </TabsContent>
-            ))}
-          </div>
-        </Tabs>
+            <div className="min-w-0 flex-1">
+              {TABS.map((t) => (
+                <TabsContent key={t.value} value={t.value}>
+                  <PanelCard title={t.title} description={t.description}>
+                    <ReviewList status={t.value as ReviewStatus | "all"} />
+                  </PanelCard>
+                </TabsContent>
+              ))}
+            </div>
+          </Tabs>
+        </section>
+
+        <section>
+          <TrustpilotTestimonialsAdmin />
+        </section>
       </div>
     </>
   )

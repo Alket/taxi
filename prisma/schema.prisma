@@ -416,6 +416,26 @@ model Review {
   @@index([status])
 }
 
+/** Manual Trustpilot quotes pasted by staff for the marketing carousel. */
+model TrustpilotTestimonial {
+  id         String    @id @default(cuid())
+  authorName String
+  /** Short headline shown in bold on the card (Trustpilot review title). */
+  title      String    @default("")
+  /** Star rating 1–5 for the card. */
+  rating     Int
+  body       String
+  reviewedAt DateTime?
+  /** Optional link to the original Trustpilot review. */
+  sourceUrl  String?
+  sortOrder  Int       @default(0)
+  published  Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([published, sortOrder])
+}
+
 model FlightStatusEvent {
   id           String       @id @default(cuid())
   bookingId    String
@@ -530,6 +550,18 @@ model Settings {
   airports                    Json
   notificationChannelsEnabled Json
   flightDelayThresholdMinutes Int              @default(45)
+  /** Show booking-linked customer reviews on homepage & destination pages. */
+  customerReviewsVisibleOnSite Boolean         @default(true)
+  /** Show manual Trustpilot testimonials carousel on homepage & destinations. */
+  trustpilotTestimonialsVisibleOnSite Boolean  @default(false)
+  /** Manual Trustpilot summary score shown in the carousel (e.g. 4.4). */
+  trustpilotDisplayScore      Decimal          @default(0) @db.Decimal(2, 1)
+  /** Manual total review count shown in the carousel (e.g. 5). */
+  trustpilotDisplayCount      Int              @default(0)
+  /** Public Trustpilot profile URL for attribution links. */
+  trustpilotProfileUrl        String           @default("https://www.trustpilot.com/review/landedalbania.com")
+  /** Short disclaimer under the Trustpilot summary (editable in admin). */
+  trustpilotDisclaimer        String           @default("Selection of 5 star reviews from verified customers.")
   createdAt                   DateTime         @default(now())
   updatedAt                   DateTime         @updatedAt
 }

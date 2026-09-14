@@ -430,6 +430,18 @@ export interface Settings {
   smtpFrom: string
   smtpTlsRejectUnauthorized: boolean
   smtpPassSet: boolean
+  /** Show booking-linked customer reviews on homepage & destination pages. */
+  customerReviewsVisibleOnSite: boolean
+  /** Show manual Trustpilot testimonials carousel on homepage & destinations. */
+  trustpilotTestimonialsVisibleOnSite: boolean
+  /** Manual Trustpilot summary score (e.g. 4.4). */
+  trustpilotDisplayScore: number
+  /** Manual total review count shown next to the score. */
+  trustpilotDisplayCount: number
+  /** Public Trustpilot profile URL for attribution. */
+  trustpilotProfileUrl: string
+  /** Disclaimer under the Trustpilot summary block. */
+  trustpilotDisclaimer: string
 }
 
 export type AdminRole = "admin" | "operator"
