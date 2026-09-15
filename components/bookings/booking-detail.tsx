@@ -257,12 +257,16 @@ function TripFacts({ booking }: { booking: Booking }) {
       value: formatDateTime(booking.pickupDateTime),
       fullRow: true,
     },
-    {
-      icon: PlaneIcon,
-      label: "Flight",
-      value: booking.flightNumber,
-      fullRow: true,
-    },
+    ...(booking.flightNumber?.trim()
+      ? [
+          {
+            icon: PlaneIcon,
+            label: "Flight",
+            value: booking.flightNumber,
+            fullRow: true,
+          },
+        ]
+      : []),
     {
       icon: UsersIcon,
       label: "Passengers",

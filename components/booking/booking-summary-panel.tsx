@@ -11,14 +11,17 @@ import {
   MapPinIcon,
   MinusIcon,
   PencilIcon,
-  PlaneIcon,
   PlusIcon,
   UsersIcon,
 } from "lucide-react"
 
 import { fetcher } from "@/lib/api"
 import type { AirportWithCoords } from "@/lib/airports"
-import { resolveAirportLocation } from "@/lib/airports"
+import {
+  buildPlaceOptions,
+  deriveRouteFromPlaces,
+  placeKeyFromStore,
+} from "@/lib/booking-places"
 import {
   CHILD_SEAT_OPTIONS,
   computeChildSeatTotal,
@@ -29,7 +32,6 @@ import { useT } from "@/lib/i18n/use-locale"
 import {
   useBookingStore,
   VEHICLE_TYPES,
-  type BookingLocation,
   type VehicleQuote,
 } from "@/lib/store/booking-store"
 import type { Direction, VehicleType } from "@/lib/types"
@@ -91,18 +93,11 @@ type QuoteResponse = {
   durationMin: number
 }
 
-function airportLocation(airport: AirportWithCoords): BookingLocation {
-  return {
-    address: `${airport.name} (${airport.iataCode})`,
-    lat: airport.lat,
-    lng: airport.lng,
-  }
-}
-
 async function fetchVehicleQuote(body: {
   direction: Direction
   vehicleType: VehicleType
   zoneId: string
+  toZoneId?: string | null
 }): Promise<QuoteResponse> {
   const res = await fetch("/api/pricing/quote", {
     method: "POST",
@@ -190,6 +185,40 @@ function EditSection({
   )
 }
 
+
+function SummaryTimelineItem({
+  label,
+  address,
+  isLast = false,
+}: {
+  label: string
+  address: string
+  isLast?: boolean
+}) {
+  return (
+    <div className="flex gap-3">
+      <div className="flex flex-col items-center">
+        <span
+          className={
+            isLast
+              ? "mt-1.5 size-2.5 shrink-0 rounded-full bg-brand-accent"
+              : "mt-1.5 size-2.5 shrink-0 rounded-full border-2 border-brand"
+          }
+        />
+        {!isLast ? (
+          <span className="my-1 w-px flex-1 bg-border" aria-hidden />
+        ) : null}
+      </div>
+      <div className={"min-w-0 pb-3 " + (isLast ? "" : "")}>
+        <p className="text-[10px] font-bold tracking-wide text-muted-foreground uppercase">
+          {label}
+        </p>
+        <p className="truncate text-sm font-semibold text-brand">{address}</p>
+      </div>
+    </div>
+  )
+}
+
 function SummaryEditDialog({
   open,
   onOpenChange,
@@ -202,6 +231,7 @@ function SummaryEditDialog({
   const isRoundTrip = useBookingStore((s) => s.isRoundTrip)
   const selectedAirportIata = useBookingStore((s) => s.selectedAirportIata)
   const selectedZoneId = useBookingStore((s) => s.selectedZoneId)
+  const selectedToZoneId = useBookingStore((s) => s.selectedToZoneId)
   const pickupDateTime = useBookingStore((s) => s.pickupDateTime)
   const returnDateTime = useBookingStore((s) => s.returnDateTime)
   const passengerCount = useBookingStore((s) => s.passengerCount)
@@ -211,6 +241,10 @@ function SummaryEditDialog({
   const { data: config } = useSWR<SummaryConfig>("/api/booking/config", fetcher)
   const airports = config?.airports ?? []
   const zones = config?.zones ?? []
+  const placeOptions = React.useMemo(
+    () => buildPlaceOptions(airports, zones),
+    [airports, zones],
+  )
   const enabledTypes = React.useMemo(() => {
     if (config?.enabledVehicleTypes?.length) {
       return config.enabledVehicleTypes.filter((type): type is VehicleType =>
@@ -231,8 +265,8 @@ function SummaryEditDialog({
     enabledTypes,
   )
 
-  const [draftAirport, setDraftAirport] = React.useState<string | null>(null)
-  const [draftZoneId, setDraftZoneId] = React.useState<string | null>(null)
+  const [draftFromKey, setDraftFromKey] = React.useState<string | null>(null)
+  const [draftToKey, setDraftToKey] = React.useState<string | null>(null)
   const [draftDateTime, setDraftDateTime] = React.useState<string | null>(null)
   const [draftReturnDateTime, setDraftReturnDateTime] = React.useState<
     string | null
@@ -250,8 +284,14 @@ function SummaryEditDialog({
       maxPassengers,
       maxLuggage,
     })
-    setDraftAirport(selectedAirportIata)
-    setDraftZoneId(selectedZoneId)
+    const store = {
+      direction,
+      selectedAirportIata,
+      selectedZoneId,
+      selectedToZoneId,
+    }
+    setDraftFromKey(placeKeyFromStore({ ...store, end: "from" }))
+    setDraftToKey(placeKeyFromStore({ ...store, end: "to" }))
     setDraftDateTime(pickupDateTime)
     setDraftReturnDateTime(returnDateTime)
     setDraftPassengers(clamped.passengerCount)
@@ -261,8 +301,10 @@ function SummaryEditDialog({
     setError(null)
   }, [
     open,
+    direction,
     selectedAirportIata,
     selectedZoneId,
+    selectedToZoneId,
     pickupDateTime,
     returnDateTime,
     passengerCount,
@@ -279,9 +321,26 @@ function SummaryEditDialog({
     if (returnTooSoon) setDraftReturnDateTime(null)
   }
 
+  function onFromChange(key: string | null) {
+    setDraftFromKey(key)
+    if (key && key === draftToKey) setDraftToKey(null)
+  }
+
+  function onToChange(key: string | null) {
+    setDraftToKey(key)
+    if (key && key === draftFromKey) setDraftFromKey(null)
+  }
+
   async function save() {
-    if (!draftZoneId) {
-      setError(tr("book.selectDestination"))
+    const from = placeOptions.find((p) => p.key === draftFromKey)
+    const to = placeOptions.find((p) => p.key === draftToKey)
+    if (!from || !to) {
+      setError("Select From and To.")
+      return
+    }
+    const route = deriveRouteFromPlaces(from, to)
+    if (!route) {
+      setError("Choose two different places.")
       return
     }
     if (!draftDateTime) {
@@ -301,23 +360,9 @@ function SummaryEditDialog({
       }
     }
 
-    const airport = resolveAirportLocation(airports, draftAirport)
-    const zone = zones.find((z) => z.id === draftZoneId)
-    if (!airport || !zone) {
-      setError("Could not update trip details.")
-      return
-    }
-
     setSaving(true)
     setError(null)
 
-    const dir = direction ?? "airport_to_dest"
-    const airportLoc = airportLocation(airport)
-    const destLoc: BookingLocation = {
-      address: zone.name,
-      lat: airport.lat,
-      lng: airport.lng,
-    }
     const datePatch = {
       pickupDateTime: draftDateTime,
       passengerCount: draftPassengers,
@@ -325,28 +370,18 @@ function SummaryEditDialog({
       returnDateTime: isRoundTrip ? draftReturnDateTime : null,
     }
 
-    if (dir === "airport_to_dest") {
-      patch({
-        direction: dir,
-        selectedAirportIata: airport.iataCode,
-        selectedZoneId: zone.id,
-        pickup: airportLoc,
-        dropoff: destLoc,
-        ...datePatch,
-      })
-    } else {
-      patch({
-        direction: dir,
-        selectedAirportIata: airport.iataCode,
-        selectedZoneId: zone.id,
-        pickup: destLoc,
-        dropoff: airportLoc,
-        ...datePatch,
-      })
-    }
+    patch({
+      ...route,
+      ...datePatch,
+    })
 
-    const zoneChanged = zone.id !== selectedZoneId
-    if (zoneChanged || !useBookingStore.getState().quotedPrice) {
+    const routeChanged =
+      route.direction !== direction ||
+      route.selectedZoneId !== selectedZoneId ||
+      route.selectedToZoneId !== selectedToZoneId ||
+      route.selectedAirportIata !== selectedAirportIata
+
+    if (routeChanged || !useBookingStore.getState().quotedPrice) {
       const typesToQuote =
         enabledTypes.length > 0 ? enabledTypes : VEHICLE_TYPES
 
@@ -377,9 +412,13 @@ function SummaryEditDialog({
         const settled = await Promise.allSettled(
           typesToQuote.map((vehicleType) =>
             fetchVehicleQuote({
-              direction: dir,
+              direction: route.direction,
               vehicleType,
-              zoneId: zone.id,
+              zoneId: route.selectedZoneId,
+              toZoneId:
+                route.direction === "zone_to_zone"
+                  ? route.selectedToZoneId
+                  : null,
             }),
           ),
         )
@@ -437,16 +476,10 @@ function SummaryEditDialog({
     onOpenChange(false)
   }
 
-  const destinationLabel =
-    direction === "dest_to_airport" ? "Pickup destination" : "Dropoff destination"
-  const selectedAirportName = airports.find(
-    (a) => a.iataCode === draftAirport,
-  )
-  const zoneOptions = zones.map((z) => ({
-    value: z.id,
-    label: z.name,
-  }))
-  const destinationRowRef = React.useRef<HTMLDivElement>(null)
+  const fromOptions = placeOptions.filter((p) => p.key !== draftToKey)
+  const toOptions = placeOptions.filter((p) => p.key !== draftFromKey)
+  const fromRowRef = React.useRef<HTMLDivElement>(null)
+  const toRowRef = React.useRef<HTMLDivElement>(null)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -457,73 +490,59 @@ function SummaryEditDialog({
           </DialogTitle>
           <DialogDescription className="mt-1 text-sm text-muted-foreground">
             Adjust route, pickup time, and party size. Price updates when your
-            destination changes.
+            places change.
           </DialogDescription>
         </div>
 
         <div className="flex max-h-[min(60dvh,28rem)] flex-col gap-3 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
           <EditSection icon={MapPinIcon} title={tr("book.route")}>
-            {airports.length > 1 ? (
-              <div className="flex flex-col gap-1.5">
-                <Label className="text-xs font-bold text-muted-foreground">
-                  Airport
-                </Label>
-                <Select
-                  value={draftAirport}
-                  onValueChange={(value) => {
-                    if (value) setDraftAirport(value)
-                  }}
-                >
-                  <SelectTrigger className="h-11 w-full rounded-xl border-border bg-brand-page">
-                    <SelectValue placeholder={tr("book.selectAirportPlaceholder")}>
-                      {selectedAirportName
-                        ? `${selectedAirportName.name} (${selectedAirportName.iataCode})`
-                        : undefined}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {airports.map((airport) => (
-                      <SelectItem key={airport.iataCode} value={airport.iataCode}>
-                        {airport.name} ({airport.iataCode})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            ) : selectedAirportName ? (
-              <div className="flex items-center gap-3 rounded-xl bg-brand-page px-3.5 py-3">
-                <span className="flex size-9 items-center justify-center rounded-full bg-brand-surface text-brand-accent">
-                  <PlaneIcon className="size-4" />
-                </span>
-                <div className="min-w-0">
-                  <p className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
-                    Airport
-                  </p>
-                  <p className="truncate text-sm font-bold text-brand">
-                    {selectedAirportName.name} ({selectedAirportName.iataCode})
-                  </p>
-                </div>
-              </div>
-            ) : null}
-
             <div className="flex flex-col gap-1.5">
               <Label className="text-xs font-bold text-muted-foreground">
-                {destinationLabel}
+                From
               </Label>
               <div
-                ref={destinationRowRef}
+                ref={fromRowRef}
                 className="flex items-center gap-3 rounded-xl border border-border bg-brand-page px-3 py-3.5"
               >
                 <MapPinIcon className="size-4 shrink-0 text-brand" />
                 <div className="min-w-0 flex-1">
                   <HeroFieldSelect
-                    value={draftZoneId}
-                    placeholder={tr("book.toPlaceholder")}
-                    options={zoneOptions}
-                    onChange={setDraftZoneId}
-                    anchor={destinationRowRef}
+                    value={draftFromKey}
+                    placeholder="Select pickup"
+                    options={fromOptions.map((p) => ({
+                      value: p.key,
+                      label: p.label,
+                    }))}
+                    onChange={onFromChange}
+                    anchor={fromRowRef}
                     mobileSheet
-                    sheetTitle={tr("book.chooseDestination")}
+                    sheetTitle="From"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-xs font-bold text-muted-foreground">
+                To
+              </Label>
+              <div
+                ref={toRowRef}
+                className="flex items-center gap-3 rounded-xl border border-border bg-brand-page px-3 py-3.5"
+              >
+                <MapPinIcon className="size-4 shrink-0 text-brand" />
+                <div className="min-w-0 flex-1">
+                  <HeroFieldSelect
+                    value={draftToKey}
+                    placeholder="Select dropoff"
+                    options={toOptions.map((p) => ({
+                      value: p.key,
+                      label: p.label,
+                    }))}
+                    onChange={onToChange}
+                    anchor={toRowRef}
+                    mobileSheet
+                    sheetTitle="To"
                   />
                 </div>
               </div>
@@ -683,32 +702,6 @@ function SummaryEditDialog({
   )
 }
 
-function SummaryTimelineItem({
-  label,
-  address,
-  isLast = false,
-}: {
-  label: string
-  address: string
-  isLast?: boolean
-}) {
-  return (
-    <div className="flex gap-4">
-      <div className="flex flex-col items-center">
-        <div className="size-2 rounded-full border-2 border-brand-accent bg-brand-surface" />
-        {!isLast && <div className="h-full w-0.5 bg-brand-accent/30" />}
-      </div>
-      <div className="pb-4">
-        <p className="text-[10px] font-bold tracking-wide text-muted-foreground uppercase">
-          {label}
-        </p>
-        <p className="text-xs font-medium leading-tight text-brand">
-          {address}
-        </p>
-      </div>
-    </div>
-  )
-}
 
 export function BookingSummaryContent() {
   const tr = useT()

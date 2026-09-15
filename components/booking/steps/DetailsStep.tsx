@@ -138,9 +138,11 @@ function FieldError({ message }: { message?: string }) {
 
 export function DetailsStep() {
   const tr = useT()
+  const direction = useBookingStore((s) => s.direction)
   const isRoundTrip = useBookingStore((s) => s.isRoundTrip)
   const returnDateTime = useBookingStore((s) => s.returnDateTime)
   const flightNumber = useBookingStore((s) => s.flightNumber)
+  const requireFlightNumber = direction !== "zone_to_zone"
   const customer = useBookingStore((s) => s.customer)
   const bookedForOther = useBookingStore((s) => s.bookedForOther)
   const passengerName = useBookingStore((s) => s.passengerName)
@@ -182,8 +184,13 @@ export function DetailsStep() {
   }, [driverNotes])
 
   const schema = React.useMemo(
-    () => createDetailsSchema({ isRoundTrip, returnDateTime }),
-    [isRoundTrip, returnDateTime],
+    () =>
+      createDetailsSchema({
+        isRoundTrip,
+        returnDateTime,
+        requireFlightNumber,
+      }),
+    [isRoundTrip, returnDateTime, requireFlightNumber],
   )
 
   const phoneParts = splitPhone(customer.phone)
@@ -334,19 +341,23 @@ export function DetailsStep() {
           htmlFor="flightNumber"
           className="text-sm font-bold text-brand"
         >
-          {tr("book.flightNumber")}
+          {requireFlightNumber
+            ? tr("book.flightNumber")
+            : `${tr("book.flightNumber")} (optional)`}
         </Label>
         <Input
           id="flightNumber"
           placeholder={tr("book.enterFlightNumber")}
-          aria-required
+          aria-required={requireFlightNumber || undefined}
           aria-invalid={errors.flightNumber ? true : undefined}
           className="h-12 border-border shadow-none transition-all focus:border-brand-accent focus:ring-0"
           {...register("flightNumber")}
         />
         <FieldError message={errors.flightNumber?.message} />
         <p className="text-[11px] text-muted-foreground">
-          {tr("book.flightNumberHint")}
+          {requireFlightNumber
+            ? tr("book.flightNumberHint")
+            : "Optional for city-to-city transfers."}
         </p>
       </div>
 

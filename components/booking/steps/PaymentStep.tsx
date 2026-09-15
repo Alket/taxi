@@ -186,7 +186,9 @@ function Recap() {
         value:
           direction === "airport_to_dest"
             ? "Airport → Destination"
-            : "Destination → Airport",
+            : direction === "dest_to_airport"
+              ? "Destination → Airport"
+              : "City → City",
       },
       {
         icon: CarIcon,
@@ -549,7 +551,7 @@ function StripeCheckoutForm({
         elements,
         redirect: "if_required",
         confirmParams: {
-          return_url: `${window.location.origin}${localePath(`/book/confirmation/${referenceCode}`, locale)}`,
+          return_url: `${window.location.origin}${localePath(`/book/confirmation/${referenceCode}`, locale)}?email=${encodeURIComponent(customerEmail)}`,
           // Name/email/phone are opted out on the Element (already collected in booking).
           // Address uses `if_required` so Stripe collects zip/country as needed — do not
           // pass a partial address here or Stripe will demand every omitted field.
@@ -582,7 +584,7 @@ function StripeCheckoutForm({
           paymentIntentId: intent.id || paymentIntentId,
           paymentIntentClientSecret: clientSecret,
         })
-        navigateToBookingConfirmation(referenceCode)
+        navigateToBookingConfirmation(referenceCode, customerEmail)
         return
       }
 
@@ -870,6 +872,14 @@ export function PaymentStep() {
               driverNotes: store.driverNotes.trim() || null,
               vehicleType: store.vehicleType,
               zoneId: store.selectedZoneId,
+              toZoneId:
+                store.direction === "zone_to_zone"
+                  ? store.selectedToZoneId
+                  : null,
+              airportIata:
+                store.direction === "zone_to_zone"
+                  ? null
+                  : store.selectedAirportIata,
               isRoundTrip: store.isRoundTrip,
               meetAndGreet: store.meetAndGreet,
               bookedForOther: store.bookedForOther,
@@ -934,7 +944,7 @@ export function PaymentStep() {
           try {
             const intentRes = await apiPost<CreateIntentResponse>(
               "/api/payments/create-intent",
-              { bookingId, paymentOption: initialOption },
+              { bookingId, email: store.customer.email, paymentOption: initialOption },
             )
 
             if (!cancelled) {
@@ -997,7 +1007,7 @@ export function PaymentStep() {
       try {
         const intentRes = await apiPost<CreateIntentResponse>(
           "/api/payments/create-intent",
-          { bookingId, paymentOption },
+          { bookingId, email: store.customer.email, paymentOption },
         )
         if (!cancelled) {
           setIntent(intentRes)
@@ -1029,7 +1039,7 @@ export function PaymentStep() {
     try {
       const res = await apiPost<{ approveUrl: string }>(
         "/api/payments/paypal/create-order",
-        { bookingId: store.createdBookingId, paymentOption },
+        { bookingId: store.createdBookingId, email: store.customer.email, paymentOption },
       )
       bypassBookingLeaveGuard()
       window.location.href = res.approveUrl
@@ -1064,7 +1074,7 @@ export function PaymentStep() {
       try {
         const order = await apiPost<PokOrderResponse>(
           "/api/payments/pok/create-order",
-          { bookingId, paymentOption },
+          { bookingId, email: store.customer.email, paymentOption },
         )
         if (cancelled) return
         setPokOrder(order)
@@ -1102,7 +1112,7 @@ export function PaymentStep() {
         { orderId: pokOrder.orderId },
       )
       clearPokOrderId()
-      navigateToBookingConfirmation(res.referenceCode)
+      navigateToBookingConfirmation(res.referenceCode, store.customer.email)
     } catch (err) {
       setPokConfirming(false)
       setPokError(
@@ -1128,9 +1138,9 @@ export function PaymentStep() {
     try {
       const res = await apiPost<{ referenceCode: string }>(
         "/api/payments/cash-on-arrival",
-        { bookingId: store.createdBookingId },
+        { bookingId: store.createdBookingId, email: store.customer.email },
       )
-      navigateToBookingConfirmation(res.referenceCode)
+      navigateToBookingConfirmation(res.referenceCode, store.customer.email)
     } catch (err) {
       const error = err as Error & { code?: string }
       if (error.code === "METHOD_DISABLED") {

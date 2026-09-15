@@ -3,21 +3,11 @@ import {
   FLIGHT_NUMBER_RE,
   normalizeFlightNumber,
 } from "@/lib/booking-details"
-import type { BookingLocation, BookingState } from "@/lib/store/booking-store"
+import type { BookingState } from "@/lib/store/booking-store"
 import { VEHICLE_TYPES } from "@/lib/store/booking-store"
 import type { BookingFieldId } from "@/lib/booking-field-focus"
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
-function hasLocation(location: BookingLocation) {
-  return (
-    location.address.trim().length > 0 &&
-    location.lat !== null &&
-    location.lng !== null &&
-    Number.isFinite(location.lat) &&
-    Number.isFinite(location.lng)
-  )
-}
 
 function hasSuccessfulQuotes(state: BookingState) {
   if (state.quoteStatus !== "success") return false
@@ -32,20 +22,23 @@ export function getFirstInvalidBookingField(
   state: BookingState,
 ): { field: BookingFieldId; message: string } | null {
   if (!state.direction) {
-    return { field: "destination", message: "Choose a transfer direction." }
+    return { field: "destination", message: "Choose From and To." }
   }
 
-  const airportEnd =
-    state.direction === "airport_to_dest" ? state.pickup : state.dropoff
-  const destinationEnd =
-    state.direction === "airport_to_dest" ? state.dropoff : state.pickup
-
-  if (!state.selectedAirportIata || !hasLocation(airportEnd)) {
-    return { field: "destination", message: "Select an airport." }
+  if (!state.selectedZoneId) {
+    return { field: "destination", message: "Select From and To." }
   }
 
-  if (!state.selectedZoneId || !destinationEnd.address.trim()) {
-    return { field: "destination", message: "Select a destination." }
+  if (state.direction === "zone_to_zone") {
+    if (!state.selectedToZoneId) {
+      return { field: "destination", message: "Select a dropoff city." }
+    }
+  } else if (!state.selectedAirportIata) {
+    return { field: "destination", message: "Select an airport end for this trip." }
+  }
+
+  if (!state.pickup.address.trim() || !state.dropoff.address.trim()) {
+    return { field: "destination", message: "Select From and To." }
   }
 
   if (!state.pickupDateTime) {
@@ -63,7 +56,7 @@ export function getFirstInvalidBookingField(
   if (state.quoteStatus === "uncovered") {
     return {
       field: "quote",
-      message: "This destination isn't in our service area.",
+      message: "This route isn't in our service area.",
     }
   }
 
@@ -75,7 +68,7 @@ export function getFirstInvalidBookingField(
   }
 
   if (!hasSuccessfulQuotes(state)) {
-    return { field: "quote", message: "Select a destination to get a price." }
+    return { field: "quote", message: "Select From and To to get a price." }
   }
 
   if (state.vehicleType === null || state.quotedPrice === null || state.quotedPrice < 0) {
@@ -101,17 +94,19 @@ export function getFirstInvalidBookingField(
     }
   }
 
-  const flight = state.flightNumber.trim()
-  if (!flight) {
-    return {
-      field: "flightNumber",
-      message: "Enter your flight number.",
+  if (state.direction !== "zone_to_zone") {
+    const flight = state.flightNumber.trim()
+    if (!flight) {
+      return {
+        field: "flightNumber",
+        message: "Enter your flight number.",
+      }
     }
-  }
-  if (!FLIGHT_NUMBER_RE.test(normalizeFlightNumber(flight))) {
-    return {
-      field: "flightNumber",
-      message: "Enter a valid flight number (e.g. LH1445 or EAF654).",
+    if (!FLIGHT_NUMBER_RE.test(normalizeFlightNumber(flight))) {
+      return {
+        field: "flightNumber",
+        message: "Enter a valid flight number (e.g. LH1445 or EAF654).",
+      }
     }
   }
 

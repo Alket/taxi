@@ -28,12 +28,20 @@ export async function GET(_request: Request, context: RouteContext) {
     }
     const buffer = await readFile(filePath)
     const contentType = mimeFromFilename(filename) || "application/octet-stream"
+    const headers: Record<string, string> = {
+      "Content-Type": contentType,
+      "Cache-Control": "public, max-age=31536000, immutable",
+      "X-Content-Type-Options": "nosniff",
+    }
+    // SVGs can execute script if opened as a document — lock that down while
+    // still allowing <img src> / CSS use (scripts already blocked in <img>).
+    if (contentType === "image/svg+xml") {
+      headers["Content-Security-Policy"] =
+        "default-src 'none'; style-src 'unsafe-inline'; sandbox"
+    }
     return new NextResponse(buffer, {
       status: 200,
-      headers: {
-        "Content-Type": contentType,
-        "Cache-Control": "public, max-age=31536000, immutable",
-      },
+      headers,
     })
   } catch {
     return new NextResponse("Not found", { status: 404 })

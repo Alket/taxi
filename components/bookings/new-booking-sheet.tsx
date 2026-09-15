@@ -139,6 +139,9 @@ export function NewBookingSheet({
   const [selectedZoneId, setSelectedZoneId] = React.useState<string | null>(
     null,
   )
+  const [selectedToZoneId, setSelectedToZoneId] = React.useState<string | null>(
+    null,
+  )
 
   const [pickupDateTime, setPickupDateTime] = React.useState(() =>
     toDateTimeInputValue(new Date(Date.now() + 3 * 60 * 60 * 1000)),
@@ -230,35 +233,56 @@ export function NewBookingSheet({
   const airport = resolveAirportLocation(airports, selectedAirportIata)
   const zone = zones.find((z) => z.id === selectedZoneId) ?? null
 
-  const pickup: Endpoint =
-    direction === "airport_to_dest"
-      ? airport
-        ? airportEndpoint(airport)
-        : emptyEndpoint()
-      : zone
-        ? zoneEndpoint(zone, airport)
-        : emptyEndpoint()
+  const toZone = zones.find((z) => z.id === selectedToZoneId) ?? null
 
-  const dropoff: Endpoint =
-    direction === "airport_to_dest"
+  const pickup: Endpoint =
+    direction === "zone_to_zone"
       ? zone
         ? zoneEndpoint(zone, airport)
         : emptyEndpoint()
-      : airport
-        ? airportEndpoint(airport)
+      : direction === "airport_to_dest"
+        ? airport
+          ? airportEndpoint(airport)
+          : emptyEndpoint()
+        : zone
+          ? zoneEndpoint(zone, airport)
+          : emptyEndpoint()
+
+  const dropoff: Endpoint =
+    direction === "zone_to_zone"
+      ? toZone
+        ? zoneEndpoint(toZone, airport)
         : emptyEndpoint()
+      : direction === "airport_to_dest"
+        ? zone
+          ? zoneEndpoint(zone, airport)
+          : emptyEndpoint()
+        : airport
+          ? airportEndpoint(airport)
+          : emptyEndpoint()
 
   const debouncedVehicleType = useDebounced(vehicleType)
   const debouncedZoneId = useDebounced(selectedZoneId)
+  const debouncedToZoneId = useDebounced(selectedToZoneId)
 
-  const quoteEnabled = Boolean(debouncedVehicleType && debouncedZoneId)
+  const quoteEnabled =
+    Boolean(debouncedVehicleType && debouncedZoneId) &&
+    (direction !== "zone_to_zone" || Boolean(debouncedToZoneId))
 
-  const { data: quote, isLoading: quoteLoading } = useSWR<QuoteResponse>(
-    quoteEnabled
+  const quoteUrl = quoteEnabled
+    ? direction === "zone_to_zone"
       ? `/api/admin/bookings/quote?vehicleType=${encodeURIComponent(
           debouncedVehicleType,
+        )}&zoneId=${encodeURIComponent(debouncedZoneId!)}&toZoneId=${encodeURIComponent(
+          debouncedToZoneId!,
+        )}&direction=zone_to_zone`
+      : `/api/admin/bookings/quote?vehicleType=${encodeURIComponent(
+          debouncedVehicleType,
         )}&zoneId=${encodeURIComponent(debouncedZoneId!)}`
-      : null,
+    : null
+
+  const { data: quote, isLoading: quoteLoading } = useSWR<QuoteResponse>(
+    quoteUrl,
     fetcher,
   )
 
@@ -270,6 +294,7 @@ export function NewBookingSheet({
     setDirection("airport_to_dest")
     setSelectedAirportIata(null)
     setSelectedZoneId(null)
+    setSelectedToZoneId(null)
     setFlightNumber("")
     setPassengerCount("2")
     setLuggageCount("2")
@@ -285,6 +310,9 @@ export function NewBookingSheet({
   function onDirectionChange(next: Direction | null) {
     if (!next) return
     setDirection(next)
+    if (next !== "zone_to_zone") {
+      setSelectedToZoneId(null)
+    }
   }
 
   function onZoneChange(zoneId: string | null) {
@@ -304,8 +332,16 @@ export function NewBookingSheet({
     if (!customerName.trim()) return toast.error("Customer name is required.")
     if (!customerEmail.trim()) return toast.error("Customer email is required.")
     if (!phoneNational.trim()) return toast.error("Customer phone is required.")
-    if (!airport) return toast.error("Select an airport.")
-    if (!zone) return toast.error("Select a destination from pricing zones.")
+    if (direction === "zone_to_zone") {
+      if (!zone) return toast.error("Select a pickup city.")
+      if (!toZone) return toast.error("Select a dropoff city.")
+      if (zone.id === toZone.id) {
+        return toast.error("Pickup and dropoff must be different cities.")
+      }
+    } else {
+      if (!airport) return toast.error("Select an airport.")
+      if (!zone) return toast.error("Select a destination from pricing zones.")
+    }
     if (!pickup.address || pickup.lat == null || pickup.lng == null) {
       return toast.error("Pickup location is incomplete.")
     }
@@ -345,6 +381,9 @@ export function NewBookingSheet({
       luggageCount: lCount,
       vehicleType,
       zoneId: zone.id,
+      toZoneId: direction === "zone_to_zone" ? toZone!.id : null,
+      airportIata:
+        direction === "zone_to_zone" ? null : selectedAirportIata,
       isRoundTrip,
       meetAndGreet,
       markAsPaid,
@@ -366,11 +405,14 @@ export function NewBookingSheet({
     }
   }
 
-  const showAirportSelect = airports.length > 1
+  const isCityCorridor = direction === "zone_to_zone"
+  const showAirportSelect = !isCityCorridor && airports.length > 1
   const destinationLabel =
     direction === "dest_to_airport" ? "Pickup address" : "Drop-off address"
   const airportRoleLabel =
     direction === "airport_to_dest" ? "Pickup address" : "Drop-off address"
+  const toZoneOptions = zoneOptions.filter((z) => z.value !== selectedZoneId)
+  const fromZoneOptions = zoneOptions.filter((z) => z.value !== selectedToZoneId)
 
   return (
     <>
@@ -478,65 +520,99 @@ export function NewBookingSheet({
                   />
                 </div>
 
-                {showAirportSelect ? (
-                  <AdminFilterSelectField
-                    label={`${airportRoleLabel} · Airport`}
-                    icon={PlaneIcon}
-                    value={selectedAirportIata ?? ""}
-                    onChange={(value) => {
-                      if (value) setSelectedAirportIata(value)
-                    }}
-                    options={airportItems}
-                    allowClear={false}
-                    disabled={configLoading || airports.length === 0}
-                    placeholder="Select airport"
-                    emptyMessage="No airport configured in settings."
-                  />
+                {isCityCorridor ? (
+                  <>
+                    <AdminFilterSelectField
+                      label="From · City"
+                      icon={MapPinIcon}
+                      value={selectedZoneId ?? ""}
+                      onChange={(value) => onZoneChange(value || null)}
+                      options={fromZoneOptions}
+                      allValue=""
+                      allowClear
+                      disabled={configLoading || zones.length === 0}
+                      placeholder="Select pickup city"
+                      emptyMessage="No pricing zones available."
+                    />
+                    <AdminFilterSelectField
+                      label="To · City"
+                      icon={MapPinIcon}
+                      value={selectedToZoneId ?? ""}
+                      onChange={(value) => setSelectedToZoneId(value || null)}
+                      options={toZoneOptions}
+                      allValue=""
+                      allowClear
+                      disabled={configLoading || zones.length === 0}
+                      placeholder="Select dropoff city"
+                      emptyMessage="No pricing zones available."
+                    />
+                    <p className="text-[11px] text-muted-foreground">
+                      Uses city-corridor fares (symmetric both ways).
+                    </p>
+                  </>
                 ) : (
-                  <div className="flex flex-col gap-1.5">
-                    <span className="text-xs text-muted-foreground">
-                      {airportRoleLabel} · Airport
-                    </span>
-                    <div className="flex h-11 items-center gap-2 rounded-lg border border-input px-3 text-sm md:h-10">
-                      <PlaneIcon className="size-4 shrink-0 text-muted-foreground" />
-                      {configLoading ? (
-                        <Skeleton className="h-4 w-40" />
-                      ) : airport ? (
-                        <span className="truncate font-medium">
-                          {airport.name} ({airport.iataCode})
+                  <>
+                    {showAirportSelect ? (
+                      <AdminFilterSelectField
+                        label={`${airportRoleLabel} · Airport`}
+                        icon={PlaneIcon}
+                        value={selectedAirportIata ?? ""}
+                        onChange={(value) => {
+                          if (value) setSelectedAirportIata(value)
+                        }}
+                        options={airportItems}
+                        allowClear={false}
+                        disabled={configLoading || airports.length === 0}
+                        placeholder="Select airport"
+                        emptyMessage="No airport configured in settings."
+                      />
+                    ) : (
+                      <div className="flex flex-col gap-1.5">
+                        <span className="text-xs text-muted-foreground">
+                          {airportRoleLabel} · Airport
                         </span>
-                      ) : (
-                        <span className="text-muted-foreground">
-                          No airport configured in settings.
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
+                        <div className="flex h-11 items-center gap-2 rounded-lg border border-input px-3 text-sm md:h-10">
+                          <PlaneIcon className="size-4 shrink-0 text-muted-foreground" />
+                          {configLoading ? (
+                            <Skeleton className="h-4 w-40" />
+                          ) : airport ? (
+                            <span className="truncate font-medium">
+                              {airport.name} ({airport.iataCode})
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">
+                              No airport configured in settings.
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
 
-                <div className="flex flex-col gap-1.5">
-                  <AdminFilterSelectField
-                    label={`${destinationLabel} · Pricing zone`}
-                    icon={MapPinIcon}
-                    value={selectedZoneId ?? ""}
-                    onChange={(value) => onZoneChange(value || null)}
-                    options={zoneOptions}
-                    allValue=""
-                    allowClear
-                    disabled={configLoading || zones.length === 0}
-                    placeholder={
-                      configLoading
-                        ? "Loading zones…"
-                        : zones.length === 0
-                          ? "No pricing zones available"
-                          : "Select destination"
-                    }
-                    emptyMessage="No pricing zones available."
-                  />
-                  <p className="text-[11px] text-muted-foreground">
-                    Addresses come from active pricing zones.
-                  </p>
-                </div>
+                    <div className="flex flex-col gap-1.5">
+                      <AdminFilterSelectField
+                        label={`${destinationLabel} · Pricing zone`}
+                        icon={MapPinIcon}
+                        value={selectedZoneId ?? ""}
+                        onChange={(value) => onZoneChange(value || null)}
+                        options={zoneOptions}
+                        allValue=""
+                        allowClear
+                        disabled={configLoading || zones.length === 0}
+                        placeholder={
+                          configLoading
+                            ? "Loading zones…"
+                            : zones.length === 0
+                              ? "No pricing zones available"
+                              : "Select destination"
+                        }
+                        emptyMessage="No pricing zones available."
+                      />
+                      <p className="text-[11px] text-muted-foreground">
+                        Addresses come from active pricing zones.
+                      </p>
+                    </div>
+                  </>
+                )}
 
                 <ol className="flex flex-col gap-0 overflow-hidden rounded-lg border bg-muted/20">
                   <li className="flex items-start gap-3 border-b px-3 py-2.5">
@@ -573,7 +649,7 @@ export function NewBookingSheet({
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <FactField
                     icon={PlaneIcon}
-                    label="Flight"
+                    label={isCityCorridor ? "Flight (optional)" : "Flight"}
                     className="sm:col-span-2"
                     input={
                       <Input

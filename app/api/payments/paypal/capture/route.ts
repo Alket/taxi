@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 
+import {
+  checkoutNonceMatches,
+} from "@/lib/checkout-nonce"
+import { clientIpFromRequest } from "@/lib/client-ip"
 import { prisma } from "@/lib/db"
 import {
   amountsMatch,
@@ -8,8 +12,13 @@ import {
   isPaypalConfigured,
   parsePaypalCustomId,
 } from "@/lib/paypal"
+import { takeRateLimit } from "@/lib/rate-limit"
 import { recordBookingPayment } from "@/lib/record-deposit"
+import { jsonWithTrustpilotInviteCookieIfCheckoutBound } from "@/lib/trustpilot-invite-cookie"
 import type { PaymentOption } from "@/lib/types"
+
+const PAYPAL_CAPTURE_LIMIT = 20
+const PAYPAL_CAPTURE_WINDOW_MS = 15 * 60 * 1000
 
 const bodySchema = z.object({
   orderId: z.string().min(1),
@@ -27,6 +36,24 @@ export async function POST(request: Request) {
     )
   }
 
+  const ip = clientIpFromRequest(request)
+  const limited = takeRateLimit(
+    `paypal-capture:${ip}`,
+    PAYPAL_CAPTURE_LIMIT,
+    PAYPAL_CAPTURE_WINDOW_MS,
+  )
+  if (!limited.ok) {
+    return NextResponse.json(
+      {
+        error: `Too many capture attempts. Try again in ${limited.retryAfterSec}s.`,
+      },
+      {
+        status: 429,
+        headers: { "Retry-After": String(limited.retryAfterSec) },
+      },
+    )
+  }
+
   const json = await request.json().catch(() => null)
   const parsed = bodySchema.safeParse(json)
   if (!parsed.success) {
@@ -38,24 +65,39 @@ export async function POST(request: Request) {
   const intent = await prisma.paypalOrderIntent.findUnique({
     where: { orderId },
   })
-  if (!intent) {
+  // Same 404 for missing order and bad nonce — no orderId existence oracle.
+  if (!intent || !checkoutNonceMatches(request, intent.checkoutNonce)) {
     return NextResponse.json(
-      { error: "Unknown PayPal order. Start checkout again." },
+      { error: "Unknown or inaccessible PayPal order. Start checkout again." },
       { status: 404 },
     )
   }
 
   const booking = await prisma.booking.findUnique({
     where: { id: intent.bookingId },
-    select: { id: true, referenceCode: true, paymentStatus: true },
+    select: {
+      id: true,
+      referenceCode: true,
+      paymentStatus: true,
+      customer: { select: { email: true } },
+    },
   })
+
+  const successBody = (extra: Record<string, unknown>) => ({
+    ok: true as const,
+    referenceCode: booking?.referenceCode ?? null,
+    customerEmail: booking?.customer?.email ?? null,
+    ...extra,
+  })
+
   // Short-circuit before hitting PayPal again on retries.
   if (intent.status === "captured") {
-    return NextResponse.json({
-      ok: true,
-      referenceCode: booking?.referenceCode ?? null,
-      alreadyPaid: true,
-    })
+    return jsonWithTrustpilotInviteCookieIfCheckoutBound(
+      request,
+      intent.checkoutNonce,
+      booking?.id ?? null,
+      successBody({ alreadyPaid: true }),
+    )
   }
 
   if (!booking) {
@@ -71,11 +113,12 @@ export async function POST(request: Request) {
       where: { orderId, status: "created" },
       data: { status: "captured" },
     })
-    return NextResponse.json({
-      ok: true,
-      referenceCode: booking.referenceCode,
-      alreadyPaid: true,
-    })
+    return jsonWithTrustpilotInviteCookieIfCheckoutBound(
+      request,
+      intent.checkoutNonce,
+      booking.id,
+      successBody({ alreadyPaid: true }),
+    )
   }
 
   try {
@@ -105,14 +148,11 @@ export async function POST(request: Request) {
       )
     }
 
-    const paymentOption = (intent.paymentOption === "full"
-      ? "full"
-      : "deposit") as PaymentOption
+    const paymentOption = (
+      intent.paymentOption === "full" ? "full" : "deposit"
+    ) as PaymentOption
 
-    if (
-      custom?.paymentOption &&
-      custom.paymentOption !== paymentOption
-    ) {
+    if (custom?.paymentOption && custom.paymentOption !== paymentOption) {
       return NextResponse.json(
         { error: "PayPal order payment option mismatch." },
         { status: 400 },
@@ -150,11 +190,12 @@ export async function POST(request: Request) {
       claimPaypalOrderId: orderId,
     })
 
-    return NextResponse.json({
-      ok: true,
-      referenceCode: booking.referenceCode,
-      alreadyPaid: recorded.alreadyRecorded,
-    })
+    return jsonWithTrustpilotInviteCookieIfCheckoutBound(
+      request,
+      intent.checkoutNonce,
+      booking.id,
+      successBody({ alreadyPaid: recorded.alreadyRecorded }),
+    )
   } catch (error) {
     return NextResponse.json(
       { error: (error as Error).message || "PayPal capture failed." },

@@ -4,7 +4,10 @@ const buckets = new Map<string, Bucket>()
 
 /**
  * Simple in-process fixed-window rate limiter.
- * Fine for a single Node instance (dev/prod Docker without sticky multi-replica needs).
+ *
+ * Intended for a single Node process (typical Docker one-replica deploy).
+ * Limits are not shared across replicas — do not scale horizontally without an
+ * external store (Redis etc.) or sticky routing plus accepting per-instance caps.
  */
 export function takeRateLimit(
   key: string,

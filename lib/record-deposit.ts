@@ -53,15 +53,40 @@ export async function recordBookingPayment({
       })
     : [booking]
 
-  const isFull = paymentOption === "full"
-  const expectedShares = targets.map((t) =>
-    isFull ? Number(t.totalPrice) : Number(t.depositAmount),
+  const requestedFull = paymentOption === "full"
+  // Expected shares for a "full" request use list totals; deposit uses depositAmount.
+  const fullShares = targets.map((t) => Number(t.totalPrice))
+  const depositShares = targets.map((t) => Number(t.depositAmount))
+  const fullExpectedTotal = round2(fullShares.reduce((sum, n) => sum + n, 0))
+  const depositExpectedTotal = round2(
+    depositShares.reduce((sum, n) => sum + n, 0),
   )
-  const expectedTotal = round2(expectedShares.reduce((sum, n) => sum + n, 0))
   const capturedTotal =
     gatewayAmount != null && Number.isFinite(gatewayAmount)
       ? round2(gatewayAmount)
-      : expectedTotal
+      : requestedFull
+        ? fullExpectedTotal
+        : depositExpectedTotal
+
+  // Defense in depth: never mark fully_paid when the gateway settled less than
+  // the current booking total (e.g. stale intent after a price change).
+  const UNDERPAY_EPS = 0.05
+  const isFull =
+    requestedFull &&
+    (gatewayAmount == null ||
+      !Number.isFinite(gatewayAmount) ||
+      capturedTotal + UNDERPAY_EPS >= fullExpectedTotal)
+
+  if (requestedFull && !isFull) {
+    console.warn(
+      `[payment] underpayment on booking ${bookingId}: captured ${capturedTotal} < expected full ${fullExpectedTotal}; recording as deposit`,
+    )
+  }
+
+  // Allocate by the requested option's share weights (full totals even when
+  // underpayment forces deposit_paid status).
+  const expectedShares = requestedFull ? fullShares : depositShares
+  const expectedTotal = requestedFull ? fullExpectedTotal : depositExpectedTotal
 
   const outcome = await prisma.$transaction(async (tx) => {
     if (claimPaypalOrderId) {

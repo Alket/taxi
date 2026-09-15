@@ -20,7 +20,8 @@ import {
   markTrustpilotInviteClaimed,
   resolveTrustpilotAfsBcc,
 } from "@/lib/trustpilot-afs"
-import type { NotificationChannels, Settings } from "@/lib/types"
+import type { NotificationChannels, Settings, Direction } from "@/lib/types"
+import { DIRECTION_LABELS } from "@/lib/format"
 import {
   adminBookingUrl,
   adminReviewsUrl,
@@ -57,6 +58,7 @@ const bookingSelect = {
   id: true,
   referenceCode: true,
   status: true,
+  direction: true,
   pickupPin: true,
   pickupAddress: true,
   dropoffAddress: true,
@@ -103,6 +105,7 @@ type BookingEmailRow = {
   id: string
   referenceCode: string
   status: string
+  direction: Direction
   pickupPin: string
   pickupAddress: string
   dropoffAddress: string
@@ -197,6 +200,7 @@ function legDetailRows(leg: BookingEmailRow, label: string): string {
     detailRow("Leg", label),
     detailRow("Reference", leg.referenceCode),
     leg.pickupPin ? detailRow("Pickup PIN", leg.pickupPin) : "",
+    detailRow("Direction", DIRECTION_LABELS[leg.direction]),
     detailRow("Pickup", leg.pickupAddress),
     detailRow("Drop-off", leg.dropoffAddress),
     detailRow("When", formatWhen(leg.pickupDateTime)),
@@ -213,6 +217,7 @@ function legDetailTextLines(leg: BookingEmailRow, label: string): string[] {
     `${label}:`,
     `  Reference: ${leg.referenceCode}`,
     leg.pickupPin ? `  Pickup PIN: ${leg.pickupPin}` : null,
+    `  Direction: ${DIRECTION_LABELS[leg.direction]}`,
     `  Pickup: ${leg.pickupAddress}`,
     `  Drop-off: ${leg.dropoffAddress}`,
     `  When: ${formatWhen(leg.pickupDateTime)}`,
@@ -419,6 +424,7 @@ function baseCustomerRows(booking: BookingEmailRow): string {
   return [
     detailRow("Reference", booking.referenceCode),
     booking.pickupPin ? detailRow("Pickup PIN", booking.pickupPin) : "",
+    detailRow("Direction", DIRECTION_LABELS[booking.direction]),
     detailRow("Pickup", booking.pickupAddress),
     detailRow("Drop-off", booking.dropoffAddress),
     detailRow("When", formatWhen(booking.pickupDateTime)),
@@ -435,6 +441,7 @@ function baseCustomerTextLines(booking: BookingEmailRow): string[] {
   return [
     `Reference: ${booking.referenceCode}`,
     booking.pickupPin ? `Pickup PIN: ${booking.pickupPin}` : null,
+    `Direction: ${DIRECTION_LABELS[booking.direction]}`,
     `Pickup: ${booking.pickupAddress}`,
     `Drop-off: ${booking.dropoffAddress}`,
     `When: ${formatWhen(booking.pickupDateTime)}`,

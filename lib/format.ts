@@ -115,4 +115,5 @@ export const VEHICLE_LABELS: Record<VehicleType, string> = {
 export const DIRECTION_LABELS: Record<Direction, string> = {
   airport_to_dest: "Airport → Destination",
   dest_to_airport: "Destination → Airport",
+  zone_to_zone: "City → City",
 }

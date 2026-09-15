@@ -5,6 +5,7 @@ import {
   VEHICLE_LABELS,
 } from "@/lib/format"
 import { isPublicSelfServiceOpen } from "@/lib/booking-status"
+import { shouldRevealPickupPin } from "@/lib/pickup-pin"
 import type { Direction, VehicleType } from "@/lib/types"
 
 export async function findBookingForLookup(reference: string, email: string) {
@@ -45,7 +46,7 @@ export function serializeManagedBooking(booking: LookupBookingRecord) {
   return {
     id: booking.id,
     referenceCode: booking.referenceCode,
-    pickupPin: booking.pickupPin,
+    pickupPin: shouldRevealPickupPin(booking) ? booking.pickupPin : null,
     direction: booking.direction,
     directionLabel: DIRECTION_LABELS[booking.direction as Direction],
     pickupAddress: booking.pickupAddress,

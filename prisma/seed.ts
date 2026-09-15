@@ -109,6 +109,7 @@ async function main() {
   await prisma.review.deleteMany()
   await prisma.payment.deleteMany()
   await prisma.booking.deleteMany()
+  await prisma.interZoneFare.deleteMany()
   await prisma.pricingRule.deleteMany()
   await prisma.zone.deleteMany()
   await prisma.driver.deleteMany()
@@ -157,6 +158,39 @@ async function main() {
           currency: "EUR",
         },
       })
+    }
+  }
+
+  // Phase-1 city corridor: Sarandë ↔ Tirana City (symmetric).
+  {
+    const sarande = zoneByName["Sarandë"]
+    const tiranaCity = zoneByName["Tirana City"]
+    if (sarande && tiranaCity) {
+      const [zoneAId, zoneBId] =
+        sarande.id < tiranaCity.id
+          ? [sarande.id, tiranaCity.id]
+          : [tiranaCity.id, sarande.id]
+      const corridorFares: Array<{
+        vehicleType: VehicleType
+        baseFare: number
+        minFare: number
+      }> = [
+        { vehicleType: "sedan", baseFare: 180, minFare: 180 },
+        { vehicleType: "minivan", baseFare: 220, minFare: 220 },
+      ]
+      for (const fare of corridorFares) {
+        await prisma.interZoneFare.create({
+          data: {
+            zoneAId,
+            zoneBId,
+            vehicleType: fare.vehicleType,
+            baseFare: fare.baseFare,
+            minFare: fare.minFare,
+            currency: "EUR",
+            active: true,
+          },
+        })
+      }
     }
   }
 

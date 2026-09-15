@@ -2,16 +2,39 @@ import { NextResponse } from "next/server"
 
 import { isCheckoutSuperseded } from "@/lib/booking-notes"
 import { verifyCheckoutResumeToken } from "@/lib/checkout-resume"
+import { clientIpFromRequest } from "@/lib/client-ip"
 import { prisma } from "@/lib/db"
 import { assertCheckoutPayable } from "@/lib/payment-session"
+import { takeRateLimit } from "@/lib/rate-limit"
 
 type RouteContext = { params: Promise<{ referenceCode: string }> }
+
+const CONTINUE_LIMIT = 40
+const CONTINUE_WINDOW_MS = 15 * 60 * 1000
 
 /**
  * Validate resume token and return payload to hydrate the public booking store
  * onto the payment step for the same booking (no second create).
  */
 export async function GET(request: Request, context: RouteContext) {
+  const ip = clientIpFromRequest(request)
+  const limited = takeRateLimit(
+    `checkout-continue:${ip}`,
+    CONTINUE_LIMIT,
+    CONTINUE_WINDOW_MS,
+  )
+  if (!limited.ok) {
+    return NextResponse.json(
+      {
+        error: `Too many requests. Try again in ${limited.retryAfterSec}s.`,
+      },
+      {
+        status: 429,
+        headers: { "Retry-After": String(limited.retryAfterSec) },
+      },
+    )
+  }
+
   const { referenceCode: raw } = await context.params
   const referenceCode = decodeURIComponent(raw).trim().toUpperCase()
   const token = new URL(request.url).searchParams.get("token")?.trim()

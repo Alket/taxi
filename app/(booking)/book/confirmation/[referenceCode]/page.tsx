@@ -16,15 +16,17 @@ import { formatDateTime, formatMoney, VEHICLE_LABELS } from "@/lib/format"
 import { getRequestLocale } from "@/lib/i18n/get-locale"
 import { type Locale, localePath } from "@/lib/i18n/locales"
 import { t } from "@/lib/i18n/t"
+import { shouldRevealPickupPin } from "@/lib/pickup-pin"
 import type { Direction, VehicleType } from "@/lib/types"
 
 type PageProps = {
   params: Promise<{ referenceCode: string }>
+  searchParams: Promise<{ email?: string }>
 }
 
 type ConfirmationView = {
   referenceCode: string
-  pickupPin: string
+  pickupPin: string | null
   direction: Direction
   pickupAddress: string
   dropoffAddress: string
@@ -47,6 +49,7 @@ type ConfirmationView = {
 
 async function loadConfirmation(
   referenceCode: string,
+  email: string,
 ): Promise<ConfirmationView | null> {
   const booking = await prisma.booking.findUnique({
     where: { referenceCode },
@@ -71,10 +74,12 @@ async function loadConfirmation(
       status: true,
       paymentStatus: true,
       notes: true,
+      customer: { select: { email: true } },
     },
   })
 
   if (!booking) return null
+  if (!email || booking.customer.email.toLowerCase() !== email) return null
 
   const paymentSucceeded =
     booking.paymentStatus === "deposit_paid" ||
@@ -89,7 +94,7 @@ async function loadConfirmation(
 
   return {
     referenceCode: booking.referenceCode,
-    pickupPin: booking.pickupPin,
+    pickupPin: shouldRevealPickupPin(booking) ? booking.pickupPin : null,
     direction: booking.direction as Direction,
     pickupAddress: booking.pickupAddress,
     dropoffAddress: booking.dropoffAddress,
@@ -112,6 +117,9 @@ async function loadConfirmation(
 }
 
 function directionLabel(locale: Locale, direction: Direction) {
+  if (direction === "zone_to_zone") {
+    return t(locale, "confirm.dirCityToCity")
+  }
   return direction === "dest_to_airport"
     ? t(locale, "confirm.dirDestToAirport")
     : t(locale, "confirm.dirAirportToDest")
@@ -189,7 +197,7 @@ function PendingPaymentState({
 
       <CopyableReference
         referenceCode={booking.referenceCode}
-        pickupPin={booking.pickupPin}
+        pickupPin={booking.pickupPin ?? undefined}
       />
 
       <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-950 dark:text-amber-100">
@@ -404,13 +412,13 @@ function WhatHappensNext({
   )
 }
 
-export default async function BookingConfirmationPage({ params }: PageProps) {
+export default async function Page({ params, searchParams }: PageProps) {
   const locale = await getRequestLocale()
   const { referenceCode: raw } = await params
   const referenceCode = raw?.trim().toUpperCase() || ""
 
   const booking = referenceCode
-    ? await loadConfirmation(referenceCode)
+    ? await loadConfirmation(referenceCode, ((await searchParams).email ?? "").trim().toLowerCase())
     : null
 
   if (!booking) {
@@ -444,7 +452,7 @@ export default async function BookingConfirmationPage({ params }: PageProps) {
 
       <CopyableReference
         referenceCode={booking.referenceCode}
-        pickupPin={booking.pickupPin}
+        pickupPin={booking.pickupPin ?? undefined}
       />
 
       <TripSummary booking={booking} locale={locale} />

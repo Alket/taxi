@@ -24,12 +24,12 @@ export default function PaypalReturnClient() {
 
     async function capture() {
       try {
-        const res = await apiPost<{ referenceCode: string }>(
+        const res = await apiPost<{ referenceCode: string; customerEmail?: string | null }>(
           "/api/payments/paypal/capture",
           { orderId },
         )
         if (!cancelled) {
-          navigateToBookingConfirmation(res.referenceCode)
+          navigateToBookingConfirmation(res.referenceCode, res.customerEmail)
         }
       } catch (err) {
         if (!cancelled) {

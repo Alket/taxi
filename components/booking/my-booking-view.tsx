@@ -362,9 +362,11 @@ function BookingManagePanel({
               <p className="mt-1 font-mono text-xl font-extrabold tracking-tight text-brand">
                 {booking.referenceCode}
               </p>
-              <p className="mt-1 font-mono text-sm font-semibold tabular-nums text-brand">
-                {tr("myBooking.pin", { pin: booking.pickupPin })}
-              </p>
+              {booking.pickupPin ? (
+                <p className="mt-1 font-mono text-sm font-semibold tabular-nums text-brand">
+                  {tr("myBooking.pin", { pin: booking.pickupPin })}
+                </p>
+              ) : null}
               <p className="mt-1 text-sm text-muted-foreground">
                 {BOOKING_STATUS_LABELS[booking.status]} ·{" "}
                 {booking.paymentStatusLabel}

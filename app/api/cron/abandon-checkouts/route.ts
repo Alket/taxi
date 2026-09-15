@@ -1,20 +1,8 @@
 import { NextResponse } from "next/server"
 
 import { markStaleCheckoutsAbandoned } from "@/lib/abandon-checkouts"
+import { authorizeCron } from "@/lib/cron-auth"
 import { sendCheckoutAbandonedEmail } from "@/lib/emails/booking-events"
-
-function authorizeCron(request: Request): boolean {
-  const secret = process.env.CRON_SECRET?.trim()
-  if (!secret) return false
-
-  const header = request.headers.get("authorization")
-  if (header === `Bearer ${secret}`) return true
-
-  const url = new URL(request.url)
-  if (url.searchParams.get("secret") === secret) return true
-
-  return false
-}
 
 /**
  * Marks stale unpaid public checkouts as Abandoned and sends one recovery email.

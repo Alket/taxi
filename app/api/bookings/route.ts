@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server"
 
+import { clientIpFromRequest } from "@/lib/client-ip"
+import { takeRateLimit } from "@/lib/rate-limit"
+
 import {
   bookingCreateSchema,
   createBookingsFromInput,
@@ -15,6 +18,15 @@ import {
  * admin filter for these.
  */
 export async function POST(request: Request) {
+  const ip = clientIpFromRequest(request)
+  const limited = takeRateLimit(`public-booking-create:${ip}`, 20, 15 * 60 * 1000)
+  if (!limited.ok) {
+    return NextResponse.json(
+      { error: `Too many booking attempts. Try again in ${limited.retryAfterSec}s.` },
+      { status: 429, headers: { "Retry-After": String(limited.retryAfterSec) } },
+    )
+  }
+
   const body = await request.json().catch(() => ({}))
   const parsed = bookingCreateSchema.safeParse({
     ...body,
@@ -57,6 +69,12 @@ export async function POST(request: Request) {
     if (err.code === "VEHICLE_DISABLED" || err.name === "VehicleDisabledError") {
       return NextResponse.json(
         { error: message, code: "VEHICLE_DISABLED" },
+        { status: 400 },
+      )
+    }
+    if (err.code === "ROUTE_ADDRESS_MISMATCH" || err.name === "RouteAddressMismatchError") {
+      return NextResponse.json(
+        { error: message, code: "ROUTE_ADDRESS_MISMATCH" },
         { status: 400 },
       )
     }

@@ -1,9 +1,15 @@
+import { timingSafeEqual } from "crypto"
 import { NextResponse } from "next/server"
 import { z } from "zod"
 
+import { clientIpFromRequest } from "@/lib/client-ip"
 import { prisma } from "@/lib/db"
+import { takeRateLimit } from "@/lib/rate-limit"
 import { recordBookingPayment } from "@/lib/record-deposit"
 import { getStripe } from "@/lib/stripe"
+
+const CONFIRM_DEPOSIT_LIMIT = 40
+const CONFIRM_DEPOSIT_WINDOW_MS = 15 * 60 * 1000
 
 const bodySchema = z
   .object({
@@ -20,8 +26,33 @@ const bodySchema = z
     message: "bookingId or referenceCode is required",
   })
 
+function clientSecretsMatch(a: string, b: string): boolean {
+  const left = Buffer.from(a)
+  const right = Buffer.from(b)
+  if (left.length !== right.length) return false
+  return timingSafeEqual(left, right)
+}
+
 /** Client-side success path after Stripe Elements confirmPayment. */
 export async function POST(request: Request) {
+  const ip = clientIpFromRequest(request)
+  const limited = takeRateLimit(
+    `public-confirm-deposit:${ip}`,
+    CONFIRM_DEPOSIT_LIMIT,
+    CONFIRM_DEPOSIT_WINDOW_MS,
+  )
+  if (!limited.ok) {
+    return NextResponse.json(
+      {
+        error: `Too many confirmation attempts. Try again in ${limited.retryAfterSec}s.`,
+      },
+      {
+        status: 429,
+        headers: { "Retry-After": String(limited.retryAfterSec) },
+      },
+    )
+  }
+
   const json = await request.json().catch(() => null)
   const parsed = bodySchema.safeParse(json)
   if (!parsed.success) {
@@ -56,12 +87,18 @@ export async function POST(request: Request) {
       )
     }
 
-    if (intent.metadata?.bookingId && intent.metadata.bookingId !== booking.id) {
+    if (
+      !intent.metadata?.bookingId ||
+      intent.metadata.bookingId !== booking.id
+    ) {
       return NextResponse.json({ error: "Payment mismatch." }, { status: 400 })
     }
 
     const secret = parsed.data.paymentIntentClientSecret.trim()
-    if (!intent.client_secret || secret !== intent.client_secret) {
+    if (
+      !intent.client_secret ||
+      !clientSecretsMatch(secret, intent.client_secret)
+    ) {
       return NextResponse.json(
         { error: "Payment verification failed." },
         { status: 401 },

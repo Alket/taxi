@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 
+import { clientIpFromRequest } from "@/lib/client-ip"
 import { findBookingForLookup } from "@/lib/managed-booking"
 import { prisma } from "@/lib/db"
+import { takeRateLimit } from "@/lib/rate-limit"
 
 const bodySchema = z.object({
   reference: z.string().min(1),
@@ -18,6 +20,24 @@ const bodySchema = z.object({
  * Stored as pending until an admin approves.
  */
 export async function POST(request: Request) {
+  const ip = clientIpFromRequest(request)
+  const limited = takeRateLimit(
+    `public-review-submit:${ip}`,
+    20,
+    15 * 60 * 1000,
+  )
+  if (!limited.ok) {
+    return NextResponse.json(
+      {
+        error: `Too many review attempts. Try again in ${limited.retryAfterSec}s.`,
+      },
+      {
+        status: 429,
+        headers: { "Retry-After": String(limited.retryAfterSec) },
+      },
+    )
+  }
+
   const parsed = bodySchema.safeParse(await request.json().catch(() => ({})))
   if (!parsed.success) {
     return NextResponse.json(

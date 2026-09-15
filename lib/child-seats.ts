@@ -81,3 +81,33 @@ export function parseChildSeatCounts(input: {
     booster: clampSeatCount(input.boosterCount),
   }
 }
+
+/**
+ * Recover seat counts from booking notes written by formatChildSeatNotes.
+ * Returns null when a "Child seats:" segment exists but cannot be parsed
+ * (fail closed on reprice rather than silently dropping the add-on).
+ */
+export function parseChildSeatCountsFromNotes(
+  notes: string | null | undefined,
+): ChildSeatCounts | null {
+  if (!notes?.trim()) return { ...EMPTY_CHILD_SEAT_COUNTS }
+  const match = notes.match(/child seats:\s*(.+?)(?:\.\s*(?:Meet\s*&\s*greet|Source:|Payment method:|Customer opted|Driver notes:)|\.?\s*$)/i)
+  if (!match) return { ...EMPTY_CHILD_SEAT_COUNTS }
+
+  const segment = match[1] ?? ""
+  const counts: ChildSeatCounts = { ...EMPTY_CHILD_SEAT_COUNTS }
+  let matchedAny = false
+  for (const option of CHILD_SEAT_OPTIONS) {
+    const re = new RegExp(
+      `${option.label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*[×x]\\s*(\\d+)`,
+      "i",
+    )
+    const hit = segment.match(re)
+    if (hit) {
+      counts[option.key] = clampSeatCount(hit[1])
+      matchedAny = true
+    }
+  }
+  if (!matchedAny) return null
+  return counts
+}

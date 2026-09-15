@@ -9,40 +9,73 @@ import {
   isPublicSelfServiceOpen,
   publicSelfServiceWhere,
 } from "@/lib/booking-status"
+import { clientIpFromRequest } from "@/lib/client-ip"
 import { prisma } from "@/lib/db"
-import { getBookingPolicy } from "@/lib/settings"
 import { takeRateLimit } from "@/lib/rate-limit"
-import {
-  assertVehicleFitsParty,
-  round2,
-  vehicleCapacitiesFromSettingsRow,
-  vehicleTypeSchema,
-} from "@/lib/vehicles"
+import { getBookingPolicy } from "@/lib/settings"
 
 /** Caps public pickup-time churn that would spam ops alerts. */
 const PUBLIC_DATE_EDIT_LIMIT = 8
 const PUBLIC_DATE_EDIT_WINDOW_MS = 30 * 60 * 1000
+/** Caps PATCH attempts (edit + email probing). */
+const PUBLIC_PATCH_LIMIT = 30
+const PUBLIC_PATCH_WINDOW_MS = 15 * 60 * 1000
 
 const bodySchema = z.object({
   email: z.string().email(),
   pickupDateTime: z.string().optional(),
-  passengerCount: z.coerce.number().int().min(1).max(20).optional(),
-  vehicleType: vehicleTypeSchema.optional(),
+  // Rejected explicitly below — vehicle/party changes would reprice after
+  // checkout and allow underpaying a raised total.
+  passengerCount: z.unknown().optional(),
+  vehicleType: z.unknown().optional(),
 })
 
 /**
  * Public booking edit — only before driver assignment.
- * Requires matching customer email.
+ * Requires matching customer email. Pickup time only (no vehicle/price changes).
  */
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params
+
+  const ip = clientIpFromRequest(request)
+  const limited = takeRateLimit(
+    `public-booking-patch:${ip}`,
+    PUBLIC_PATCH_LIMIT,
+    PUBLIC_PATCH_WINDOW_MS,
+  )
+  if (!limited.ok) {
+    return NextResponse.json(
+      {
+        error: `Too many requests. Try again in ${limited.retryAfterSec}s.`,
+      },
+      {
+        status: 429,
+        headers: { "Retry-After": String(limited.retryAfterSec) },
+      },
+    )
+  }
+
   const json = await request.json().catch(() => ({}))
   const parsed = bodySchema.safeParse(json)
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid update payload." }, { status: 400 })
+  }
+
+  if (
+    parsed.data.vehicleType !== undefined ||
+    parsed.data.passengerCount !== undefined
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          "Vehicle and passenger count cannot be changed online. Contact support or start a new booking.",
+        code: "VEHICLE_LOCKED",
+      },
+      { status: 409 },
+    )
   }
 
   const email = parsed.data.email.trim().toLowerCase()
@@ -51,6 +84,7 @@ export async function PATCH(
     include: { customer: true },
   })
 
+  // Same generic 404 for missing id / wrong email — no ownership oracle.
   if (!booking || booking.customer.email.toLowerCase() !== email) {
     return NextResponse.json(
       { error: "We couldn't find a booking matching those details." },
@@ -83,35 +117,6 @@ export async function PATCH(
     data.pickupDateTime = next
   }
 
-  if (parsed.data.passengerCount !== undefined) {
-    data.passengerCount = parsed.data.passengerCount
-  }
-
-  const vehicleType = parsed.data.vehicleType ?? booking.vehicleType
-  if (parsed.data.vehicleType) {
-    data.vehicleType = parsed.data.vehicleType
-  }
-
-  if (
-    parsed.data.passengerCount !== undefined ||
-    parsed.data.vehicleType !== undefined
-  ) {
-    try {
-      const policy = await getBookingPolicy()
-      assertVehicleFitsParty(
-        vehicleType,
-        parsed.data.passengerCount ?? booking.passengerCount,
-        booking.luggageCount,
-        vehicleCapacitiesFromSettingsRow(policy),
-      )
-    } catch (error) {
-      return NextResponse.json(
-        { error: (error as Error).message || "Party does not fit this vehicle." },
-        { status: 400 },
-      )
-    }
-  }
-
   if (data.pickupDateTime) {
     try {
       const { freeCancellationHours } = await getBookingPolicy()
@@ -120,58 +125,6 @@ export async function PATCH(
       )
     } catch {
       // Keep existing deadline if settings unavailable.
-    }
-  }
-
-  if (
-    parsed.data.vehicleType &&
-    parsed.data.vehicleType !== booking.vehicleType &&
-    booking.zoneId
-  ) {
-    try {
-      const { depositPercentage } = await getBookingPolicy()
-      const [oldRule, newRule] = await Promise.all([
-        prisma.pricingRule.findFirst({
-          where: {
-            zoneId: booking.zoneId,
-            vehicleType: booking.vehicleType,
-            active: true,
-          },
-        }),
-        prisma.pricingRule.findFirst({
-          where: {
-            zoneId: booking.zoneId,
-            vehicleType,
-            active: true,
-          },
-        }),
-      ])
-
-      if (oldRule && newRule) {
-        const oldBase = Number(oldRule.baseFare)
-        const oldPerKm = Number(oldRule.perKmRate)
-        const oldMin = Number(oldRule.minFare)
-        const currentTotal = Number(booking.totalPrice)
-        const estimatedKm =
-          oldPerKm > 0
-            ? Math.max(0, (Math.max(currentTotal, oldMin) - oldBase) / oldPerKm)
-            : 0
-        const computed =
-          Number(newRule.baseFare) + Number(newRule.perKmRate) * estimatedKm
-        const totalPrice = round2(Math.max(computed, Number(newRule.minFare)))
-        const depositAmount = round2((totalPrice * depositPercentage) / 100)
-        const depositPaid = Number(booking.depositPaid)
-        data.totalPrice = totalPrice
-        data.depositAmount = depositAmount
-        data.balanceDue = round2(
-          Math.max(0, totalPrice - Math.max(depositPaid, 0)),
-        )
-        if (depositPaid <= 0) {
-          data.balanceDue = round2(totalPrice - depositAmount)
-        }
-      }
-    } catch {
-      // Keep existing prices if reprice fails.
     }
   }
 
@@ -185,19 +138,19 @@ export async function PATCH(
     previousPickup.getTime() !== (data.pickupDateTime as Date).getTime()
 
   if (dateChanged) {
-    const limited = takeRateLimit(
+    const dateLimited = takeRateLimit(
       `public-date-edit:${id}`,
       PUBLIC_DATE_EDIT_LIMIT,
       PUBLIC_DATE_EDIT_WINDOW_MS,
     )
-    if (!limited.ok) {
+    if (!dateLimited.ok) {
       return NextResponse.json(
         {
-          error: `You've changed the pickup time too many times. Try again in ${limited.retryAfterSec}s.`,
+          error: `You've changed the pickup time too many times. Try again in ${dateLimited.retryAfterSec}s.`,
         },
         {
           status: 429,
-          headers: { "Retry-After": String(limited.retryAfterSec) },
+          headers: { "Retry-After": String(dateLimited.retryAfterSec) },
         },
       )
     }

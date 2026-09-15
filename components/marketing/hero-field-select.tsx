@@ -78,6 +78,7 @@ export function HeroFieldSelect({
   )
   const [query, setQuery] = React.useState("")
   const [listKey, setListKey] = React.useState(0)
+  const [inputValue, setInputValue] = React.useState("")
   const searchInputRef = React.useRef<HTMLInputElement>(null)
   const listRef = React.useRef<HTMLDivElement>(null)
   const isIOS = React.useMemo(() => isAppleTouchDevice(), [])
@@ -90,6 +91,11 @@ export function HeroFieldSelect({
     value != null
       ? (options.find((opt) => opt.value === value) ?? null)
       : null
+
+  // Keep the closed field showing the selection label (e.g. preselected TIA).
+  React.useEffect(() => {
+    if (!sheetOpen) setInputValue(selected?.label ?? "")
+  }, [selected?.label, sheetOpen])
 
   const filtered = React.useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -249,12 +255,23 @@ export function HeroFieldSelect({
     <Combobox
       items={options}
       value={selected}
+      inputValue={inputValue}
+      onInputValueChange={setInputValue}
       open={sheetOpen}
-      onOpenChange={(next) => setSheetOpen(next)}
+      onOpenChange={(next) => {
+        setSheetOpen(next)
+        // Clear the prefilled label on open so typing filters the list
+        // (otherwise "Tirana International (TIA)…" stays in the box and search feels locked).
+        if (next) setInputValue("")
+        else setInputValue(selected?.label ?? "")
+      }}
       onValueChange={(item: HeroFieldOption | null) => {
         if (item) {
           onChange(item.value)
+          setInputValue(item.label)
           onAfterSelect?.()
+        } else {
+          setInputValue("")
         }
       }}
       itemToStringLabel={(item: HeroFieldOption) => item.label}

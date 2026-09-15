@@ -126,11 +126,37 @@ export async function PATCH(request: Request, context: RouteContext) {
       : Number(existing.depositAmount)
 
   if (parsed.data.totalPrice != null || parsed.data.depositAmount != null) {
+    const depositPaid = Number(existing.depositPaid)
+    const nextBalanceDue = round2(Math.max(0, nextTotal - depositPaid))
     data.totalPrice = nextTotal
     data.depositAmount = nextDeposit
-    data.balanceDue = round2(
-      Math.max(0, nextTotal - Number(existing.depositPaid)),
-    )
+    data.balanceDue = nextBalanceDue
+
+    if (nextBalanceDue > 0) {
+      // Upward reprice (or any change that leaves a remainder) must reopen
+      // collection — otherwise fully_paid / isBalanceCharged blocks charge,
+      // payment links, and driver cash collect while UI shows a balance due.
+      const wasSettled =
+        existing.isBalanceCharged ||
+        existing.paymentStatus === "fully_paid" ||
+        existing.paymentStatus === "paid"
+      if (wasSettled) {
+        data.isBalanceCharged = false
+        data.balanceChargedAt = null
+        data.balanceChargedBy = null
+        data.paymentStatus = depositPaid > 0 ? "deposit_paid" : "unpaid"
+      }
+    } else if (
+      depositPaid > 0 ||
+      existing.paymentStatus === "fully_paid" ||
+      existing.paymentStatus === "paid" ||
+      existing.isBalanceCharged
+    ) {
+      // Price drop fully covered by amounts already paid.
+      data.paymentStatus = "fully_paid"
+      data.isBalanceCharged = true
+      data.balanceDue = 0
+    }
   }
 
   if (

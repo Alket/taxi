@@ -189,13 +189,4 @@ export async function listPublishedTrustpilotTestimonials(
   })
 }
 
-export function clientIpFromRequest(request: Request): string {
-  const forwarded = request.headers.get("x-forwarded-for")
-  if (forwarded) {
-    const first = forwarded.split(",")[0]?.trim()
-    if (first) return first.slice(0, 64)
-  }
-  const realIp = request.headers.get("x-real-ip")?.trim()
-  if (realIp) return realIp.slice(0, 64)
-  return "unknown"
-}
+export { clientIpFromRequest } from "@/lib/client-ip"

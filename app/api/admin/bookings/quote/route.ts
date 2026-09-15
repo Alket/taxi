@@ -4,6 +4,7 @@ import { z } from "zod"
 import { requireStaffSession } from "@/lib/auth"
 import type { VehicleType } from "@/lib/types"
 import {
+  calculatePriceForInterZone,
   calculatePriceForZone,
   UncoveredDestinationError,
 } from "@/lib/pricing"
@@ -14,10 +15,25 @@ import {
   vehicleTypeSchema,
 } from "@/lib/vehicles"
 
-const querySchema = z.object({
-  vehicleType: vehicleTypeSchema,
-  zoneId: z.string().min(1),
-})
+const querySchema = z
+  .object({
+    vehicleType: vehicleTypeSchema,
+    zoneId: z.string().min(1),
+    toZoneId: z.string().min(1).optional().nullable(),
+    direction: z
+      .enum(["airport_to_dest", "dest_to_airport", "zone_to_zone"])
+      .optional()
+      .nullable(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.direction === "zone_to_zone" && !data.toZoneId) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["toZoneId"],
+        message: "toZoneId is required for city-to-city quotes.",
+      })
+    }
+  })
 
 export async function GET(request: Request) {
   const session = await requireStaffSession(request)
@@ -28,6 +44,8 @@ export async function GET(request: Request) {
   const parsed = querySchema.safeParse({
     vehicleType: searchParams.get("vehicleType"),
     zoneId: searchParams.get("zoneId"),
+    toZoneId: searchParams.get("toZoneId"),
+    direction: searchParams.get("direction"),
   })
 
   if (!parsed.success) {
@@ -37,16 +55,20 @@ export async function GET(request: Request) {
     )
   }
 
-  const { vehicleType, zoneId } = parsed.data
+  const { vehicleType, zoneId, toZoneId, direction } = parsed.data
 
   let totalPrice: number
   try {
     const settings = await getSettingsRow()
     assertVehicleTypeEnabled(settings, vehicleType as VehicleType)
-    totalPrice = await calculatePriceForZone(
-      zoneId,
-      vehicleType as VehicleType,
-    )
+    totalPrice =
+      direction === "zone_to_zone" && toZoneId
+        ? await calculatePriceForInterZone(
+            zoneId,
+            toZoneId,
+            vehicleType as VehicleType,
+          )
+        : await calculatePriceForZone(zoneId, vehicleType as VehicleType)
   } catch (error) {
     if (error instanceof VehicleDisabledError) {
       return NextResponse.json(

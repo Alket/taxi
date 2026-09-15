@@ -1,4 +1,4 @@
-export type Direction = "airport_to_dest" | "dest_to_airport"
+export type Direction = "airport_to_dest" | "dest_to_airport" | "zone_to_zone"
 
 export type FlightStatus =
   | "scheduled"
@@ -189,6 +189,19 @@ export interface PricingRule {
   perKmRate: number
   minFare: number
   currency: string
+}
+
+export interface InterZoneFare {
+  id: string
+  zoneAId: string
+  zoneBId: string
+  zoneAName: string
+  zoneBName: string
+  vehicleType: VehicleType
+  baseFare: number
+  minFare: number
+  currency: string
+  active: boolean
 }
 
 export interface DashboardSummary {

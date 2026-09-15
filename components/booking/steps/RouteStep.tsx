@@ -3,30 +3,33 @@
 import * as React from "react"
 import useSWR from "swr"
 import { useSearchParams } from "next/navigation"
-import { PlaneTakeoffIcon, PlaneLandingIcon, CalendarIcon } from "lucide-react"
+import { ArrowRightIcon, ArrowUpDownIcon, CalendarIcon } from "lucide-react"
 
 import { fetcher } from "@/lib/api"
 import type { AirportWithCoords } from "@/lib/airports"
 import { resolveAirportLocation } from "@/lib/airports"
 import { resolveZoneFromDestinationParam } from "@/lib/booking-destination-param"
+import {
+  buildPlaceOptions,
+  deriveRouteFromPlaces,
+  placeKeyFromStore,
+  type BookingPlaceOption,
+} from "@/lib/booking-places"
 import { isPickupTooSoon } from "@/lib/pickup-lead-time"
 import { useBookingFieldFocusListener } from "@/hooks/use-booking-field-focus"
 import {
   useBookingStore,
   VEHICLE_TYPES,
-  type BookingLocation,
   type VehicleQuote,
 } from "@/lib/store/booking-store"
 import type { Direction, VehicleType } from "@/lib/types"
 import { useT } from "@/lib/i18n/use-locale"
 import { cn } from "@/lib/utils"
+import type { ServiceZonePlace } from "@/components/booking/zone-place-select"
 import {
-  ZonePlaceSelect,
-  matchZoneId,
-  type ResolvedZonePlace,
-  type ServiceZonePlace,
-} from "@/components/booking/zone-place-select"
-import { formatHeroDateLabel, HeroDateTimePicker } from "@/components/marketing/hero-datetime-picker"
+  formatHeroDateLabel,
+  HeroDateTimePicker,
+} from "@/components/marketing/hero-datetime-picker"
 import { TripOptions } from "@/components/booking/steps/TripOptions"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -56,22 +59,11 @@ type QuoteResponse = {
   durationMin: number
 }
 
-function airportLocation(airport: AirportWithCoords): BookingLocation {
-  return {
-    address: `${airport.name} (${airport.iataCode})`,
-    lat: airport.lat,
-    lng: airport.lng,
-  }
-}
-
-function emptyLocation(): BookingLocation {
-  return { address: "", lat: null, lng: null }
-}
-
 async function fetchVehicleQuote(body: {
   direction: Direction
   vehicleType: VehicleType
   zoneId: string
+  toZoneId?: string | null
 }): Promise<QuoteResponse> {
   const res = await fetch("/api/pricing/quote", {
     method: "POST",
@@ -96,7 +88,8 @@ export function RouteStep() {
   const searchParams = useSearchParams()
   const direction = useBookingStore((s) => s.direction)
   const selectedAirportIata = useBookingStore((s) => s.selectedAirportIata)
-  const selectedZoneIdFromStore = useBookingStore((s) => s.selectedZoneId)
+  const selectedZoneId = useBookingStore((s) => s.selectedZoneId)
+  const selectedToZoneId = useBookingStore((s) => s.selectedToZoneId)
   const pickup = useBookingStore((s) => s.pickup)
   const dropoff = useBookingStore((s) => s.dropoff)
   const pickupDateTime = useBookingStore((s) => s.pickupDateTime)
@@ -115,69 +108,75 @@ export function RouteStep() {
   const airports = config?.airports ?? []
   const zones = config?.zones ?? []
   const supportEmail = config?.supportEmail ?? "ops@transfers.co"
-
-  const destinationLocation =
-    direction === "dest_to_airport"
-      ? { address: pickup.address }
-      : { address: dropoff.address }
-
-  const selectedZoneId = matchZoneId(
-    zones,
-    destinationLocation,
-    selectedZoneIdFromStore,
+  const placeOptions = React.useMemo(
+    () => buildPlaceOptions(airports, zones),
+    [airports, zones],
   )
 
-  const destinationResolved = Boolean(selectedZoneId)
+  const fromKey = placeKeyFromStore({
+    direction,
+    selectedAirportIata,
+    selectedZoneId,
+    selectedToZoneId,
+    end: "from",
+  })
+  const toKey = placeKeyFromStore({
+    direction,
+    selectedAirportIata,
+    selectedZoneId,
+    selectedToZoneId,
+    end: "to",
+  })
 
-  const applyEndpoints = React.useCallback(
-    (
-      nextDirection: Direction,
-      airport: AirportWithCoords | null,
-      destination: BookingLocation | null,
-      zoneId?: string | null,
-    ) => {
-      const airportLoc = airport ? airportLocation(airport) : emptyLocation()
-      const destLoc = destination ?? emptyLocation()
+  const destinationResolved = Boolean(
+    direction === "zone_to_zone"
+      ? selectedZoneId && selectedToZoneId
+      : selectedZoneId && selectedAirportIata,
+  )
 
-      if (nextDirection === "airport_to_dest") {
+  const applyPlaces = React.useCallback(
+    (from: BookingPlaceOption, to: BookingPlaceOption) => {
+      const derived = deriveRouteFromPlaces(from, to)
+      if (!derived) {
+        clearQuotes()
         patch({
-          direction: nextDirection,
-          selectedAirportIata: airport?.iataCode ?? null,
-          selectedZoneId: zoneId ?? null,
-          pickup: airportLoc,
-          dropoff: destLoc,
+          quoteStatus: "uncovered",
+          quoteError: "Choose an airport and a city, or two different cities.",
+          vehicleQuotes: {},
+          quotedPrice: null,
+          vehicleType: null,
         })
-      } else {
-        patch({
-          direction: nextDirection,
-          selectedAirportIata: airport?.iataCode ?? null,
-          selectedZoneId: zoneId ?? null,
-          pickup: destLoc,
-          dropoff: airportLoc,
-        })
+        return
       }
+      clearQuotes()
+      patch(derived)
     },
-    [patch],
+    [clearQuotes, patch],
   )
 
   // Default airport once config loads (Tirana if present / only option).
   React.useEffect(() => {
     if (!config || airports.length === 0) return
-    if (selectedAirportIata) return
+    if (selectedAirportIata || selectedZoneId) return
 
     const airport = resolveAirportLocation(airports, null)
     if (!airport) return
-
-    const dest: BookingLocation =
-      direction === "dest_to_airport"
-        ? { address: pickup.address, lat: pickup.lat, lng: pickup.lng }
-        : { address: dropoff.address, lat: dropoff.lat, lng: dropoff.lng }
-
-    applyEndpoints(direction ?? "airport_to_dest", airport, dest)
+    const from = placeOptions.find((p) => p.key === `airport:${airport.iataCode}`)
+    if (!from) return
+    // Wait for user to pick To — seed From as airport only via store keys
+    patch({
+      direction: "airport_to_dest",
+      selectedAirportIata: airport.iataCode,
+      pickup: {
+        address: from.label,
+        lat: from.lat,
+        lng: from.lng,
+      },
+    })
     // eslint-disable-next-line react-hooks/exhaustive-deps -- seed once when airports arrive
   }, [config, airports.length])
 
-  // Deep-link: /book?destination=sarande (also accepts zone name / transfer slug)
+  // Deep-link: /book?destination=sarande → TIA → zone
   React.useEffect(() => {
     if (!config || zones.length === 0 || airports.length === 0) return
     const param = searchParams.get("destination")?.trim()
@@ -188,31 +187,27 @@ export function RouteStep() {
 
     appliedDestinationParam.current = param
     const airport = resolveAirportLocation(airports, selectedAirportIata)
-    applyEndpoints(
-      "airport_to_dest",
-      airport,
-      {
-        address: zone.name,
-        lat: airport?.lat ?? 0,
-        lng: airport?.lng ?? 0,
-      },
-      zone.id,
-    )
+    if (!airport) return
+    const from = placeOptions.find((p) => p.key === `airport:${airport.iataCode}`)
+    const to = placeOptions.find((p) => p.key === `zone:${zone.id}`)
+    if (!from || !to) return
+    applyPlaces(from, to)
   }, [
     config,
     zones,
     airports,
     searchParams,
     selectedAirportIata,
-    applyEndpoints,
+    placeOptions,
+    applyPlaces,
   ])
 
   const loadQuotes = React.useCallback(async () => {
     const state = useBookingStore.getState()
-    const { direction: dir, selectedZoneId: zoneId } = state
-    if (!dir || !zoneId) {
-      return
-    }
+    const { direction: dir, selectedZoneId: zoneId, selectedToZoneId: toZoneId } =
+      state
+    if (!dir || !zoneId) return
+    if (dir === "zone_to_zone" && !toZoneId) return
 
     const typesToQuote =
       config?.enabledVehicleTypes?.length
@@ -247,11 +242,12 @@ export function RouteStep() {
     })
 
     const settled = await Promise.allSettled(
-      typesToQuote.map((vehicleType) =>
+      typesToQuote.map((vt) =>
         fetchVehicleQuote({
           direction: dir,
-          vehicleType,
+          vehicleType: vt,
           zoneId,
+          toZoneId: dir === "zone_to_zone" ? toZoneId : null,
         }),
       ),
     )
@@ -260,9 +256,9 @@ export function RouteStep() {
     let networkError: string | null = null
     for (let i = 0; i < settled.length; i++) {
       const result = settled[i]!
-      const vehicleType = typesToQuote[i]!
+      const vt = typesToQuote[i]!
       if (result.status === "fulfilled") {
-        vehicleQuotes[vehicleType] = {
+        vehicleQuotes[vt] = {
           price: result.value.price,
           distanceKm: result.value.distanceKm,
           durationMin: result.value.durationMin,
@@ -312,63 +308,96 @@ export function RouteStep() {
       quotedPrice: null,
       vehicleType: null,
     })
-  }, [patch, tr, config?.enabledVehicleTypes, config?.sedanEnabled, config?.minivanEnabled])
+  }, [
+    patch,
+    tr,
+    config?.enabledVehicleTypes,
+    config?.sedanEnabled,
+    config?.minivanEnabled,
+  ])
 
-  // Auto-quote once a destination zone is selected.
   React.useEffect(() => {
-    if (!direction || !selectedZoneId) {
+    if (!direction || !selectedZoneId) return
+    if (direction === "zone_to_zone" && !selectedToZoneId) return
+    if (direction !== "zone_to_zone" && !selectedAirportIata) return
+    void loadQuotes()
+  }, [
+    direction,
+    selectedZoneId,
+    selectedToZoneId,
+    selectedAirportIata,
+    loadQuotes,
+  ])
+
+  function onFromChange(key: string | null) {
+    if (!key) return
+    const from = placeOptions.find((p) => p.key === key)
+    if (!from) return
+    const to = toKey ? placeOptions.find((p) => p.key === toKey) : null
+    if (!to) {
+      // Partial selection: stash From only
+      clearQuotes()
+      if (from.kind === "airport") {
+        patch({
+          direction: "airport_to_dest",
+          selectedAirportIata: from.id,
+          selectedZoneId: null,
+          selectedToZoneId: null,
+          pickup: { address: from.label, lat: from.lat, lng: from.lng },
+          dropoff: { address: "", lat: null, lng: null },
+        })
+      } else {
+        patch({
+          direction: "dest_to_airport",
+          selectedAirportIata: null,
+          selectedZoneId: from.id,
+          selectedToZoneId: null,
+          pickup: { address: from.label, lat: from.lat, lng: from.lng },
+          dropoff: { address: "", lat: null, lng: null },
+        })
+      }
       return
     }
-
-    void loadQuotes()
-  }, [direction, selectedZoneId, loadQuotes])
-
-  function setDirection(next: Direction) {
-    const airport = resolveAirportLocation(airports, selectedAirportIata)
-    const dest: BookingLocation =
-      direction === "dest_to_airport"
-        ? { address: pickup.address, lat: pickup.lat, lng: pickup.lng }
-        : { address: dropoff.address, lat: dropoff.lat, lng: dropoff.lng }
-
-    clearQuotes()
-    applyEndpoints(next, airport, dest, selectedZoneId)
+    applyPlaces(from, to)
   }
 
-  function setAirport(iata: string) {
-    const airport = resolveAirportLocation(airports, iata)
-    if (!airport) return
-
-    const dest: BookingLocation =
-      direction === "dest_to_airport"
-        ? { address: pickup.address, lat: pickup.lat, lng: pickup.lng }
-        : { address: dropoff.address, lat: dropoff.lat, lng: dropoff.lng }
-
-    clearQuotes()
-    applyEndpoints(direction ?? "airport_to_dest", airport, dest, selectedZoneId)
+  function onToChange(key: string | null) {
+    if (!key) return
+    const to = placeOptions.find((p) => p.key === key)
+    if (!to) return
+    const from = fromKey ? placeOptions.find((p) => p.key === fromKey) : null
+    if (!from) {
+      clearQuotes()
+      if (to.kind === "airport") {
+        patch({
+          direction: "dest_to_airport",
+          selectedAirportIata: to.id,
+          selectedZoneId: null,
+          selectedToZoneId: null,
+          dropoff: { address: to.label, lat: to.lat, lng: to.lng },
+        })
+      } else {
+        patch({
+          direction: "airport_to_dest",
+          selectedZoneId: to.id,
+          selectedToZoneId: null,
+          dropoff: { address: to.label, lat: to.lat, lng: to.lng },
+        })
+      }
+      return
+    }
+    applyPlaces(from, to)
   }
 
-  function onDestinationResolved(place: ResolvedZonePlace) {
-    const airport = resolveAirportLocation(airports, selectedAirportIata)
-    applyEndpoints(
-      direction ?? "airport_to_dest",
-      airport,
-      {
-        address: place.address,
-        lat: airport?.lat ?? 0,
-        lng: airport?.lng ?? 0,
-      },
-      place.zoneId,
-    )
-  }
-
-  function onDestinationCleared() {
-    const airport = resolveAirportLocation(airports, selectedAirportIata)
-    clearQuotes()
-    applyEndpoints(direction ?? "airport_to_dest", airport, emptyLocation(), null)
+  function swapPlaces() {
+    if (!fromKey || !toKey) return
+    const from = placeOptions.find((p) => p.key === fromKey)
+    const to = placeOptions.find((p) => p.key === toKey)
+    if (!from || !to) return
+    applyPlaces(to, from)
   }
 
   const startedFromHero = useBookingStore((s) => s.startedFromHero)
-  const showAirportSelect = airports.length > 1
   const [calendarOpen, setCalendarOpen] = React.useState(false)
   const [pickupDateError, setPickupDateError] = React.useState<string | null>(
     null,
@@ -381,8 +410,40 @@ export function RouteStep() {
   })
   useBookingFieldFocusListener("quote")
 
+  const toOptions = placeOptions.filter((p) => p.key !== fromKey)
+  const fromOptions = placeOptions.filter((p) => p.key !== toKey)
+
+  const heroRouteLabels = startedFromHero
+    ? {
+        from: pickup.address.trim(),
+        to: dropoff.address.trim(),
+      }
+    : null
+
   return (
     <div className="flex flex-col gap-6">
+      {heroRouteLabels && (heroRouteLabels.from || heroRouteLabels.to) && (
+        <div className="flex items-center gap-3 rounded-lg border bg-muted/20 px-3 py-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+              From
+            </p>
+            <p className="truncate text-sm font-bold text-brand">
+              {heroRouteLabels.from || "—"}
+            </p>
+          </div>
+          <ArrowRightIcon className="size-4 shrink-0 text-muted-foreground" />
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+              To
+            </p>
+            <p className="truncate text-sm font-bold text-brand">
+              {heroRouteLabels.to || "—"}
+            </p>
+          </div>
+        </div>
+      )}
+
       {startedFromHero && !selectedZoneId && (
         <div
           data-booking-field="destination"
@@ -405,79 +466,50 @@ export function RouteStep() {
 
       {!startedFromHero && (
         <>
-          <div className="flex flex-col gap-2">
-            <Label className="text-sm font-bold text-brand">Direction</Label>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <DirectionButton
-                active={direction === "airport_to_dest"}
-                icon={PlaneLandingIcon}
-                title={tr("book.airportToDest")}
-                description={tr("book.airportToDestDesc")}
-                onClick={() => setDirection("airport_to_dest")}
-              />
-              <DirectionButton
-                active={direction === "dest_to_airport"}
-                icon={PlaneTakeoffIcon}
-                title={tr("book.destToAirport")}
-                description={tr("book.destToAirportDesc")}
-                onClick={() => setDirection("dest_to_airport")}
-              />
-            </div>
-          </div>
-
-          {showAirportSelect && (
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="airport" className="text-sm font-bold text-brand">
-                Airport
-              </Label>
-              <Select
-                value={selectedAirportIata}
-                onValueChange={(value) => {
-                  if (value) setAirport(value)
-                }}
-              >
-                <SelectTrigger id="airport" className="w-full focus:ring-brand-accent focus:border-brand-accent">
-                  <SelectValue placeholder={tr("book.selectAirportPlaceholder")} />
-                </SelectTrigger>
-                <SelectContent variant="brand">
-                  {airports.map((airport) => (
-                    <SelectItem key={airport.iataCode} value={airport.iataCode}>
-                      {airport.name} ({airport.iataCode})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {!showAirportSelect && airports[0] && (
-            <div className="rounded-lg border bg-muted/30 px-3 py-2.5 text-sm">
-              <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                Airport
-              </p>
-              <p className="font-medium">
-                {airports[0].name} ({airports[0].iataCode})
-              </p>
-            </div>
-          )}
-
-          <div className="flex flex-col gap-1.5" data-booking-field="destination">
-            <ZonePlaceSelect
-              label={
-                direction === "dest_to_airport"
-                  ? tr("book.pickupAddress")
-                  : tr("book.destinationAddress")
-              }
-              placeholder={tr("book.selectServiceArea")}
-              zones={zones}
-              value={selectedZoneId}
+          <div
+            className="flex flex-col gap-3"
+            data-booking-field="destination"
+          >
+            <PlaceSelect
+              id="from-place"
+              label="From"
+              placeholder="Select pickup"
+              options={fromOptions}
+              value={fromKey}
               loading={!config}
-              onResolved={onDestinationResolved}
-              onCleared={onDestinationCleared}
+              onChange={onFromChange}
+            />
+
+            <div className="flex justify-center">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                disabled={!fromKey || !toKey}
+                onClick={swapPlaces}
+                aria-label="Swap From and To"
+              >
+                <ArrowUpDownIcon className="size-4" />
+                Swap
+              </Button>
+            </div>
+
+            <PlaceSelect
+              id="to-place"
+              label="To"
+              placeholder="Select dropoff"
+              options={toOptions}
+              value={toKey}
+              loading={!config}
+              onChange={onToChange}
             />
           </div>
 
-          <div className="flex flex-col gap-1.5" data-booking-field="pickupDateTime">
+          <div
+            className="flex flex-col gap-1.5"
+            data-booking-field="pickupDateTime"
+          >
             <Label
               htmlFor="pickupDateTime"
               className="text-sm font-bold text-brand"
@@ -503,7 +535,8 @@ export function RouteStep() {
                     aria-invalid={pickupDateError ? true : undefined}
                     className={cn(
                       "flex h-10 w-full items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background transition-colors hover:bg-muted/50",
-                      calendarOpen && "ring-2 ring-brand-accent ring-offset-2 border-brand-accent",
+                      calendarOpen &&
+                        "ring-2 ring-brand-accent ring-offset-2 border-brand-accent",
                       pickupDateError &&
                         "border-destructive ring-2 ring-destructive/30",
                     )}
@@ -574,7 +607,9 @@ export function RouteStep() {
           data-booking-field="quote"
           className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-3 text-sm"
         >
-          <p className="font-medium text-destructive">{tr("book.couldNotLoadPrices")}</p>
+          <p className="font-medium text-destructive">
+            {tr("book.couldNotLoadPrices")}
+          </p>
           <p className="mt-1 text-muted-foreground">
             {quoteError || tr("book.quoteFailedGeneric")}
           </p>
@@ -594,40 +629,57 @@ export function RouteStep() {
   )
 }
 
-function DirectionButton({
-  active,
-  icon: Icon,
-  title,
-  description,
-  onClick,
+function PlaceSelect({
+  id,
+  label,
+  placeholder,
+  options,
+  value,
+  loading,
+  onChange,
 }: {
-  active: boolean
-  icon: React.ComponentType<{ className?: string }>
-  title: string
-  description: string
-  onClick: () => void
+  id: string
+  label: string
+  placeholder: string
+  options: BookingPlaceOption[]
+  value: string | null
+  loading?: boolean
+  onChange: (key: string | null) => void
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "flex flex-col items-start gap-1 rounded-xl border px-3.5 py-3 text-left transition-colors",
-        active
-          ? "border-brand-accent bg-brand-accent/5 ring-1 ring-brand-accent/30"
-          : "hover:bg-muted/50",
-      )}
-      aria-pressed={active}
-    >
-      <Icon
-        className={cn(
-          "size-4",
-          active ? "text-brand-accent" : "text-muted-foreground",
-        )}
-      />
-      <span className="text-sm font-medium">{title}</span>
-      <span className="text-xs text-muted-foreground">{description}</span>
-    </button>
+    <div className="flex flex-col gap-1.5">
+      <Label htmlFor={id} className="text-sm font-bold text-brand">
+        {label}
+      </Label>
+      <Select
+        value={value}
+        disabled={loading || options.length === 0}
+        onValueChange={(next) => onChange(next)}
+      >
+        <SelectTrigger
+          id={id}
+          className="w-full focus:ring-brand-accent focus:border-brand-accent"
+        >
+          <SelectValue
+            placeholder={
+              loading
+                ? "Loading…"
+                : options.length === 0
+                  ? "No places available"
+                  : placeholder
+            }
+          >
+            {options.find((o) => o.key === value)?.label}
+          </SelectValue>
+        </SelectTrigger>
+        <SelectContent variant="brand">
+          {options.map((opt) => (
+            <SelectItem key={opt.key} value={opt.key}>
+              {opt.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   )
 }
-

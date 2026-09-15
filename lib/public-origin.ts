@@ -1,9 +1,12 @@
 /**
  * Resolves the publicly reachable site origin for redirects (PayPal return/cancel).
  *
+ * Production requires NEXT_PUBLIC_APP_URL or APP_URL — never trust client
+ * Origin / Host / X-Forwarded-* (spoofable → open redirect into payment returns).
+ *
  * Browsers cannot open `http://0.0.0.0:...` (ERR_ADDRESS_INVALID). That host is
- * only a server bind address, so we rewrite it (and IPv6 equivalents) to localhost
- * when building callback URLs from the request.
+ * only a server bind address, so in development we rewrite it (and IPv6
+ * equivalents) to localhost when building callback URLs from the request.
  */
 export function getPublicOrigin(request: Request): string {
   const fromEnv = (
@@ -13,10 +16,16 @@ export function getPublicOrigin(request: Request): string {
   ).trim()
   if (fromEnv) {
     try {
-      return new URL(fromEnv).origin
+      return normalizeLocalOrigin(new URL(fromEnv).origin)
     } catch {
       // fall through
     }
+  }
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "NEXT_PUBLIC_APP_URL (or APP_URL) must be set in production for payment redirects.",
+    )
   }
 
   const originHeader = request.headers.get("origin")

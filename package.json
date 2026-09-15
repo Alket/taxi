@@ -40,7 +40,8 @@
     "blog:upsert": "tsx scripts/upsert-blog-post.ts",
     "test:admin-pages": "tsx scripts/qa-admin-pages.ts",
     "test:trustpilot": "tsx scripts/qa-trustpilot.ts",
-    "test:trustpilot-testimonials": "tsx scripts/qa-trustpilot-testimonials.ts"
+    "test:trustpilot-testimonials": "tsx scripts/qa-trustpilot-testimonials.ts",
+    "test:city-corridors": "tsx scripts/qa-city-corridors.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",

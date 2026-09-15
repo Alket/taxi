@@ -27,13 +27,13 @@ export default function PokReturnClient() {
 
     async function confirm() {
       try {
-        const res = await apiPost<{ referenceCode: string }>(
+        const res = await apiPost<{ referenceCode: string; customerEmail?: string | null }>(
           "/api/payments/pok/confirm",
           { orderId },
         )
         if (!cancelled) {
           clearPokOrderId()
-          navigateToBookingConfirmation(res.referenceCode)
+          navigateToBookingConfirmation(res.referenceCode, res.customerEmail)
         }
       } catch (err) {
         if (!cancelled) {

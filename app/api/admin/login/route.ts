@@ -2,7 +2,9 @@ import { NextResponse } from "next/server"
 import { z } from "zod"
 
 import { createSession, verifyPassword } from "@/lib/auth"
+import { clientIpFromRequest } from "@/lib/client-ip"
 import { prisma } from "@/lib/db"
+import { takeRateLimit } from "@/lib/rate-limit"
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -11,7 +13,32 @@ const loginSchema = z.object({
 
 const INVALID_CREDENTIALS = "Invalid email or password."
 
+/** Caps credential stuffing / password spray from one client. */
+const LOGIN_IP_LIMIT = 30
+const LOGIN_IP_WINDOW_MS = 15 * 60 * 1000
+/** Caps spray against a single staff email. */
+const LOGIN_EMAIL_LIMIT = 10
+const LOGIN_EMAIL_WINDOW_MS = 15 * 60 * 1000
+
+function tooMany(retryAfterSec: number) {
+  return NextResponse.json(
+    { error: `Too many login attempts. Try again in ${retryAfterSec}s.` },
+    {
+      status: 429,
+      headers: { "Retry-After": String(retryAfterSec) },
+    },
+  )
+}
+
 export async function POST(request: Request) {
+  const ip = clientIpFromRequest(request)
+  const ipLimited = takeRateLimit(
+    `admin-login-ip:${ip}`,
+    LOGIN_IP_LIMIT,
+    LOGIN_IP_WINDOW_MS,
+  )
+  if (!ipLimited.ok) return tooMany(ipLimited.retryAfterSec)
+
   const body = await request.json().catch(() => null)
   const parsed = loginSchema.safeParse(body)
 
@@ -19,9 +46,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: INVALID_CREDENTIALS }, { status: 400 })
   }
 
-  const { email, password } = parsed.data
+  const email = parsed.data.email.trim().toLowerCase()
+  const emailLimited = takeRateLimit(
+    `admin-login-email:${email}`,
+    LOGIN_EMAIL_LIMIT,
+    LOGIN_EMAIL_WINDOW_MS,
+  )
+  if (!emailLimited.ok) return tooMany(emailLimited.retryAfterSec)
+
+  const { password } = parsed.data
   const user = await prisma.adminUser.findUnique({
-    where: { email: email.toLowerCase() },
+    where: { email },
   })
 
   if (!user || !(await verifyPassword(password, user.passwordHash))) {

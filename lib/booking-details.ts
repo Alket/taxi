@@ -144,7 +144,10 @@ const phoneNationalSchema = z
 export function createDetailsSchema(options: {
   isRoundTrip: boolean
   returnDateTime: string | null
+  /** When false (city↔city), flight number is optional. */
+  requireFlightNumber?: boolean
 }) {
+  const requireFlight = options.requireFlightNumber !== false
   return z
     .object({
       pickupDateTime: z
@@ -158,14 +161,24 @@ export function createDetailsSchema(options: {
           (value) => !isPickupTooSoon(value),
           pickupLeadTimeMessage(),
         ),
-      flightNumber: z
-        .string()
-        .trim()
-        .min(1, "Enter your flight number.")
-        .refine(
-          (value) => FLIGHT_NUMBER_RE.test(normalizeFlightNumber(value)),
-          "Use a format like LH1445 or EAF654.",
-        ),
+      flightNumber: requireFlight
+        ? z
+            .string()
+            .trim()
+            .min(1, "Enter your flight number.")
+            .refine(
+              (value) => FLIGHT_NUMBER_RE.test(normalizeFlightNumber(value)),
+              "Use a format like LH1445 or EAF654.",
+            )
+        : z
+            .string()
+            .trim()
+            .refine(
+              (value) =>
+                !value ||
+                FLIGHT_NUMBER_RE.test(normalizeFlightNumber(value)),
+              "Use a format like LH1445 or EAF654.",
+            ),
       bookedForOther: z.boolean(),
       // Booker (always required)
       name: bookingCustomerNameSchema,

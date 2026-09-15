@@ -10,7 +10,9 @@ import {
   isPublicSelfServiceOpen,
   publicSelfServiceWhere,
 } from "@/lib/booking-status"
+import { clientIpFromRequest } from "@/lib/client-ip"
 import { prisma } from "@/lib/db"
+import { takeRateLimit } from "@/lib/rate-limit"
 
 const bodySchema = z.object({
   email: z.string().email(),
@@ -27,6 +29,14 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params
+  const ip = clientIpFromRequest(request)
+  const limited = takeRateLimit(`public-booking-cancel:${ip}`, 20, 15 * 60 * 1000)
+  if (!limited.ok) {
+    return NextResponse.json(
+      { error: `Too many cancel attempts. Try again in ${limited.retryAfterSec}s.` },
+      { status: 429, headers: { "Retry-After": String(limited.retryAfterSec) } },
+    )
+  }
   const json = await request.json().catch(() => ({}))
   const parsed = bodySchema.safeParse(json)
   if (!parsed.success) {

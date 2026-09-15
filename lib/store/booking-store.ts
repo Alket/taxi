@@ -47,8 +47,10 @@ export type QuoteStatus =
 export type BookingState = {
   direction: Direction | null
   selectedAirportIata: string | null
-  /** Active pricing zone selected as the non-airport destination. */
+  /** Active pricing zone: non-airport end, or pickup zone for zone_to_zone. */
   selectedZoneId: string | null
+  /** Dropoff zone for zone_to_zone; null for airport corridors. */
+  selectedToZoneId: string | null
   pickup: BookingLocation
   dropoff: BookingLocation
   pickupDateTime: string | null
@@ -125,6 +127,7 @@ export const initialBookingState: BookingState = {
   direction: "airport_to_dest",
   selectedAirportIata: null,
   selectedZoneId: null,
+  selectedToZoneId: null,
   pickup: emptyLocation(),
   dropoff: emptyLocation(),
   pickupDateTime: null,
@@ -183,13 +186,24 @@ function hasSuccessfulQuotes(state: BookingState) {
 
 function isRouteComplete(state: BookingState) {
   if (!state.direction) return false
-  if (!state.selectedZoneId || !state.selectedAirportIata) return false
-  const airportEnd =
-    state.direction === "airport_to_dest" ? state.pickup : state.dropoff
-  const destinationEnd =
-    state.direction === "airport_to_dest" ? state.dropoff : state.pickup
-  if (!hasLocation(airportEnd)) return false
-  if (!destinationEnd.address.trim()) return false
+  if (!state.selectedZoneId) return false
+  if (!state.pickup.address.trim() || !state.dropoff.address.trim()) return false
+  if (
+    state.pickup.lat === null ||
+    state.pickup.lng === null ||
+    state.dropoff.lat === null ||
+    state.dropoff.lng === null
+  ) {
+    return false
+  }
+
+  if (state.direction === "zone_to_zone") {
+    if (!state.selectedToZoneId) return false
+    if (state.selectedToZoneId === state.selectedZoneId) return false
+  } else if (!state.selectedAirportIata) {
+    return false
+  }
+
   if (!state.pickupDateTime) return false
   if (isPickupTooSoon(state.pickupDateTime)) return false
   if (!hasSuccessfulQuotes(state)) return false
@@ -214,9 +228,12 @@ function isDetailsComplete(state: BookingState) {
     if (Number.isNaN(returnMs) || returnMs <= pickupMs) return false
   }
 
-  const flight = state.flightNumber.trim()
-  if (!flight) return false
-  if (!FLIGHT_NUMBER_RE.test(normalizeFlightNumber(flight))) return false
+  const needsFlight = state.direction !== "zone_to_zone"
+  if (needsFlight) {
+    const flight = state.flightNumber.trim()
+    if (!flight) return false
+    if (!FLIGHT_NUMBER_RE.test(normalizeFlightNumber(flight))) return false
+  }
 
   const { name, email, phone } = state.customer
   if (!name.trim() || name.trim().length < 2) return false
@@ -336,6 +353,7 @@ export const useBookingStore = create<BookingStore>()(
         direction: state.direction,
         selectedAirportIata: state.selectedAirportIata,
         selectedZoneId: state.selectedZoneId,
+        selectedToZoneId: state.selectedToZoneId,
         pickup: state.pickup,
         dropoff: state.dropoff,
         pickupDateTime: state.pickupDateTime,

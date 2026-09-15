@@ -6,6 +6,7 @@ import {
   serializeBookingDetail,
 } from "@/lib/bookings"
 import { prisma } from "@/lib/db"
+import { recordBalancePayment } from "@/lib/record-balance"
 import {
   ensureStripeCustomer,
   getSavedPaymentMethodId,
@@ -13,6 +14,7 @@ import {
 } from "@/lib/stripe-booking-payments"
 import { getStripe } from "@/lib/stripe"
 import { formatDateTime } from "@/lib/format"
+import { round2 } from "@/lib/vehicles"
 
 export const runtime = "nodejs"
 
@@ -73,7 +75,10 @@ export async function POST(
   }
 
   const stripe = await getStripe()
-  const idempotencyKey = `balance-${id}`
+  const dueCents = Math.round(Number(booking.balanceDue) * 100)
+  // Include due amount so a reopened balance after reprice is not stuck on the
+  // prior succeeded PaymentIntent from Stripe's idempotency cache.
+  const idempotencyKey = `balance-${id}-${dueCents}`
 
   try {
     const stripeCustomerId = await ensureStripeCustomer(booking.customer)
@@ -81,7 +86,7 @@ export async function POST(
 
     const paymentIntent = await stripe.paymentIntents.create(
       {
-        amount: Math.round(Number(booking.balanceDue) * 100),
+        amount: dueCents,
         currency: booking.currency.toLowerCase(),
         customer: stripeCustomerId,
         payment_method: paymentMethodId,
@@ -114,44 +119,18 @@ export async function POST(
       )
     }
 
-    const chargedAt = new Date()
+    const paid = round2(
+      (typeof paymentIntent.amount_received === "number"
+        ? paymentIntent.amount_received
+        : paymentIntent.amount) / 100,
+    )
 
-    await prisma.$transaction(async (tx) => {
-      const current = await tx.booking.findUnique({ where: { id } })
-      if (!current || current.isBalanceCharged) {
-        return
-      }
-
-      await tx.booking.update({
-        where: { id },
-        data: {
-          isBalanceCharged: true,
-          balanceChargedAt: chargedAt,
-          balanceChargedBy: "admin",
-          paymentStatus: "fully_paid",
-          balanceDue: 0,
-        },
-      })
-
-      const existingPayment = await tx.payment.findFirst({
-        where: { externalId: paymentIntent.id },
-        select: { id: true },
-      })
-
-      if (!existingPayment) {
-        await tx.payment.create({
-          data: {
-            bookingId: id,
-            type: "balance",
-            amount: booking.balanceDue,
-            currency: booking.currency,
-            status: "paid",
-            provider: "stripe",
-            externalId: paymentIntent.id,
-            paidAt: chargedAt,
-          },
-        })
-      }
+    await recordBalancePayment({
+      bookingId: id,
+      paymentIntentId: paymentIntent.id,
+      paidAt: new Date(),
+      chargedBy: "admin",
+      gatewayAmount: paid,
     })
   } catch (error) {
     const mapped = mapStripeChargeError(error)

@@ -10,6 +10,7 @@ datasource db {
 enum Direction {
   airport_to_dest
   dest_to_airport
+  zone_to_zone
 }
 
 enum FlightStatus {
@@ -146,8 +147,11 @@ model Zone {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  pricingRules PricingRule[]
-  bookings     Booking[]
+  pricingRules     PricingRule[]
+  bookings         Booking[]           @relation("BookingZone")
+  bookingsAsToZone Booking[]           @relation("BookingToZone")
+  interZoneFaresA  InterZoneFare[]     @relation("InterZoneA")
+  interZoneFaresB  InterZoneFare[]     @relation("InterZoneB")
 
   @@index([active])
 }
@@ -168,6 +172,27 @@ model PricingRule {
 
   @@unique([zoneId, vehicleType])
   @@index([zoneId, active])
+}
+
+/** Symmetric city↔city corridor fare (zoneAId < zoneBId by cuid lexical order). */
+model InterZoneFare {
+  id          String      @id @default(cuid())
+  zoneAId     String
+  zoneBId     String
+  vehicleType VehicleType
+  baseFare    Decimal     @db.Decimal(10, 2)
+  minFare     Decimal     @db.Decimal(10, 2)
+  currency    String      @default("EUR")
+  active      Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  zoneA Zone @relation("InterZoneA", fields: [zoneAId], references: [id], onDelete: Cascade)
+  zoneB Zone @relation("InterZoneB", fields: [zoneBId], references: [id], onDelete: Cascade)
+
+  @@unique([zoneAId, zoneBId, vehicleType])
+  @@index([zoneAId, active])
+  @@index([zoneBId, active])
 }
 
 enum PaymentType {
@@ -233,13 +258,17 @@ model Booking {
   trustpilotInviteClaimedAt DateTime?
   customerId            String
   driverId              String?
+  /** Non-airport zone (airport trips) or pickup zone (zone_to_zone). */
   zoneId                String?
+  /** Dropoff zone for zone_to_zone trips; null for airport corridors. */
+  toZoneId              String?
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
 
   customer           Customer             @relation(fields: [customerId], references: [id])
   driver             Driver?              @relation(fields: [driverId], references: [id], onDelete: SetNull)
-  zone               Zone?                @relation(fields: [zoneId], references: [id], onDelete: SetNull)
+  zone               Zone?                @relation("BookingZone", fields: [zoneId], references: [id], onDelete: SetNull)
+  toZone             Zone?                @relation("BookingToZone", fields: [toZoneId], references: [id], onDelete: SetNull)
   internalNotesUpdatedBy AdminUser?       @relation("BookingInternalNotesUpdatedBy", fields: [internalNotesUpdatedById], references: [id], onDelete: SetNull)
   driverCostUpdatedBy    AdminUser?       @relation("BookingDriverCostUpdatedBy", fields: [driverCostUpdatedById], references: [id], onDelete: SetNull)
   profitCollectedBy      AdminUser?       @relation("BookingProfitCollectedBy", fields: [profitCollectedById], references: [id], onDelete: SetNull)
@@ -259,6 +288,7 @@ model Booking {
   @@index([driverId])
   @@index([customerId])
   @@index([zoneId])
+  @@index([toZoneId])
   @@index([roundTripId])
   @@index([internalNotesUpdatedById])
   @@index([driverCostUpdatedById])

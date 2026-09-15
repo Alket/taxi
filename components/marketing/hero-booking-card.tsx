@@ -6,7 +6,6 @@ import useSWR from "swr"
 import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 import {
-  ArrowDownIcon,
   BriefcaseIcon,
   CalendarIcon,
   CircleIcon,
@@ -27,9 +26,18 @@ import type { AirportWithCoords } from "@/lib/airports"
 import { resolveAirportLocation } from "@/lib/airports"
 import { resolveZoneFromDestinationParam } from "@/lib/booking-destination-param"
 import {
+  airportPlaceKey,
+  buildPlaceOptions,
+  deriveRouteFromPlaces,
+  placeKeyFromStore,
+  zonePlaceKey,
+  type BookingPlaceOption,
+} from "@/lib/booking-places"
+import {
   useBookingStore,
   VEHICLE_TYPES,
   type BookingLocation,
+  type BookingState,
   type VehicleQuote,
 } from "@/lib/store/booking-store"
 import type { Direction, VehicleType } from "@/lib/types"
@@ -44,10 +52,7 @@ import { useLocale, useT } from "@/lib/i18n/use-locale"
 import { cn } from "@/lib/utils"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useBodyScrollLock, forceUnlockDocumentScroll } from "@/hooks/use-body-scroll-lock"
-import {
-  matchZoneId,
-  type ServiceZonePlace,
-} from "@/components/booking/zone-place-select"
+import type { ServiceZonePlace } from "@/components/booking/zone-place-select"
 import {
   formatHeroDateLabel,
   HeroDateTimePicker,
@@ -71,16 +76,39 @@ type BookingConfig = {
   minivanEnabled?: boolean
 }
 
-function airportLocation(airport: AirportWithCoords): BookingLocation {
-  return {
-    address: `${airport.name} (${airport.iataCode})`,
-    lat: airport.lat,
-    lng: airport.lng,
-  }
-}
-
 function emptyLocation(): BookingLocation {
   return { address: "", lat: null, lng: null }
+}
+
+function placeLocation(place: BookingPlaceOption): BookingLocation {
+  return { address: place.label, lat: place.lat, lng: place.lng }
+}
+
+/** One end picked, other end still empty — keep the store coherent meanwhile. */
+function partialRoutePatch(
+  place: BookingPlaceOption,
+  end: "from" | "to",
+): Partial<BookingState> {
+  const loc = placeLocation(place)
+  const isFrom = end === "from"
+  return {
+    // Airport at pickup implies airport_to_dest; airport at dropoff implies the
+    // reverse. A lone zone gets the corridor direction it would take to an
+    // airport until the other end resolves the real direction.
+    direction:
+      place.kind === "airport"
+        ? isFrom
+          ? "airport_to_dest"
+          : "dest_to_airport"
+        : isFrom
+          ? "dest_to_airport"
+          : "airport_to_dest",
+    selectedAirportIata: place.kind === "airport" ? place.id : null,
+    selectedZoneId: place.kind === "zone" ? place.id : null,
+    selectedToZoneId: null,
+    pickup: isFrom ? loc : emptyLocation(),
+    dropoff: isFrom ? emptyLocation() : loc,
+  }
 }
 
 /** Full-viewport branded cover — portaled above sheet open/close animations. */
@@ -109,6 +137,7 @@ async function fetchVehicleQuote(body: {
   direction: Direction
   vehicleType: VehicleType
   zoneId: string
+  toZoneId?: string | null
 }) {
   const res = await fetch("/api/pricing/quote", {
     method: "POST",
@@ -179,9 +208,8 @@ function Stepper({
 export function HeroBookingCard() {
   const direction = useBookingStore((s) => s.direction)
   const selectedAirportIata = useBookingStore((s) => s.selectedAirportIata)
-  const selectedZoneIdFromStore = useBookingStore((s) => s.selectedZoneId)
-  const pickup = useBookingStore((s) => s.pickup)
-  const dropoff = useBookingStore((s) => s.dropoff)
+  const selectedZoneId = useBookingStore((s) => s.selectedZoneId)
+  const selectedToZoneId = useBookingStore((s) => s.selectedToZoneId)
   const pickupDateTime = useBookingStore((s) => s.pickupDateTime)
   const isRoundTrip = useBookingStore((s) => s.isRoundTrip)
   const returnDateTime = useBookingStore((s) => s.returnDateTime)
@@ -199,7 +227,8 @@ export function HeroBookingCard() {
   const tr = useT()
   const [calendarOpen, setCalendarOpen] = React.useState(false)
   const [returnCalendarOpen, setReturnCalendarOpen] = React.useState(false)
-  const [destinationOpen, setDestinationOpen] = React.useState(false)
+  const [fromOpen, setFromOpen] = React.useState(false)
+  const [toOpen, setToOpen] = React.useState(false)
   const [passengersOpen, setPassengersOpen] = React.useState(false)
   const [continuing, setContinuing] = React.useState(false)
   const [stepReloading, setStepReloading] = React.useState(false)
@@ -211,57 +240,68 @@ export function HeroBookingCard() {
   const { maxPassengers, maxLuggage, capacities, enabledTypes } =
     usePartyCapacityLimits()
 
-  const destinationLocation =
-    direction === "dest_to_airport"
-      ? { address: pickup.address }
-      : { address: dropoff.address }
-  const selectedZoneId = matchZoneId(
-    zones,
-    destinationLocation,
-    selectedZoneIdFromStore,
+  const placeOptions = React.useMemo(
+    () => buildPlaceOptions(airports, zones),
+    [airports, zones],
   )
 
-  const applyEndpoints = React.useCallback(
-    (
-      nextDirection: Direction,
-      airport: AirportWithCoords | null,
-      destination: BookingLocation | null,
-      zoneId?: string | null,
-    ) => {
-      const airportLoc = airport ? airportLocation(airport) : emptyLocation()
-      const destLoc = destination ?? emptyLocation()
-      if (nextDirection === "airport_to_dest") {
-        patch({
-          direction: nextDirection,
-          selectedAirportIata: airport?.iataCode ?? null,
-          selectedZoneId: zoneId ?? null,
-          pickup: airportLoc,
-          dropoff: destLoc,
-        })
-      } else {
-        patch({
-          direction: nextDirection,
-          selectedAirportIata: airport?.iataCode ?? null,
-          selectedZoneId: zoneId ?? null,
-          pickup: destLoc,
-          dropoff: airportLoc,
-        })
-      }
+  // `placeKeyFromStore` needs a zone to resolve either end, so an airport that
+  // is picked before any city is only recoverable from the direction.
+  const airportKey = selectedAirportIata
+    ? airportPlaceKey(selectedAirportIata)
+    : null
+  const fromKey =
+    placeKeyFromStore({
+      direction,
+      selectedAirportIata,
+      selectedZoneId,
+      selectedToZoneId,
+      end: "from",
+    }) ??
+    (!selectedZoneId && direction === "airport_to_dest" ? airportKey : null)
+  const toKey =
+    placeKeyFromStore({
+      direction,
+      selectedAirportIata,
+      selectedZoneId,
+      selectedToZoneId,
+      end: "to",
+    }) ??
+    (!selectedZoneId && direction === "dest_to_airport" ? airportKey : null)
+
+  const routeReady =
+    direction === "zone_to_zone"
+      ? Boolean(
+          selectedZoneId &&
+            selectedToZoneId &&
+            selectedZoneId !== selectedToZoneId,
+        )
+      : Boolean(selectedZoneId && selectedAirportIata)
+
+  const applyPlaces = React.useCallback(
+    (from: BookingPlaceOption, to: BookingPlaceOption) => {
+      const derived = deriveRouteFromPlaces(from, to)
+      if (!derived) return false
+      clearQuotes()
+      patch(derived)
+      return true
     },
-    [patch],
+    [clearQuotes, patch],
   )
 
+  // Seed the pickup airport (Tirana if present) so the card opens the same way
+  // it always has: From filled, To waiting for a city.
   React.useEffect(() => {
     if (!config || airports.length === 0) return
-    if (selectedAirportIata) return
+    if (selectedAirportIata || selectedZoneId) return
     const airport = resolveAirportLocation(airports, null)
     if (!airport) return
-    const dest: BookingLocation =
-      direction === "dest_to_airport"
-        ? { address: pickup.address, lat: pickup.lat, lng: pickup.lng }
-        : { address: dropoff.address, lat: dropoff.lat, lng: dropoff.lng }
-    applyEndpoints(direction ?? "airport_to_dest", airport, dest)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const from = placeOptions.find(
+      (p) => p.key === airportPlaceKey(airport.iataCode),
+    )
+    if (!from) return
+    patch(partialRoutePatch(from, "from"))
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- seed once when airports arrive
   }, [config, airports.length])
 
   // Deep-link: /?destination=sarande#book (also accepts zone name / transfer slug)
@@ -275,29 +315,34 @@ export function HeroBookingCard() {
 
     appliedDestinationParam.current = param
     const airport = resolveAirportLocation(airports, selectedAirportIata)
-    applyEndpoints(
-      "airport_to_dest",
-      airport,
-      {
-        address: zone.name,
-        lat: airport?.lat ?? 0,
-        lng: airport?.lng ?? 0,
-      },
-      zone.id,
+    if (!airport) return
+    const from = placeOptions.find(
+      (p) => p.key === airportPlaceKey(airport.iataCode),
     )
+    const to = placeOptions.find((p) => p.key === zonePlaceKey(zone.id))
+    if (!from || !to) return
+    applyPlaces(from, to)
   }, [
     config,
     zones,
     airports,
     searchParams,
     selectedAirportIata,
-    applyEndpoints,
+    placeOptions,
+    applyPlaces,
   ])
 
   const loadQuotes = React.useCallback(async () => {
     const state = useBookingStore.getState()
-    const { direction: dir, selectedZoneId: zoneId } = state
+    const {
+      direction: dir,
+      selectedZoneId: zoneId,
+      selectedToZoneId: toZoneId,
+    } = state
     if (!dir || !zoneId) {
+      return false
+    }
+    if (dir === "zone_to_zone" && !toZoneId) {
       return false
     }
 
@@ -338,6 +383,7 @@ export function HeroBookingCard() {
           direction: dir,
           vehicleType,
           zoneId,
+          toZoneId: dir === "zone_to_zone" ? toZoneId : null,
         }),
       ),
     )
@@ -406,11 +452,17 @@ export function HeroBookingCard() {
   ])
 
   React.useEffect(() => {
-    if (!direction || !selectedZoneId) {
-      return
-    }
+    if (!direction || !selectedZoneId) return
+    if (direction === "zone_to_zone" && !selectedToZoneId) return
+    if (direction !== "zone_to_zone" && !selectedAirportIata) return
     void loadQuotes()
-  }, [direction, selectedZoneId, loadQuotes])
+  }, [
+    direction,
+    selectedZoneId,
+    selectedToZoneId,
+    selectedAirportIata,
+    loadQuotes,
+  ])
 
   function setRoundTrip(enabled: boolean) {
     patch({
@@ -422,59 +474,94 @@ export function HeroBookingCard() {
     if (!enabled) setReturnCalendarOpen(false)
   }
 
-  function setDirection(next: Direction) {
-    const airport = resolveAirportLocation(airports, selectedAirportIata)
-    const dest: BookingLocation =
-      direction === "dest_to_airport"
-        ? { address: pickup.address, lat: pickup.lat, lng: pickup.lng }
-        : { address: dropoff.address, lat: dropoff.lat, lng: dropoff.lng }
-    clearQuotes()
-    applyEndpoints(next, airport, dest, selectedZoneId)
+  const isMobile = useIsMobile()
+
+  async function runSheetTransition(openNext: () => void) {
+    if (!isMobile) {
+      openNext()
+      return
+    }
+    setStepReloading(true)
+    // Wait two frames so the cover paints before sheets swap underneath.
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+    })
+    openNext()
+    // Keep covering until the next sheet has finished opening.
+    await new Promise((resolve) => setTimeout(resolve, 320))
+    setStepReloading(false)
   }
 
-  function onZonePicked(zoneId: string) {
-    const zone = zones.find((z) => z.id === zoneId)
-    if (!zone) return
-    const airport = resolveAirportLocation(airports, selectedAirportIata)
-    // Placeholder coords (airport) keep booking payload valid; price uses zoneId.
-    applyEndpoints(
-      direction ?? "airport_to_dest",
-      airport,
-      {
-        address: zone.name,
-        lat: airport?.lat ?? 0,
-        lng: airport?.lng ?? 0,
-      },
-      zoneId,
-    )
+  function openCalendarAfterPlaces() {
+    void runSheetTransition(() => {
+      setFromOpen(false)
+      setToOpen(false)
+      setCalendarOpen(true)
+    })
   }
 
-  function onAirportPicked(iata: string) {
-    const airport = resolveAirportLocation(airports, iata)
-    if (!airport) return
-    const dest: BookingLocation =
-      direction === "dest_to_airport"
-        ? { address: pickup.address, lat: pickup.lat, lng: pickup.lng }
-        : { address: dropoff.address, lat: dropoff.lat, lng: dropoff.lng }
+  /** Chain to the other end on mobile, or to the calendar once both are set. */
+  function afterPlaceSelect(end: "from" | "to") {
+    const state = useBookingStore.getState()
+    const complete =
+      state.direction === "zone_to_zone"
+        ? Boolean(state.selectedZoneId && state.selectedToZoneId)
+        : Boolean(state.selectedZoneId && state.selectedAirportIata)
+    if (complete) {
+      openCalendarAfterPlaces()
+      return
+    }
+    if (!isMobile) return
+    void runSheetTransition(() => {
+      setFromOpen(end === "to")
+      setToOpen(end === "from")
+    })
+  }
+
+  function onFromChange(key: string) {
+    const from = placeOptions.find((p) => p.key === key)
+    if (!from) return
+    const to = toKey ? placeOptions.find((p) => p.key === toKey) : undefined
+    if (to && applyPlaces(from, to)) return
+    // No To yet, or an unsupported pair (airport → airport): keep From, drop To.
     clearQuotes()
-    applyEndpoints(direction ?? "airport_to_dest", airport, dest, selectedZoneId)
+    patch(partialRoutePatch(from, "from"))
+  }
+
+  function onToChange(key: string) {
+    const to = placeOptions.find((p) => p.key === key)
+    if (!to) return
+    const from = fromKey ? placeOptions.find((p) => p.key === fromKey) : undefined
+    if (from && applyPlaces(from, to)) return
+    clearQuotes()
+    patch(partialRoutePatch(to, "to"))
   }
 
   async function onContinue(opts?: { fromPassengersSheet?: boolean }) {
     if (continuing) return
 
     const state = useBookingStore.getState()
-    const hasZone = Boolean(state.selectedZoneId)
-    const hasAirport = Boolean(state.selectedAirportIata)
     const hasTime = Boolean(state.pickupDateTime)
 
-    if (!hasAirport) {
-      toast.error(tr("book.selectAirport"))
-      return
-    }
-    if (!hasZone) {
-      toast.error(tr("book.selectDestination"))
-      return
+    if (state.direction === "zone_to_zone") {
+      // City ↔ city needs both cities and no airport / flight number.
+      if (
+        !state.selectedZoneId ||
+        !state.selectedToZoneId ||
+        state.selectedZoneId === state.selectedToZoneId
+      ) {
+        toast.error(tr("book.selectDestination"))
+        return
+      }
+    } else {
+      if (!state.selectedAirportIata) {
+        toast.error(tr("book.selectAirport"))
+        return
+      }
+      if (!state.selectedZoneId) {
+        toast.error(tr("book.selectDestination"))
+        return
+      }
     }
     if (!hasTime) {
       toast.error(tr("book.addPickupRequired"))
@@ -552,52 +639,29 @@ export function HeroBookingCard() {
     }
   }
 
-  const fromIsAirport = direction !== "dest_to_airport"
-  const airportOptions = airports.map((a) => ({
-    value: a.iataCode,
-    label: `${a.name} (${a.iataCode})`,
-  }))
-  const selectedAirportLabel =
-    airportOptions.find((o) => o.value === selectedAirportIata)?.label ??
-    (airports[0] ? `${airports[0].name} (${airports[0].iataCode})` : null)
-  const singleAirportOnly = airports.length <= 1
-  const zoneOptions = zones.map((z) => ({
-    value: z.id,
-    label: z.name,
-  }))
+  const fromOptions = React.useMemo(
+    () =>
+      placeOptions
+        .filter((p) => p.key !== toKey)
+        .map((p) => ({ value: p.key, label: p.label })),
+    [placeOptions, toKey],
+  )
+  const toOptions = React.useMemo(
+    () =>
+      placeOptions
+        .filter((p) => p.key !== fromKey)
+        .map((p) => ({ value: p.key, label: p.label })),
+    [placeOptions, fromKey],
+  )
 
   const busy = continuing || quoteStatus === "loading"
   const showReloader = continuing || stepReloading
   const fromRowAnchor = useComboboxAnchor()
   const toRowAnchor = useComboboxAnchor()
-  const isMobile = useIsMobile()
   // Only lock while the passengers sheet is open — do NOT lock for the
   // continue/reloader cover. That cover is position:fixed itself, and locking
   // through navigation left body scroll broken on /book (especially iOS).
   useBodyScrollLock(Boolean(isMobile && passengersOpen))
-
-  async function runSheetTransition(openNext: () => void) {
-    if (!isMobile) {
-      openNext()
-      return
-    }
-    setStepReloading(true)
-    // Wait two frames so the cover paints before sheets swap underneath.
-    await new Promise<void>((resolve) => {
-      requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
-    })
-    openNext()
-    // Keep covering until the next sheet has finished opening.
-    await new Promise((resolve) => setTimeout(resolve, 320))
-    setStepReloading(false)
-  }
-
-  function openCalendarAfterDestination() {
-    void runSheetTransition(() => {
-      setDestinationOpen(false)
-      setCalendarOpen(true)
-    })
-  }
 
   function openPassengersAfterCalendar() {
     void runSheetTransition(() => {
@@ -618,20 +682,22 @@ export function HeroBookingCard() {
     openPassengersAfterCalendar()
   }
 
-  /** Prefer destination first — don't open date/time until an address is chosen. */
+  /** Prefer the route first — don't open date/time until both ends are chosen. */
   function requestPickupCalendar(open: boolean) {
-    if (open && !selectedZoneId) {
+    if (open && !routeReady) {
       setCalendarOpen(false)
-      setDestinationOpen(true)
+      if (!fromKey) setFromOpen(true)
+      else setToOpen(true)
       return
     }
     setCalendarOpen(open)
   }
 
   function requestReturnCalendar(open: boolean) {
-    if (open && !selectedZoneId) {
+    if (open && !routeReady) {
       setReturnCalendarOpen(false)
-      setDestinationOpen(true)
+      if (!fromKey) setFromOpen(true)
+      else setToOpen(true)
       return
     }
     setReturnCalendarOpen(open)
@@ -701,46 +767,19 @@ export function HeroBookingCard() {
           >
             <CircleIcon className="size-4 shrink-0 fill-none stroke-muted-foreground stroke-[2.5]" />
             <div className="min-w-0 flex-1">
-              {fromIsAirport ? (
-                singleAirportOnly ? (
-                  <p className="truncate text-sm font-bold text-brand">
-                    {selectedAirportLabel ?? "Tirana International (TIA)"}
-                  </p>
-                ) : (
-                  <HeroFieldSelect
-                    value={selectedAirportIata}
-                    placeholder={tr("book.fromPlaceholder")}
-                    options={airportOptions}
-                    onChange={onAirportPicked}
-                    anchor={fromRowAnchor}
-                  />
-                )
-              ) : (
-                <HeroFieldSelect
-                  value={selectedZoneId}
-                  placeholder={tr("book.fromPlaceholder")}
-                  options={zoneOptions}
-                  onChange={onZonePicked}
-                  anchor={fromRowAnchor}
-                  mobileSheet
-                  sheetTitle={tr("book.chooseDestination")}
-                  open={destinationOpen}
-                  onOpenChange={setDestinationOpen}
-                  onAfterSelect={openCalendarAfterDestination}
-                />
-              )}
+              <HeroFieldSelect
+                value={fromKey}
+                placeholder={tr("book.fromPlaceholder")}
+                options={fromOptions}
+                onChange={onFromChange}
+                anchor={fromRowAnchor}
+                mobileSheet
+                sheetTitle={tr("book.chooseDestination")}
+                open={fromOpen}
+                onOpenChange={setFromOpen}
+                onAfterSelect={() => afterPlaceSelect("from")}
+              />
             </div>
-            <button
-              type="button"
-              className="shrink-0 text-[11px] font-semibold text-muted-foreground hover:text-brand uppercase"
-              onClick={() =>
-                setDirection(
-                  fromIsAirport ? "dest_to_airport" : "airport_to_dest",
-                )
-              }
-            >
-              {tr("book.swap")}
-            </button>
           </div>
 
           <div
@@ -749,35 +788,18 @@ export function HeroBookingCard() {
           >
             <MapPinIcon className="size-4 shrink-0 text-brand" />
             <div className="min-w-0 flex-1">
-              {fromIsAirport ? (
-                <HeroFieldSelect
-                  value={selectedZoneId}
-                  placeholder={tr("book.toPlaceholder")}
-                  options={zoneOptions}
-                  onChange={onZonePicked}
-                  anchor={toRowAnchor}
-                  mobileSheet
-                  sheetTitle={tr("book.chooseDestination")}
-                  open={destinationOpen}
-                  onOpenChange={setDestinationOpen}
-                  onAfterSelect={openCalendarAfterDestination}
-                />
-              ) : singleAirportOnly ? (
-                <p className="truncate text-sm font-bold text-brand">
-                  {selectedAirportLabel ?? "Tirana International (TIA)"}
-                </p>
-              ) : (
-                <HeroFieldSelect
-                  value={selectedAirportIata}
-                  placeholder={tr("book.toPlaceholder")}
-                  options={airportOptions}
-                  onChange={onAirportPicked}
-                  anchor={toRowAnchor}
-                  mobileSheet
-                  sheetTitle={tr("book.chooseDestination")}
-                  onAfterSelect={openCalendarAfterDestination}
-                />
-              )}
+              <HeroFieldSelect
+                value={toKey}
+                placeholder={tr("book.toPlaceholder")}
+                options={toOptions}
+                onChange={onToChange}
+                anchor={toRowAnchor}
+                mobileSheet
+                sheetTitle={tr("book.chooseDestination")}
+                open={toOpen}
+                onOpenChange={setToOpen}
+                onAfterSelect={() => afterPlaceSelect("to")}
+              />
             </div>
           </div>
 

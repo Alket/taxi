@@ -31,18 +31,21 @@ function readClientLocale(): Locale {
  * Trustpilot invite JWT is delivered via HttpOnly cookie from payment APIs —
  * never put it in the confirmation URL.
  */
-export function navigateToBookingConfirmation(referenceCode: string) {
+export function navigateToBookingConfirmation(
+  referenceCode: string,
+  email?: string | null,
+) {
   const code = referenceCode.trim().toUpperCase()
   if (!code) return
+  const emailParam = (email ?? useBookingStore.getState().customer.email ?? "").trim()
 
   const locale = readClientLocale()
   // Keep NEXT_LOCALE so middleware doesn't force English on the confirmation URL.
   document.cookie = `NEXT_LOCALE=${encodeURIComponent(locale)}; Path=/; Max-Age=31536000; SameSite=Lax`
 
-  const confirmationUrl = localePath(
-    `/book/confirmation/${encodeURIComponent(code)}`,
-    locale,
-  )
+  const qs = emailParam ? `?email=${encodeURIComponent(emailParam)}` : ""
+  const confirmationUrl =
+    localePath(`/book/confirmation/${encodeURIComponent(code)}`, locale) + qs
 
   // Must run before resetBooking(): clearing startedFromHero would otherwise
   // trigger BookingShell's /#book redirect and cancel this navigation (worse
@@ -61,6 +64,7 @@ export function navigateToBookingConfirmation(referenceCode: string) {
     />,
   )
 
+  // emailParam captured above before reset clears the draft
   useBookingStore.getState().resetBooking()
 
   // Hard navigate immediately — do not wait for rAF (soft-nav can win the race).

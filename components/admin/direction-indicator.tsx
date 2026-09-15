@@ -1,4 +1,4 @@
-import { PlaneLanding, PlaneTakeoff } from "lucide-react"
+import { MapPin, PlaneLanding, PlaneTakeoff } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { DIRECTION_LABELS } from "@/lib/format"
 import type { Direction } from "@/lib/types"
@@ -12,7 +12,12 @@ export function DirectionIndicator({
   showLabel?: boolean
   className?: string
 }) {
-  const Icon = direction === "airport_to_dest" ? PlaneLanding : PlaneTakeoff
+  const Icon =
+    direction === "airport_to_dest"
+      ? PlaneLanding
+      : direction === "dest_to_airport"
+        ? PlaneTakeoff
+        : MapPin
   return (
     <span
       className={cn("inline-flex items-center gap-2 text-sm", className)}

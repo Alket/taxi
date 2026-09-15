@@ -14,7 +14,7 @@ import {
 
 import { apiDelete, apiPatch, apiPost, fetcher } from "@/lib/api"
 import { VEHICLE_LABELS, formatMoney } from "@/lib/format"
-import type { PricingRule, VehicleType, Zone } from "@/lib/types"
+import type { InterZoneFare, PricingRule, VehicleType, Zone } from "@/lib/types"
 import { useAdminSession } from "@/hooks/use-admin-session"
 import { PageHeader } from "@/components/admin/page-header"
 import { AdminFilterSelectField } from "@/components/admin/filter-select-field"
@@ -125,9 +125,9 @@ export function PricingView() {
         <Card className="min-w-0 gap-0 py-0">
           <CardHeader className="flex-col items-stretch gap-3 border-b py-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <CardTitle className="text-sm">Pricing rules</CardTitle>
+              <CardTitle className="text-sm">Airport ↔ city fares</CardTitle>
               <CardDescription className="text-xs">
-                Base fare, per-km rate, and minimum fare per zone
+                Base fare, per-km rate, and minimum fare per zone (TIA corridor)
               </CardDescription>
             </div>
             <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-end">
@@ -227,6 +227,14 @@ export function PricingView() {
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      <div className="px-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-4 md:px-6">
+        <CityCorridorsPanel
+          zones={zones}
+          canManage={isAdmin}
+          canDelete={canDelete}
+        />
       </div>
     </>
   )
@@ -1043,6 +1051,534 @@ function AddRuleDialog({
           <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
           <Button onClick={submit} disabled={pending}>
             {pending ? "Adding…" : "Add rule"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function CityCorridorsPanel({
+  zones,
+  canManage,
+  canDelete,
+}: {
+  zones: Zone[]
+  canManage: boolean
+  canDelete: boolean
+}) {
+  const {
+    data,
+    isLoading,
+    mutate,
+  } = useSWR<{ fares: InterZoneFare[] }>(
+    "/api/admin/inter-zone-fares",
+    fetcher,
+  )
+  const fares = data?.fares ?? []
+
+  return (
+    <Card className="min-w-0 gap-0 py-0">
+      <CardHeader className="flex-col items-stretch gap-3 border-b py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <CardTitle className="text-sm">City corridors</CardTitle>
+          <CardDescription className="text-xs">
+            Symmetric city ↔ city fares (e.g. Sarandë ↔ Tirana City). Separate
+            from airport pricing.
+          </CardDescription>
+        </div>
+        {canManage ? (
+          <AddCorridorDialog zones={zones} onCreated={() => mutate()} />
+        ) : null}
+      </CardHeader>
+      <CardContent className="p-0">
+        <div className="divide-y md:hidden">
+          {isLoading ? (
+            <div className="flex flex-col gap-3 p-4">
+              {Array.from({ length: 2 }).map((_, i) => (
+                <Skeleton key={i} className="h-20 w-full" />
+              ))}
+            </div>
+          ) : fares.length > 0 ? (
+            fares.map((fare) => (
+              <CorridorMobileCard
+                key={fare.id}
+                fare={fare}
+                canManage={canManage}
+                canDelete={canDelete}
+                onSaved={() => mutate()}
+              />
+            ))
+          ) : (
+            <Empty className="py-10">
+              <EmptyTitle>No city corridors</EmptyTitle>
+              <EmptyDescription>
+                {canManage
+                  ? "Add a corridor to sell city-to-city transfers."
+                  : "No city corridor fares yet."}
+              </EmptyDescription>
+            </Empty>
+          )}
+        </div>
+
+        <div className="hidden md:block">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/40 hover:bg-muted/40">
+                <TableHead className="pl-4">Route</TableHead>
+                <TableHead>Vehicle</TableHead>
+                <TableHead className="text-right">Base</TableHead>
+                <TableHead className="text-right">Min</TableHead>
+                <TableHead>Status</TableHead>
+                {canManage ? (
+                  <TableHead className="pr-4 text-right">Actions</TableHead>
+                ) : null}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                Array.from({ length: 3 }).map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell colSpan={canManage ? 6 : 5} className="pl-4">
+                      <Skeleton className="h-8 w-full" />
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : fares.length > 0 ? (
+                fares.map((fare) => (
+                  <CorridorRow
+                    key={fare.id}
+                    fare={fare}
+                    canManage={canManage}
+                    canDelete={canDelete}
+                    onSaved={() => mutate()}
+                  />
+                ))
+              ) : (
+                <TableRow className="hover:bg-transparent">
+                  <TableCell colSpan={canManage ? 6 : 5}>
+                    <Empty className="py-10">
+                      <EmptyTitle>No city corridors</EmptyTitle>
+                      <EmptyDescription>
+                        {canManage
+                          ? "Add Sarandë ↔ Tirana City (or other pairs) to enable booking."
+                          : "No city corridor fares yet."}
+                      </EmptyDescription>
+                    </Empty>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function CorridorRow({
+  fare,
+  canManage,
+  canDelete,
+  onSaved,
+}: {
+  fare: InterZoneFare
+  canManage: boolean
+  canDelete: boolean
+  onSaved: () => void
+}) {
+  const [editing, setEditing] = React.useState(false)
+  const [baseFare, setBaseFare] = React.useState(String(fare.baseFare))
+  const [minFare, setMinFare] = React.useState(String(fare.minFare))
+  const [pending, setPending] = React.useState(false)
+  const [deleteOpen, setDeleteOpen] = React.useState(false)
+
+  React.useEffect(() => {
+    setBaseFare(String(fare.baseFare))
+    setMinFare(String(fare.minFare))
+  }, [fare.baseFare, fare.minFare])
+
+  async function save() {
+    setPending(true)
+    try {
+      await apiPatch("/api/admin/inter-zone-fares", {
+        id: fare.id,
+        baseFare: Number(baseFare),
+        minFare: Number(minFare),
+      })
+      toast.success("Corridor fare updated.")
+      setEditing(false)
+      onSaved()
+    } catch (err) {
+      toast.error((err as Error).message)
+    } finally {
+      setPending(false)
+    }
+  }
+
+  async function toggleActive() {
+    try {
+      await apiPatch("/api/admin/inter-zone-fares", {
+        id: fare.id,
+        active: !fare.active,
+      })
+      toast.success(fare.active ? "Corridor deactivated." : "Corridor activated.")
+      onSaved()
+    } catch (err) {
+      toast.error((err as Error).message)
+    }
+  }
+
+  async function remove() {
+    try {
+      await apiDelete("/api/admin/inter-zone-fares", { id: fare.id })
+      toast.success("Corridor deleted.")
+      setDeleteOpen(false)
+      onSaved()
+    } catch (err) {
+      toast.error((err as Error).message)
+    }
+  }
+
+  return (
+    <>
+      <TableRow>
+        <TableCell className="pl-4 font-medium">
+          {fare.zoneAName} ↔ {fare.zoneBName}
+        </TableCell>
+        <TableCell>{VEHICLE_LABELS[fare.vehicleType]}</TableCell>
+        <TableCell className="text-right tabular-nums">
+          {editing ? (
+            <Input
+              type="number"
+              step="0.01"
+              className="ml-auto h-8 w-24 text-right"
+              value={baseFare}
+              onChange={(e) => setBaseFare(e.target.value)}
+            />
+          ) : (
+            formatMoney(fare.baseFare, fare.currency)
+          )}
+        </TableCell>
+        <TableCell className="text-right tabular-nums">
+          {editing ? (
+            <Input
+              type="number"
+              step="0.01"
+              className="ml-auto h-8 w-24 text-right"
+              value={minFare}
+              onChange={(e) => setMinFare(e.target.value)}
+            />
+          ) : (
+            formatMoney(fare.minFare, fare.currency)
+          )}
+        </TableCell>
+        <TableCell>
+          <Badge variant={fare.active ? "default" : "secondary"}>
+            {fare.active ? "Active" : "Off"}
+          </Badge>
+        </TableCell>
+        {canManage ? (
+          <TableCell className="pr-4 text-right">
+            <div className="flex items-center justify-end gap-1">
+              {editing ? (
+                <>
+                  <Button
+                    size="icon-sm"
+                    variant="ghost"
+                    onClick={() => void save()}
+                    disabled={pending}
+                  >
+                    <CheckIcon className="size-4" />
+                  </Button>
+                  <Button
+                    size="icon-sm"
+                    variant="ghost"
+                    onClick={() => setEditing(false)}
+                  >
+                    <XIcon className="size-4" />
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    size="icon-sm"
+                    variant="ghost"
+                    onClick={() => setEditing(true)}
+                  >
+                    <PencilIcon className="size-4" />
+                  </Button>
+                  <Button size="icon-sm" variant="ghost" onClick={() => void toggleActive()}>
+                    {fare.active ? "Off" : "On"}
+                  </Button>
+                  {canDelete ? (
+                    <Button
+                      size="icon-sm"
+                      variant="ghost"
+                      onClick={() => setDeleteOpen(true)}
+                    >
+                      <Trash2Icon className="size-4" />
+                    </Button>
+                  ) : null}
+                </>
+              )}
+            </div>
+          </TableCell>
+        ) : null}
+      </TableRow>
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete corridor?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Remove {fare.zoneAName} ↔ {fare.zoneBName} ({VEHICLE_LABELS[fare.vehicleType]}).
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void remove()}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  )
+}
+
+function CorridorMobileCard({
+  fare,
+  canManage,
+  canDelete,
+  onSaved,
+}: {
+  fare: InterZoneFare
+  canManage: boolean
+  canDelete: boolean
+  onSaved: () => void
+}) {
+  const [pending, setPending] = React.useState(false)
+
+  async function toggleActive() {
+    setPending(true)
+    try {
+      await apiPatch("/api/admin/inter-zone-fares", {
+        id: fare.id,
+        active: !fare.active,
+      })
+      toast.success(fare.active ? "Corridor deactivated." : "Corridor activated.")
+      onSaved()
+    } catch (err) {
+      toast.error((err as Error).message)
+    } finally {
+      setPending(false)
+    }
+  }
+
+  async function remove() {
+    setPending(true)
+    try {
+      await apiDelete("/api/admin/inter-zone-fares", { id: fare.id })
+      toast.success("Corridor deleted.")
+      onSaved()
+    } catch (err) {
+      toast.error((err as Error).message)
+    } finally {
+      setPending(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-2 p-4">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="font-medium">
+            {fare.zoneAName} ↔ {fare.zoneBName}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {VEHICLE_LABELS[fare.vehicleType]} ·{" "}
+            {formatMoney(fare.baseFare, fare.currency)} (min{" "}
+            {formatMoney(fare.minFare, fare.currency)})
+          </p>
+        </div>
+        <Badge variant={fare.active ? "default" : "secondary"}>
+          {fare.active ? "Active" : "Off"}
+        </Badge>
+      </div>
+      {canManage ? (
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={pending}
+            onClick={() => void toggleActive()}
+          >
+            {fare.active ? "Deactivate" : "Activate"}
+          </Button>
+          {canDelete ? (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={pending}
+              onClick={() => void remove()}
+            >
+              Delete
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function AddCorridorDialog({
+  zones,
+  onCreated,
+}: {
+  zones: Zone[]
+  onCreated: () => void
+}) {
+  const [open, setOpen] = React.useState(false)
+  const [zoneAId, setZoneAId] = React.useState("")
+  const [zoneBId, setZoneBId] = React.useState("")
+  const [vehicleType, setVehicleType] = React.useState<VehicleType>("sedan")
+  const [baseFare, setBaseFare] = React.useState("120")
+  const [minFare, setMinFare] = React.useState("120")
+  const [pending, setPending] = React.useState(false)
+
+  const zoneItems = React.useMemo(
+    () => Object.fromEntries(zones.map((z) => [z.id, z.name])),
+    [zones],
+  )
+
+  async function submit() {
+    if (!zoneAId || !zoneBId) {
+      toast.error("Select both cities.")
+      return
+    }
+    if (zoneAId === zoneBId) {
+      toast.error("Pick two different cities.")
+      return
+    }
+    setPending(true)
+    try {
+      await apiPost("/api/admin/inter-zone-fares", {
+        zoneAId,
+        zoneBId,
+        vehicleType,
+        baseFare: Number(baseFare),
+        minFare: Number(minFare),
+      })
+      toast.success("City corridor added.")
+      setOpen(false)
+      setZoneAId("")
+      setZoneBId("")
+      onCreated()
+    } catch (err) {
+      toast.error((err as Error).message)
+    } finally {
+      setPending(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <Button size="sm" onClick={() => setOpen(true)}>
+        <PlusIcon data-icon="inline-start" />
+        Add corridor
+      </Button>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Add city corridor</DialogTitle>
+          <DialogDescription>
+            Same fare both directions. Create sedan and minivan separately.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col gap-3 py-2">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-xs text-muted-foreground">City A</Label>
+              <Select
+                value={zoneAId}
+                onValueChange={(v) => setZoneAId(v ?? "")}
+                items={zoneItems}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select city" />
+                </SelectTrigger>
+                <SelectContent>
+                  {zones.map((z) => (
+                    <SelectItem key={z.id} value={z.id}>
+                      {z.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-xs text-muted-foreground">City B</Label>
+              <Select
+                value={zoneBId}
+                onValueChange={(v) => setZoneBId(v ?? "")}
+                items={zoneItems}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select city" />
+                </SelectTrigger>
+                <SelectContent>
+                  {zones.map((z) => (
+                    <SelectItem key={z.id} value={z.id}>
+                      {z.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs text-muted-foreground">Vehicle</Label>
+            <Select
+              value={vehicleType}
+              onValueChange={(v) => setVehicleType(v as VehicleType)}
+              items={VEHICLE_ITEMS}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {VEHICLE_TYPES.map((v) => (
+                  <SelectItem key={v} value={v}>
+                    {VEHICLE_LABELS[v]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-xs text-muted-foreground">Base fare</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={baseFare}
+                onChange={(e) => setBaseFare(e.target.value)}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-xs text-muted-foreground">Min fare</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={minFare}
+                onChange={(e) => setMinFare(e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+          <Button onClick={() => void submit()} disabled={pending}>
+            {pending ? "Adding…" : "Add corridor"}
           </Button>
         </DialogFooter>
       </DialogContent>

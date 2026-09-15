@@ -61,6 +61,9 @@ services:
       TRUSTPILOT_AFS_EMAIL: ${TRUSTPILOT_AFS_EMAIL:-}
       # Demo seed (ops@transfers.co / admin123) is refused when NODE_ENV=production.
       SEED_ON_START: ${SEED_ON_START:-false}
+      # Set TRUST_PROXY=1 when app sits behind nginx/Caddy that sets X-Real-IP.
+      TRUST_PROXY: ${TRUST_PROXY:-}
+      TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-1}
 
 volumes:
   taxi_pg_data:

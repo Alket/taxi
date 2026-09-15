@@ -1,57 +1,23 @@
 import { NextResponse } from "next/server"
 import Stripe from "stripe"
 
+import { recordBalancePayment } from "@/lib/record-balance"
 import { recordBookingPayment } from "@/lib/record-deposit"
 import { getStripe, getStripeWebhookSecret } from "@/lib/stripe"
-import { prisma } from "@/lib/db"
 
 export const runtime = "nodejs"
 
-async function recordBalancePayment({
-  bookingId,
-  paymentIntentId,
-  paidAt,
-  chargedBy,
-}: {
-  bookingId: string
-  paymentIntentId: string
-  paidAt: Date
-  chargedBy: string
-}) {
-  const booking = await prisma.booking.findUnique({ where: { id: bookingId } })
-  if (!booking || booking.isBalanceCharged) return
-
-  const existingPayment = await prisma.payment.findFirst({
-    where: { externalId: paymentIntentId },
-    select: { id: true },
-  })
-  if (existingPayment) return
-
-  await prisma.$transaction(async (tx) => {
-    await tx.booking.update({
-      where: { id: bookingId },
-      data: {
-        isBalanceCharged: true,
-        balanceChargedAt: paidAt,
-        balanceChargedBy: chargedBy,
-        paymentStatus: "fully_paid",
-        balanceDue: 0,
-      },
-    })
-
-    await tx.payment.create({
-      data: {
-        bookingId,
-        type: "balance",
-        amount: booking.balanceDue,
-        currency: booking.currency,
-        status: "paid",
-        provider: "stripe",
-        externalId: paymentIntentId,
-        paidAt,
-      },
-    })
-  })
+function stripeAmountMajor(intent: {
+  amount_received?: number | null
+  amount?: number | null
+}): number | undefined {
+  if (typeof intent.amount_received === "number") {
+    return intent.amount_received / 100
+  }
+  if (typeof intent.amount === "number") {
+    return intent.amount / 100
+  }
+  return undefined
 }
 
 export async function POST(request: Request) {
@@ -98,28 +64,22 @@ export async function POST(request: Request) {
             ? session.payment_intent
             : session.payment_intent.id
 
+        const intent =
+          typeof session.payment_intent === "string"
+            ? await (await getStripe()).paymentIntents.retrieve(paymentIntentId)
+            : session.payment_intent
+
+        const gatewayAmount = stripeAmountMajor(intent)
+
         if (paymentType === "balance") {
           await recordBalancePayment({
             bookingId,
             paymentIntentId,
             paidAt,
             chargedBy: "customer",
+            gatewayAmount,
           })
         } else {
-          const intent =
-            typeof session.payment_intent === "string"
-              ? await (await getStripe()).paymentIntents.retrieve(
-                  paymentIntentId,
-                )
-              : session.payment_intent
-
-          const gatewayAmount =
-            typeof intent.amount_received === "number"
-              ? intent.amount_received / 100
-              : typeof intent.amount === "number"
-                ? intent.amount / 100
-                : undefined
-
           await recordBookingPayment({
             bookingId,
             paymentIntentId,
@@ -140,21 +100,17 @@ export async function POST(request: Request) {
     const paymentType = intent.metadata?.paymentType ?? "deposit"
 
     if (bookingId) {
+      const gatewayAmount = stripeAmountMajor(intent)
+
       if (paymentType === "balance") {
         await recordBalancePayment({
           bookingId,
           paymentIntentId: intent.id,
           paidAt,
           chargedBy: "customer",
+          gatewayAmount,
         })
       } else {
-        const gatewayAmount =
-          typeof intent.amount_received === "number"
-            ? intent.amount_received / 100
-            : typeof intent.amount === "number"
-              ? intent.amount / 100
-              : undefined
-
         await recordBookingPayment({
           bookingId,
           paymentIntentId: intent.id,

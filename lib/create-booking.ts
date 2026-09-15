@@ -25,11 +25,16 @@ import {
   pickupLeadTimeMessage,
 } from "@/lib/pickup-lead-time"
 import {
+  calculatePriceForInterZone,
   calculatePriceForZone,
   getActiveZone,
   type LatLng,
 } from "@/lib/pricing"
-import { getBookingPolicy } from "@/lib/settings"
+import {
+  assertAddressesMatchPricedRoute,
+  RouteAddressMismatchError,
+} from "@/lib/route-address-guard"
+import { getBookingPolicy, getSettings } from "@/lib/settings"
 import {
   assertVehicleFitsParty,
   assertVehicleTypeEnabled,
@@ -47,7 +52,7 @@ export const bookingCreateSchema = z
       phone: bookingCustomerPhoneSchema,
       whatsappOptIn: z.boolean().optional().default(true),
     }),
-    direction: z.enum(["airport_to_dest", "dest_to_airport"]),
+    direction: z.enum(["airport_to_dest", "dest_to_airport", "zone_to_zone"]),
     pickupAddress: z.string().min(1).max(400),
     pickupLat: z.coerce.number(),
     pickupLng: z.coerce.number(),
@@ -70,8 +75,18 @@ export const bookingCreateSchema = z
     boosterCount: z.coerce.number().int().min(0).max(4).optional().default(0),
     driverNotes: z.string().trim().max(500).optional().nullable(),
     vehicleType: vehicleTypeSchema,
-    /** Active pricing zone selected as the non-airport destination. */
+    /** Active pricing zone: non-airport end, or pickup zone for zone_to_zone. */
     zoneId: z.string().min(1),
+    /** Dropoff zone for zone_to_zone; omit for airport corridors. */
+    toZoneId: z.string().min(1).optional().nullable(),
+    /** IATA for airport↔zone legs — required on public airport corridors. */
+    airportIata: z
+      .string()
+      .trim()
+      .length(3)
+      .optional()
+      .nullable()
+      .transform((v) => (v ? v.toUpperCase() : null)),
     isRoundTrip: z.boolean().default(false),
     meetAndGreet: z.boolean().default(false),
     /** Admin manual bookings only — mark the full fare as already paid. */
@@ -90,7 +105,29 @@ export const bookingCreateSchema = z
     bookerRelation: bookerRelationSchema.optional().nullable(),
   })
   .superRefine((data, ctx) => {
-    if (data.source === "public") {
+    if (data.direction === "zone_to_zone") {
+      if (!data.toZoneId) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["toZoneId"],
+          message: "Select a dropoff city.",
+        })
+      } else if (data.toZoneId === data.zoneId) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["toZoneId"],
+          message: "Pickup and dropoff must be different cities.",
+        })
+      }
+    } else if (data.source === "public" && !data.airportIata) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["airportIata"],
+        message: "Select an airport.",
+      })
+    }
+
+    if (data.source === "public" && data.direction !== "zone_to_zone") {
       const flight = (data.flightNumber ?? "").trim()
       if (!flight) {
         ctx.addIssue({
@@ -202,7 +239,8 @@ async function generateUniquePickupPin(): Promise<string> {
 export type CreatedBookingSummary = {
   id: string
   referenceCode: string
-  pickupPin: string
+  /** Null for unpaid public checkouts — PIN is revealed after payment / cash confirm. */
+  pickupPin: string | null
   depositAmount: number
   totalPrice: number
   balanceDue: number
@@ -274,6 +312,48 @@ export async function createBookingsFromInput(
   })
 
   const zone = await getActiveZone(input.zoneId)
+  const toZone =
+    input.direction === "zone_to_zone" && input.toZoneId
+      ? await getActiveZone(input.toZoneId)
+      : null
+
+  if (input.source === "public") {
+    const settings = await getSettings()
+    let requiredAirport = null as (typeof settings.airports)[number] | null
+    if (input.direction !== "zone_to_zone") {
+      const iata = (input.airportIata ?? "").toUpperCase()
+      requiredAirport =
+        settings.airports.find((a) => a.iataCode.toUpperCase() === iata) ?? null
+      if (!requiredAirport) {
+        throw new RouteAddressMismatchError(
+          "Select a valid airport for this route.",
+        )
+      }
+    }
+    assertAddressesMatchPricedRoute({
+      direction: input.direction,
+      pickupAddress: input.pickupAddress,
+      dropoffAddress: input.dropoffAddress,
+      fromZoneName: zone.name,
+      toZoneName: toZone?.name ?? null,
+      requiredAirport,
+    })
+  }
+
+  async function priceForLeg(
+    direction: "airport_to_dest" | "dest_to_airport" | "zone_to_zone",
+    pickupZoneId: string,
+    dropoffZoneId: string | null,
+  ): Promise<number> {
+    if (direction === "zone_to_zone" && dropoffZoneId) {
+      return calculatePriceForInterZone(
+        pickupZoneId,
+        dropoffZoneId,
+        input.vehicleType,
+      )
+    }
+    return calculatePriceForZone(pickupZoneId, input.vehicleType)
+  }
 
   async function createLeg({
     direction,
@@ -285,8 +365,10 @@ export async function createBookingsFromInput(
     isRoundTrip,
     roundTripId,
     priceOverride,
+    legZoneId,
+    legToZoneId,
   }: {
-    direction: "airport_to_dest" | "dest_to_airport"
+    direction: "airport_to_dest" | "dest_to_airport" | "zone_to_zone"
     pickupAddress: string
     pickup: LatLng
     dropoffAddress: string
@@ -295,10 +377,13 @@ export async function createBookingsFromInput(
     isRoundTrip: boolean
     roundTripId: string | null
     priceOverride?: number
+    legZoneId: string
+    legToZoneId: string | null
   }): Promise<CreatedBookingSummary> {
-    const computedPrice = await calculatePriceForZone(
-      zone.id,
-      input.vehicleType,
+    const computedPrice = await priceForLeg(
+      direction,
+      legZoneId,
+      legToZoneId,
     )
     // Round-trip overrides already include the seat add-on (split across legs).
     const totalPrice =
@@ -406,7 +491,8 @@ export async function createBookingsFromInput(
         passengerNoEmail,
         bookerRelation,
         customerId: customer.id,
-        zoneId: zone.id,
+        zoneId: legZoneId,
+        toZoneId: direction === "zone_to_zone" ? legToZoneId : null,
         statusEvents: {
           create: [{ status: initialStatus, timestamp: now }],
         },
@@ -441,7 +527,9 @@ export async function createBookingsFromInput(
     return {
       id: booking.id,
       referenceCode: booking.referenceCode,
-      pickupPin: booking.pickupPin,
+      // Never return PIN on unpaid public checkouts (create response is pre-payment).
+      pickupPin:
+        input.source === "public" && !markAsPaid ? null : booking.pickupPin,
       depositAmount: Number(booking.depositAmount),
       totalPrice: Number(booking.totalPrice),
       balanceDue: Number(booking.balanceDue),
@@ -466,7 +554,11 @@ export async function createBookingsFromInput(
   const createdBookings: CreatedBookingSummary[] = []
 
   if (isRoundTrip) {
-    const oneWay = await calculatePriceForZone(zone.id, input.vehicleType)
+    const oneWay = await priceForLeg(
+      input.direction,
+      zone.id,
+      toZone?.id ?? null,
+    )
     const combined = round2(
       computeTripTotal(oneWay, true, roundTripDiscountPercent) + seatAddon,
     )
@@ -483,6 +575,8 @@ export async function createBookingsFromInput(
       isRoundTrip,
       roundTripId,
       priceOverride: legPrice,
+      legZoneId: zone.id,
+      legToZoneId: toZone?.id ?? null,
     })
     createdBookings.push(first)
 
@@ -499,9 +593,16 @@ export async function createBookingsFromInput(
     }
 
     const returnDirection =
-      input.direction === "airport_to_dest"
-        ? "dest_to_airport"
-        : "airport_to_dest"
+      input.direction === "zone_to_zone"
+        ? "zone_to_zone"
+        : input.direction === "airport_to_dest"
+          ? "dest_to_airport"
+          : "airport_to_dest"
+
+    const returnZoneId =
+      input.direction === "zone_to_zone" && toZone ? toZone.id : zone.id
+    const returnToZoneId =
+      input.direction === "zone_to_zone" ? zone.id : null
 
     const second = await createLeg({
       direction: returnDirection,
@@ -513,6 +614,8 @@ export async function createBookingsFromInput(
       isRoundTrip,
       roundTripId,
       priceOverride: legPrice,
+      legZoneId: returnZoneId,
+      legToZoneId: returnToZoneId,
     })
     createdBookings.push(second)
   } else {
@@ -525,6 +628,8 @@ export async function createBookingsFromInput(
       pickupDateTime,
       isRoundTrip,
       roundTripId,
+      legZoneId: zone.id,
+      legToZoneId: toZone?.id ?? null,
     })
     createdBookings.push(first)
   }

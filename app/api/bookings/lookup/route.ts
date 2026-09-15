@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server"
 
+import { clientIpFromRequest } from "@/lib/client-ip"
+import { takeRateLimit } from "@/lib/rate-limit"
+
 import {
   findBookingForLookup,
   serializeManagedBooking,
@@ -10,6 +13,15 @@ import {
  * Always returns the same generic 404 message on mismatch.
  */
 export async function GET(request: Request) {
+  const ip = clientIpFromRequest(request)
+  const limited = takeRateLimit(`public-booking-lookup:${ip}`, 30, 15 * 60 * 1000)
+  if (!limited.ok) {
+    return NextResponse.json(
+      { error: `Too many lookup attempts. Try again in ${limited.retryAfterSec}s.` },
+      { status: 429, headers: { "Retry-After": String(limited.retryAfterSec) } },
+    )
+  }
+
   const { searchParams } = new URL(request.url)
   const reference = searchParams.get("reference")?.trim() ?? ""
   const email = searchParams.get("email")?.trim() ?? ""

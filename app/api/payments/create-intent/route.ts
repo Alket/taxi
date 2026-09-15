@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 
+import { clientIpFromRequest } from "@/lib/client-ip"
 import { prisma } from "@/lib/db"
+import { takeRateLimit } from "@/lib/rate-limit"
 import { normalizePaymentOption } from "@/lib/payment-options"
 import { assertCheckoutPayable } from "@/lib/payment-session"
 import { getSettingsRow } from "@/lib/settings"
@@ -11,10 +13,19 @@ import { round2 } from "@/lib/vehicles"
 
 const bodySchema = z.object({
   bookingId: z.string().min(1),
+  email: z.string().email(),
   paymentOption: z.enum(["deposit", "full"]).optional(),
 })
 
 export async function POST(request: Request) {
+  const ip = clientIpFromRequest(request)
+  const limited = takeRateLimit(`public-payment:${ip}`, 40, 15 * 60 * 1000)
+  if (!limited.ok) {
+    return NextResponse.json(
+      { error: `Too many payment attempts. Try again in ${limited.retryAfterSec}s.` },
+      { status: 429, headers: { "Retry-After": String(limited.retryAfterSec) } },
+    )
+  }
   const json = await request.json().catch(() => null)
   const parsed = bodySchema.safeParse(json)
   if (!parsed.success) {
@@ -40,6 +51,10 @@ export async function POST(request: Request) {
   })
 
   if (!booking) {
+    return NextResponse.json({ error: "Booking not found." }, { status: 404 })
+  }
+
+  if (booking.customer.email.toLowerCase() !== parsed.data.email.trim().toLowerCase()) {
     return NextResponse.json({ error: "Booking not found." }, { status: 404 })
   }
 

@@ -24,10 +24,15 @@ export async function confirmPokOrder(orderId: string): Promise<{
 
   const booking = await prisma.booking.findUnique({
     where: { id: intent.bookingId },
-    select: { id: true, referenceCode: true, paymentStatus: true },
+    select: {
+      id: true,
+      referenceCode: true,
+      paymentStatus: true,
+    },
   })
 
   // Short-circuit before calling POK again on retries.
+  // Never put customerEmail here — browser route adds it only after checkout nonce.
   if (intent.status === "captured") {
     return {
       status: 200,
