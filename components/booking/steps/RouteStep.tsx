@@ -436,12 +436,24 @@ export function RouteStep() {
   useBookingFieldFocusListener("quote")
 
   const toOptions = React.useMemo(
-    () => filterPlacesForOppositeEnd(placeOptions, fromKey, corridorNeighbors),
-    [placeOptions, fromKey, corridorNeighbors],
+    () =>
+      filterPlacesForOppositeEnd(
+        placeOptions,
+        fromKey,
+        corridorNeighbors,
+        toKey,
+      ),
+    [placeOptions, fromKey, toKey, corridorNeighbors],
   )
   const fromOptions = React.useMemo(
-    () => filterPlacesForOppositeEnd(placeOptions, toKey, corridorNeighbors),
-    [placeOptions, toKey, corridorNeighbors],
+    () =>
+      filterPlacesForOppositeEnd(
+        placeOptions,
+        toKey,
+        corridorNeighbors,
+        fromKey,
+      ),
+    [placeOptions, toKey, fromKey, corridorNeighbors],
   )
 
   const heroRouteLabels = startedFromHero

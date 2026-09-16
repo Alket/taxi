@@ -157,11 +157,12 @@ async function main() {
 
   if (
     placesLib.includes("oppositePlace") &&
-    placesLib.includes("filtered.push(oppositePlace)")
+    placesLib.includes("filtered.push(oppositePlace)") &&
+    placesLib.includes("currentKey")
   ) {
-    pass("A1 filter includes opposite for swap")
+    pass("A1 filter includes opposite for swap only when both ends set")
   } else {
-    fail("A1 filter includes opposite for swap")
+    fail("A1 filter includes opposite for swap only when both ends set")
   }
 
   if (
@@ -243,8 +244,26 @@ async function main() {
   const ksamilKey = zonePlaceKey(ksamil.id)
   const tiranaKey = zonePlaceKey(tiranaCity.id)
 
-  // From list when To = Tirana: must include Tirana (swap) + Ksamil (corridor)
-  const fromOpts = filterPlacesForOppositeEnd(places, tiranaKey, neighborMap)
+  // To empty, From = Ksamil → To list must NOT include Ksamil
+  const toWhileEmpty = filterPlacesForOppositeEnd(
+    places,
+    ksamilKey,
+    neighborMap,
+    null,
+  ).map((p) => p.key)
+  if (!toWhileEmpty.includes(ksamilKey)) {
+    pass("B1d empty To does not list From city (Ksamil)")
+  } else {
+    fail("B1d empty To does not list From city (Ksamil)", toWhileEmpty.join(","))
+  }
+
+  // From list when To = Tirana and From = Ksamil: include Tirana (swap) + corridor
+  const fromOpts = filterPlacesForOppositeEnd(
+    places,
+    tiranaKey,
+    neighborMap,
+    ksamilKey,
+  )
   const fromKeys = fromOpts.map((p) => p.key)
   if (fromKeys.includes(tiranaKey)) {
     pass("B2 From options include opposite (Tirana)")
@@ -314,7 +333,12 @@ async function main() {
 
   // To-side: currently Ksamil → Tirana; picking Ksamil in To swaps via
   // applyPlaces(currentTo=Tirana, picked=Ksamil) → Tirana → Ksamil
-  const toOpts = filterPlacesForOppositeEnd(places, ksamilKey, neighborMap)
+  const toOpts = filterPlacesForOppositeEnd(
+    places,
+    ksamilKey,
+    neighborMap,
+    tiranaKey,
+  )
   if (toOpts.some((p) => p.key === ksamilKey)) {
     pass("B7 To options include opposite (Ksamil)")
   } else {

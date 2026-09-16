@@ -198,13 +198,15 @@ export function buildCorridorNeighborMap(
  * - Airports stay available opposite a city (and vice versa).
  * - City↔city: only zones linked by an active InterZoneFare corridor.
  * - When the opposite end is empty or an airport: all cities remain available.
- * - The opposite end's current place is still listed so the user can pick it to
- *   swap direction (e.g. Ksamil→Tirana → choose Tirana in From).
+ * - When both ends are set, the opposite place is listed so picking it swaps
+ *   (e.g. Ksamil→Tirana → choose Tirana in From). Not listed while this end
+ *   is still empty — that would just show the same city as a fake option.
  */
 export function filterPlacesForOppositeEnd(
   places: BookingPlaceOption[],
   oppositeKey: string | null | undefined,
   neighborMap: Map<string, Set<string>>,
+  currentKey?: string | null,
 ): BookingPlaceOption[] {
   const opposite = parsePlaceKey(oppositeKey)
   const filtered = places.filter((place) => {
@@ -225,7 +227,12 @@ export function filterPlacesForOppositeEnd(
     return neighborMap.get(opposite.id)?.has(place.id) ?? false
   })
 
-  if (oppositeKey) {
+  // Only offer opposite-as-swap when this end already has a different place.
+  if (
+    oppositeKey &&
+    currentKey &&
+    currentKey !== oppositeKey
+  ) {
     const oppositePlace = places.find((p) => p.key === oppositeKey)
     if (oppositePlace) filtered.push(oppositePlace)
   }

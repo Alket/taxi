@@ -501,11 +501,13 @@ function SummaryEditDialog({
     placeOptions,
     draftToKey,
     corridorNeighbors,
+    draftFromKey,
   )
   const toOptions = filterPlacesForOppositeEnd(
     placeOptions,
     draftFromKey,
     corridorNeighbors,
+    draftToKey,
   )
   const fromRowRef = React.useRef<HTMLDivElement>(null)
   const toRowRef = React.useRef<HTMLDivElement>(null)

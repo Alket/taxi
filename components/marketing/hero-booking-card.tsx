@@ -672,17 +672,23 @@ export function HeroBookingCard() {
 
   const fromOptions = React.useMemo(
     () =>
-      filterPlacesForOppositeEnd(placeOptions, toKey, corridorNeighbors).map(
-        (p) => ({ value: p.key, label: p.label }),
-      ),
-    [placeOptions, toKey, corridorNeighbors],
+      filterPlacesForOppositeEnd(
+        placeOptions,
+        toKey,
+        corridorNeighbors,
+        fromKey,
+      ).map((p) => ({ value: p.key, label: p.label })),
+    [placeOptions, toKey, fromKey, corridorNeighbors],
   )
   const toOptions = React.useMemo(
     () =>
-      filterPlacesForOppositeEnd(placeOptions, fromKey, corridorNeighbors).map(
-        (p) => ({ value: p.key, label: p.label }),
-      ),
-    [placeOptions, fromKey, corridorNeighbors],
+      filterPlacesForOppositeEnd(
+        placeOptions,
+        fromKey,
+        corridorNeighbors,
+        toKey,
+      ).map((p) => ({ value: p.key, label: p.label })),
+    [placeOptions, fromKey, toKey, corridorNeighbors],
   )
 
   const busy = continuing || quoteStatus === "loading"
