@@ -339,7 +339,20 @@ function SummaryEditDialog({
       return
     }
     setDraftFromKey(key)
-    if (key && key === draftToKey) setDraftToKey(null)
+    if (!key || !draftToKey) return
+    if (key === draftToKey) {
+      setDraftToKey(null)
+      return
+    }
+    const from = placeOptions.find((p) => p.key === key)
+    const to = placeOptions.find((p) => p.key === draftToKey)
+    if (
+      from &&
+      to &&
+      !deriveRouteFromPlaces(from, to, corridorNeighbors)
+    ) {
+      setDraftToKey(null)
+    }
   }
 
   function onToChange(key: string | null) {
@@ -497,12 +510,8 @@ function SummaryEditDialog({
     onOpenChange(false)
   }
 
-  const fromOptions = filterPlacesForOppositeEnd(
-    placeOptions,
-    draftToKey,
-    corridorNeighbors,
-    draftFromKey,
-  )
+  // From: all places (change-mind). To: corridor-filtered vs From.
+  const fromOptions = placeOptions
   const toOptions = filterPlacesForOppositeEnd(
     placeOptions,
     draftFromKey,

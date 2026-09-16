@@ -192,6 +192,24 @@ async function main() {
     fail("A4 RouteStep swap-on-pick")
   }
 
+  if (
+    hero.includes("From: all places so the user can change mind") &&
+    hero.includes("cleared in onFromChange only when the new pair is incompatible")
+  ) {
+    pass("A5 hero From unfiltered; clear To only if incompatible")
+  } else {
+    fail("A5 hero From unfiltered; clear To only if incompatible")
+  }
+
+  if (
+    routeStep.includes("incompatible with current To") &&
+    routeStep.includes("From lists every place")
+  ) {
+    pass("A6 RouteStep From unfiltered; clear To if incompatible")
+  } else {
+    fail("A6 RouteStep From unfiltered; clear To if incompatible")
+  }
+
   // ---------------------------------------------------------------------------
   // B — Unit: filter + derive swap (Ksamil ↔ Tirana City)
   // ---------------------------------------------------------------------------
@@ -257,28 +275,54 @@ async function main() {
     fail("B1d empty To does not list From city (Ksamil)", toWhileEmpty.join(","))
   }
 
-  // From list when To = Tirana and From = Ksamil: include Tirana (swap) + corridor
-  const fromOpts = filterPlacesForOppositeEnd(
+  // From is unfiltered — Other City stays visible even when To = Tirana
+  const fromAllKeys = places.map((p) => p.key)
+  if (fromAllKeys.includes(zonePlaceKey("other-zone"))) {
+    pass("B2 From lists all cities (change-mind), incl. unlinked")
+  } else {
+    fail("B2 From lists all cities (change-mind), incl. unlinked")
+  }
+
+  // Compatible keep: Ksamil + Tirana still valid
+  if (
+    deriveRouteFromPlaces(
+      places.find((p) => p.key === ksamilKey)!,
+      places.find((p) => p.key === tiranaKey)!,
+      neighborMap,
+    )
+  ) {
+    pass("B3 compatible From+To keeps route (Ksamil↔Tirana)")
+  } else {
+    fail("B3 compatible From+To keeps route (Ksamil↔Tirana)")
+  }
+
+  // Incompatible → caller clears To (derive returns null)
+  if (
+    !deriveRouteFromPlaces(
+      places.find((p) => p.key === zonePlaceKey("other-zone"))!,
+      places.find((p) => p.key === tiranaKey)!,
+      neighborMap,
+    )
+  ) {
+    pass("B4 incompatible From+To clears To (Other↔Tirana)")
+  } else {
+    fail("B4 incompatible From+To clears To (Other↔Tirana)")
+  }
+
+  // To list when From = Ksamil: corridor neighbor Tirana, not Other
+  const toFromKsamil = filterPlacesForOppositeEnd(
     places,
-    tiranaKey,
-    neighborMap,
     ksamilKey,
-  )
-  const fromKeys = fromOpts.map((p) => p.key)
-  if (fromKeys.includes(tiranaKey)) {
-    pass("B2 From options include opposite (Tirana)")
+    neighborMap,
+    null,
+  ).map((p) => p.key)
+  if (
+    toFromKsamil.includes(tiranaKey) &&
+    !toFromKsamil.includes(zonePlaceKey("other-zone"))
+  ) {
+    pass("B4b To options still corridor-filtered vs From")
   } else {
-    fail("B2 From options include opposite (Tirana)", fromKeys.join(","))
-  }
-  if (fromKeys.includes(ksamilKey)) {
-    pass("B3 From options include corridor neighbor (Ksamil)")
-  } else {
-    fail("B3 From options include corridor neighbor (Ksamil)", fromKeys.join(","))
-  }
-  if (!fromKeys.includes(zonePlaceKey("other-zone"))) {
-    pass("B4 From options exclude unlinked city")
-  } else {
-    fail("B4 From options exclude unlinked city")
+    fail("B4b To options still corridor-filtered vs From", toFromKsamil.join(","))
   }
 
   // Simulate: currently Ksamil → Tirana; user picks Tirana in From

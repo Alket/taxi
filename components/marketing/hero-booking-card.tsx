@@ -670,15 +670,11 @@ export function HeroBookingCard() {
     }
   }
 
+  // From: all places so the user can change mind (e.g. Saranda→Tirana → Berat).
+  // To is cleared in onFromChange only when the new pair is incompatible.
   const fromOptions = React.useMemo(
-    () =>
-      filterPlacesForOppositeEnd(
-        placeOptions,
-        toKey,
-        corridorNeighbors,
-        fromKey,
-      ).map((p) => ({ value: p.key, label: p.label })),
-    [placeOptions, toKey, fromKey, corridorNeighbors],
+    () => placeOptions.map((p) => ({ value: p.key, label: p.label })),
+    [placeOptions],
   )
   const toOptions = React.useMemo(
     () =>

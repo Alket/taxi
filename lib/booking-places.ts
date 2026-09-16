@@ -193,14 +193,16 @@ export function buildCorridorNeighborMap(
 }
 
 /**
- * Filter place options for one end of the route.
+ * Filter place options for the To end of the route.
  *
  * - Airports stay available opposite a city (and vice versa).
  * - City↔city: only zones linked by an active InterZoneFare corridor.
- * - When the opposite end is empty or an airport: all cities remain available.
- * - When both ends are set, the opposite place is listed so picking it swaps
- *   (e.g. Ksamil→Tirana → choose Tirana in From). Not listed while this end
- *   is still empty — that would just show the same city as a fake option.
+ * - When From is empty or an airport: all cities remain available.
+ * - When both ends are set, From is listed so picking it swaps
+ *   (e.g. Ksamil→Tirana → choose Ksamil in To). Not listed while To is empty.
+ *
+ * From options are intentionally unfiltered (all places) so the user can change
+ * mind; onFromChange clears To only when the new pair is incompatible.
  */
 export function filterPlacesForOppositeEnd(
   places: BookingPlaceOption[],
@@ -238,4 +240,13 @@ export function filterPlacesForOppositeEnd(
   }
 
   return filtered
+}
+
+/** True when From+To form a bookable route under the corridor map. */
+export function placesFormValidRoute(
+  from: BookingPlaceOption,
+  to: BookingPlaceOption,
+  neighborMap: Map<string, Set<string>>,
+): boolean {
+  return deriveRouteFromPlaces(from, to, neighborMap) != null
 }

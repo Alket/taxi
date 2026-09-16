@@ -146,19 +146,10 @@ export function RouteStep() {
   const applyPlaces = React.useCallback(
     (from: BookingPlaceOption, to: BookingPlaceOption) => {
       const derived = deriveRouteFromPlaces(from, to, corridorNeighbors)
-      if (!derived) {
-        clearQuotes()
-        patch({
-          quoteStatus: "uncovered",
-          quoteError: "Choose an airport and a city, or two different cities.",
-          vehicleQuotes: {},
-          quotedPrice: null,
-          vehicleType: null,
-        })
-        return
-      }
+      if (!derived) return false
       clearQuotes()
       patch(derived)
+      return true
     },
     [clearQuotes, patch, corridorNeighbors],
   )
@@ -345,37 +336,31 @@ export function RouteStep() {
     // Picking the current To → swap ends.
     if (toKey && key === toKey && fromKey) {
       const currentFrom = placeOptions.find((p) => p.key === fromKey)
-      if (currentFrom) {
-        applyPlaces(from, currentFrom)
-        return
-      }
+      if (currentFrom && applyPlaces(from, currentFrom)) return
     }
     const to = toKey ? placeOptions.find((p) => p.key === toKey) : null
-    if (!to) {
-      // Partial selection: stash From only
-      clearQuotes()
-      if (from.kind === "airport") {
-        patch({
-          direction: "airport_to_dest",
-          selectedAirportIata: from.id,
-          selectedZoneId: null,
-          selectedToZoneId: null,
-          pickup: { address: from.label, lat: from.lat, lng: from.lng },
-          dropoff: { address: "", lat: null, lng: null },
-        })
-      } else {
-        patch({
-          direction: "dest_to_airport",
-          selectedAirportIata: null,
-          selectedZoneId: from.id,
-          selectedToZoneId: null,
-          pickup: { address: from.label, lat: from.lat, lng: from.lng },
-          dropoff: { address: "", lat: null, lng: null },
-        })
-      }
-      return
+    if (to && applyPlaces(from, to)) return
+    // No To yet, or incompatible with current To → keep From, clear To.
+    clearQuotes()
+    if (from.kind === "airport") {
+      patch({
+        direction: "airport_to_dest",
+        selectedAirportIata: from.id,
+        selectedZoneId: null,
+        selectedToZoneId: null,
+        pickup: { address: from.label, lat: from.lat, lng: from.lng },
+        dropoff: { address: "", lat: null, lng: null },
+      })
+    } else {
+      patch({
+        direction: "dest_to_airport",
+        selectedAirportIata: null,
+        selectedZoneId: from.id,
+        selectedToZoneId: null,
+        pickup: { address: from.label, lat: from.lat, lng: from.lng },
+        dropoff: { address: "", lat: null, lng: null },
+      })
     }
-    applyPlaces(from, to)
   }
 
   function onToChange(key: string | null) {
@@ -385,10 +370,7 @@ export function RouteStep() {
     // Picking the current From → swap ends.
     if (fromKey && key === fromKey && toKey) {
       const currentTo = placeOptions.find((p) => p.key === toKey)
-      if (currentTo) {
-        applyPlaces(currentTo, to)
-        return
-      }
+      if (currentTo && applyPlaces(currentTo, to)) return
     }
     const from = fromKey ? placeOptions.find((p) => p.key === fromKey) : null
     if (!from) {
@@ -411,7 +393,16 @@ export function RouteStep() {
       }
       return
     }
-    applyPlaces(from, to)
+    if (!applyPlaces(from, to)) {
+      clearQuotes()
+      patch({
+        quoteStatus: "uncovered",
+        quoteError: "Choose an airport and a city, or two different cities.",
+        vehicleQuotes: {},
+        quotedPrice: null,
+        vehicleType: null,
+      })
+    }
   }
 
   function swapPlaces() {
@@ -445,16 +436,8 @@ export function RouteStep() {
       ),
     [placeOptions, fromKey, toKey, corridorNeighbors],
   )
-  const fromOptions = React.useMemo(
-    () =>
-      filterPlacesForOppositeEnd(
-        placeOptions,
-        toKey,
-        corridorNeighbors,
-        fromKey,
-      ),
-    [placeOptions, toKey, fromKey, corridorNeighbors],
-  )
+  // From lists every place; incompatible To is cleared in onFromChange.
+  const fromOptions = placeOptions
 
   const heroRouteLabels = startedFromHero
     ? {
