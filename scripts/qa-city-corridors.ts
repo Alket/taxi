@@ -27,10 +27,13 @@ if (!process.env.DATABASE_URL) {
   )
 }
 
+import { assertQaLocalOrAllowed } from "./qa-env-guard"
+
 const base = (process.env.QA_BASE_URL || "http://localhost:3000").replace(
   /\/$/,
   "",
 )
+assertQaLocalOrAllowed({ baseUrl: base, databaseUrl: process.env.DATABASE_URL })
 const prisma = new PrismaClient()
 
 type Result = { status: "PASS" | "FAIL"; case: string; detail?: string }

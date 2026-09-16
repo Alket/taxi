@@ -49,6 +49,8 @@ export function HeroFieldSelect({
   onAfterSelect,
   open: openProp,
   onOpenChange,
+  /** Label for `value` when it is not present in `options` (e.g. mid-swap). */
+  valueLabel,
 }: {
   value: string | null
   placeholder: string
@@ -63,6 +65,7 @@ export function HeroFieldSelect({
   /** Optional controlled open state (sheet or desktop combobox). */
   open?: boolean
   onOpenChange?: (open: boolean) => void
+  valueLabel?: string | null
 }) {
   const tr = useT()
   const isMobile = useIsMobile()
@@ -87,10 +90,13 @@ export function HeroFieldSelect({
   useBodyScrollLock(sheetActive && !isIOS)
   useIosSheetScroll(sheetActive, listRef)
 
-  const selected =
-    value != null
-      ? (options.find((opt) => opt.value === value) ?? null)
-      : null
+  const selected = React.useMemo(() => {
+    if (value == null) return null
+    const match = options.find((opt) => opt.value === value)
+    if (match) return match
+    if (valueLabel) return { value, label: valueLabel }
+    return null
+  }, [value, options, valueLabel])
 
   // Keep the closed field showing the selection label (e.g. preselected TIA).
   React.useEffect(() => {

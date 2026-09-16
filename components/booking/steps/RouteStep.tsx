@@ -10,10 +10,13 @@ import type { AirportWithCoords } from "@/lib/airports"
 import { resolveAirportLocation } from "@/lib/airports"
 import { resolveZoneFromDestinationParam } from "@/lib/booking-destination-param"
 import {
+  buildCorridorNeighborMap,
   buildPlaceOptions,
   deriveRouteFromPlaces,
+  filterPlacesForOppositeEnd,
   placeKeyFromStore,
   type BookingPlaceOption,
+  type CityCorridorPair,
 } from "@/lib/booking-places"
 import { isPickupTooSoon } from "@/lib/pickup-lead-time"
 import { useBookingFieldFocusListener } from "@/hooks/use-booking-field-focus"
@@ -47,6 +50,7 @@ type BookingConfig = {
   supportPhone: string
   airports: AirportWithCoords[]
   zones: ServiceZonePlace[]
+  cityCorridors?: CityCorridorPair[]
   enabledVehicleTypes?: VehicleType[]
   sedanEnabled?: boolean
   minivanEnabled?: boolean
@@ -107,10 +111,15 @@ export function RouteStep() {
 
   const airports = config?.airports ?? []
   const zones = config?.zones ?? []
+  const cityCorridors = config?.cityCorridors ?? []
   const supportEmail = config?.supportEmail ?? "ops@transfers.co"
   const placeOptions = React.useMemo(
     () => buildPlaceOptions(airports, zones),
     [airports, zones],
+  )
+  const corridorNeighbors = React.useMemo(
+    () => buildCorridorNeighborMap(cityCorridors, vehicleType),
+    [cityCorridors, vehicleType],
   )
 
   const fromKey = placeKeyFromStore({
@@ -136,7 +145,7 @@ export function RouteStep() {
 
   const applyPlaces = React.useCallback(
     (from: BookingPlaceOption, to: BookingPlaceOption) => {
-      const derived = deriveRouteFromPlaces(from, to)
+      const derived = deriveRouteFromPlaces(from, to, corridorNeighbors)
       if (!derived) {
         clearQuotes()
         patch({
@@ -151,7 +160,7 @@ export function RouteStep() {
       clearQuotes()
       patch(derived)
     },
-    [clearQuotes, patch],
+    [clearQuotes, patch, corridorNeighbors],
   )
 
   // Default airport once config loads (Tirana if present / only option).
@@ -333,6 +342,14 @@ export function RouteStep() {
     if (!key) return
     const from = placeOptions.find((p) => p.key === key)
     if (!from) return
+    // Picking the current To → swap ends.
+    if (toKey && key === toKey && fromKey) {
+      const currentFrom = placeOptions.find((p) => p.key === fromKey)
+      if (currentFrom) {
+        applyPlaces(from, currentFrom)
+        return
+      }
+    }
     const to = toKey ? placeOptions.find((p) => p.key === toKey) : null
     if (!to) {
       // Partial selection: stash From only
@@ -365,6 +382,14 @@ export function RouteStep() {
     if (!key) return
     const to = placeOptions.find((p) => p.key === key)
     if (!to) return
+    // Picking the current From → swap ends.
+    if (fromKey && key === fromKey && toKey) {
+      const currentTo = placeOptions.find((p) => p.key === toKey)
+      if (currentTo) {
+        applyPlaces(currentTo, to)
+        return
+      }
+    }
     const from = fromKey ? placeOptions.find((p) => p.key === fromKey) : null
     if (!from) {
       clearQuotes()
@@ -410,8 +435,14 @@ export function RouteStep() {
   })
   useBookingFieldFocusListener("quote")
 
-  const toOptions = placeOptions.filter((p) => p.key !== fromKey)
-  const fromOptions = placeOptions.filter((p) => p.key !== toKey)
+  const toOptions = React.useMemo(
+    () => filterPlacesForOppositeEnd(placeOptions, fromKey, corridorNeighbors),
+    [placeOptions, fromKey, corridorNeighbors],
+  )
+  const fromOptions = React.useMemo(
+    () => filterPlacesForOppositeEnd(placeOptions, toKey, corridorNeighbors),
+    [placeOptions, toKey, corridorNeighbors],
+  )
 
   const heroRouteLabels = startedFromHero
     ? {

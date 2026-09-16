@@ -61,6 +61,7 @@ export function buildPlaceOptions(
 export function deriveRouteFromPlaces(
   from: BookingPlaceOption,
   to: BookingPlaceOption,
+  neighborMap?: Map<string, Set<string>>,
 ): {
   direction: Direction
   selectedAirportIata: string | null
@@ -103,6 +104,9 @@ export function deriveRouteFromPlaces(
     }
   }
   if (from.kind === "zone" && to.kind === "zone") {
+    if (neighborMap && !(neighborMap.get(from.id)?.has(to.id) ?? false)) {
+      return null
+    }
     return {
       direction: "zone_to_zone",
       selectedAirportIata: null,
@@ -140,4 +144,91 @@ export function placeKeyFromStore(args: {
   // dest_to_airport
   if (end === "from") return zonePlaceKey(selectedZoneId)
   return selectedAirportIata ? airportPlaceKey(selectedAirportIata) : null
+}
+
+/** Active city↔city corridor edge (symmetric). */
+export type CityCorridorPair = {
+  zoneAId: string
+  zoneBId: string
+  /**
+   * Vehicles with an active InterZoneFare for this pair.
+   * Omitted/empty = legacy “any vehicle” (treat as linked for all).
+   */
+  vehicleTypes?: Array<"sedan" | "minivan">
+}
+
+/**
+ * Bidirectional map: zoneId → set of connected zone ids.
+ * When `vehicleType` is set, only corridors priced for that vehicle are included.
+ */
+export function buildCorridorNeighborMap(
+  corridors: CityCorridorPair[],
+  vehicleType?: "sedan" | "minivan" | null,
+): Map<string, Set<string>> {
+  const map = new Map<string, Set<string>>()
+  for (const { zoneAId, zoneBId, vehicleTypes } of corridors) {
+    if (!zoneAId || !zoneBId || zoneAId === zoneBId) continue
+    if (
+      vehicleType &&
+      vehicleTypes &&
+      vehicleTypes.length > 0 &&
+      !vehicleTypes.includes(vehicleType)
+    ) {
+      continue
+    }
+    let a = map.get(zoneAId)
+    if (!a) {
+      a = new Set()
+      map.set(zoneAId, a)
+    }
+    a.add(zoneBId)
+    let b = map.get(zoneBId)
+    if (!b) {
+      b = new Set()
+      map.set(zoneBId, b)
+    }
+    b.add(zoneAId)
+  }
+  return map
+}
+
+/**
+ * Filter place options for one end of the route.
+ *
+ * - Airports stay available opposite a city (and vice versa).
+ * - City↔city: only zones linked by an active InterZoneFare corridor.
+ * - When the opposite end is empty or an airport: all cities remain available.
+ * - The opposite end's current place is still listed so the user can pick it to
+ *   swap direction (e.g. Ksamil→Tirana → choose Tirana in From).
+ */
+export function filterPlacesForOppositeEnd(
+  places: BookingPlaceOption[],
+  oppositeKey: string | null | undefined,
+  neighborMap: Map<string, Set<string>>,
+): BookingPlaceOption[] {
+  const opposite = parsePlaceKey(oppositeKey)
+  const filtered = places.filter((place) => {
+    // Opposite is appended below for swap — skip here to avoid duplicates.
+    if (oppositeKey && place.key === oppositeKey) return false
+
+    if (!opposite) return true
+
+    if (place.kind === "airport") {
+      // Airport ↔ airport is not supported.
+      return opposite.kind !== "airport"
+    }
+
+    // place is a zone
+    if (opposite.kind === "airport") return true
+
+    // opposite is a zone → city corridor only
+    return neighborMap.get(opposite.id)?.has(place.id) ?? false
+  })
+
+  if (oppositeKey) {
+    const oppositePlace = places.find((p) => p.key === oppositeKey)
+    if (oppositePlace) filtered.push(oppositePlace)
+  }
+
+  return filtered
 }

@@ -6,6 +6,7 @@ import useSWR from "swr"
 import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 import {
+  ArrowUpDownIcon,
   BriefcaseIcon,
   CalendarIcon,
   CircleIcon,
@@ -27,11 +28,14 @@ import { resolveAirportLocation } from "@/lib/airports"
 import { resolveZoneFromDestinationParam } from "@/lib/booking-destination-param"
 import {
   airportPlaceKey,
+  buildCorridorNeighborMap,
   buildPlaceOptions,
   deriveRouteFromPlaces,
+  filterPlacesForOppositeEnd,
   placeKeyFromStore,
   zonePlaceKey,
   type BookingPlaceOption,
+  type CityCorridorPair,
 } from "@/lib/booking-places"
 import {
   useBookingStore,
@@ -70,6 +74,7 @@ import {
 type BookingConfig = {
   airports: AirportWithCoords[]
   zones: ServiceZonePlace[]
+  cityCorridors?: CityCorridorPair[]
   vehicleCapacities?: import("@/lib/vehicles").VehicleCapacityConfig
   enabledVehicleTypes?: VehicleType[]
   sedanEnabled?: boolean
@@ -237,12 +242,20 @@ export function HeroBookingCard() {
   const { data: config } = useSWR<BookingConfig>("/api/booking/config", fetcher)
   const airports = config?.airports ?? []
   const zones = config?.zones ?? []
+  const cityCorridors = config?.cityCorridors ?? []
+  const vehicleType = useBookingStore((s) => s.vehicleType)
   const { maxPassengers, maxLuggage, capacities, enabledTypes } =
     usePartyCapacityLimits()
 
   const placeOptions = React.useMemo(
     () => buildPlaceOptions(airports, zones),
     [airports, zones],
+  )
+
+  // Hero usually has no vehicle yet → union of corridors; once selected, filter.
+  const corridorNeighbors = React.useMemo(
+    () => buildCorridorNeighborMap(cityCorridors, vehicleType),
+    [cityCorridors, vehicleType],
   )
 
   // `placeKeyFromStore` needs a zone to resolve either end, so an airport that
@@ -280,13 +293,13 @@ export function HeroBookingCard() {
 
   const applyPlaces = React.useCallback(
     (from: BookingPlaceOption, to: BookingPlaceOption) => {
-      const derived = deriveRouteFromPlaces(from, to)
+      const derived = deriveRouteFromPlaces(from, to, corridorNeighbors)
       if (!derived) return false
       clearQuotes()
       patch(derived)
       return true
     },
-    [clearQuotes, patch],
+    [clearQuotes, patch, corridorNeighbors],
   )
 
   // Seed the pickup airport (Tirana if present) so the card opens the same way
@@ -521,6 +534,11 @@ export function HeroBookingCard() {
   function onFromChange(key: string) {
     const from = placeOptions.find((p) => p.key === key)
     if (!from) return
+    // Picking the current To → swap ends (Ksamil→Tirana becomes Tirana→Ksamil).
+    if (toKey && key === toKey && fromKey) {
+      const currentFrom = placeOptions.find((p) => p.key === fromKey)
+      if (currentFrom && applyPlaces(from, currentFrom)) return
+    }
     const to = toKey ? placeOptions.find((p) => p.key === toKey) : undefined
     if (to && applyPlaces(from, to)) return
     // No To yet, or an unsupported pair (airport → airport): keep From, drop To.
@@ -531,10 +549,23 @@ export function HeroBookingCard() {
   function onToChange(key: string) {
     const to = placeOptions.find((p) => p.key === key)
     if (!to) return
+    // Picking the current From → swap ends.
+    if (fromKey && key === fromKey && toKey) {
+      const currentTo = placeOptions.find((p) => p.key === toKey)
+      if (currentTo && applyPlaces(currentTo, to)) return
+    }
     const from = fromKey ? placeOptions.find((p) => p.key === fromKey) : undefined
     if (from && applyPlaces(from, to)) return
     clearQuotes()
     patch(partialRoutePatch(to, "to"))
+  }
+
+  function swapPlaces() {
+    if (!fromKey || !toKey) return
+    const from = placeOptions.find((p) => p.key === fromKey)
+    const to = placeOptions.find((p) => p.key === toKey)
+    if (!from || !to) return
+    applyPlaces(to, from)
   }
 
   async function onContinue(opts?: { fromPassengersSheet?: boolean }) {
@@ -641,17 +672,17 @@ export function HeroBookingCard() {
 
   const fromOptions = React.useMemo(
     () =>
-      placeOptions
-        .filter((p) => p.key !== toKey)
-        .map((p) => ({ value: p.key, label: p.label })),
-    [placeOptions, toKey],
+      filterPlacesForOppositeEnd(placeOptions, toKey, corridorNeighbors).map(
+        (p) => ({ value: p.key, label: p.label }),
+      ),
+    [placeOptions, toKey, corridorNeighbors],
   )
   const toOptions = React.useMemo(
     () =>
-      placeOptions
-        .filter((p) => p.key !== fromKey)
-        .map((p) => ({ value: p.key, label: p.label })),
-    [placeOptions, fromKey],
+      filterPlacesForOppositeEnd(placeOptions, fromKey, corridorNeighbors).map(
+        (p) => ({ value: p.key, label: p.label }),
+      ),
+    [placeOptions, fromKey, corridorNeighbors],
   )
 
   const busy = continuing || quoteStatus === "loading"
@@ -761,45 +792,71 @@ export function HeroBookingCard() {
         </div>
 
         <div className="relative mt-4 rounded-xl border border-border">
-          <div
-            ref={fromRowAnchor}
-            className="relative z-10 flex items-center gap-3 border-b border-border px-3 py-3.5"
-          >
-            <CircleIcon className="size-4 shrink-0 fill-none stroke-muted-foreground stroke-[2.5]" />
-            <div className="min-w-0 flex-1">
-              <HeroFieldSelect
-                value={fromKey}
-                placeholder={tr("book.fromPlaceholder")}
-                options={fromOptions}
-                onChange={onFromChange}
-                anchor={fromRowAnchor}
-                mobileSheet
-                sheetTitle={tr("book.chooseDestination")}
-                open={fromOpen}
-                onOpenChange={setFromOpen}
-                onAfterSelect={() => afterPlaceSelect("from")}
-              />
+          <div className="relative">
+            <div
+              ref={fromRowAnchor}
+              className="relative z-10 flex items-center gap-3 border-b border-border px-3 py-3.5 pr-14"
+            >
+              <CircleIcon className="size-4 shrink-0 fill-none stroke-muted-foreground stroke-[2.5]" />
+              <div className="min-w-0 flex-1">
+                <HeroFieldSelect
+                  value={fromKey}
+                  valueLabel={
+                    fromKey
+                      ? placeOptions.find((p) => p.key === fromKey)?.label
+                      : null
+                  }
+                  placeholder={tr("book.fromPlaceholder")}
+                  options={fromOptions}
+                  onChange={onFromChange}
+                  anchor={fromRowAnchor}
+                  mobileSheet
+                  sheetTitle={tr("book.chooseDestination")}
+                  open={fromOpen}
+                  onOpenChange={setFromOpen}
+                  onAfterSelect={() => afterPlaceSelect("from")}
+                />
+              </div>
             </div>
-          </div>
 
-          <div
-            ref={toRowAnchor}
-            className="relative z-10 flex items-center gap-3 border-b border-border px-3 py-3.5"
-          >
-            <MapPinIcon className="size-4 shrink-0 text-brand" />
-            <div className="min-w-0 flex-1">
-              <HeroFieldSelect
-                value={toKey}
-                placeholder={tr("book.toPlaceholder")}
-                options={toOptions}
-                onChange={onToChange}
-                anchor={toRowAnchor}
-                mobileSheet
-                sheetTitle={tr("book.chooseDestination")}
-                open={toOpen}
-                onOpenChange={setToOpen}
-                onAfterSelect={() => afterPlaceSelect("to")}
-              />
+            <button
+              type="button"
+              onClick={swapPlaces}
+              disabled={!fromKey || !toKey || busy}
+              aria-label={tr("book.swap")}
+              title={tr("book.swap")}
+              className={cn(
+                "absolute top-1/2 right-3 z-20 flex size-9 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-brand-surface text-brand shadow-sm transition-colors",
+                "hover:bg-muted disabled:pointer-events-none disabled:opacity-40",
+              )}
+            >
+              <ArrowUpDownIcon className="size-4" />
+            </button>
+
+            <div
+              ref={toRowAnchor}
+              className="relative z-10 flex items-center gap-3 border-b border-border px-3 py-3.5 pr-14"
+            >
+              <MapPinIcon className="size-4 shrink-0 text-brand" />
+              <div className="min-w-0 flex-1">
+                <HeroFieldSelect
+                  value={toKey}
+                  valueLabel={
+                    toKey
+                      ? placeOptions.find((p) => p.key === toKey)?.label
+                      : null
+                  }
+                  placeholder={tr("book.toPlaceholder")}
+                  options={toOptions}
+                  onChange={onToChange}
+                  anchor={toRowAnchor}
+                  mobileSheet
+                  sheetTitle={tr("book.chooseDestination")}
+                  open={toOpen}
+                  onOpenChange={setToOpen}
+                  onAfterSelect={() => afterPlaceSelect("to")}
+                />
+              </div>
             </div>
           </div>
 

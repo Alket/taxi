@@ -78,12 +78,30 @@ export async function POST(request: Request) {
         { status: 400 },
       )
     }
+    if (
+      err.code === "OUTSIDE_SERVICE_AREA" ||
+      err.name === "UncoveredDestinationError" ||
+      message === "No fare for this route." ||
+      message.includes("outside") ||
+      message.includes("Uncovered")
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            message === "No fare for this route."
+              ? message
+              : "We don't currently cover this destination.",
+          code: "OUTSIDE_SERVICE_AREA",
+        },
+        { status: 404 },
+      )
+    }
     const status =
-      message.includes("outside") || message.includes("Uncovered")
-        ? 404
-        : message.startsWith("Invalid") || message.includes("seats up to") || message.includes("holds up to")
-          ? 400
-          : 500
+      message.startsWith("Invalid") ||
+      message.includes("seats up to") ||
+      message.includes("holds up to")
+        ? 400
+        : 500
     return NextResponse.json({ error: message }, { status })
   }
 }

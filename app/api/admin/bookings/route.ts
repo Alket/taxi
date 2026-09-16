@@ -171,16 +171,23 @@ export async function POST(request: Request) {
     })
   } catch (error) {
     const err = error as Error & { code?: string }
-    const status =
-      err.code === "VEHICLE_DISABLED" || err.name === "VehicleDisabledError"
-        ? 400
-        : 500
-    return NextResponse.json(
-      {
-        error: err.message || "Failed to create booking.",
-        ...(status === 400 ? { code: "VEHICLE_DISABLED" } : {}),
-      },
-      { status },
-    )
+    const message = err.message || "Failed to create booking."
+    if (err.code === "VEHICLE_DISABLED" || err.name === "VehicleDisabledError") {
+      return NextResponse.json(
+        { error: message, code: "VEHICLE_DISABLED" },
+        { status: 400 },
+      )
+    }
+    if (
+      err.code === "OUTSIDE_SERVICE_AREA" ||
+      err.name === "UncoveredDestinationError" ||
+      message === "No fare for this route."
+    ) {
+      return NextResponse.json(
+        { error: message, code: "OUTSIDE_SERVICE_AREA" },
+        { status: 404 },
+      )
+    }
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

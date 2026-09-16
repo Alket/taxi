@@ -18,9 +18,12 @@ import {
 import { fetcher } from "@/lib/api"
 import type { AirportWithCoords } from "@/lib/airports"
 import {
+  buildCorridorNeighborMap,
   buildPlaceOptions,
   deriveRouteFromPlaces,
+  filterPlacesForOppositeEnd,
   placeKeyFromStore,
+  type CityCorridorPair,
 } from "@/lib/booking-places"
 import {
   CHILD_SEAT_OPTIONS,
@@ -80,6 +83,7 @@ const VEHICLE_LABELS: Record<string, string> = {
 type SummaryConfig = ChildSeatPrices & {
   airports?: AirportWithCoords[]
   zones?: ServiceZonePlace[]
+  cityCorridors?: CityCorridorPair[]
   vehicleCapacities?: import("@/lib/vehicles").VehicleCapacityConfig
   enabledVehicleTypes?: VehicleType[]
   sedanEnabled?: boolean
@@ -236,14 +240,20 @@ function SummaryEditDialog({
   const returnDateTime = useBookingStore((s) => s.returnDateTime)
   const passengerCount = useBookingStore((s) => s.passengerCount)
   const luggageCount = useBookingStore((s) => s.luggageCount)
+  const vehicleType = useBookingStore((s) => s.vehicleType)
   const patch = useBookingStore((s) => s.patch)
 
   const { data: config } = useSWR<SummaryConfig>("/api/booking/config", fetcher)
   const airports = config?.airports ?? []
   const zones = config?.zones ?? []
+  const cityCorridors = config?.cityCorridors ?? []
   const placeOptions = React.useMemo(
     () => buildPlaceOptions(airports, zones),
     [airports, zones],
+  )
+  const corridorNeighbors = React.useMemo(
+    () => buildCorridorNeighborMap(cityCorridors, vehicleType),
+    [cityCorridors, vehicleType],
   )
   const enabledTypes = React.useMemo(() => {
     if (config?.enabledVehicleTypes?.length) {
@@ -322,11 +332,22 @@ function SummaryEditDialog({
   }
 
   function onFromChange(key: string | null) {
+    // Picking the current To → swap draft ends.
+    if (key && key === draftToKey && draftFromKey) {
+      setDraftToKey(draftFromKey)
+      setDraftFromKey(key)
+      return
+    }
     setDraftFromKey(key)
     if (key && key === draftToKey) setDraftToKey(null)
   }
 
   function onToChange(key: string | null) {
+    if (key && key === draftFromKey && draftToKey) {
+      setDraftFromKey(draftToKey)
+      setDraftToKey(key)
+      return
+    }
     setDraftToKey(key)
     if (key && key === draftFromKey) setDraftFromKey(null)
   }
@@ -338,7 +359,7 @@ function SummaryEditDialog({
       setError("Select From and To.")
       return
     }
-    const route = deriveRouteFromPlaces(from, to)
+    const route = deriveRouteFromPlaces(from, to, corridorNeighbors)
     if (!route) {
       setError("Choose two different places.")
       return
@@ -476,8 +497,16 @@ function SummaryEditDialog({
     onOpenChange(false)
   }
 
-  const fromOptions = placeOptions.filter((p) => p.key !== draftToKey)
-  const toOptions = placeOptions.filter((p) => p.key !== draftFromKey)
+  const fromOptions = filterPlacesForOppositeEnd(
+    placeOptions,
+    draftToKey,
+    corridorNeighbors,
+  )
+  const toOptions = filterPlacesForOppositeEnd(
+    placeOptions,
+    draftFromKey,
+    corridorNeighbors,
+  )
   const fromRowRef = React.useRef<HTMLDivElement>(null)
   const toRowRef = React.useRef<HTMLDivElement>(null)
 

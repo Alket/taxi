@@ -27,11 +27,24 @@ const bodySchema = z
     toZoneId: z.string().min(1).optional().nullable(),
   })
   .superRefine((data, ctx) => {
-    if (data.direction === "zone_to_zone" && !data.toZoneId) {
+    const hasToZone = Boolean(data.toZoneId)
+    if (data.direction === "zone_to_zone" && !hasToZone) {
       ctx.addIssue({
         code: "custom",
         path: ["toZoneId"],
         message: "toZoneId is required for city-to-city quotes.",
+      })
+    }
+    // Never apply airport↔zone flat fare when a dropoff zone was sent.
+    if (
+      hasToZone &&
+      data.direction &&
+      data.direction !== "zone_to_zone"
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["direction"],
+        message: "toZoneId requires direction zone_to_zone.",
       })
     }
   })
@@ -56,20 +69,22 @@ export async function POST(request: Request) {
     )
   }
 
-  const { vehicleType, zoneId, toZoneId, direction } = parsed.data
+  const { vehicleType, zoneId, toZoneId } = parsed.data
+  // If toZoneId is present (with or without direction), always use InterZone —
+  // never fall through to an airport↔zone flat fare.
+  const useInterZone = Boolean(toZoneId)
 
   try {
     const settings = await getSettingsRow()
     assertVehicleTypeEnabled(settings, vehicleType as VehicleType)
 
-    const quote =
-      direction === "zone_to_zone" && toZoneId
-        ? await calculateQuoteForInterZone(
-            zoneId,
-            toZoneId,
-            vehicleType as VehicleType,
-          )
-        : await calculateQuoteForZone(zoneId, vehicleType as VehicleType)
+    const quote = useInterZone
+      ? await calculateQuoteForInterZone(
+          zoneId,
+          toZoneId!,
+          vehicleType as VehicleType,
+        )
+      : await calculateQuoteForZone(zoneId, vehicleType as VehicleType)
 
     return NextResponse.json({
       vehicleType,
