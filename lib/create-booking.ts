@@ -105,6 +105,16 @@ export const bookingCreateSchema = z
     bookerRelation: bookerRelationSchema.optional().nullable(),
   })
   .superRefine((data, ctx) => {
+    const hasToZone = Boolean(data.toZoneId)
+    // Match public quote: toZoneId is only valid for city↔city.
+    if (hasToZone && data.direction !== "zone_to_zone") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["toZoneId"],
+        message: "toZoneId requires direction zone_to_zone.",
+      })
+    }
+
     if (data.direction === "zone_to_zone") {
       if (!data.toZoneId) {
         ctx.addIssue({

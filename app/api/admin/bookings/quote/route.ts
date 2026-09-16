@@ -26,11 +26,23 @@ const querySchema = z
       .nullable(),
   })
   .superRefine((data, ctx) => {
-    if (data.direction === "zone_to_zone" && !data.toZoneId) {
+    const hasToZone = Boolean(data.toZoneId)
+    if (data.direction === "zone_to_zone" && !hasToZone) {
       ctx.addIssue({
         code: "custom",
         path: ["toZoneId"],
         message: "toZoneId is required for city-to-city quotes.",
+      })
+    }
+    if (
+      hasToZone &&
+      data.direction &&
+      data.direction !== "zone_to_zone"
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["direction"],
+        message: "toZoneId requires direction zone_to_zone.",
       })
     }
   })
@@ -56,19 +68,19 @@ export async function GET(request: Request) {
   }
 
   const { vehicleType, zoneId, toZoneId, direction } = parsed.data
+  const useInterZone = Boolean(toZoneId)
 
   let totalPrice: number
   try {
     const settings = await getSettingsRow()
     assertVehicleTypeEnabled(settings, vehicleType as VehicleType)
-    totalPrice =
-      direction === "zone_to_zone" && toZoneId
-        ? await calculatePriceForInterZone(
-            zoneId,
-            toZoneId,
-            vehicleType as VehicleType,
-          )
-        : await calculatePriceForZone(zoneId, vehicleType as VehicleType)
+    totalPrice = useInterZone
+      ? await calculatePriceForInterZone(
+          zoneId,
+          toZoneId!,
+          vehicleType as VehicleType,
+        )
+      : await calculatePriceForZone(zoneId, vehicleType as VehicleType)
   } catch (error) {
     if (error instanceof VehicleDisabledError) {
       return NextResponse.json(
