@@ -179,7 +179,7 @@ export function DriverCalendarView() {
   }
 
   const query = `dateFrom=${range.from}&dateTo=${range.to}`
-  const { data, isLoading } = useSWR<CalendarResponse>(
+  const { data, isLoading, mutate } = useSWR<CalendarResponse>(
     `/api/driver/bookings?${query}`,
     fetcher,
     { refreshInterval: 30_000 },
@@ -491,6 +491,7 @@ export function DriverCalendarView() {
             pushUrl({ bookingId: null })
           }
         }}
+        onUpdated={() => mutate()}
       />
     </>
   )

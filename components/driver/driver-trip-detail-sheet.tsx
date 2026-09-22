@@ -5,12 +5,16 @@ import {
   BanknoteIcon,
   CalendarClockIcon,
   KeyRoundIcon,
+  Loader2Icon,
   LuggageIcon,
   MapPinIcon,
   PlaneIcon,
   UsersIcon,
 } from "lucide-react"
+import { toast } from "sonner"
 
+import { apiPatch, apiPost } from "@/lib/api"
+import { formatMoney } from "@/lib/format"
 import {
   formatDriverDateTime,
   useDriverLocale,
@@ -19,6 +23,17 @@ import {
 import type { BookingStatus, PaymentStatus } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { DriverContactShareBlock } from "@/components/driver/copy-booking-info-button"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import {
@@ -50,6 +65,7 @@ export type DriverTripDetail = {
   contactName: string
   contactPhone: string
   contactWhatsappUrl: string | null
+  currency: string
   totalPriceLabel: string
   cashToCollect: number
   cashToCollectLabel: string
@@ -59,6 +75,9 @@ export type DriverTripDetail = {
   hadOnlineDeposit: boolean
   cashHint: string
   paymentStatus: PaymentStatus
+  canMarkCashPaid: boolean
+  needsResponse: boolean
+  nextStatus: "arrived" | "completed" | null
 }
 
 function cashHintLabel(
@@ -90,20 +109,25 @@ function SectionLabel({
 }
 
 /**
- * Admin-style right sheet for a driver trip — layout only (read-only).
- * Used from /driver/calendar; no admin APIs or internal notes.
+ * Driver trip detail sheet for /driver/calendar — same status actions as dashboard.
  */
 export function DriverTripDetailSheet({
   trip,
   open,
   onOpenChange,
+  onUpdated,
 }: {
   trip: DriverTripDetail | null
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** Refresh calendar data after a successful status/cash/respond action. */
+  onUpdated?: () => void | Promise<unknown>
 }) {
   const t = useDriverT()
   const locale = useDriverLocale()
+  const [pending, setPending] = React.useState(false)
+  const [rejectOpen, setRejectOpen] = React.useState(false)
+
   const pickupLabel = trip
     ? formatDriverDateTime(trip.pickupDateTime, locale)
     : ""
@@ -122,233 +146,450 @@ export function DriverTripDetailSheet({
     : ""
   const statusLabel = trip ? t(`status.${trip.status}`) : ""
 
+  const showActions =
+    !!trip &&
+    (trip.needsResponse || trip.canMarkCashPaid || trip.nextStatus)
+
+  async function advance() {
+    if (!trip?.nextStatus) return
+    setPending(true)
+    try {
+      await apiPatch(`/api/driver/bookings/${trip.id}/status`, {
+        status: trip.nextStatus,
+      })
+      toast.success(
+        trip.nextStatus === "arrived"
+          ? trip.cashToCollect > 0
+            ? t("trips.toastArrivedCash")
+            : t("trips.toastArrived")
+          : t("trips.toastCompleted"),
+      )
+      await onUpdated?.()
+    } catch (err) {
+      toast.error((err as Error).message)
+    } finally {
+      setPending(false)
+    }
+  }
+
+  async function markCashPaid() {
+    if (!trip) return
+    setPending(true)
+    try {
+      const res = await apiPost<{
+        ok: boolean
+        alreadyRecorded?: boolean
+        repaired?: boolean
+        amount?: number
+      }>(`/api/driver/bookings/${trip.id}/cash-paid`)
+      if (res.repaired) {
+        toast.success(t("trips.toastCashPaidRepaired"))
+      } else if (res.alreadyRecorded) {
+        toast.success(t("trips.toastCashPaidAlready"))
+      } else {
+        toast.success(
+          t("trips.toastCashPaid", {
+            amount:
+              res.amount != null && res.amount > 0
+                ? formatMoney(res.amount, trip.currency)
+                : trip.cashToCollectLabel,
+          }),
+        )
+      }
+      await onUpdated?.()
+    } catch (err) {
+      toast.error((err as Error).message)
+    } finally {
+      setPending(false)
+    }
+  }
+
+  async function respond(action: "accept" | "reject") {
+    if (!trip) return
+    setPending(true)
+    try {
+      await apiPost(`/api/driver/bookings/${trip.id}/respond`, { action })
+      if (action === "reject") setRejectOpen(false)
+      toast.success(
+        action === "accept"
+          ? t("trips.toastAccepted")
+          : t("trips.toastRejected"),
+      )
+      await onUpdated?.()
+      if (action === "reject") onOpenChange(false)
+    } catch (err) {
+      toast.error((err as Error).message)
+    } finally {
+      setPending(false)
+    }
+  }
+
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent
-        side="right"
-        className="h-dvh max-w-none gap-0 rounded-none border-0 p-0 sm:max-w-lg sm:border-l sm:data-[side=right]:max-w-lg"
-      >
-        {trip ? (
-          <>
-            <SheetHeader className="border-b p-4 pr-12">
-              <div className="flex flex-wrap items-center gap-2">
-                <SheetTitle className="font-mono text-sm">
-                  {trip.referenceCode}
-                </SheetTitle>
-                <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium">
-                  {statusLabel || trip.statusLabel}
-                </span>
-              </div>
-              <SheetDescription>
-                {pickupLabel}
-              </SheetDescription>
-            </SheetHeader>
+    <>
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent
+          side="right"
+          className="flex h-dvh max-w-none flex-col gap-0 rounded-none border-0 p-0 sm:max-w-lg sm:border-l sm:data-[side=right]:max-w-lg"
+        >
+          {trip ? (
+            <>
+              <SheetHeader className="border-b p-4 pr-12">
+                <div className="flex flex-wrap items-center gap-2">
+                  <SheetTitle className="font-mono text-sm">
+                    {trip.referenceCode}
+                  </SheetTitle>
+                  <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium">
+                    {statusLabel || trip.statusLabel}
+                  </span>
+                </div>
+                <SheetDescription>{pickupLabel}</SheetDescription>
+              </SheetHeader>
 
-            <ScrollArea className="min-h-0 flex-1">
-              <div className="flex flex-col gap-6 p-4">
-                {/* Route — same structure as admin RouteBlock */}
-                <section className="flex flex-col gap-3">
-                  {trip.flightNumber ? (
-                    <span className="font-mono text-xs text-muted-foreground">
-                      {trip.flightNumber}
-                    </span>
-                  ) : null}
-                  <ol className="flex flex-col gap-3">
-                    <li className="flex gap-3">
-                      <div className="flex flex-col items-center pt-1">
-                        <span className="size-2.5 rounded-full border-2 border-primary" />
-                        <span className="my-1 w-0.5 flex-1 bg-border" />
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-xs text-muted-foreground">
-                          {t("trips.pickup")}
-                        </span>
-                        <span className="text-sm font-medium">
-                          {trip.pickupAddress}
-                        </span>
-                      </div>
-                    </li>
-                    <li className="flex gap-3">
-                      <div className="flex flex-col items-center pt-1">
-                        <MapPinIcon className="size-3 text-success" />
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-xs text-muted-foreground">
-                          {t("trips.dropoff")}
-                        </span>
-                        <span className="text-sm font-medium">
-                          {trip.dropoffAddress}
-                        </span>
-                      </div>
-                    </li>
-                  </ol>
-                </section>
-
-                {/* Trip facts — admin-style muted cards */}
-                <section className="grid grid-cols-2 gap-3">
-                  {(
-                    [
-                      {
-                        icon: CalendarClockIcon,
-                        label: t("calendar.sheetPickupTime"),
-                        value: pickupLabel,
-                        fullRow: true,
-                      },
-                      {
-                        icon: PlaneIcon,
-                        label: t("calendar.sheetFlight"),
-                        value: trip.flightNumber,
-                        fullRow: true,
-                      },
-                      {
-                        icon: UsersIcon,
-                        label: t("calendar.sheetPassengers"),
-                        value: String(trip.passengerCount),
-                        fullRow: false,
-                      },
-                      {
-                        icon: LuggageIcon,
-                        label: t("calendar.sheetLuggage"),
-                        value: String(trip.luggageCount),
-                        fullRow: false,
-                      },
-                    ] as const
-                  )
-                    .filter((f) => f.value)
-                    .map((f) => (
-                      <div
-                        key={f.label}
-                        className={cn(
-                          "flex items-center gap-2.5 rounded-lg border bg-muted/30 p-2.5",
-                          f.fullRow && "col-span-2",
-                        )}
-                      >
-                        <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-background text-muted-foreground">
-                          <f.icon className="size-4" />
-                        </span>
-                        <div className="flex min-w-0 flex-col">
+              <ScrollArea className="min-h-0 flex-1">
+                <div className="flex flex-col gap-6 p-4">
+                  <section className="flex flex-col gap-3">
+                    {trip.flightNumber ? (
+                      <span className="font-mono text-xs text-muted-foreground">
+                        {trip.flightNumber}
+                      </span>
+                    ) : null}
+                    <ol className="flex flex-col gap-3">
+                      <li className="flex gap-3">
+                        <div className="flex flex-col items-center pt-1">
+                          <span className="size-2.5 rounded-full border-2 border-primary" />
+                          <span className="my-1 w-0.5 flex-1 bg-border" />
+                        </div>
+                        <div className="flex flex-col">
                           <span className="text-xs text-muted-foreground">
-                            {f.label}
+                            {t("trips.pickup")}
                           </span>
-                          <span className="truncate text-sm font-medium">
-                            {f.value}
+                          <span className="text-sm font-medium">
+                            {trip.pickupAddress}
                           </span>
                         </div>
+                      </li>
+                      <li className="flex gap-3">
+                        <div className="flex flex-col items-center pt-1">
+                          <MapPinIcon className="size-3 text-success" />
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-xs text-muted-foreground">
+                            {t("trips.dropoff")}
+                          </span>
+                          <span className="text-sm font-medium">
+                            {trip.dropoffAddress}
+                          </span>
+                        </div>
+                      </li>
+                    </ol>
+                  </section>
+
+                  <section className="grid grid-cols-2 gap-3">
+                    {(
+                      [
+                        {
+                          icon: CalendarClockIcon,
+                          label: t("calendar.sheetPickupTime"),
+                          value: pickupLabel,
+                          fullRow: true,
+                        },
+                        {
+                          icon: PlaneIcon,
+                          label: t("calendar.sheetFlight"),
+                          value: trip.flightNumber,
+                          fullRow: true,
+                        },
+                        {
+                          icon: UsersIcon,
+                          label: t("calendar.sheetPassengers"),
+                          value: String(trip.passengerCount),
+                          fullRow: false,
+                        },
+                        {
+                          icon: LuggageIcon,
+                          label: t("calendar.sheetLuggage"),
+                          value: String(trip.luggageCount),
+                          fullRow: false,
+                        },
+                      ] as const
+                    )
+                      .filter((f) => f.value)
+                      .map((f) => (
+                        <div
+                          key={f.label}
+                          className={cn(
+                            "flex items-center gap-2.5 rounded-lg border bg-muted/30 p-2.5",
+                            f.fullRow && "col-span-2",
+                          )}
+                        >
+                          <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-background text-muted-foreground">
+                            <f.icon className="size-4" />
+                          </span>
+                          <div className="flex min-w-0 flex-col">
+                            <span className="text-xs text-muted-foreground">
+                              {f.label}
+                            </span>
+                            <span className="truncate text-sm font-medium">
+                              {f.value}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    {trip.meetAndGreet ? (
+                      <div className="col-span-2 rounded-lg border bg-muted/30 px-2.5 py-2 text-sm font-medium">
+                        {t("trips.meetGreet")}
                       </div>
-                    ))}
-                  {trip.meetAndGreet ? (
-                    <div className="col-span-2 rounded-lg border bg-muted/30 px-2.5 py-2 text-sm font-medium">
-                      {t("trips.meetGreet")}
-                    </div>
-                  ) : null}
-                </section>
+                    ) : null}
+                  </section>
 
-                <Separator />
+                  <Separator />
 
-                {/* Pickup PIN */}
-                <section className="flex flex-col gap-3">
-                  <SectionLabel icon={KeyRoundIcon}>
-                    {t("trips.pickupPin")}
-                  </SectionLabel>
-                  <div className="flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/10 px-3 py-3">
-                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
-                      <KeyRoundIcon className="size-5" />
-                    </div>
-                    <p className="font-mono text-2xl font-bold tracking-[0.2em] tabular-nums text-foreground sm:text-3xl">
-                      {trip.pickupPin}
-                    </p>
-                  </div>
-                </section>
-
-                <Separator />
-
-                {/* Passenger / contact */}
-                <section className="flex flex-col gap-3">
-                  <SectionLabel icon={UsersIcon}>
-                    {t("calendar.sheetPassenger")}
-                  </SectionLabel>
-                  <p className="text-sm font-medium">{trip.contactName}</p>
-                  <DriverContactShareBlock trip={trip} />
-                </section>
-
-                <Separator />
-
-                {/* Cash / total */}
-                <section className="flex flex-col gap-3">
-                  <SectionLabel icon={BanknoteIcon}>
-                    {t("calendar.sheetPayment")}
-                  </SectionLabel>
-                  <div className="flex items-center gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-3">
-                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
-                      <BanknoteIcon className="size-5" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-medium tracking-wide text-emerald-700 uppercase dark:text-emerald-300">
-                        {t("trips.tripTotalLabel")}
+                  <section className="flex flex-col gap-3">
+                    <SectionLabel icon={KeyRoundIcon}>
+                      {t("trips.pickupPin")}
+                    </SectionLabel>
+                    <div className="flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/10 px-3 py-3">
+                      <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
+                        <KeyRoundIcon className="size-5" />
+                      </div>
+                      <p className="font-mono text-2xl font-bold tracking-[0.2em] tabular-nums text-foreground sm:text-3xl">
+                        {trip.pickupPin}
                       </p>
-                      <p className="text-2xl font-bold tabular-nums text-foreground sm:text-3xl">
-                        {trip.totalPriceLabel}
-                      </p>
-                      {trip.hadOnlineDeposit ? (
-                        <p className="mt-0.5 text-xs text-muted-foreground">
-                          {t("trips.depositPaid")}
+                    </div>
+                  </section>
+
+                  <Separator />
+
+                  <section className="flex flex-col gap-3">
+                    <SectionLabel icon={UsersIcon}>
+                      {t("calendar.sheetPassenger")}
+                    </SectionLabel>
+                    <p className="text-sm font-medium">{trip.contactName}</p>
+                    <DriverContactShareBlock trip={trip} />
+                  </section>
+
+                  <Separator />
+
+                  <section className="flex flex-col gap-3">
+                    <SectionLabel icon={BanknoteIcon}>
+                      {t("calendar.sheetPayment")}
+                    </SectionLabel>
+                    <div className="flex items-center gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-3">
+                      <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
+                        <BanknoteIcon className="size-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium tracking-wide text-emerald-700 uppercase dark:text-emerald-300">
+                          {t("trips.tripTotalLabel")}
                         </p>
-                      ) : null}
+                        <p className="text-2xl font-bold tabular-nums text-foreground sm:text-3xl">
+                          {trip.totalPriceLabel}
+                        </p>
+                        {trip.hadOnlineDeposit ? (
+                          <p className="mt-0.5 text-xs text-muted-foreground">
+                            {t("trips.depositPaid")}
+                          </p>
+                        ) : null}
+                      </div>
                     </div>
-                  </div>
-                  <div
-                    className={
-                      trip.cashToCollect > 0
-                        ? "flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2"
-                        : trip.cashCollected
-                          ? "flex items-start gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2"
-                          : "flex items-start gap-2 rounded-lg border bg-muted/40 px-3 py-2"
-                    }
-                  >
-                    <BanknoteIcon className="mt-0.5 size-4 shrink-0" />
-                    <div className="min-w-0">
-                      <p className="text-xs text-muted-foreground">
-                        {cashHint}
-                      </p>
-                      <p className="text-base font-semibold tabular-nums">
-                        {cashAmountLabel}
-                      </p>
+                    <div
+                      className={
+                        trip.cashToCollect > 0
+                          ? "flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2"
+                          : trip.cashCollected
+                            ? "flex items-start gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2"
+                            : "flex items-start gap-2 rounded-lg border bg-muted/40 px-3 py-2"
+                      }
+                    >
+                      <BanknoteIcon className="mt-0.5 size-4 shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-xs text-muted-foreground">
+                          {cashHint}
+                        </p>
+                        <p className="text-base font-semibold tabular-nums">
+                          {cashAmountLabel}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                </section>
+                  </section>
 
-                {trip.childSeats || trip.driverNotes ? (
-                  <>
-                    <Separator />
-                    <section className="flex flex-col gap-2">
-                      {trip.childSeats ? (
-                        <div className="rounded-lg border bg-muted/40 px-3 py-2">
-                          <p className="text-xs text-muted-foreground">
-                            {t("trips.childSeats")}
-                          </p>
-                          <p className="text-sm font-medium break-words">
-                            {trip.childSeats}
-                          </p>
+                  {trip.childSeats || trip.driverNotes ? (
+                    <>
+                      <Separator />
+                      <section className="flex flex-col gap-2">
+                        {trip.childSeats ? (
+                          <div className="rounded-lg border bg-muted/40 px-3 py-2">
+                            <p className="text-xs text-muted-foreground">
+                              {t("trips.childSeats")}
+                            </p>
+                            <p className="text-sm font-medium break-words">
+                              {trip.childSeats}
+                            </p>
+                          </div>
+                        ) : null}
+                        {trip.driverNotes ? (
+                          <div className="rounded-lg border border-sky-500/25 bg-sky-500/10 px-3 py-2">
+                            <p className="text-xs text-muted-foreground">
+                              {t("trips.passengerComment")}
+                            </p>
+                            <p className="text-sm font-medium break-words">
+                              {trip.driverNotes}
+                            </p>
+                          </div>
+                        ) : null}
+                      </section>
+                    </>
+                  ) : null}
+                </div>
+              </ScrollArea>
+
+              {showActions ? (
+                <div className="border-t bg-background p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+                  <div className="flex flex-col gap-2.5 rounded-xl border border-primary/25 bg-primary/5 p-3">
+                    <p className="text-xs font-medium text-muted-foreground">
+                      {t("trips.statusActions")}
+                    </p>
+
+                    {trip.needsResponse ? (
+                      <>
+                        <p className="text-xs text-muted-foreground">
+                          {t("trips.needsResponse")}
+                        </p>
+                        <div className="grid grid-cols-2 gap-2">
+                          <Button
+                            type="button"
+                            size="lg"
+                            className="h-11 w-full touch-manipulation"
+                            disabled={pending}
+                            onClick={() => void respond("accept")}
+                          >
+                            {pending ? (
+                              <>
+                                <Loader2Icon
+                                  className="animate-spin"
+                                  data-icon="inline-start"
+                                />
+                                {t("trips.updating")}
+                              </>
+                            ) : (
+                              t("trips.accept")
+                            )}
+                          </Button>
+                          <Button
+                            type="button"
+                            size="lg"
+                            variant="outline"
+                            className="h-11 w-full touch-manipulation"
+                            disabled={pending}
+                            onClick={() => setRejectOpen(true)}
+                          >
+                            {t("trips.reject")}
+                          </Button>
                         </div>
-                      ) : null}
-                      {trip.driverNotes ? (
-                        <div className="rounded-lg border border-sky-500/25 bg-sky-500/10 px-3 py-2">
-                          <p className="text-xs text-muted-foreground">
-                            {t("trips.passengerComment")}
-                          </p>
-                          <p className="text-sm font-medium break-words">
-                            {trip.driverNotes}
-                          </p>
-                        </div>
-                      ) : null}
-                    </section>
-                  </>
-                ) : null}
-              </div>
-            </ScrollArea>
-          </>
-        ) : null}
-      </SheetContent>
-    </Sheet>
+                      </>
+                    ) : null}
+
+                    {!trip.needsResponse && trip.canMarkCashPaid ? (
+                      <Button
+                        type="button"
+                        size="lg"
+                        className="h-11 w-full touch-manipulation"
+                        disabled={pending}
+                        onClick={() => void markCashPaid()}
+                      >
+                        {pending ? (
+                          <>
+                            <Loader2Icon
+                              className="animate-spin"
+                              data-icon="inline-start"
+                            />
+                            {t("trips.updating")}
+                          </>
+                        ) : (
+                          <>
+                            <BanknoteIcon data-icon="inline-start" />
+                            {t("trips.cashPaid")}
+                          </>
+                        )}
+                      </Button>
+                    ) : null}
+
+                    {!trip.needsResponse && trip.nextStatus ? (
+                      <Button
+                        type="button"
+                        size="lg"
+                        variant={trip.canMarkCashPaid ? "outline" : "default"}
+                        className="h-11 w-full touch-manipulation"
+                        disabled={pending}
+                        onClick={() => void advance()}
+                      >
+                        {pending ? (
+                          <>
+                            <Loader2Icon
+                              className="animate-spin"
+                              data-icon="inline-start"
+                            />
+                            {t("trips.updating")}
+                          </>
+                        ) : trip.nextStatus === "arrived" ? (
+                          t("trips.markArrived")
+                        ) : (
+                          t("trips.markCompleted")
+                        )}
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
+            </>
+          ) : null}
+        </SheetContent>
+      </Sheet>
+
+      <AlertDialog
+        open={rejectOpen}
+        onOpenChange={(open) => {
+          if (!open && !pending) setRejectOpen(false)
+        }}
+      >
+        <AlertDialogContent className="max-w-[calc(100%-2rem)] sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t("trips.rejectTitle", {
+                code: trip?.referenceCode ?? "",
+              })}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("trips.rejectDescription")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={pending}>
+              {t("trips.keepTrip")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={!trip || pending}
+              onClick={(e) => {
+                e.preventDefault()
+                void respond("reject")
+              }}
+            >
+              {pending ? (
+                <>
+                  <Loader2Icon
+                    className="animate-spin"
+                    data-icon="inline-start"
+                  />
+                  {t("trips.rejecting")}
+                </>
+              ) : (
+                t("trips.rejectTrip")
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }

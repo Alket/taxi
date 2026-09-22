@@ -6,7 +6,7 @@ const globalForPrisma = globalThis as unknown as {
 }
 
 /** Bump when the Prisma schema changes so the dev singleton is recreated. */
-const PRISMA_SCHEMA_VERSION = "internal-notes-audit-v1"
+const PRISMA_SCHEMA_VERSION = "city-corridor-inter-zone-fare-v1"
 
 if (
   process.env.NODE_ENV !== "production" &&

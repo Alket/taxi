@@ -43,18 +43,38 @@ export async function GET(request: Request) {
   const session = await requireStaffSession(request)
   if ("error" in session) return session.error
 
-  const fares = await prisma.interZoneFare.findMany({
-    include: fareInclude,
-    orderBy: [
-      { zoneA: { name: "asc" } },
-      { zoneB: { name: "asc" } },
-      { vehicleType: "asc" },
-    ],
-  })
+  try {
+    const fares = await prisma.interZoneFare.findMany({
+      include: fareInclude,
+      orderBy: [
+        { zoneA: { name: "asc" } },
+        { zoneB: { name: "asc" } },
+        { vehicleType: "asc" },
+      ],
+    })
 
-  return NextResponse.json({
-    fares: fares.map(serializeInterZoneFare),
-  })
+    return NextResponse.json({
+      fares: fares.map(serializeInterZoneFare),
+    })
+  } catch (err) {
+    const code = (err as { code?: string }).code
+    const message = err instanceof Error ? err.message : String(err)
+    if (
+      message.includes("InterZoneFare") &&
+      (message.includes("does not exist") ||
+        message.includes("Unknown model") ||
+        code === "P2021")
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Database is missing city-corridor tables. Run: npx prisma migrate deploy",
+        },
+        { status: 503 },
+      )
+    }
+    throw err
+  }
 }
 
 export async function POST(request: Request) {
@@ -103,10 +123,34 @@ export async function POST(request: Request) {
       { fare: serializeInterZoneFare(fare) },
       { status: 201 },
     )
-  } catch {
+  } catch (err) {
+    const code = (err as { code?: string }).code
+    const message = err instanceof Error ? err.message : String(err)
+    if (code === "P2002") {
+      return NextResponse.json(
+        { error: "A fare already exists for this city pair and vehicle." },
+        { status: 409 },
+      )
+    }
+    // Common after git pull before migrations: InterZoneFare table missing.
+    if (
+      message.includes("InterZoneFare") &&
+      (message.includes("does not exist") ||
+        message.includes("Unknown model") ||
+        code === "P2021")
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Database is missing city-corridor tables. Run: npx prisma migrate deploy",
+        },
+        { status: 503 },
+      )
+    }
+    console.error("[admin/inter-zone-fares] create failed:", err)
     return NextResponse.json(
-      { error: "A fare already exists for this city pair and vehicle." },
-      { status: 409 },
+      { error: "Could not create city corridor fare." },
+      { status: 500 },
     )
   }
 }
