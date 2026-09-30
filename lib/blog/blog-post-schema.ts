@@ -84,6 +84,39 @@ const blogBlockSchema = z.discriminatedUnion("type", [
   }),
   z.object({
     type: z.literal("mid_cta"),
+    eyebrow: z.string().max(HEADING_MAX).optional(),
+    heading: z.string().max(HEADING_MAX).optional(),
+    text: z.string().max(BODY_MAX).optional(),
+    primaryLabel: z.string().max(HEADING_MAX).optional(),
+    primaryHref: z
+      .string()
+      .max(SRC_MAX)
+      .refine(
+        (v) =>
+          !v ||
+          (v.startsWith("/") &&
+            !v.startsWith("//") &&
+            !v.includes("://")),
+        {
+          message: "primaryHref must be a site-relative / path",
+        },
+      )
+      .optional(),
+    secondaryLabel: z.string().max(HEADING_MAX).optional(),
+    secondaryHref: z
+      .string()
+      .max(SRC_MAX)
+      .refine(
+        (v) =>
+          !v ||
+          (v.startsWith("/") &&
+            !v.startsWith("//") &&
+            !v.includes("://")),
+        {
+          message: "secondaryHref must be a site-relative / path",
+        },
+      )
+      .optional(),
   }),
 ])
 

@@ -191,7 +191,7 @@ export function BlogArticleBody({
               </div>
             )
           case "mid_cta":
-            return <BlogMidCta key={index} locale={locale} />
+            return <BlogMidCta key={index} locale={locale} block={block} />
           default:
             return null
         }

@@ -35,7 +35,18 @@ export type BlogBlock =
       headers: string[]
       rows: string[][]
     }
-  | { type: "mid_cta" }
+  | {
+      type: "mid_cta"
+      /** Overrides shared i18n defaults when set. */
+      eyebrow?: string
+      heading?: string
+      text?: string
+      primaryLabel?: string
+      /** Site-relative path, e.g. `/transfers/tirana-airport-to-berat`. */
+      primaryHref?: string
+      secondaryLabel?: string
+      secondaryHref?: string
+    }
 
 export type BlogPost = {
   slug: string

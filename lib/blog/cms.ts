@@ -88,7 +88,21 @@ export function blogPostToSections(post: BlogPost): PageSection[] {
         )
         break
       case "mid_cta":
-        sections.push(sec("mid_cta", key, {}))
+        sections.push(
+          sec("mid_cta", key, {
+            heading: block.eyebrow,
+            question: block.heading,
+            body: block.text,
+            items: [
+              block.primaryLabel ?? "",
+              block.secondaryLabel ?? "",
+            ],
+            headers: [
+              block.primaryHref ?? "",
+              block.secondaryHref ?? "",
+            ],
+          }),
+        )
         break
     }
   }
@@ -149,8 +163,20 @@ function sectionToBlock(section: PageSection): BlogBlock | null {
         headers: section.headers ?? [],
         rows: section.rows ?? [],
       }
-    case "mid_cta":
-      return { type: "mid_cta" }
+    case "mid_cta": {
+      const labels = section.items ?? []
+      const hrefs = section.headers ?? []
+      return {
+        type: "mid_cta",
+        eyebrow: section.heading?.trim() || undefined,
+        heading: section.question?.trim() || undefined,
+        text: section.body?.trim() || undefined,
+        primaryLabel: labels[0]?.trim() || undefined,
+        secondaryLabel: labels[1]?.trim() || undefined,
+        primaryHref: hrefs[0]?.trim() || undefined,
+        secondaryHref: hrefs[1]?.trim() || undefined,
+      }
+    }
     case "image":
       // Inline images in body aren't in BlogBlock v1 — skip.
       return null

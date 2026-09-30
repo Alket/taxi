@@ -642,10 +642,104 @@ function SectionFields({
       )}
 
       {section.type === "mid_cta" && (
-        <p className="sm:col-span-2 text-sm text-muted-foreground">
-          Inserts the mid-article booking CTA (“Landing at Tirana Airport
-          soon?”). No extra fields needed.
-        </p>
+        <>
+          <p className="sm:col-span-2 text-sm text-muted-foreground">
+            Mid-article booking CTA. Leave fields empty to use the shared
+            default (Tirana Airport → Sarandë / Ksamil). Customize for other
+            destinations (e.g. Berat).
+          </p>
+          <div className="flex flex-col gap-1.5 sm:col-span-2">
+            <Label className="text-xs text-muted-foreground">Eyebrow</Label>
+            <Input
+              value={section.heading ?? ""}
+              placeholder="Landing at Tirana Airport soon?"
+              onChange={(e) =>
+                onChange({ ...section, heading: e.target.value })
+              }
+            />
+          </div>
+          <div className="flex flex-col gap-1.5 sm:col-span-2">
+            <Label className="text-xs text-muted-foreground">Heading</Label>
+            <Input
+              value={section.question ?? ""}
+              placeholder="Reserve a private driver…"
+              onChange={(e) =>
+                onChange({ ...section, question: e.target.value })
+              }
+            />
+          </div>
+          <div className="flex flex-col gap-1.5 sm:col-span-2">
+            <Label className="text-xs text-muted-foreground">Supporting text</Label>
+            <Textarea
+              rows={3}
+              value={section.body ?? ""}
+              placeholder="Fixed taxi rate TIA pricing to…"
+              onChange={(e) =>
+                onChange({ ...section, body: e.target.value })
+              }
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs text-muted-foreground">
+              Primary button label
+            </Label>
+            <Input
+              value={section.items?.[0] ?? ""}
+              placeholder="Book a private transfer…"
+              onChange={(e) => {
+                const next = [...(section.items ?? ["", ""])]
+                next[0] = e.target.value
+                if (next.length < 2) next[1] = section.items?.[1] ?? ""
+                onChange({ ...section, items: next })
+              }}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs text-muted-foreground">
+              Primary button path
+            </Label>
+            <Input
+              value={section.headers?.[0] ?? ""}
+              placeholder="/transfers/tirana-airport-to-berat"
+              onChange={(e) => {
+                const next = [...(section.headers ?? ["", ""])]
+                next[0] = e.target.value
+                if (next.length < 2) next[1] = section.headers?.[1] ?? ""
+                onChange({ ...section, headers: next })
+              }}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs text-muted-foreground">
+              Secondary button label
+            </Label>
+            <Input
+              value={section.items?.[1] ?? ""}
+              placeholder="View fixed driver rates…"
+              onChange={(e) => {
+                const next = [...(section.items ?? ["", ""])]
+                if (next.length < 1) next[0] = ""
+                next[1] = e.target.value
+                onChange({ ...section, items: next })
+              }}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs text-muted-foreground">
+              Secondary button path
+            </Label>
+            <Input
+              value={section.headers?.[1] ?? ""}
+              placeholder="/transfers/tirana-airport-to-saranda"
+              onChange={(e) => {
+                const next = [...(section.headers ?? ["", ""])]
+                if (next.length < 1) next[0] = ""
+                next[1] = e.target.value
+                onChange({ ...section, headers: next })
+              }}
+            />
+          </div>
+        </>
       )}
 
       {section.type === "faq_item" && (
