@@ -59,7 +59,7 @@ import {
   useBlogCatalog,
 } from "@/components/admin/blog-catalog-manager"
 import { toDateInputValue } from "@/components/admin/date-field"
-import type { MediaAssetDto } from "@/lib/media-shared"
+import { mediaPreviewSrc, type MediaAssetDto } from "@/lib/media-shared"
 import {
   destinationHeroImage,
   parseDestinationDocument,
@@ -301,18 +301,59 @@ function patchSplitSections(
   )
 }
 
+function AdminImagePreview({
+  src,
+  alt,
+  bust,
+  className,
+}: {
+  src: string
+  alt: string
+  bust?: number
+  className?: string
+}) {
+  const [broken, setBroken] = useState(false)
+  const preview = mediaPreviewSrc(src, bust)
+
+  useEffect(() => {
+    setBroken(false)
+  }, [preview])
+
+  return (
+    <div className="sm:col-span-2">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        key={preview}
+        src={preview}
+        alt={alt}
+        className={className}
+        onError={() => setBroken(true)}
+        onLoad={() => setBroken(false)}
+      />
+      {broken ? (
+        <p className="mt-1 text-xs text-destructive">
+          Image not found on the server. Re-upload it, or pick one from the
+          library — this path is saved in the page but the file is missing.
+        </p>
+      ) : null}
+    </div>
+  )
+}
+
 function SectionFields({
   section,
   onChange,
   onUpload,
   onOpenLibrary,
   uploading,
+  previewBust,
 }: {
   section: PageSection
   onChange: (next: PageSection) => void
   onUpload: (file: File) => Promise<string | null>
   onOpenLibrary: () => void
   uploading: boolean
+  previewBust?: number
 }) {
   return (
     <div className="grid gap-3 sm:grid-cols-2">
@@ -422,7 +463,7 @@ function SectionFields({
               <div className="mt-1 flex items-center gap-3">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={section.icon}
+                  src={mediaPreviewSrc(section.icon, previewBust)}
                   alt=""
                   className="size-10 rounded-lg border bg-muted object-contain p-1.5"
                 />
@@ -511,10 +552,10 @@ function SectionFields({
             ) : null}
           </div>
           {section.src ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <AdminImagePreview
               src={section.src}
               alt={section.alt || ""}
+              bust={previewBust}
               className="mt-1 max-h-40 rounded-lg border object-cover sm:col-span-2"
             />
           ) : null}
@@ -777,6 +818,8 @@ export function PageEditorView({ slug }: { slug: string }) {
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [uploading, setUploading] = useState(false)
+  /** Bumps after each upload so admin <img> previews refetch same-path URLs. */
+  const [previewBust, setPreviewBust] = useState(0)
   const [addType, setAddType] = useState<PageSectionType>("text")
   const [libraryTarget, setLibraryTarget] = useState<
     | null
@@ -833,6 +876,7 @@ export function PageEditorView({ slug }: { slug: string }) {
       if (!res.ok) {
         throw new Error(data.error || "Upload failed")
       }
+      setPreviewBust((n) => n + 1)
       toast.success("Image uploaded")
       return data.url as string
     } catch (err) {
@@ -865,6 +909,7 @@ export function PageEditorView({ slug }: { slug: string }) {
 
   function applyLibraryAsset(asset: MediaAssetDto) {
     if (!page || !libraryTarget) return
+    setPreviewBust((n) => n + 1)
     if (libraryTarget.type === "og") {
       applyOgImage(asset.url, asset.alt ? { alt: asset.alt } : undefined)
       return
@@ -1520,6 +1565,14 @@ export function PageEditorView({ slug }: { slug: string }) {
                 </label>
               </div>
             </div>
+            {page.ogImage ? (
+              <AdminImagePreview
+                src={page.ogImage}
+                alt=""
+                bust={previewBust}
+                className="mt-2 max-h-40 rounded-lg border object-cover"
+              />
+            ) : null}
           </div>
             </>
           ) : null}
@@ -1877,6 +1930,7 @@ export function PageEditorView({ slug }: { slug: string }) {
                       setLibraryTarget({ type: "section", id: section.id })
                     }
                     uploading={uploading}
+                    previewBust={previewBust}
                   />
                 </div>
               )
@@ -2045,6 +2099,7 @@ export function PageEditorView({ slug }: { slug: string }) {
                         setLibraryTarget({ type: "section", id: section.id })
                       }
                       uploading={uploading}
+                      previewBust={previewBust}
                     />
                   </div>
                 )
@@ -2106,6 +2161,7 @@ export function PageEditorView({ slug }: { slug: string }) {
                     setLibraryTarget({ type: "section", id: homeHero.id })
                   }
                   uploading={uploading}
+                  previewBust={previewBust}
                 />
                 <div className="mt-4 flex items-start gap-2 border-t pt-4">
                   <input
@@ -2310,6 +2366,7 @@ export function PageEditorView({ slug }: { slug: string }) {
                       setLibraryTarget({ type: "section", id: section.id })
                     }
                     uploading={uploading}
+                    previewBust={previewBust}
                   />
                 </div>
               )

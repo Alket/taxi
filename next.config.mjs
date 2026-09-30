@@ -55,12 +55,20 @@ const nextConfig = {
     ]
   },
   async rewrites() {
-    return [
-      {
-        source: "/uploads/pages/:filename",
-        destination: "/api/uploads/pages/:filename",
-      },
-    ]
+    // beforeFiles: must run BEFORE the public/ filesystem check.
+    // In standalone production, runtime uploads on the Docker volume are not in
+    // the build-time public manifest — afterFiles rewrites never run, so admin
+    // <img src="/uploads/pages/…"> 404s while next/image still reads the file
+    // from disk (marketing looks fine). Local `next dev` serves public live, so
+    // the bug only shows online.
+    return {
+      beforeFiles: [
+        {
+          source: "/uploads/pages/:filename",
+          destination: "/api/uploads/pages/:filename",
+        },
+      ],
+    }
   },
 }
 

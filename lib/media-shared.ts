@@ -95,6 +95,21 @@ export function isLocalMediaUrl(url: string): boolean {
   return url.startsWith(`${MEDIA_URL_PREFIX}/`)
 }
 
+/**
+ * Admin preview helper: bust browser caches for local uploads after
+ * re-upload / library select (same path can otherwise keep a stale 404).
+ */
+export function mediaPreviewSrc(
+  url: string,
+  bust?: string | number | null,
+): string {
+  const value = url.trim()
+  if (!value || bust == null || bust === "") return value
+  if (!isLocalMediaUrl(value)) return value
+  const sep = value.includes("?") ? "&" : "?"
+  return `${value}${sep}v=${encodeURIComponent(String(bust))}`
+}
+
 /** Prefer library alt, then a real title, then a caller fallback. */
 export function resolveMediaAlt(
   meta: MediaMeta | undefined,
