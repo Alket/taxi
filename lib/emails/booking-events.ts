@@ -22,6 +22,7 @@ import {
 } from "@/lib/trustpilot-afs"
 import type { NotificationChannels, Settings, Direction } from "@/lib/types"
 import { DIRECTION_LABELS } from "@/lib/format"
+import { renderBookingTripEmail } from "@/lib/emails/booking-layout"
 import {
   adminBookingUrl,
   adminReviewsUrl,
@@ -580,35 +581,23 @@ export async function sendCustomerBookingConfirmation(
       supportLine(settings),
     ].join("\n")
 
-    const html = wrapEmail({
-      company,
-      eyebrow: "Confirmed",
-      tone: "success",
+    const html = renderBookingTripEmail({
+      audience: "customer",
+      bookingId: booking.id,
+      legs,
+      settings,
       preheader: isRoundTrip
         ? `Round trip ${refs} is confirmed`
         : `Booking ${booking.referenceCode} is confirmed`,
-      title: isRoundTrip
-        ? "Your round trip is booked"
-        : "Your transfer is booked",
       introHtml: `Hi ${escapeHtml(booking.customer.name)}, thanks for choosing <strong>${escapeHtml(company)}</strong>. ${
         isRoundTrip
           ? "Your outbound and return ride details are below."
           : "Your ride details are below."
+      }${
+        cashOnArrival
+          ? "<br/><br/>Payment: pay the full amount in cash to your driver at pickup."
+          : "<br/><br/>Cancellation: cancelling forfeits the deposit (no refund). Unpaid balance is never charged."
       }`,
-      rowsHtml:
-        tripCustomerRows(legs) +
-        tripPriceRows(legs) +
-        (cashOnArrival
-          ? detailRow(
-              "Payment",
-              "Pay the full amount in cash to your driver at pickup.",
-            )
-          : detailRow(
-              "Cancellation",
-              "Cancelling forfeits the deposit (no refund). Unpaid balance is never charged.",
-            )),
-      cta: { href: manageUrl, label: "Manage booking" },
-      footer: supportLine(settings),
     })
 
     return logAndSend({
@@ -659,23 +648,14 @@ export async function sendAdminNewBooking(
       `Open: ${link}`,
     ].join("\n")
 
-    const html = wrapEmail({
-      company: companyName(settings),
-      eyebrow: "Ops alert",
-      tone: "default",
+    const html = renderBookingTripEmail({
+      audience: "admin",
+      bookingId: booking.id,
+      legs,
+      settings,
       preheader: isRoundTrip
         ? `New round trip ${refs}`
         : `New booking ${booking.referenceCode}`,
-      title: isRoundTrip ? "New round trip received" : "New booking received",
-      introHtml: isRoundTrip
-        ? `A customer just confirmed a round-trip transfer (${escapeHtml(refs)}). Review and assign drivers when ready.`
-        : `A customer just confirmed a transfer. Review and assign a driver when ready.`,
-      rowsHtml:
-        adminCustomerRows(booking) +
-        tripCustomerRows(legs) +
-        tripPriceRows(legs),
-      cta: { href: link, label: "Open in admin" },
-      footer: `Ops inbox · ${getAppBaseUrl()}`,
     })
 
     return logAndSend({
