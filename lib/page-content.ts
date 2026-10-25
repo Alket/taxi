@@ -339,7 +339,7 @@ const HOME_DEFAULTS: PageDefinition["defaults"] = {
 const CANCELLATION_DEFAULTS: PageDefinition["defaults"] = {
   title: "Cancellation Policy",
   description:
-    "Customer cancellations forfeit the deposit. No free-cancellation window. Full refund only if the driver fails to show or the service is not delivered.",
+    "No deposit is collected when you book. Pay the full fare in cash to your driver. If you cancel, tell us as soon as possible so we can inform your driver.",
   ogImage: "",
   sections: [
     section("text", "eyebrow", { body: "Booking terms" }),
@@ -355,7 +355,7 @@ const CANCELLATION_DEFAULTS: PageDefinition["defaults"] = {
       level: 2,
     }),
     section("text", "customer.text", {
-      body: "There is no free-cancellation window. If you cancel a booking for any reason:\n• The deposit paid (typically 30% of the trip total) is forfeited — no refund is issued.\n• The remaining balance (typically 70%) is never charged.\n• Cancellation cannot be undone once confirmed.",
+      body: "No upfront payment or deposit is required when you book. Pay the full agreed fare in cash to your driver.\nIf you need to cancel, notify us as soon as possible so we can inform your driver. As no deposit is collected, there is no deposit to forfeit.",
     }),
     section("heading", "refund.heading", {
       heading: "When a full refund applies",
@@ -372,9 +372,9 @@ const CANCELLATION_DEFAULTS: PageDefinition["defaults"] = {
       body: "Use My booking with your reference code and email, or contact support. Online cancellation is available until the driver has arrived.",
     }),
     section("faq_item", "faq.1", {
-      question: "Do I get my deposit back if I cancel?",
+      question: "Do I get a deposit back if I cancel?",
       answer:
-        "No. Customer-initiated cancellations forfeit the deposit. The remaining balance is never charged.",
+        "No deposit is collected, so there is no deposit to forfeit. Please notify us as soon as possible so we can inform your driver.",
     }),
   ],
 }

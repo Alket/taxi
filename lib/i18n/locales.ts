@@ -13,7 +13,7 @@ export const LOCALE_LABELS: Record<Locale, { label: string; short: string }> = {
   de: { label: "German", short: "DE" },
   pl: { label: "Polish", short: "PL" },
   tr: { label: "Turkish", short: "TR" },
-  uk: { label: "Ukrainian", short: "UK" },
+  uk: { label: "Ukrainian", short: "UA" },
   ru: { label: "Russian", short: "RU" },
 }
 

@@ -571,10 +571,11 @@ export async function sendCustomerBookingConfirmation(
       ...(cashOnArrival
         ? [
             "Payment: Pay the full amount in cash to your driver at pickup.",
+            "Cancellation: No deposit is collected. If you need to cancel, notify us as soon as possible so we can inform your driver.",
             "",
           ]
         : [
-            "Cancellation: Cancelling forfeits the deposit paid — it is not refunded. The remaining balance is never charged. If a driver fails to show or the service is not delivered, contact support for a full refund.",
+            "Cancellation: No deposit is collected. If you need to cancel, notify us as soon as possible so we can inform your driver.",
             "",
           ]),
       `Manage: ${manageUrl}`,
@@ -595,8 +596,8 @@ export async function sendCustomerBookingConfirmation(
           : "Your ride details are below."
       }${
         cashOnArrival
-          ? "<br/><br/>Payment: pay the full amount in cash to your driver at pickup."
-          : "<br/><br/>Cancellation: cancelling forfeits the deposit (no refund). Unpaid balance is never charged."
+          ? "<br/><br/>Payment: pay the full amount in cash to your driver at pickup.<br/><br/>Cancellation: no deposit is collected. If you need to cancel, notify us as soon as possible so we can inform your driver."
+          : "<br/><br/>Cancellation: no deposit is collected. If you need to cancel, notify us as soon as possible so we can inform your driver."
       }`,
     })
 
@@ -684,8 +685,10 @@ export async function sendCustomerCancellation(
     const booking = await loadBooking(bookingId)
     if (!booking?.customer.email) return { sent: false }
 
-    const outcome =
-      "The deposit paid has been forfeited and will not be refunded. Any unpaid balance will not be charged."
+    const depositCollected = Number(booking.depositPaid) > 0
+    const outcome = depositCollected
+      ? "The deposit paid has been forfeited and will not be refunded. Any unpaid balance will not be charged."
+      : "No deposit was collected. Your driver will be told the booking is cancelled."
 
     const subject = `Booking cancelled — ${booking.referenceCode}`
     const text = [
