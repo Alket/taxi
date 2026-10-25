@@ -1,0 +1,371 @@
+SEO AUDIT: LANDED ALBANIA
+Website: https://landedalbania.com/
+Audit date: 25 October 2026
+
+Scope: Public website crawl, search visibility, content quality, local SEO, and conversion-focused recommendations.
+
+IMPORTANT SCOPE NOTE
+This is a public-facing SEO audit, not a complete server-level technical audit. Some items require access to raw HTML, server responses, Google Search Console, analytics, or performance tools. Confirmed observations are distinguished below from checks that still need verification.
+
+======================================================================
+1. EXECUTIVE ASSESSMENT
+======================================================================
+
+Landed Albania has a solid foundation for organic search. The website has a clear commercial purpose, destination-specific transfer pages, informative blog articles, fixed-price offers, and support for multiple languages. Google can discover the homepage, destination pages, and blog content.
+
+The biggest opportunity is not simply publishing more articles. It is making existing pages more trustworthy, more specific to what travelers search for, and technically consistent across languages.
+
+What is already working:
+- Destination landing pages.
+- Clear pricing and booking calls to action.
+- Relevant airport-transfer content.
+- Multilingual URLs.
+
+Highest-priority issue:
+- The promised deposit policy contradicts the actual wording in the homepage FAQ. This can damage customer trust and reduce completed bookings.
+
+Biggest SEO opportunity:
+- Optimize each route page around specific searches such as “Tirana Airport to Sarandë transfer.”
+- Improve the quality and consistency of international-language pages.
+
+======================================================================
+2. CRITICAL FINDING: FIX THE DEPOSIT CONTRADICTION FIRST
+======================================================================
+
+The homepage prominently promotes a zero-deposit experience, including “€0 Upfront Deposit” and “Zero upfront deposit.” However, its FAQ says customers pay a 30% deposit when booking, with the remaining 70% charged after the trip. It also describes different arrangements for cash and online payments.
+
+This is more than a copywriting issue: it creates uncertainty at the moment a customer decides whether to book.
+
+Recommended fix:
+1. Confirm the actual payment rules implemented in the booking system.
+2. Make the homepage, destination pages, blog, booking flow, cancellation policy, and translations communicate the same rules.
+3. If the following wording accurately reflects the implemented service, consider using:
+
+   “No upfront deposit. Pay your driver on arrival. Your fare is confirmed before booking, with no unexpected price increases.”
+
+4. If only certain booking types qualify for no deposit, explain those conditions clearly instead of presenting zero deposit as a universal guarantee.
+5. Review every claim about cancellations, refunds, flight delays, and payment methods against the actual booking logic.
+
+A consistent customer promise is essential to conversion and brand credibility.
+
+======================================================================
+3. ON-PAGE SEO: HOMEPAGE AND SEARCH INTENT
+======================================================================
+
+The homepage's search-result title is currently:
+“Tirana Airport Transfers | Fixed Price | Landed Albania”
+
+This is a good starting point because it targets the core commercial service. However, the main heading emphasizes being a “Tirana Airport Taxi Alternative,” while the rest of the page is primarily about booking private airport transfers. Strengthen the primary message around the service being sold.
+
+RECOMMENDED HOMEPAGE METADATA
+
+Title tag:
+Tirana Airport Transfers & Taxi | Landed Albania
+
+Why:
+Lead with the core service and include taxi as a secondary search term.
+
+H1 — primary page heading:
+Private Tirana Airport Transfers Across Albania
+
+Why:
+Keep one clear, primary H1 and use supporting headings for pricing, destinations, and booking benefits.
+
+Proposed meta description:
+Book a private Tirana Airport transfer to Tirana, Sarandë, Ksamil and destinations across Albania. Fixed fares, flight tracking, English-speaking drivers and airport meet-and-greet.
+
+This meta description is a proposal, not a verification of the current HTML meta description. Only publish statements about services that are genuinely provided.
+
+Google recommends descriptive, concise page titles and useful, page-specific descriptions. The displayed search snippet is not guaranteed to match the meta description exactly.
+
+DESTINATION PAGE TITLES
+
+The Sarandë page's current title is:
+“Sarandë Airport Transfer & Riviera Guide | Fixed €170 Rate”
+
+The service described on the page is a transfer from Tirana Airport to Sarandë. The Ksamil page follows a similar title pattern. Use the actual route in the search-result title.
+
+Recommended title templates:
+- Homepage: Tirana Airport Transfers & Taxi | Landed Albania
+- Sarandë: Tirana Airport to Sarandë Transfer | Fixed Fare
+- Ksamil: Tirana Airport to Ksamil Transfer | Fixed Fare
+- Berat: Tirana Airport to Berat Transfer | Fixed Fare
+- Shkodër: Tirana Airport to Shkodër Transfer | Fixed Fare
+- Theth: Tirana Airport to Theth Transfer | Fixed Fare
+
+These are proposed templates, not a verification of the other pages' current titles. Add the actual fare when it is a reliable, maintained part of the page's offer.
+
+Important:
+- Keep the primary keyword and route prominent.
+- Avoid repeatedly inserting different spellings of the same destination just to increase keyword density.
+
+======================================================================
+4. KEYWORD STRATEGY: WHAT LANDED ALBANIA SHOULD TARGET
+======================================================================
+
+Structure the website around three search-intent groups.
+
+GROUP A — MAIN SERVICE KEYWORDS
+These belong primarily on the homepage:
+- Tirana airport transfers
+- Tirana airport taxi
+- Private airport transfer Albania
+- Tirana airport transfer prices
+- Taxi from Tirana Airport
+
+GROUP B — DESTINATION AND ROUTE KEYWORDS
+Target each important route with its own useful landing page:
+- Tirana Airport to Sarandë
+- Tirana Airport to Ksamil
+- Tirana Airport to Berat
+- Tirana airport transfer to Durrës
+- Tirana Airport to Theth
+
+GROUP C — RESEARCH AND TRAVEL QUESTIONS
+Use the blog to answer questions before visitors book:
+- Is there Uber in Albania?
+- Tirana airport taxi prices
+- How to get from Tirana Airport to Sarandë
+- Tirana airport bus versus private transfer
+- How airport meet-and-greet works
+
+The existing blog already addresses some of these questions, which is a positive foundation.
+
+Internal linking recommendations:
+- Each blog article should link naturally to the relevant transfer page.
+- Each destination page should link to the booking form and a small set of genuinely relevant guides.
+- Create new route pages only where useful, accurate, and distinct information can be provided. Do not simply create multiple pages with the city name swapped.
+
+======================================================================
+5. CONTENT QUALITY AND E-E-A-T
+======================================================================
+
+E-E-A-T refers to experience, expertise, authoritativeness, and trustworthiness. For an airport-transfer business, the most persuasive content demonstrates that customers can trust the provider with their arrival, luggage, money, and travel plans.
+
+A. CORRECT CONFLICTING TAXI PRICES IN THE BLOG
+
+Two guides contain inconsistent prices:
+- The complete transportation guide states that the official airport taxi costs approximately €20–25 to central Tirana.
+- The separate “Is There Uber in Albania?” guide gives an estimate of approximately €30–35 for the official airport taxi to central Tirana.
+
+Check the actual rates against reliable current sources, then update both articles. Include a “last checked” date and clearly distinguish official airport taxi fares from Landed Albania's own fixed fare.
+
+Review the rest of the transport information periodically, particularly:
+- Bus timetables.
+- Fees.
+- Travel times.
+- Payment arrangements.
+
+B. MAKE DESTINATION PAGES MORE USEFUL FOR TRAVELERS BOOKING A TRANSFER
+
+The Sarandë and Ksamil pages already include prices, estimated journey times, distance, attractions, and FAQs.
+
+Improve them with information that directly helps customers make a decision:
+- Exactly where and how airport pickup works.
+- How flight delays and changes are handled.
+- Sedan versus minivan capacity, including passengers and luggage.
+- What is included in the fare and whether there are additional charges.
+- How departure transfers back to the airport work.
+- Actual customer experiences, with permission and accurate attribution.
+- Clear links to the booking form, cancellation conditions, and related routes.
+
+Keep destination information that genuinely helps visitors, but make the transfer service the primary focus of the page.
+
+C. STRENGTHEN TRUST SIGNALS
+
+Pages contain headings such as “Traveller stories” and “Trusted by travellers across Albania,” but the public text crawl did not show actual testimonials beneath those headings.
+
+The Trustpilot profile showed a 4.1 score and five reviews at the time of the audit. Verify those figures before displaying them because review counts and ratings can change.
+
+Recommendations:
+- Make real customer reviews visible directly on the site rather than relying entirely on a dynamically loaded widget.
+- Display genuine customer feedback and link to the source.
+- Add a dedicated company page explaining who operates the service, how drivers are vetted, how bookings are handled, and how customers can reach support.
+- Ensure licensing, safety, and insurance claims are accurate and substantiated.
+
+======================================================================
+6. MULTILINGUAL SEO: A PRIORITY FOR AN INTERNATIONAL AUDIENCE
+======================================================================
+
+Localized destination pages exist, including an Italian Sarandë page, a German Sarandë page, and a Ukrainian Ksamil page. This is a useful foundation, but there are localization-quality issues.
+
+A. INCORRECTLY MATCHED FEATURE HEADINGS AND DESCRIPTIONS
+
+On the German homepage, some feature headings do not match their descriptions. For example, the section headed “Flugverfolgung” (flight tracking) is followed by a description of licensed, background-checked professionals. Subsequent features also have mismatched descriptions.
+
+This suggests an issue with the localized content or component data mapping.
+
+Action:
+- Inspect the German translation strings and component-to-content mapping.
+- Verify that each feature heading is paired with its correct description in every language.
+- Check mobile and desktop versions.
+
+B. ENGLISH TEXT REMAINS IN LOCALIZED PAGES
+
+On localized destination pages, elements such as “Traveller stories” and “Trusted by travellers across Albania” remain in English even when the main content is translated.
+
+Audit all of the following, not just the main paragraphs:
+- Navigation.
+- Feature cards.
+- FAQs.
+- Reviews.
+- Form labels.
+- Validation errors.
+- Cancellation terms.
+- Metadata.
+- Booking confirmation emails.
+
+C. CLARIFY THE LANGUAGE SELECTOR
+
+The navigation labels the Ukrainian-language version as “UK,” while its URL uses “/uk” and the page is written in Ukrainian. Label it “Українська” or “UA” so visitors do not mistake it for British English.
+
+TECHNICAL INTERNATIONAL SEO CHECKS
+
+The HTML <head> was not available for complete inspection through the public text crawler, so the following items still need verification:
+
+1. hreflang:
+   Each translated page should reference its equivalent translations, including a return reference from every variant.
+
+2. Canonical URLs:
+   Each intended indexable language page should have the appropriate canonical URL.
+
+3. Language metadata:
+   The HTML lang attribute should match the actual language of the content.
+
+4. Unique metadata:
+   Titles and meta descriptions should be written in the page's language and describe that specific route.
+
+5. Sitemap:
+   The sitemap should include intended canonical language and destination URLs.
+
+6. Default language:
+   Provide an appropriate default version for visitors who do not match a supported language.
+
+Google documents reciprocal hreflang relationships and valid language codes for localized pages. Do not canonicalize all translations to the English page simply because the content describes the same service. Equivalent translations intended to appear separately in search should be configured correctly as language variants.
+
+======================================================================
+7. TECHNICAL SEO: WHAT REMAINS TO BE VALIDATED
+======================================================================
+
+Some technical checks require access to raw HTML, server responses, or performance tools, rather than a text crawl. Attempts to open the site's robots.txt and sitemap endpoints through the public text reader did not retrieve them. This does not establish that the files are missing or broken.
+
+A. INDEXABILITY AND CRAWLABILITY
+
+The homepage and several important pages are discoverable through search. Verify in Google Search Console that intended routes are indexed and that no important page has:
+- A noindex directive.
+- A conflicting canonical.
+- An unintended crawl restriction.
+
+B. SITEMAP AND ROBOTS.TXT
+
+- Open the actual sitemap and robots file.
+- Check their HTTP status codes.
+- Confirm the correct sitemap URL is submitted in Google Search Console.
+- Ensure the sitemap contains intended canonical URLs—not redirects, error pages, or excluded pages.
+
+C. HEADINGS AND RENDERED HTML
+
+The homepage's main heading and descriptive text appear repeatedly in the extracted content. Check the rendered DOM to determine whether this comes from separate responsive hero components or genuinely duplicated visible content. Ensure the page has a clear primary heading hierarchy.
+
+D. CORE WEB VITALS AND MOBILE PERFORMANCE
+
+A PageSpeed or Lighthouse score was not measured as part of this public text crawl.
+
+Test the homepage, destination pages, and booking flow on mobile, including:
+- Image loading.
+- Layout stability.
+- JavaScript execution.
+- Form responsiveness.
+
+E. STRUCTURED DATA
+
+Inspect the actual JSON-LD before making changes. Appropriate structured data may include:
+- Organization.
+- WebSite.
+- BreadcrumbList.
+- BlogPosting.
+- Relevant business or service information, where appropriate.
+
+Ensure all marked-up details agree with visible content. Structured data does not guarantee enhanced search results.
+
+======================================================================
+8. LOCAL SEO AND BOOKING CONVERSION TRACKING
+======================================================================
+
+Although the business serves destinations across Albania, its local business details and airport presence still matter for branded searches and local discovery.
+
+LOCAL SEO RECOMMENDATIONS
+
+Make sure the Google Business Profile—if the business is eligible under Google's guidelines—has the correct:
+- Business name.
+- Category.
+- Service areas.
+- Contact details.
+- Website.
+- Opening or support hours.
+- Consistent information across legitimate business listings.
+
+Encourage genuine customers to leave reviews without incentives or selective review practices.
+
+BOOKING CONVERSION TRACKING
+
+The public page crawl shows Google Tag Manager. That alone does not establish that booking conversions are correctly measured.
+
+Measure events that connect SEO activity to revenue:
+- view_destination: when a visitor opens a route page.
+- begin_booking: when a visitor starts a booking.
+- click_whatsapp: when a visitor uses WhatsApp.
+- click_phone: when a visitor clicks to call.
+- booking_complete: only after a booking is genuinely confirmed.
+
+If a booking can fail after the initial click, measure the completed booking—not just the CTA click.
+
+Use:
+- Google Search Console for search queries, impressions, clicks, and indexing.
+- Analytics for booking performance and conversion events.
+
+This will help identify which destination pages actually generate customers from organic search.
+
+======================================================================
+9. RECOMMENDED IMPLEMENTATION ORDER
+======================================================================
+
+PRIORITY 1 — RESOLVE INCONSISTENCIES FIRST
+- Confirm deposit and payment rules.
+- Correct the taxi-price discrepancy in the blog.
+- Ensure cancellation and refund wording matches the real booking process.
+
+PRIORITY 2 — OPTIMIZE KEY PAGES
+- Improve the homepage heading.
+- Review route title tags.
+- Write unique meta descriptions.
+- Make each destination page clearly target the route from Tirana Airport.
+
+PRIORITY 3 — QUALITY-CHECK EVERY LANGUAGE
+- Fix the German feature mapping.
+- Complete remaining localized text.
+- Clarify the language selector.
+- Verify canonical and hreflang relationships.
+
+PRIORITY 4 — COMPLETE TECHNICAL VERIFICATION
+- Validate indexability.
+- Validate sitemap and robots.txt.
+- Inspect structured data.
+- Measure mobile performance.
+- Test the booking flow.
+
+PRIORITY 5 — BUILD ORGANIC TRAFFIC AND MEASURE SALES
+- Improve existing blog-to-route internal links.
+- Display genuine reviews.
+- Expand only into worthwhile routes the company actually serves.
+- Measure confirmed bookings from organic search.
+
+======================================================================
+FINAL VERDICT
+======================================================================
+
+Landed Albania already has the right foundation for a specialized airport-transfer website. The next step is to improve consistency, route-specific targeting, translated content quality, and conversion measurement before expanding the content further.
+
+This is a public-facing SEO audit, not a complete server-level technical audit. A definitive assessment of Core Web Vitals, actual meta tags, canonical and hreflang values, structured data, sitemap responses, robots.txt, and Google indexing performance still requires those underlying checks.
+
+END OF AUDIT

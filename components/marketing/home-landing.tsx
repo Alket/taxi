@@ -123,11 +123,11 @@ export function HomeLanding({
               <div className="home-fade-up flex w-full flex-col items-start text-white">
                 <p
                   aria-hidden
-                  className="text-[2.35rem] font-extrabold leading-[1.05] tracking-tight text-balance"
+                  className="text-[1.75rem] font-extrabold leading-[1.1] tracking-tight text-balance"
                 >
                   {headingLines(copy.hero.heading)}
                 </p>
-                <p className="home-fade-up-delay mt-3 max-w-sm text-base leading-relaxed text-white/90">
+                <p className="home-fade-up-delay mt-3 max-w-sm text-sm leading-relaxed text-white/90">
                   {copy.hero.text}
                 </p>
                 {copy.hero.showTrustpilot ? (
