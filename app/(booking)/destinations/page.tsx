@@ -47,8 +47,15 @@ export async function generateMetadata({
     pageParam == null || (requested > 1 && requested <= totalPages)
 
   return {
-    title: searchTitle(t(locale, "destinations.archiveTitle")),
-    description: t(locale, "destinations.intro"),
+    title: searchTitle(
+      page > 1
+        ? t(locale, "destinations.archivePageTitle", { page })
+        : t(locale, "destinations.archiveTitle"),
+    ),
+    description:
+      page > 1
+        ? t(locale, "destinations.pageDescription", { page })
+        : t(locale, "destinations.intro"),
     alternates: isIndexablePage
       ? localizedAlternates(path, locale)
       : canonicalOnly("/destinations", locale),

@@ -80,24 +80,44 @@ function applyPublicLocale(request: NextRequest): NextResponse | null {
 
 const CANONICAL_HOST = "landedalbania.com"
 
+function hostnameFrom(header: string | null): string {
+  return (header || "").split(",")[0].trim().toLowerCase().split(":")[0]
+}
+
+/** Dev, Docker-local, and tunnel hosts must never be sent to the public site. */
+function isLocalOrPreviewHost(hostname: string): boolean {
+  return (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "::1" ||
+    hostname.endsWith(".ngrok-free.dev") ||
+    hostname.endsWith(".ngrok.io") ||
+    hostname.endsWith(".loca.lt") ||
+    hostname.endsWith(".trycloudflare.com")
+  )
+}
+
 function redirectWwwToApex(request: NextRequest): NextResponse | null {
-  const forwarded = request.headers.get("x-forwarded-host")
-  const hostHeader = (forwarded || request.headers.get("host") || "")
-    .split(",")[0]
-    .trim()
-    .toLowerCase()
-  const hostname = hostHeader.split(":")[0]
+  const directHost = hostnameFrom(request.headers.get("host"))
+  if (isLocalOrPreviewHost(directHost)) return null
+
+  const hostname = hostnameFrom(request.headers.get("x-forwarded-host")) || directHost
   if (hostname !== `www.${CANONICAL_HOST}`) return null
+
+  const path = request.nextUrl.pathname
+  // Crawlers and the browser should not bounce API or build assets.
+  if (path.startsWith("/api") || path.startsWith("/_next")) return null
+
   const destination = new URL(
-    `${request.nextUrl.pathname}${request.nextUrl.search}`,
+    `${path}${request.nextUrl.search}`,
     `https://${CANONICAL_HOST}`,
   )
-  return NextResponse.redirect(destination, 308)
+  return NextResponse.redirect(destination, 301)
 }
 
 export async function middleware(request: NextRequest) {
-  // www is the same site as the apex host. A permanent redirect is the
-  // strongest signal that https://landedalbania.com is the canonical host.
+  // www is the same site as the apex host. 301 (not 308) so Semrush and
+  // other crawlers treat https://landedalbania.com as the only host.
   const wwwRedirect = redirectWwwToApex(request)
   if (wwwRedirect) return wwwRedirect
 

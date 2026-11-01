@@ -147,7 +147,9 @@ export function DestinationsArchive({
             {t(locale, "common.backHome")}
           </Link>
           <h1 className="font-brand text-4xl font-extrabold tracking-tight sm:text-5xl md:text-6xl">
-            {t(locale, "destinations.archiveTitle")}
+            {page > 1
+              ? t(locale, "destinations.archivePageTitle", { page })
+              : t(locale, "destinations.archiveTitle")}
           </h1>
           <p className="mt-3 max-w-xl text-base leading-relaxed text-white/85 md:text-lg">
             {t(locale, "destinations.intro")}

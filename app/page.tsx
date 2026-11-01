@@ -1,3 +1,4 @@
+import { cache } from "react"
 import type { Metadata } from "next"
 
 import { JsonLd } from "@/components/marketing/json-ld"
@@ -21,6 +22,10 @@ import {
 /** Always read live CMS content (destination cards, homepage copy). */
 export const dynamic = "force-dynamic"
 
+const loadHomeContent = cache((locale: string) =>
+  resolvePageContent("home", locale),
+)
+
 type PageProps = {
   searchParams: Promise<{ destination?: string }>
 }
@@ -31,7 +36,7 @@ export async function generateMetadata({
   const locale = await getRequestLocale()
   const { destination } = await searchParams
   const hasDestinationPrefill = Boolean(destination?.trim())
-  const page = await resolvePageContent("home", locale)
+  const page = await loadHomeContent(locale)
 
   const home = homeSearchCopy(locale)
   const title = searchTitle(home.heading)
@@ -71,7 +76,7 @@ export async function generateMetadata({
 export default async function HomePage() {
   const locale = await getRequestLocale()
   const [page, destinations, settings] = await Promise.all([
-    resolvePageContent("home", locale),
+    loadHomeContent(locale),
     resolveDestinationCards(locale, { featuredOnly: true }),
     getSettings().catch(() => null),
   ])

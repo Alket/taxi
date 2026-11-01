@@ -1,5 +1,7 @@
 import type { Prisma } from "@prisma/client"
 
+import { cache } from "react"
+
 import { prisma } from "@/lib/db"
 import {
   DEFAULT_TRUSTPILOT_DISCLAIMER,
@@ -254,9 +256,9 @@ export async function getSettingsRow() {
   })
 }
 
-export async function getSettings(): Promise<Settings> {
+export const getSettings = cache(async function getSettings(): Promise<Settings> {
   return serializeSettings(await getSettingsRow())
-}
+})
 
 export async function getBookingPolicy() {
   const row = await getSettingsRow()

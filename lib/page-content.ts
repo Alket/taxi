@@ -926,6 +926,122 @@ function normalizeLocale(locale?: string | null): Locale {
   return isLocale(locale) ? locale : DEFAULT_LOCALE
 }
 
+type StoredPageRow = {
+  slug: string
+  locale: string
+  label: string
+  title: string
+  description: string
+  ogImage: string
+  sections: unknown
+  updatedAt: Date
+}
+
+/**
+ * Same destination merge as the public page, using rows already loaded.
+ * Built-in cards must not query once per city.
+ */
+function assembleDestinationPage(
+  def: PageDefinition,
+  locale: Locale,
+  localized: StoredPageRow | null,
+  english: StoredPageRow | null,
+): PageContentRecord | null {
+  const destId = destinationIdFromSlug(def.slug)
+  if (!destId) return null
+  const isCustomDestination = !isBuiltInDestinationId(destId)
+
+  const baseDoc = english
+    ? parseDestinationDocument(english.sections, {
+        id: destId,
+        title: english.title,
+        description: english.description,
+        ogImage: english.ogImage,
+        updatedAt: english.updatedAt.toISOString(),
+      })
+    : defaultDestinationDocument(def, destId)
+
+  const localizedDoc =
+    localized && locale !== DEFAULT_LOCALE
+      ? parseDestinationDocument(localized.sections, {
+          id: destId,
+          title: localized.title,
+          description: localized.description,
+          ogImage: localized.ogImage,
+          updatedAt: localized.updatedAt.toISOString(),
+        })
+      : null
+
+  const document =
+    localizedDoc != null
+      ? mergeDestinationDocuments(localizedDoc, baseDoc)
+      : baseDoc
+
+  if (!document.meta.canonicalUrl) {
+    document.meta.canonicalUrl = `/destinations/${publicDestinationSlug(document, destId)}`
+  }
+  if (!document.meta.updatedAt && (localized ?? english)) {
+    document.meta.updatedAt = (localized ?? english)!.updatedAt.toISOString()
+  }
+
+  const row = localized ?? english
+  if (!row) {
+    if (isCustomDestination) return null
+    const hero = destinationHeroImage(document)
+    return {
+      slug: def.slug,
+      locale: DEFAULT_LOCALE,
+      label: def.label,
+      title: def.defaults.title,
+      description: def.defaults.description,
+      ogImage: hero || def.defaults.ogImage,
+      sections: [],
+      destinationDocument: document,
+      fromDatabase: false,
+      hasLocaleRow: false,
+    }
+  }
+
+  const title =
+    localized?.title?.trim() ||
+    english?.title?.trim() ||
+    document.meta.title ||
+    def.defaults.title
+  const description =
+    localized?.description?.trim() ||
+    english?.description?.trim() ||
+    document.meta.description ||
+    def.defaults.description
+  const rawOg =
+    localized?.ogImage?.trim() ||
+    english?.ogImage?.trim() ||
+    def.defaults.ogImage
+  const heroSrc = destinationHeroImage(document)
+  const ogImage =
+    [heroSrc, rawOg, def.defaults.ogImage].find((url) =>
+      Boolean(url && url.startsWith("/uploads/")),
+    ) ||
+    heroSrc ||
+    rawOg ||
+    def.defaults.ogImage
+
+  return {
+    slug: row.slug,
+    locale,
+    label: localized?.label || english?.label || def.label,
+    title,
+    description,
+    ogImage,
+    sections: isDestinationDocumentV2(row.sections)
+      ? []
+      : parseSections((english ?? localized)?.sections ?? row.sections),
+    destinationDocument: document,
+    updatedAt: row.updatedAt.toISOString(),
+    fromDatabase: true,
+    hasLocaleRow: Boolean(localized),
+  }
+}
+
 /**
  * Public site resolution: prefer locale row, fall back to English content,
  * then code defaults.
@@ -948,9 +1064,6 @@ export async function resolvePageContent(
           where: { slug_locale: { slug, locale: DEFAULT_LOCALE } },
         })
 
-  const isCustomDestination =
-    isDestinationSlug(slug) &&
-    !isBuiltInDestinationId(destinationIdFromSlug(slug) || "")
   const isCustomBlog =
     isBlogSlug(slug) && !isBuiltInBlogId(blogIdFromSlug(slug) || "")
 
@@ -967,97 +1080,7 @@ export async function resolvePageContent(
 
   // Destination pages: dual-read v2 / legacy into DestinationDocument.
   if (destId) {
-    const baseDoc = english
-      ? parseDestinationDocument(english.sections, {
-          id: destId,
-          title: english.title,
-          description: english.description,
-          ogImage: english.ogImage,
-          updatedAt: english.updatedAt.toISOString(),
-        })
-      : defaultDestinationDocument(def, destId)
-
-    const localizedDoc =
-      localized && locale !== DEFAULT_LOCALE
-        ? parseDestinationDocument(localized.sections, {
-            id: destId,
-            title: localized.title,
-            description: localized.description,
-            ogImage: localized.ogImage,
-            updatedAt: localized.updatedAt.toISOString(),
-          })
-        : null
-
-    const document =
-      localizedDoc != null
-        ? mergeDestinationDocuments(localizedDoc, baseDoc)
-        : baseDoc
-
-    if (!document.meta.canonicalUrl) {
-      document.meta.canonicalUrl = `/destinations/${publicDestinationSlug(document, destId)}`
-    }
-    if (!document.meta.updatedAt && (localized ?? english)) {
-      document.meta.updatedAt = (localized ?? english)!.updatedAt.toISOString()
-    }
-
-    const row = localized ?? english
-  if (!row) {
-      if (isCustomDestination) return null
-      const hero = destinationHeroImage(document)
-    return {
-      slug: def.slug,
-        locale: DEFAULT_LOCALE,
-        label: def.label,
-        title: def.defaults.title,
-        description: def.defaults.description,
-        ogImage: hero || def.defaults.ogImage,
-        sections: [],
-        destinationDocument: document,
-        fromDatabase: false,
-        hasLocaleRow: false,
-      }
-    }
-
-    const title =
-      localized?.title?.trim() ||
-      english?.title?.trim() ||
-      document.meta.title ||
-      def.defaults.title
-    const description =
-      localized?.description?.trim() ||
-      english?.description?.trim() ||
-      document.meta.description ||
-      def.defaults.description
-    const rawOg =
-      localized?.ogImage?.trim() ||
-      english?.ogImage?.trim() ||
-      def.defaults.ogImage
-    const heroSrc = destinationHeroImage(document)
-    const ogImage =
-      [heroSrc, rawOg, def.defaults.ogImage].find((url) =>
-        Boolean(url && url.startsWith("/uploads/")),
-      ) ||
-      heroSrc ||
-      rawOg ||
-      def.defaults.ogImage
-
-    return {
-      slug: row.slug,
-      locale,
-      label: localized?.label || english?.label || def.label,
-      title,
-      description,
-      ogImage,
-      sections: isDestinationDocumentV2(row.sections)
-        ? []
-        : parseSections(
-            (english ?? localized)?.sections ?? row.sections,
-          ),
-      destinationDocument: document,
-      updatedAt: row.updatedAt.toISOString(),
-      fromDatabase: true,
-      hasLocaleRow: Boolean(localized),
-    }
+    return assembleDestinationPage(def, locale, localized, english)
   }
 
   const row = localized ?? english
@@ -1529,29 +1552,42 @@ export async function resolveDestinationCards(
   options?: { featuredOnly?: boolean },
 ): Promise<Destination[]> {
   const locale = normalizeLocale(localeInput)
-  const builtInCards = (
-    await Promise.all(
-    DESTINATIONS.map(async (dest) => {
-        const page = await resolvePageContent(`destinations/${dest.id}`, locale)
-        if (!page) return null
-      return {
-          card: destinationFromPage(dest.id, page, dest),
-          featured: Boolean(page.destinationDocument?.flags?.featured) ||
-            isDestinationFeatured(page.sections),
-        }
-      }),
-    )
-  ).filter(
-    (item): item is { card: Destination; featured: boolean } => Boolean(item),
-  )
-
-  const builtInIds = new Set(DESTINATIONS.map((d) => d.id))
+  // One read for every city. The homepage used to query each destination
+  // separately, which is what made HTML generation slow.
   const customRows = await prisma.pageContent.findMany({
     where: {
       slug: { startsWith: "destinations/" },
       locale: { in: [locale, DEFAULT_LOCALE] },
     },
   })
+  const byKey = new Map(
+    customRows.map((row) => [`${row.slug}\0${row.locale}`, row] as const),
+  )
+
+  const builtInCards = DESTINATIONS.flatMap((dest) => {
+    const slug = `destinations/${dest.id}`
+    const english = byKey.get(`${slug}\0${DEFAULT_LOCALE}`) ?? null
+    const localized =
+      locale === DEFAULT_LOCALE
+        ? english
+        : (byKey.get(`${slug}\0${locale}`) ?? null)
+    const hideSource = english ?? localized
+    if (hideSource && isDestinationHidden(hideSource.sections)) return []
+    const def = getPageDefinition(slug)
+    if (!def) return []
+    const page = assembleDestinationPage(def, locale, localized, english)
+    if (!page) return []
+    return [
+      {
+        card: destinationFromPage(dest.id, page, dest),
+        featured:
+          Boolean(page.destinationDocument?.flags?.featured) ||
+          isDestinationFeatured(page.sections),
+      },
+    ]
+  })
+
+  const builtInIds = new Set(DESTINATIONS.map((d) => d.id))
 
   const bySlug = new Map<string, (typeof customRows)[number]>()
   for (const row of customRows) {
