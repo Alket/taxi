@@ -220,6 +220,7 @@ async function main() {
         luggageCount: 1,
         vehicleType: "sedan" as const,
         zoneId: zone.id,
+        airportIata: airport.iataCode,
         isRoundTrip: false,
         meetAndGreet: false,
         markAsPaid: false,

@@ -14,6 +14,7 @@ import {
   localePath,
   localizedAlternates,
 } from "@/lib/i18n/locales"
+import { searchTitle } from "@/lib/seo/search-meta"
 import {
   resolveMediaAlt,
 } from "@/lib/media-shared"
@@ -104,9 +105,9 @@ export const DEFAULT_OG_IMAGE =
   "https://www.welcomepickups.com/wp-content/themes/welcomepickups_new/images/conversion-v2/hero_photo_desktop_2.jpg"
 
 const HOME_DEFAULTS: PageDefinition["defaults"] = {
-  title: "Tirana Airport Transfer · Albania Transfers",
+  title: "Tirana Airport Transfers & Taxi",
   description:
-    "Book a reliable Tirana Airport transfer and rides across Albania. Fixed prices, vetted drivers, clear cancellation terms.",
+    "Book a private Tirana Airport transfer to Sarandë, Ksamil, Berat and more. Fixed fare, flight tracking, and meet-and-greet.",
   ogImage: DEFAULT_OG_IMAGE,
   sections: [
     section("heading", "hero.heading", {
@@ -1372,24 +1373,25 @@ export function pageMetadataFields(page: PageContentRecord) {
         }`
       : pathForSlug(page.slug)
   const ogImage = page.ogImage || DEFAULT_OG_IMAGE
+  const title = searchTitle(page.title)
 
   return {
-    title: page.title,
+    title,
     description: page.description,
     alternates: localizedAlternates(
       path,
       (page.locale as Locale) || DEFAULT_LOCALE,
     ),
     openGraph: {
-      title: page.title,
+      title: title.absolute,
       description: page.description,
       images: [
-        { url: ogImage, width: 1200, height: 630, alt: page.title },
+        { url: ogImage, width: 1200, height: 630, alt: title.absolute },
       ],
     },
     twitter: {
       card: "summary_large_image" as const,
-      title: page.title,
+      title: title.absolute,
       description: page.description,
       images: [ogImage],
     },

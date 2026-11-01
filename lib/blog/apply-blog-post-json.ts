@@ -36,7 +36,7 @@ export function applyBlogPostJsonToPage(
     page: {
       ...page,
       label: `Blog · ${locked.title}`,
-      title: (locked.seoTitle || locked.title).slice(0, 70),
+      title: (locked.seoTitle || locked.title).slice(0, 120),
       description: (locked.seoDescription || locked.excerpt || "").slice(0, 160),
       ogImage: locked.heroImage.src,
       sections,

@@ -432,6 +432,7 @@ async function main() {
       luggageCount: 2,
       vehicleType: "sedan",
       zoneId: sarande.id,
+      airportIata: "TIA",
       isRoundTrip: false,
       meetAndGreet: false,
     })
@@ -466,6 +467,7 @@ async function main() {
       luggageCount: 1,
       vehicleType: "sedan",
       zoneId: sarande.id,
+      airportIata: "TIA",
       isRoundTrip: false,
       meetAndGreet: false,
     })

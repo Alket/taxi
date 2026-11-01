@@ -73,6 +73,14 @@ export function localizedAlternates(path: string, locale: Locale) {
 }
 
 /**
+ * Canonical only. Use on noindex query variants (`?destination=`, `?category=`)
+ * so they do not publish an hreflang cluster for a different address.
+ */
+export function canonicalOnly(path: string, locale: Locale) {
+  return { canonical: localePath(path, locale) }
+}
+
+/**
  * Alternates for pages whose body is still English-only (e.g. transfer seeds).
  * Non-EN URLs must not claim to be unique language versions — that causes
  * Search Console "Duplicate, Google chose different canonical than user".

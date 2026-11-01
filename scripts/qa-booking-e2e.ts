@@ -277,6 +277,7 @@ async function main() {
         luggageCount: 1,
         vehicleType: "sedan",
         zoneId: zone.id,
+        airportIata: airport.iataCode,
         isRoundTrip: false,
         meetAndGreet: true,
         driverNotes: "[qa-booking-e2e] full flow test",
@@ -308,7 +309,7 @@ async function main() {
     console.log("\n— Cash confirm —")
     const cash = await api("/api/payments/cash-on-arrival", {
       method: "POST",
-      body: JSON.stringify({ bookingId }),
+      body: JSON.stringify({ bookingId, email: customerEmail }),
     })
     if (cash.status === 200 && cash.body?.referenceCode === referenceCode) {
       pass("POST /api/payments/cash-on-arrival")

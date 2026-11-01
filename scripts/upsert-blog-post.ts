@@ -45,7 +45,7 @@ async function main() {
 
   const data = {
     label: `Blog · ${post.title}`,
-    title: (post.seoTitle || post.title).slice(0, 70),
+    title: (post.seoTitle || post.title).slice(0, 120),
     description: (post.seoDescription || post.excerpt || "").slice(0, 160),
     ogImage: post.heroImage.src,
     sections,

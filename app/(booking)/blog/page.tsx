@@ -8,7 +8,11 @@ import {
   getBlogCatalog,
 } from "@/lib/blog/catalog"
 import { getRequestLocale } from "@/lib/i18n/get-locale"
-import { localePath, localizedAlternates } from "@/lib/i18n/locales"
+import {
+  canonicalOnly,
+  localePath,
+  localizedAlternates,
+} from "@/lib/i18n/locales"
 import { getAppBaseUrl } from "@/lib/mail"
 import {
   blogArchiveCopyFromSections,
@@ -16,6 +20,7 @@ import {
   resolvePageContent,
 } from "@/lib/page-content"
 import { buildBreadcrumbJsonLd } from "@/lib/structured-data"
+import { searchTitle } from "@/lib/seo/search-meta"
 
 export const dynamic = "force-dynamic"
 
@@ -44,20 +49,24 @@ export async function generateMetadata({
       : `${base}${ogSource}`
     : undefined
 
+  const title = searchTitle(
+    page?.title || "Tirana Airport Transport Guides",
+  )
   return {
-    title: page?.title || "Albania Airport Transport Guides | Landed",
+    title,
     description:
       page?.description ||
       "TIA transit tips, destination routes, and fixed-price airport transfer guides for Albania travellers.",
-    // Category filters are UI state over the same archive — canonicalize to /blog
-    // so Google doesn't treat ?category= as a separate duplicate page.
-    alternates: localizedAlternates("/blog", locale),
-    ...(filter !== "all"
-      ? { robots: { index: false, follow: true } }
-      : {}),
+    // Category filters are the same archive. Canonical points at /blog and
+    // hreflang is omitted so the filter URL is not a second language version.
+    // Category filters repeat the archive. Canonical points at /blog so
+    // search engines keep one copy. Hreflang is omitted on the filter URL.
+    alternates:
+      filter !== "all"
+        ? canonicalOnly("/blog", locale)
+        : localizedAlternates("/blog", locale),
     openGraph: {
-      title:
-        page?.title || "Albania Airport Transport & Travel Guides",
+      title: title.absolute,
       description:
         page?.description ||
         "Practical Tirana Airport guides—routes, meet & greet, and fixed-price transfers.",
@@ -76,7 +85,7 @@ export async function generateMetadata({
     },
     twitter: {
       card: "summary_large_image",
-      title: page?.title || "Albania Airport Transport Guides | Landed",
+      title: title.absolute,
       description:
         page?.description ||
         "TIA transit tips and fixed-price transfer guides for Albania.",

@@ -1,14 +1,19 @@
 import type { Metadata } from "next"
-import { redirect } from "next/navigation"
+import { permanentRedirect } from "next/navigation"
 
 import {
   DESTINATIONS_PAGE_SIZE,
   DestinationsArchive,
 } from "@/components/marketing/destinations-archive"
 import { getRequestLocale } from "@/lib/i18n/get-locale"
-import { localePath, localizedAlternates } from "@/lib/i18n/locales"
+import {
+  canonicalOnly,
+  localePath,
+  localizedAlternates,
+} from "@/lib/i18n/locales"
 import { t } from "@/lib/i18n/t"
 import { resolveDestinationCards } from "@/lib/page-content"
+import { searchTitle } from "@/lib/seo/search-meta"
 
 // CMS content rarely changes; ISR + on-demand revalidation (admin save →
 // revalidatePath) keeps this fast without re-querying the DB on every hit.
@@ -38,11 +43,15 @@ export async function generateMetadata({
   const page =
     requested > totalPages || requested <= 1 ? 1 : requested
   const path = destinationsArchivePath(page)
+  const isIndexablePage =
+    pageParam == null || (requested > 1 && requested <= totalPages)
 
   return {
-    title: t(locale, "destinations.archiveTitle"),
+    title: searchTitle(t(locale, "destinations.archiveTitle")),
     description: t(locale, "destinations.intro"),
-    alternates: localizedAlternates(path, locale),
+    alternates: isIndexablePage
+      ? localizedAlternates(path, locale)
+      : canonicalOnly("/destinations", locale),
   }
 }
 
@@ -61,7 +70,7 @@ export default async function DestinationsArchivePage({
   // Invalid or legacy high page numbers (e.g. ?page=3 after catalog shrank)
   // → clean archive, not another paginated URL. Also strip ?page=1.
   if (pageParam != null && (requested <= 1 || requested > totalPages)) {
-    redirect(localePath("/destinations", locale))
+    permanentRedirect(localePath("/destinations", locale))
   }
 
   const page = requested

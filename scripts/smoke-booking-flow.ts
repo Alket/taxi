@@ -169,6 +169,7 @@ async function main() {
         luggageCount: 2,
         vehicleType: "sedan",
         zoneId: zone.id,
+        airportIata: airport.iataCode,
         isRoundTrip: false,
         meetAndGreet: true,
         driverNotes: "[smoke-booking-flow] auto test — safe to cancel",
@@ -219,7 +220,7 @@ async function main() {
     console.log("\n3) Cash confirm (last payment step)")
     const cash = await jsonFetch("/api/payments/cash-on-arrival", {
       method: "POST",
-      body: JSON.stringify({ bookingId }),
+      body: JSON.stringify({ bookingId, email: customerEmail }),
     })
     check(
       "POST /api/payments/cash-on-arrival",
@@ -251,7 +252,7 @@ async function main() {
 
     console.log("\n4) Confirmation + lookup")
     const confApi = await jsonFetch(
-      `/api/bookings/confirmation/${encodeURIComponent(referenceCode)}`,
+      `/api/bookings/confirmation/${encodeURIComponent(referenceCode)}?email=${encodeURIComponent(customerEmail)}`,
     )
     check(
       "GET confirmation API",

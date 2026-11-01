@@ -40,6 +40,18 @@ const nextConfig = {
     ])
 
     return [
+      {
+        source: "/",
+        has: [{ type: "host", value: "www.landedalbania.com" }],
+        destination: "https://landedalbania.com/",
+        permanent: true,
+      },
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "www.landedalbania.com" }],
+        destination: "https://landedalbania.com/:path*",
+        permanent: true,
+      },
       ...destinationRedirects,
       // Broken URL picked up by Google Search Console.
       {

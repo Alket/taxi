@@ -1,10 +1,28 @@
 import type { MetadataRoute } from "next"
 
 import { DESTINATIONS_PAGE_SIZE } from "@/components/marketing/destinations-archive"
+import { DESTINATION_SLUG_ALIASES } from "@/lib/destinations"
 import { getAppBaseUrl } from "@/lib/mail"
 import { LOCALES, localePath } from "@/lib/i18n/locales"
 import { listAdminPages, resolveDestinationCards } from "@/lib/page-content"
 import { getSettings } from "@/lib/settings"
+
+/**
+ * Sitemap locs must be the URL the page itself declares as canonical.
+ * Alias slugs such as /destinations/saranda 308 to /destinations/sarande,
+ * so they are rewritten to that final path before they are listed.
+ */
+function canonicalPath(path: string): string {
+  const queryIndex = path.indexOf("?")
+  const pathname = queryIndex === -1 ? path : path.slice(0, queryIndex)
+  const query = queryIndex === -1 ? "" : path.slice(queryIndex)
+  const match = pathname.match(/^\/destinations\/([^/]+)$/)
+  if (!match) return path
+  const slug = decodeURIComponent(match[1]).toLowerCase()
+  const target = DESTINATION_SLUG_ALIASES[slug]
+  if (!target || target === slug) return path
+  return `/destinations/${target}${query}`
+}
 
 // Must re-read Admin → Settings on every request (indexing can be toggled live).
 export const dynamic = "force-dynamic"
@@ -31,7 +49,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = getAppBaseUrl().replace(/\/+$/, "")
   const now = new Date()
 
-  const entries: MetadataRoute.Sitemap = []
+  const byUrl = new Map<string, MetadataRoute.Sitemap[number]>()
 
   function addPath(
     path: string,
@@ -44,13 +62,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
   ) {
     const locales = options?.englishOnly ? (["en"] as const) : LOCALES
+    const finalPath = canonicalPath(path)
     for (const locale of locales) {
-      entries.push({
-        url: `${baseUrl}${localePath(path, locale)}`,
+      const url = `${baseUrl}${localePath(finalPath, locale)}`
+      const entry: MetadataRoute.Sitemap[number] = {
+        url,
         lastModified: options?.lastModified ?? now,
         changeFrequency: options?.changeFrequency ?? "weekly",
         priority: options?.priority ?? 0.5,
-      })
+      }
+      const previous = byUrl.get(url)
+      // Blog posts are also CMS pages, so they are visited twice. Keep the
+      // higher-priority copy and never emit the same loc twice.
+      if (!previous || (entry.priority ?? 0) > (previous.priority ?? 0)) {
+        byUrl.set(url, entry)
+      }
     }
   }
 
@@ -118,5 +144,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Omit transfers if route resolution fails; other sitemap entries still ship.
   }
 
-  return entries
+  return [...byUrl.values()]
 }

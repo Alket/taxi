@@ -21,6 +21,7 @@ import {
   buildBreadcrumbJsonLd,
   buildFaqPageJsonLd,
 } from "@/lib/structured-data"
+import { searchTitle } from "@/lib/seo/search-meta"
 
 export const dynamic = "force-dynamic"
 
@@ -42,12 +43,13 @@ export async function generateMetadata({
     ? post.heroImage.src
     : `${base}${post.heroImage.src}`
 
+  const title = searchTitle(post.seoTitle)
   return {
-    title: post.seoTitle,
+    title,
     description: post.seoDescription,
     alternates: localizedAlternates(path, locale),
     openGraph: {
-      title: post.seoTitle,
+      title: title.absolute,
       description: post.seoDescription,
       url: `${base}${localePath(path, locale)}`,
       type: "article",
@@ -64,7 +66,7 @@ export async function generateMetadata({
     },
     twitter: {
       card: "summary_large_image",
-      title: post.seoTitle,
+      title: title.absolute,
       description: post.seoDescription,
       images: [ogImage],
     },

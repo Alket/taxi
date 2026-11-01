@@ -148,6 +148,7 @@ async function createPublicBooking(email: string, marker: string) {
       luggageCount: 1,
       vehicleType: "sedan",
       zoneId: zone.id,
+      airportIata: airport.iataCode,
       isRoundTrip: false,
       meetAndGreet: false,
       driverNotes: marker,
@@ -521,7 +522,7 @@ async function main() {
 
     const cash = await api("/api/payments/cash-on-arrival", {
       method: "POST",
-      body: JSON.stringify({ bookingId: bookingA }),
+      body: JSON.stringify({ bookingId: bookingA, email: emailA }),
     })
     if (cash.status === 200) pass("cash confirm abandoned A → confirmed")
     else
@@ -569,7 +570,7 @@ async function main() {
 
     const payOld = await api("/api/payments/cash-on-arrival", {
       method: "POST",
-      body: JSON.stringify({ bookingId: b1.bookingId }),
+      body: JSON.stringify({ bookingId: b1.bookingId, email: emailB }),
     })
     if (
       payOld.status === 409 &&
@@ -597,7 +598,7 @@ async function main() {
     })
     const payExpired = await api("/api/payments/cash-on-arrival", {
       method: "POST",
-      body: JSON.stringify({ bookingId: bookingExpire }),
+      body: JSON.stringify({ bookingId: bookingExpire, email: emailE }),
     })
     if (
       payExpired.status === 410 &&

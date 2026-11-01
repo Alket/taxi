@@ -28,6 +28,11 @@ import {
   buildServiceJsonLd,
 } from "@/lib/structured-data"
 import { cn } from "@/lib/utils"
+import {
+  searchTitle,
+  transferRouteId,
+  transferSearchCopy,
+} from "@/lib/seo/search-meta"
 
 type PageProps = {
   params: Promise<{ slug: string }>
@@ -57,9 +62,14 @@ export async function generateMetadata({
     return { title: "Airport transfer" }
   }
 
-  const title = `Tirana Airport to ${route.destinationName} Transfer | Fixed €${route.priceEur} (Pay Cash)`
-  const destLabel = routeDestinationLabel(route)
-  const description = `Book a direct private transfer from Tirana Airport (TIA) to ${destLabel}. Guaranteed €${route.priceEur} flat rate, live flight tracking, €0 deposit—pay cash on arrival. Private driver Tirana Airport pickup with fixed taxi rate TIA pricing.`
+  const seo = transferSearchCopy(
+    transferRouteId(route.slug),
+    locale,
+    route.destinationName,
+    route.priceEur,
+  )
+  const title = searchTitle(seo.heading)
+  const description = seo.description
   const path = `/transfers/${route.slug}`
   const alternates = localizedAlternates(path, locale)
 
@@ -68,7 +78,7 @@ export async function generateMetadata({
     description,
     alternates,
     openGraph: {
-      title,
+      title: title.absolute,
       description,
       url: alternates.canonical,
       locale: locale === DEFAULT_LOCALE ? "en_US" : undefined,
@@ -77,13 +87,13 @@ export async function generateMetadata({
           url: route.heroImageUrl,
           width: 1600,
           height: 900,
-          alt: `Transfer from Tirana Airport to ${route.destinationName}`,
+          alt: seo.heading,
         },
       ],
     },
     twitter: {
       card: "summary_large_image",
-      title,
+      title: title.absolute,
       description,
       images: [route.heroImageUrl],
     },
@@ -96,6 +106,12 @@ export default async function TransferRoutePage({ params }: PageProps) {
   const route = await getRouteData(slug, locale)
   if (!route) notFound()
 
+  const seo = transferSearchCopy(
+    transferRouteId(route.slug),
+    locale,
+    route.destinationName,
+    route.priceEur,
+  )
   const related = await getRelatedRoutes(route.slug, 3, locale)
   const path = `/transfers/${route.slug}`
   const pageUrl = localePath(path, locale)
@@ -117,7 +133,7 @@ export default async function TransferRoutePage({ params }: PageProps) {
     },
   ])
   const serviceJsonLd = buildServiceJsonLd({
-    name: `Tirana Airport to ${routeDestinationLabel(route)} private transfer`,
+    name: seo.heading,
     description: route.travelDescription,
     url: pageUrl,
     priceEur: route.priceEur,
@@ -133,7 +149,7 @@ export default async function TransferRoutePage({ params }: PageProps) {
       <header className="relative isolate -mt-24 min-h-[78vh] overflow-hidden sm:min-h-[58vh]">
         <Image
           src={route.heroImageUrl}
-          alt={`Private transfer from Tirana Airport to ${route.destinationName}`}
+          alt={seo.heading}
           fill
           priority
           fetchPriority="high"
@@ -162,7 +178,7 @@ export default async function TransferRoutePage({ params }: PageProps) {
             {t(locale, "transfer.eyebrow")}
           </p>
           <h1 className="mt-2 max-w-3xl font-brand text-3xl font-extrabold tracking-tight sm:text-4xl md:text-5xl">
-            Tirana Airport (TIA) to {route.destinationName} Transfer
+            {seo.heading}
           </h1>
 
           <div className="mt-4 flex flex-wrap gap-2">

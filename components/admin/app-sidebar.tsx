@@ -70,7 +70,7 @@ export function AppSidebar() {
     publicSettings?.companyName?.trim() || "Transfer Ops"
 
   async function handleLogout() {
-    await apiPost("/api/admin/logout")
+    await apiPost("/api/admin/logout").catch(() => {})
     router.push("/admin/login")
     router.refresh()
   }

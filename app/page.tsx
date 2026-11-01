@@ -4,7 +4,7 @@ import { JsonLd } from "@/components/marketing/json-ld"
 import { HomeLanding } from "@/components/marketing/home-landing"
 import { SiteFooter } from "@/components/marketing/site-footer"
 import { getRequestLocale } from "@/lib/i18n/get-locale"
-import { localizedAlternates } from "@/lib/i18n/locales"
+import { canonicalOnly, localizedAlternates } from "@/lib/i18n/locales"
 import {
   pageMetadataFields,
   resolveDestinationCards,
@@ -12,6 +12,7 @@ import {
   resolvePageContent,
 } from "@/lib/page-content"
 import { getSettings } from "@/lib/settings"
+import { homeSearchCopy, searchTitle } from "@/lib/seo/search-meta"
 import {
   buildFaqPageJsonLd,
   buildLocalBusinessJsonLd,
@@ -32,23 +33,38 @@ export async function generateMetadata({
   const hasDestinationPrefill = Boolean(destination?.trim())
   const page = await resolvePageContent("home", locale)
 
+  const home = homeSearchCopy(locale)
+  const title = searchTitle(home.heading)
   const base: Metadata = page
     ? pageMetadataFields(page)
     : {
-        title: "Albania Transfers · Airport transfers",
-        description:
-          "Book reliable airport transfers across Albania. Fixed prices, vetted drivers, clear cancellation terms.",
+        title,
+        description: home.description,
         alternates: localizedAlternates("/", locale),
       }
 
-  // Booking deep-links (?destination=ksamil) share homepage content — always
-  // canonicalize to clean `/` and keep query URLs out of the index.
+  // Booking deep-links (?destination=ksamil) share homepage content.
+  // Canonical stays the clean homepage. Hreflang is omitted so the query URL
+  // is not announced as its own language version.
   return {
     ...base,
-    alternates: localizedAlternates("/", locale),
-    ...(hasDestinationPrefill
-      ? { robots: { index: false, follow: true } }
-      : {}),
+    title,
+    description: home.description,
+    openGraph: {
+      ...base.openGraph,
+      title: title.absolute,
+      description: home.description,
+    },
+    twitter: {
+      ...base.twitter,
+      title: title.absolute,
+      description: home.description,
+    },
+    // Same page as the clean homepage. rel=canonical consolidates it;
+    // noindex would drop the signals instead of passing them on.
+    alternates: hasDestinationPrefill
+      ? canonicalOnly("/", locale)
+      : localizedAlternates("/", locale),
   }
 }
 

@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Image from "next/image"
 import Link from "next/link"
-import { notFound, redirect } from "next/navigation"
+import { notFound, permanentRedirect } from "next/navigation"
 
 import { HashLink } from "@/components/marketing/hash-link"
 import { BlogFaq } from "@/components/marketing/blog/blog-faq"
@@ -17,7 +17,6 @@ import {
   getDestinationMore,
   getDestinationRoute,
 } from "@/lib/destination-document"
-import { isSafeDestinationCanonicalUrl } from "@/lib/destination-json-schema"
 import { DESTINATION_SLUG_ALIASES } from "@/lib/destinations"
 import { getRequestLocale } from "@/lib/i18n/get-locale"
 import { localePath, localizedAlternates } from "@/lib/i18n/locales"
@@ -30,6 +29,7 @@ import {
 } from "@/lib/page-content"
 import { resolveDestinationTransferLink } from "@/lib/transfers/routes"
 import { getSettings } from "@/lib/settings"
+import { destinationSearchCopy, searchTitle } from "@/lib/seo/search-meta"
 import {
   buildBreadcrumbJsonLd,
   buildTouristDestinationJsonLd,
@@ -64,30 +64,32 @@ export async function generateMetadata({
       const hero = getDestinationHero(document)
       const meta = pageMetadataFields(page)
       const publicSlug = document.meta.slug || destination.slug
-      const cmsCanonical = document.meta.canonicalUrl?.trim() ?? ""
-      // Absolute CMS canonicals are ignored (SEO hijack). Relative paths only.
-      const canonicalPath =
-        cmsCanonical && isSafeDestinationCanonicalUrl(cmsCanonical)
-          ? cmsCanonical
-          : localePath(`/destinations/${publicSlug}`, locale)
+      // Canonical must be this locale's own URL. The CMS value is the English
+      // path and is copied onto every translation, which made hreflang and
+      // rel=canonical disagree.
+      const alternates = localizedAlternates(
+        `/destinations/${publicSlug}`,
+        locale,
+      )
+      const seo = destinationSearchCopy(destination.id, locale)
+      const title = searchTitle(
+        seo?.heading || page.title || document.meta.title || "Airport transfer",
+      )
+      const description = seo?.description || page.description || meta.description
       return {
         ...meta,
-        title: page.title || document.meta.title || meta.title,
-        description:
-          page.description || document.meta.description || meta.description,
-        alternates: {
-          ...meta.alternates,
-          // Prefer relative canonical; never emit absolute external URLs from CMS.
-          canonical: canonicalPath.startsWith("http")
-            ? undefined
-            : canonicalPath,
-          languages: localizedAlternates(
-            `/destinations/${publicSlug}`,
-            locale,
-          ).languages,
+        title,
+        description,
+        alternates,
+        twitter: {
+          ...meta.twitter,
+          title: title.absolute,
+          description,
         },
         openGraph: {
           ...meta.openGraph,
+          title: title.absolute,
+          description,
           images: [
             {
               url: hero?.src || page.ogImage || destination.image,
@@ -99,11 +101,14 @@ export async function generateMetadata({
         },
       }
     }
+    const seo = destinationSearchCopy(destination.id, locale)
+    const title = searchTitle(
+      seo?.heading ||
+        t(locale, "destinations.airportTransfer", { name: destination.name }),
+    )
     return {
-      title: t(locale, "destinations.airportTransfer", {
-        name: destination.name,
-      }),
-      description: destination.description,
+      title,
+      description: seo?.description || destination.description,
       alternates: localizedAlternates(
         `/destinations/${destination.slug}`,
         locale,
@@ -119,7 +124,7 @@ export default async function DestinationPage({ params }: PageProps) {
 
   const aliasTarget = DESTINATION_SLUG_ALIASES[slug.toLowerCase()]
   if (aliasTarget && aliasTarget !== slug) {
-    redirect(localePath(`/destinations/${aliasTarget}`, locale))
+    permanentRedirect(localePath(`/destinations/${aliasTarget}`, locale))
   }
 
   const destination = await resolveDestination(slug, locale)
@@ -157,8 +162,11 @@ export default async function DestinationPage({ params }: PageProps) {
     "/marketing/logo.svg"
   const imageAlt = hero?.alt || name
   const priceFrom = meta.priceFrom || destination.priceFrom
-  // Same label as hero <h1> (CMS Hero Heading, with i18n fallback).
+  // H1 matches the search title so Google does not replace it with a
+  // different heading. The route phrase is the page's main title.
+  const seoHeading = destinationSearchCopy(destination.id, locale)?.heading
   const pageHeading =
+    seoHeading ||
     hero?.heading?.trim() ||
     t(locale, "destinations.airportTransfer", { name })
   const moreHeading =

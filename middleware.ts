@@ -57,7 +57,9 @@ function applyPublicLocale(request: NextRequest): NextResponse | null {
     const rest = segments.slice(1).join("/")
     const url = request.nextUrl.clone()
     url.pathname = rest ? `/${rest}` : "/"
-    const redirect = NextResponse.redirect(url)
+    // /en is the same English page as the unprefixed URL. Permanent, not
+    // temporary, so search engines drop the /en copy.
+    const redirect = NextResponse.redirect(url, 308)
     return withLocaleHeaders(redirect, DEFAULT_LOCALE)
   }
 
@@ -76,7 +78,29 @@ function applyPublicLocale(request: NextRequest): NextResponse | null {
   return withLocaleHeaders(response, DEFAULT_LOCALE)
 }
 
+const CANONICAL_HOST = "landedalbania.com"
+
+function redirectWwwToApex(request: NextRequest): NextResponse | null {
+  const forwarded = request.headers.get("x-forwarded-host")
+  const hostHeader = (forwarded || request.headers.get("host") || "")
+    .split(",")[0]
+    .trim()
+    .toLowerCase()
+  const hostname = hostHeader.split(":")[0]
+  if (hostname !== `www.${CANONICAL_HOST}`) return null
+  const destination = new URL(
+    `${request.nextUrl.pathname}${request.nextUrl.search}`,
+    `https://${CANONICAL_HOST}`,
+  )
+  return NextResponse.redirect(destination, 308)
+}
+
 export async function middleware(request: NextRequest) {
+  // www is the same site as the apex host. A permanent redirect is the
+  // strongest signal that https://landedalbania.com is the canonical host.
+  const wwwRedirect = redirectWwwToApex(request)
+  if (wwwRedirect) return wwwRedirect
+
   const rawPath = request.nextUrl.pathname
   const path = normalizePath(rawPath)
 
