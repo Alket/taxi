@@ -24,6 +24,7 @@ export type BlogFaqItem = {
 
 export type BlogBlock =
   | { type: "paragraph"; text: string }
+  | { type: "image"; src: string; alt: string }
   | { type: "h2"; text: string }
   | { type: "h3"; text: string }
   | { type: "ul"; items: string[] }

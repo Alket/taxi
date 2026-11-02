@@ -483,7 +483,12 @@ function SectionFields({
             rows={4}
             value={section.body ?? ""}
             onChange={(e) => onChange({ ...section, body: e.target.value })}
+            placeholder='Optional image: <img src="https://…" alt="…">'
           />
+          <p className="text-xs text-muted-foreground">
+            You can paste an image tag with an https URL and alt text. Scripts
+            and javascript: sources are removed.
+          </p>
         </div>
       )}
 

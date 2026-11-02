@@ -63,6 +63,7 @@ export function BlogArticleBody({
         "[&_ul]:my-3 [&_ul]:list-disc [&_ul]:space-y-2 [&_ul]:pl-5",
         "[&_ol]:my-3 [&_ol]:list-decimal [&_ol]:space-y-2 [&_ol]:pl-5",
         "[&_li]:leading-relaxed",
+        "[&_img]:my-2 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-xl",
       )}
     >
       {blocks.map((block, index) => {
@@ -75,6 +76,18 @@ export function BlogArticleBody({
                 html={block.text}
                 className="mb-5 text-base leading-relaxed text-muted-foreground md:text-[1.05rem]"
               />
+            )
+          case "image":
+            return (
+              <figure key={index} className="my-6">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={block.src}
+                  alt={block.alt}
+                  loading="lazy"
+                  className="h-auto max-w-full rounded-xl"
+                />
+              </figure>
             )
           case "h2":
             return (

@@ -54,6 +54,18 @@ const blogBlockSchema = z.discriminatedUnion("type", [
     text: z.string().max(BODY_MAX),
   }),
   z.object({
+    type: z.literal("image"),
+    src: z
+      .string()
+      .trim()
+      .min(1)
+      .max(SRC_MAX)
+      .refine(isSafeImageSrc, {
+        message: "image.src must be https/http or a site-relative / path",
+      }),
+    alt: z.string().max(ALT_MAX).default(""),
+  }),
+  z.object({
     type: z.literal("h2"),
     text: z.string().max(HEADING_MAX),
   }),

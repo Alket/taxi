@@ -18,13 +18,24 @@ const ALLOWED_TAGS = [
   "ul",
   "ol",
   "li",
+  "img",
 ] as const
 
 /**
  * No `class` — avoids layout/UI spoofing via CMS HTML.
- * DOMPurify default URI rules block javascript:/data: in href.
+ * DOMPurify default URI rules block javascript:/data: in href and src.
  */
-const ALLOWED_ATTR = ["href", "target", "rel", "title"] as const
+const ALLOWED_ATTR = [
+  "href",
+  "target",
+  "rel",
+  "title",
+  "src",
+  "alt",
+  "width",
+  "height",
+  "loading",
+] as const
 
 const BLOG_URI_REGEXP = /^(?:(?:https?|mailto|tel):|\/(?!\/)|#)/i
 
@@ -41,7 +52,33 @@ function isSafeHref(href: string): boolean {
   }
 }
 
+function isSafeImageSrc(src: string): boolean {
+  const value = src.trim()
+  if (!value || value.startsWith("//")) return false
+  if (value.startsWith("/") && !value.startsWith("//")) return true
+  try {
+    const url = new URL(value)
+    return url.protocol === "http:" || url.protocol === "https:"
+  } catch {
+    return false
+  }
+}
+
 function afterSanitizeBlogAttributes(node: Element) {
+  if (node.tagName === "IMG") {
+    const src = node.getAttribute("src")?.trim() ?? ""
+    if (!isSafeImageSrc(src)) {
+      node.remove()
+      return
+    }
+    for (const attr of ["width", "height"] as const) {
+      const value = node.getAttribute(attr)
+      if (value && !/^\d{1,5}$/.test(value)) node.removeAttribute(attr)
+    }
+    if (!node.getAttribute("loading")) node.setAttribute("loading", "lazy")
+    return
+  }
+
   if (node.tagName !== "A") return
 
   const href = node.getAttribute("href")?.trim() ?? ""

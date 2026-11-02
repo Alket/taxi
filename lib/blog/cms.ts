@@ -54,6 +54,11 @@ export function blogPostToSections(post: BlogPost): PageSection[] {
       case "paragraph":
         sections.push(sec("text", key, { body: block.text }))
         break
+      case "image":
+        sections.push(
+          sec("image", key, { src: block.src, alt: block.alt }),
+        )
+        break
       case "h2":
         sections.push(sec("heading", key, { heading: block.text, level: 2 }))
         break
@@ -177,9 +182,13 @@ function sectionToBlock(section: PageSection): BlogBlock | null {
         secondaryHref: hrefs[1]?.trim() || undefined,
       }
     }
-    case "image":
-      // Inline images in body aren't in BlogBlock v1 — skip.
-      return null
+    case "image": {
+      const src = section.src?.trim() ?? ""
+      if (!src) return null
+      if (src.startsWith("//")) return null
+      if (!(src.startsWith("/") || /^https?:\/\//i.test(src))) return null
+      return { type: "image", src, alt: section.alt?.trim() ?? "" }
+    }
     default:
       return null
   }
