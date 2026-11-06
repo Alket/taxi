@@ -1,4 +1,8 @@
-import type { Locale } from "@/lib/i18n/locales"
+import {
+  DEFAULT_LOCALE,
+  LOCALE_LABELS,
+  type Locale,
+} from "@/lib/i18n/locales"
 
 const BRAND = "Landed Albania"
 
@@ -12,6 +16,50 @@ export function searchTitle(pageTitle: string): { absolute: string } {
     .replace(/\s+/g, " ")
     .trim()
   return { absolute: `${stripped} | ${BRAND}` }
+}
+
+/**
+ * When a locale URL still serves English SEO copy (no translation yet),
+ * disambiguate title/description so search tools do not flag duplicates.
+ * Prefer filling unique SEO fields per language in admin.
+ */
+export function localizeFallbackSearchCopy(
+  locale: Locale,
+  title: string,
+  description: string,
+  englishTitle: string,
+  englishDescription: string,
+): { title: string; description: string } {
+  if (locale === DEFAULT_LOCALE) {
+    return { title, description }
+  }
+  const lang = LOCALE_LABELS[locale].label
+  const sameTitle =
+    title.trim().toLowerCase() === englishTitle.trim().toLowerCase()
+  const sameDescription =
+    description.trim().toLowerCase() ===
+    englishDescription.trim().toLowerCase()
+
+  let nextTitle = title.trim()
+  if (sameTitle) {
+    nextTitle = nextTitle
+      .replace(/\s*[|·]\s*(Landed Albania|Landed)\s*$/i, "")
+      .trim()
+    nextTitle = `${nextTitle} (${lang})`
+  }
+
+  let nextDescription = description.trim()
+  if (sameDescription && nextDescription) {
+    const marker = ` (${lang})`
+    const max = 155
+    if (nextDescription.length + marker.length <= max) {
+      nextDescription = `${nextDescription}${marker}`
+    } else {
+      nextDescription = `${nextDescription.slice(0, Math.max(0, max - marker.length - 1)).trimEnd()}…${marker}`
+    }
+  }
+
+  return { title: nextTitle, description: nextDescription }
 }
 
 type Copy = { heading: string; description: string }

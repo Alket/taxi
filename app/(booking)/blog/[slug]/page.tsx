@@ -10,18 +10,25 @@ import {
 } from "@/lib/blog/catalog"
 import { getRelatedDestinations } from "@/lib/blog"
 import { getRequestLocale } from "@/lib/i18n/get-locale"
-import { localePath, localizedAlternates } from "@/lib/i18n/locales"
+import {
+  DEFAULT_LOCALE,
+  localePath,
+  localizedAlternates,
+} from "@/lib/i18n/locales"
 import { getAppBaseUrl } from "@/lib/mail"
 import {
   getBlogPostFromCms,
   resolveDestinationCards,
 } from "@/lib/page-content"
 import {
+  localizeFallbackSearchCopy,
+  searchTitle,
+} from "@/lib/seo/search-meta"
+import {
   buildBlogPostingJsonLd,
   buildBreadcrumbJsonLd,
   buildFaqPageJsonLd,
 } from "@/lib/structured-data"
-import { searchTitle } from "@/lib/seo/search-meta"
 
 export const dynamic = "force-dynamic"
 
@@ -34,7 +41,12 @@ export async function generateMetadata({
 }: PageProps): Promise<Metadata> {
   const { slug } = await params
   const locale = await getRequestLocale()
-  const post = await getBlogPostFromCms(slug, locale)
+  const [post, englishPost] = await Promise.all([
+    getBlogPostFromCms(slug, locale),
+    locale === DEFAULT_LOCALE
+      ? Promise.resolve(null)
+      : getBlogPostFromCms(slug, DEFAULT_LOCALE),
+  ])
   if (!post) return { title: "Guide not found" }
 
   const path = `/blog/${post.slug}`
@@ -43,14 +55,22 @@ export async function generateMetadata({
     ? post.heroImage.src
     : `${base}${post.heroImage.src}`
 
-  const title = searchTitle(post.seoTitle)
+  const localized = localizeFallbackSearchCopy(
+    locale,
+    post.seoTitle,
+    post.seoDescription,
+    englishPost?.seoTitle || post.seoTitle,
+    englishPost?.seoDescription || post.seoDescription,
+  )
+  const title = searchTitle(localized.title)
+  const description = localized.description
   return {
     title,
-    description: post.seoDescription,
+    description,
     alternates: localizedAlternates(path, locale),
     openGraph: {
       title: title.absolute,
-      description: post.seoDescription,
+      description,
       url: `${base}${localePath(path, locale)}`,
       type: "article",
       publishedTime: post.publishedAt,
@@ -67,7 +87,7 @@ export async function generateMetadata({
     twitter: {
       card: "summary_large_image",
       title: title.absolute,
-      description: post.seoDescription,
+      description,
       images: [ogImage],
     },
   }
