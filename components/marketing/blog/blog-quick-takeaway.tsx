@@ -8,6 +8,9 @@ export function BlogQuickTakeaway({
   text: string
   locale: Locale
 }) {
+  const body = text.trim()
+  if (!body) return null
+
   return (
     <aside
       aria-label={t(locale, "blog.quickTakeaway")}
@@ -17,7 +20,7 @@ export function BlogQuickTakeaway({
         {t(locale, "blog.quickTakeaway")}
       </p>
       <p className="mt-2 text-base leading-relaxed font-medium text-brand md:text-lg">
-        {text}
+        {body}
       </p>
     </aside>
   )

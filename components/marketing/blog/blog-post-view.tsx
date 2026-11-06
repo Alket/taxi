@@ -95,9 +95,11 @@ export function BlogPostView({
         </MarketingContainer>
       </header>
 
-      <MarketingContainer className="mt-8 md:mt-10">
-        <BlogQuickTakeaway text={post.quickTakeaway} locale={locale} />
-      </MarketingContainer>
+      {post.quickTakeaway.trim() ? (
+        <MarketingContainer className="mt-8 md:mt-10">
+          <BlogQuickTakeaway text={post.quickTakeaway} locale={locale} />
+        </MarketingContainer>
+      ) : null}
 
       <MarketingContainer className="mt-10 md:mt-14">
         <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_16rem] lg:gap-12">
