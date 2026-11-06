@@ -50,6 +50,8 @@ const seedSchema = z.object({
   catalogPriceEur: z.number().min(0).max(10000),
   heroImageUrl: z.string().max(2000),
   travelDescription: z.string().max(8000),
+  compareHeading: z.string().max(200).default(""),
+  compareDescription: z.string().max(8000).default(""),
   comparisonTable: z.array(comparisonSchema).max(12),
   routeFaqs: z.array(faqSchema).max(40),
   insights: z.array(insightSchema).max(20),

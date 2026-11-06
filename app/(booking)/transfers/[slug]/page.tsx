@@ -225,10 +225,21 @@ export default async function TransferRoutePage({ params }: PageProps) {
         </MarketingContainer>
       </section>
 
+      {route.compareDescription.trim() ? (
+        <section className="border-b border-border bg-brand-page py-8 md:py-10">
+          <MarketingContainer>
+            <p className="w-full text-base leading-relaxed text-muted-foreground md:text-[1.05rem]">
+              {route.compareDescription.trim()}
+            </p>
+          </MarketingContainer>
+        </section>
+      ) : null}
+
       <section className="py-12 md:py-16">
         <MarketingContainer>
           <h2 className={MARKETING_SECTION_TITLE}>
-            {t(locale, "transfer.compareHeading")}
+            {route.compareHeading.trim() ||
+              t(locale, "transfer.compareHeading")}
           </h2>
           <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
             {t(locale, "transfer.compareIntro", {

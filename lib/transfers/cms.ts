@@ -135,6 +135,8 @@ export function normalizeTransferSeed(
     catalogPriceEur: asNumber(s.catalogPriceEur, 0),
     heroImageUrl: asString(s.heroImageUrl),
     travelDescription: asString(s.travelDescription),
+    compareHeading: asString(s.compareHeading),
+    compareDescription: asString(s.compareDescription),
     comparisonTable: Array.isArray(s.comparisonTable)
       ? s.comparisonTable
           .map(normalizeComparison)
@@ -509,6 +511,8 @@ export async function createTransferSeed(input: {
     catalogPriceEur: 0,
     heroImageUrl: "",
     travelDescription: `Private transfer from Tirana Airport (TIA) to ${name}. Fixed fare, flight tracking, cash on arrival.`,
+    compareHeading: "",
+    compareDescription: "",
     comparisonTable: [
       {
         mode: "Private transfer",

@@ -57,6 +57,16 @@ export type TransferRoute = {
   priceFromLiveQuote: boolean
   heroImageUrl: string
   travelDescription: string
+  /**
+   * Optional compare-section heading. Empty → i18n `transfer.compareHeading`.
+   * Editable per locale in admin.
+   */
+  compareHeading: string
+  /**
+   * Optional SEO/lead copy shown above the compare section.
+   * Empty → section omitted (intro under the heading still uses i18n).
+   */
+  compareDescription: string
   comparisonTable: ComparisonOption[]
   routeFaqs: RouteFaq[]
   /** Optional road tips / stopovers. Omitted sections are skipped in the UI. */
@@ -132,6 +142,8 @@ const ROUTE_SEEDS: TransferRouteSeed[] = [
       "https://images.unsplash.com/photo-1506953823976-52e1fdc0149a?auto=format&fit=crop&q=80&w=1600",
     travelDescription:
       "Book a private driver Tirana Airport to Sarandë (Saranda) with a fixed taxi rate TIA travellers can trust—cash on arrival transfer, free flight tracking, and meet & greet. Ideal if you need a late night TIA airport taxi that continues straight to the Riviera without bus changes.",
+    compareHeading: "",
+    compareDescription: "",
     comparisonTable: [
       {
         mode: "Private transfer",
@@ -209,6 +221,8 @@ const ROUTE_SEEDS: TransferRouteSeed[] = [
       "https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&q=80&w=1600",
     travelDescription:
       "Door-to-door private driver Tirana Airport service to Ksamil (Ksamili)—no vehicle change in Sarandë/Saranda, a fixed taxi rate TIA quote, and a cash on arrival transfer with meet & greet. Built for beach luggage and late night TIA airport taxi arrivals that still need a long Riviera ride.",
+    compareHeading: "",
+    compareDescription: "",
     comparisonTable: [
       {
         mode: "Private transfer",
@@ -282,6 +296,8 @@ const ROUTE_SEEDS: TransferRouteSeed[] = [
       "https://images.unsplash.com/photo-1519046909924-d93b0f86d5b3?auto=format&fit=crop&q=80&w=1600",
     travelDescription:
       "Your gateway to the Albanian Riviera—book a private driver Tirana Airport to Vlorë (Vlora) with a fixed taxi rate TIA quote, flight tracking, and a cash on arrival transfer. A smart alternative to a late night TIA airport taxi when you want a known fare to the coast.",
+    compareHeading: "",
+    compareDescription: "",
     comparisonTable: [
       {
         mode: "Private transfer",

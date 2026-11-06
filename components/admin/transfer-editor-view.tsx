@@ -455,6 +455,35 @@ export function TransferEditorView({ slug }: { slug: string }) {
           </div>
         </section>
 
+        <section className="flex flex-col gap-3 rounded-xl border p-4">
+          <h2 className="text-sm font-semibold">Compare section</h2>
+          <p className="text-xs text-muted-foreground">
+            Heading and lead copy for this locale. Leave blank to use the
+            default site translations.
+          </p>
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs text-muted-foreground">
+              Compare heading
+            </Label>
+            <Input
+              value={seed.compareHeading ?? ""}
+              onChange={(e) => patch({ compareHeading: e.target.value })}
+              placeholder="Private transfer vs bus vs taxi"
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs text-muted-foreground">
+              Description above compare section
+            </Label>
+            <Textarea
+              rows={5}
+              value={seed.compareDescription ?? ""}
+              onChange={(e) => patch({ compareDescription: e.target.value })}
+              placeholder="This page covers Tirana airport transfers, airport transfers Albania…"
+            />
+          </div>
+        </section>
+
         <RepeatableSection
           title="Comparison table"
           onAdd={() =>
