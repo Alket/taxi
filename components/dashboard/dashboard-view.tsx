@@ -165,14 +165,14 @@ export function DashboardView() {
                 value={String(data.bookingsToday)}
                 icon={CalendarCheck}
                 href={`/admin/bookings?dateFrom=${today}&dateTo=${today}`}
-                hint="Pickups scheduled today"
+                hint="Active pickups today (not cancelled or abandoned)"
               />
               <StatCard
                 label="Bookings this week"
                 value={String(data.bookingsThisWeek)}
                 icon={CalendarDays}
                 href={`/admin/bookings?dateFrom=${weekFrom}&dateTo=${weekTo}`}
-                hint="From Monday to Sunday"
+                hint="Active pickups Mon–Sun (not cancelled or abandoned)"
               />
               <StatCard
                 label="Unassigned bookings"

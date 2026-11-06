@@ -52,6 +52,12 @@ export async function GET(request: Request) {
     driverCost: { not: null },
   }
 
+  // Match /admin/bookings default list: abandoned checkouts are hidden there,
+  // and cancelled trips should not inflate "today / this week" ops cards.
+  const activePickupWhere = {
+    status: { notIn: ["cancelled", "abandoned"] as const },
+  }
+
   const [
     bookingsToday,
     bookingsThisWeek,
@@ -66,11 +72,13 @@ export async function GET(request: Request) {
     prisma.booking.count({
       where: {
         pickupDateTime: { gte: todayStart, lt: todayEnd },
+        ...activePickupWhere,
       },
     }),
     prisma.booking.count({
       where: {
         pickupDateTime: { gte: weekStart, lt: weekEnd },
+        ...activePickupWhere,
       },
     }),
     prisma.booking.count({

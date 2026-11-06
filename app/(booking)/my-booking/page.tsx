@@ -4,10 +4,29 @@ import type { Metadata } from "next"
 import { MyBookingView } from "@/components/booking/my-booking-view"
 import { MarketingContainer } from "@/components/marketing/marketing-container"
 import { Skeleton } from "@/components/ui/skeleton"
+import { getRequestLocale } from "@/lib/i18n/get-locale"
+import { localizedAlternates } from "@/lib/i18n/locales"
+import { t } from "@/lib/i18n/t"
+import { searchTitle } from "@/lib/seo/search-meta"
 
-export const metadata: Metadata = {
-  title: "My booking",
-  description: "Look up and manage your airport transfer without an account.",
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale()
+  const title = searchTitle(t(locale, "myBooking.title"))
+  const description = t(locale, "myBooking.hero")
+
+  return {
+    title,
+    description,
+    alternates: localizedAlternates("/my-booking", locale),
+    openGraph: {
+      title: title.absolute,
+      description,
+    },
+    twitter: {
+      title: title.absolute,
+      description,
+    },
+  }
 }
 
 function MyBookingFallback() {
