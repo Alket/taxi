@@ -54,8 +54,8 @@ export async function GET(request: Request) {
 
   // Match /admin/bookings default list: abandoned checkouts are hidden there,
   // and cancelled trips should not inflate "today / this week" ops cards.
-  const activePickupWhere = {
-    status: { notIn: ["cancelled", "abandoned"] as const },
+  const activePickupWhere: Prisma.BookingWhereInput = {
+    status: { notIn: ["cancelled", "abandoned"] },
   }
 
   const [
