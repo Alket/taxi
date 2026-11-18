@@ -6,14 +6,24 @@ import { useSearchParams } from "next/navigation"
 import useSWR from "swr"
 import { toast } from "sonner"
 import {
+  AlertCircleIcon,
   ArrowLeft,
   CalendarIcon,
   CarIcon,
+  CheckIcon,
+  ClockIcon,
+  CopyIcon,
+  CreditCardIcon,
+  InfoIcon,
   Loader2Icon,
   MailIcon,
+  MapPinIcon,
   MessageCircleIcon,
   PhoneIcon,
+  PlaneIcon,
   SearchIcon,
+  ShieldCheckIcon,
+  UsersIcon,
   XIcon,
 } from "lucide-react"
 
@@ -72,33 +82,40 @@ function NeedHelpCard({
   const telHref = supportPhone.replace(/[^\d+]/g, "")
 
   return (
-    <div className="rounded-3xl border border-border/80 bg-brand-surface px-5 py-5 sm:px-7 sm:py-6">
-      <p className="text-sm font-extrabold text-brand">{tr("myBooking.needHelp")}</p>
-      <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+    <div className="rounded-3xl border border-border/80 bg-brand-surface p-6 shadow-xs sm:p-8">
+      <div className="flex items-center gap-2">
+        <span className="flex size-7 items-center justify-center rounded-full bg-brand-accent/10 text-brand-accent">
+          <InfoIcon className="size-4" />
+        </span>
+        <h3 className="text-base font-extrabold text-brand sm:text-lg">
+          {tr("myBooking.needHelp")}
+        </h3>
+      </div>
+      <p className="mt-2 text-sm leading-relaxed text-brand/75 sm:text-base">
         {tr("myBooking.needHelpBodyBefore")}{" "}
         <Link
           href={localePath("/cancellation-policy", locale)}
-          className="font-semibold text-brand underline underline-offset-2"
+          className="font-bold text-brand underline decoration-brand-accent/60 underline-offset-4 transition-colors hover:text-brand-accent"
         >
           {tr("myBooking.cancellationPolicy")}
         </Link>
         {tr("myBooking.needHelpBodyAfter")}
       </p>
 
-      <ul className="mt-4 grid gap-2.5 sm:grid-cols-3">
+      <ul className="mt-6 grid gap-3 sm:grid-cols-3">
         {whatsappUrl ? (
           <li>
             <a
               href={whatsappUrl}
               target="_blank"
               rel="noreferrer"
-              className="flex items-center gap-3 rounded-2xl border border-border bg-brand-page px-3.5 py-3 transition-colors hover:border-brand-accent/40 hover:bg-brand-accent/[0.06]"
+              className="group flex items-center gap-3.5 rounded-2xl border border-border/80 bg-brand-page/60 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-accent/40 hover:bg-brand-accent/[0.06] hover:shadow-xs active:scale-[0.98]"
             >
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#25D366]/15 text-[#128C7E]">
-                <MessageCircleIcon className="size-4" />
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#25D366]/15 text-[#128C7E] shadow-2xs transition-transform group-hover:scale-105">
+                <MessageCircleIcon className="size-5" />
               </span>
               <span className="min-w-0">
-                <span className="block text-[11px] font-extrabold tracking-wider text-muted-foreground uppercase">
+                <span className="block text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground">
                   {tr("myBooking.whatsapp")}
                 </span>
                 <span className="block truncate text-sm font-bold text-brand">
@@ -113,13 +130,13 @@ function NeedHelpCard({
           <li>
             <a
               href={`tel:${telHref}`}
-              className="flex items-center gap-3 rounded-2xl border border-border bg-brand-page px-3.5 py-3 transition-colors hover:border-brand-accent/40 hover:bg-brand-accent/[0.06]"
+              className="group flex items-center gap-3.5 rounded-2xl border border-border/80 bg-brand-page/60 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-accent/40 hover:bg-brand-accent/[0.06] hover:shadow-xs active:scale-[0.98]"
             >
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-brand-accent/15 text-brand-accent">
-                <PhoneIcon className="size-4" />
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-accent/15 text-brand-accent shadow-2xs transition-transform group-hover:scale-105">
+                <PhoneIcon className="size-5" />
               </span>
               <span className="min-w-0">
-                <span className="block text-[11px] font-extrabold tracking-wider text-muted-foreground uppercase">
+                <span className="block text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground">
                   {tr("myBooking.phone")}
                 </span>
                 <span className="block truncate text-sm font-bold text-brand">
@@ -134,13 +151,13 @@ function NeedHelpCard({
           <li>
             <a
               href={`mailto:${supportEmail}`}
-              className="flex items-center gap-3 rounded-2xl border border-border bg-brand-page px-3.5 py-3 transition-colors hover:border-brand-accent/40 hover:bg-brand-accent/[0.06]"
+              className="group flex items-center gap-3.5 rounded-2xl border border-border/80 bg-brand-page/60 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-accent/40 hover:bg-brand-accent/[0.06] hover:shadow-xs active:scale-[0.98]"
             >
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-brand-accent/15 text-brand-accent">
-                <MailIcon className="size-4" />
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-accent/15 text-brand-accent shadow-2xs transition-transform group-hover:scale-105">
+                <MailIcon className="size-5" />
               </span>
               <span className="min-w-0">
-                <span className="block text-[11px] font-extrabold tracking-wider text-muted-foreground uppercase">
+                <span className="block text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground">
                   {tr("myBooking.email")}
                 </span>
                 <span className="block truncate text-sm font-bold text-brand">
@@ -218,28 +235,28 @@ export function MyBookingView() {
 
   return (
     <div>
-      <section className="relative isolate -mt-24 h-[min(48svh,26rem)] min-h-[18rem] overflow-hidden md:h-[min(44svh,30rem)]">
+      <section className="relative isolate -mt-24 h-[min(48svh,26rem)] min-h-[19rem] overflow-hidden md:h-[min(44svh,30rem)]">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={HERO_IMAGE}
           alt=""
           className="absolute inset-0 size-full object-cover object-center"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-brand-panel via-brand-panel/60 to-brand-panel/30" />
-        <div className="absolute inset-0 bg-gradient-to-r from-brand-panel/55 via-transparent to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-brand-panel via-brand-panel/70 to-brand-panel/40" />
+        <div className="absolute inset-0 bg-gradient-to-r from-brand-panel/60 via-transparent to-transparent" />
 
         <MarketingContainer className="relative z-10 flex h-full flex-col justify-end pb-10 pt-28 text-white md:pb-12 md:pt-32">
           <Link
             href={localePath("/", locale)}
-            className="mb-5 inline-flex w-fit items-center gap-1.5 text-sm font-bold text-white/75 transition-colors hover:text-white"
+            className="group mb-5 inline-flex w-fit items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3.5 py-1.5 text-xs font-bold text-white/90 backdrop-blur-sm transition-all hover:bg-white/20 hover:text-white"
           >
-            <ArrowLeft className="size-4" />
+            <ArrowLeft className="size-3.5 transition-transform group-hover:-translate-x-0.5" />
             {tr("myBooking.backHome")}
           </Link>
-          <h1 className="max-w-3xl font-brand text-4xl font-extrabold tracking-tight sm:text-5xl">
+          <h1 className="max-w-3xl font-brand text-3xl font-extrabold tracking-tight text-white sm:text-4xl md:text-5xl">
             {tr("myBooking.title")}
           </h1>
-          <p className="mt-3 max-w-xl text-base leading-relaxed text-white/85 md:text-lg">
+          <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/85 sm:text-base md:text-lg">
             {tr("myBooking.hero")}
           </p>
         </MarketingContainer>
@@ -247,90 +264,101 @@ export function MyBookingView() {
 
       <section className="bg-brand-page py-10 md:py-14">
         <MarketingContainer className="flex flex-col gap-6">
-            <form
-              className="rounded-3xl border border-border bg-brand-surface p-5 shadow-sm sm:p-7"
-              onSubmit={(e) => {
-                e.preventDefault()
-                void lookup()
-              }}
-            >
-              <div className="mb-5">
-                <h2 className="font-brand text-xl font-extrabold tracking-tight text-brand">
-                  {tr("myBooking.findTitle")}
-                </h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {tr("myBooking.findDesc")}
-                </p>
+          <form
+            className="rounded-3xl border border-border/80 bg-brand-surface p-6 shadow-xs sm:p-8 md:p-10"
+            onSubmit={(e) => {
+              e.preventDefault()
+              void lookup()
+            }}
+          >
+            <div className="mb-6">
+              <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-brand-accent/25 bg-brand-accent/10 px-3 py-1 text-xs font-extrabold uppercase tracking-wider text-brand-accent">
+                <SearchIcon className="size-3" aria-hidden />
+                <span>{tr("myBooking.title")}</span>
               </div>
+              <h2 className="font-brand text-2xl font-black tracking-tight text-brand sm:text-3xl">
+                {tr("myBooking.findTitle")}
+              </h2>
+              <p className="mt-1.5 text-sm text-brand/75 sm:text-base">
+                {tr("myBooking.findDesc")}
+              </p>
+            </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="reference" className="text-sm font-bold text-brand">
-                    {tr("myBooking.reference")}
-                  </Label>
-                  <Input
-                    id="reference"
-                    value={reference}
-                    onChange={(e) => setReference(e.target.value.toUpperCase())}
-                    placeholder="TRF-8F3K2A"
-                    className="h-11 font-mono uppercase"
-                    autoComplete="off"
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="email" className="text-sm font-bold text-brand">
-                    {tr("myBooking.email")}
-                  </Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder={tr("myBooking.emailPlaceholder")}
-                    className="h-11"
-                    autoComplete="email"
-                  />
-                </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-2">
+                <Label
+                  htmlFor="reference"
+                  className="text-xs font-extrabold uppercase tracking-wider text-brand/80"
+                >
+                  {tr("myBooking.reference")}
+                </Label>
+                <Input
+                  id="reference"
+                  value={reference}
+                  onChange={(e) => setReference(e.target.value.toUpperCase())}
+                  placeholder="TRF-8F3K2A"
+                  className="h-12 rounded-xl border border-border/80 bg-brand-page/40 px-4 font-mono text-base font-bold tracking-wider uppercase text-brand placeholder:font-sans placeholder:text-sm placeholder:normal-case placeholder:tracking-normal placeholder:text-muted-foreground/60 transition-colors focus-visible:border-brand-accent focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-brand-accent/20"
+                  autoComplete="off"
+                />
               </div>
+              <div className="flex flex-col gap-2">
+                <Label
+                  htmlFor="email"
+                  className="text-xs font-extrabold uppercase tracking-wider text-brand/80"
+                >
+                  {tr("myBooking.email")}
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder={tr("myBooking.emailPlaceholder")}
+                  className="h-12 rounded-xl border border-border/80 bg-brand-page/40 px-4 text-base font-medium text-brand placeholder:text-sm placeholder:text-muted-foreground/60 transition-colors focus-visible:border-brand-accent focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-brand-accent/20"
+                  autoComplete="email"
+                />
+              </div>
+            </div>
 
-              {error && (
-                <p className="mt-4 rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-                  {error}
-                </p>
-              )}
-
-              <Button
-                type="submit"
-                size="lg"
-                className="mt-5 h-12 w-full rounded-xl bg-brand-accent text-base font-extrabold text-white hover:bg-brand-accent-hover sm:w-auto sm:min-w-[12rem]"
-                disabled={pending}
-              >
-                {pending ? (
-                  <>
-                    <Loader2Icon className="animate-spin" data-icon="inline-start" />
-                    {tr("myBooking.lookingUp")}
-                  </>
-                ) : (
-                  <>
-                    <SearchIcon data-icon="inline-start" />
-                    {tr("myBooking.findBooking")}
-                  </>
-                )}
-              </Button>
-            </form>
-
-            {booking && (
-              <BookingManagePanel
-                booking={booking}
-                email={email}
-                onUpdated={setBooking}
-              />
+            {error && (
+              <div className="mt-4 flex items-center gap-2.5 rounded-2xl border border-destructive/25 bg-destructive/5 px-4 py-3 text-sm font-medium text-destructive">
+                <AlertCircleIcon className="size-4 shrink-0 text-destructive" />
+                <span>{error}</span>
+              </div>
             )}
 
-            <NeedHelpCard
-              supportEmail={supportEmail}
-              supportPhone={supportPhone}
+            <Button
+              type="submit"
+              size="lg"
+              className="mt-6 h-12 w-full rounded-full bg-brand-accent px-8 text-base font-extrabold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:brightness-95 active:scale-[0.98] sm:w-auto sm:min-w-[13rem]"
+              disabled={pending}
+            >
+              {pending ? (
+                <>
+                  <Loader2Icon className="size-4 animate-spin" data-icon="inline-start" />
+                  {tr("myBooking.lookingUp")}
+                </>
+              ) : (
+                <>
+                  <SearchIcon className="size-4" data-icon="inline-start" />
+                  {tr("myBooking.findBooking")}
+                </>
+              )}
+            </Button>
+          </form>
+
+          {booking && (
+            <BookingManagePanel
+              booking={booking}
+              email={email}
+              onUpdated={setBooking}
             />
+          )}
+
+          <NeedHelpCard
+            supportEmail={supportEmail}
+            supportPhone={supportPhone}
+          />
         </MarketingContainer>
       </section>
     </div>
@@ -349,74 +377,134 @@ function BookingManagePanel({
   const tr = useT()
   const [cancelOpen, setCancelOpen] = React.useState(false)
   const [editOpen, setEditOpen] = React.useState(false)
+  const [copied, setCopied] = React.useState(false)
+
+  async function copyReference() {
+    try {
+      await navigator.clipboard.writeText(booking.referenceCode)
+      setCopied(true)
+      toast.success("Reference code copied.")
+      window.setTimeout(() => setCopied(false), 2000)
+    } catch {
+      toast.error("Could not copy reference code.")
+    }
+  }
+
+  const isCancelled = booking.status === "cancelled"
+  const isCompleted = booking.status === "completed"
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="overflow-hidden rounded-3xl border border-border bg-brand-surface shadow-sm">
-        <div className="border-b border-border/70 bg-brand-page/60 px-5 py-5 sm:px-7 sm:py-6">
-          <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="overflow-hidden rounded-3xl border border-border/80 bg-brand-surface shadow-xs">
+        {/* Header Bar */}
+        <div className="border-b border-border/70 bg-brand-page/60 px-6 py-6 sm:px-8">
+          <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <p className="text-xs font-extrabold tracking-[0.14em] text-brand-accent uppercase">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-accent/30 bg-brand-accent/15 px-3 py-0.5 text-[11px] font-black uppercase tracking-wider text-brand-accent">
+                <ShieldCheckIcon className="size-3" />
                 {tr("myBooking.found")}
-              </p>
-              <p className="mt-1 font-mono text-xl font-extrabold tracking-tight text-brand">
-                {booking.referenceCode}
-              </p>
-              {booking.pickupPin ? (
-                <p className="mt-1 font-mono text-sm font-semibold tabular-nums text-brand">
-                  {tr("myBooking.pin", { pin: booking.pickupPin })}
-                </p>
-              ) : null}
-              <p className="mt-1 text-sm text-muted-foreground">
-                {BOOKING_STATUS_LABELS[booking.status]} ·{" "}
-                {booking.paymentStatusLabel}
-              </p>
+              </span>
+
+              <div className="mt-2.5 flex flex-wrap items-center gap-2.5 sm:gap-3">
+                <span className="font-mono text-2xl font-black tracking-tight text-brand sm:text-3xl">
+                  {booking.referenceCode}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void copyReference()}
+                  className="inline-flex size-8 items-center justify-center rounded-lg border border-border/80 bg-brand-surface text-brand/70 shadow-2xs transition-all hover:border-brand-accent/40 hover:bg-brand-accent/5 hover:text-brand-accent active:scale-95"
+                  title="Copy reference code"
+                  aria-label="Copy reference code"
+                >
+                  {copied ? (
+                    <CheckIcon className="size-3.5 text-brand-accent" />
+                  ) : (
+                    <CopyIcon className="size-3.5" />
+                  )}
+                </button>
+                {booking.pickupPin ? (
+                  <span className="inline-flex items-center gap-1 rounded-md border border-border/90 bg-brand-surface px-2.5 py-1 font-mono text-xs font-bold tabular-nums text-brand shadow-2xs">
+                    {tr("myBooking.pin", { pin: booking.pickupPin })}
+                  </span>
+                ) : null}
+              </div>
+
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold capitalize",
+                    isCancelled
+                      ? "border border-destructive/20 bg-destructive/10 text-destructive"
+                      : isCompleted
+                        ? "border border-brand-accent/30 bg-brand-accent/15 text-brand-accent"
+                        : "border border-brand-accent/20 bg-brand-accent/10 text-brand-accent",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "size-1.5 rounded-full",
+                      isCancelled ? "bg-destructive" : "bg-brand-accent",
+                    )}
+                  />
+                  {BOOKING_STATUS_LABELS[booking.status]}
+                </span>
+                <span className="inline-flex items-center rounded-full border border-border/80 bg-brand-surface px-3 py-1 text-xs font-bold text-brand/80 shadow-2xs">
+                  {booking.paymentStatusLabel}
+                </span>
+              </div>
             </div>
-            <div className="flex flex-wrap gap-2">
+
+            <div className="flex flex-wrap gap-2.5">
               {booking.editable && (
                 <Button
                   type="button"
                   variant="outline"
-                  className="h-11 rounded-full border border-border bg-brand-page px-5 text-sm font-bold text-brand shadow-none hover:bg-muted"
+                  className="h-11 rounded-full border border-border/80 bg-brand-surface px-5 text-xs font-bold text-brand shadow-2xs transition-all hover:-translate-y-0.5 hover:bg-muted active:scale-[0.98]"
                   onClick={() => setEditOpen(true)}
                 >
-                  <CalendarIcon data-icon="inline-start" />
+                  <CalendarIcon className="size-3.5" data-icon="inline-start" />
                   {tr("myBooking.changeDate")}
                 </Button>
               )}
               {booking.cancellable && (
                 <Button
                   type="button"
-                  className="h-11 rounded-full bg-destructive px-5 text-sm font-extrabold text-white shadow-none hover:bg-destructive/90"
+                  className="h-11 rounded-full border border-destructive/20 bg-destructive/10 px-5 text-xs font-bold text-destructive shadow-none transition-all hover:-translate-y-0.5 hover:bg-destructive hover:text-white active:scale-[0.98]"
                   onClick={() => setCancelOpen(true)}
                 >
-                  <XIcon data-icon="inline-start" />
+                  <XIcon className="size-3.5" data-icon="inline-start" />
                   {tr("myBooking.cancelBooking")}
                 </Button>
               )}
             </div>
           </div>
 
-          {booking.status !== "cancelled" && booking.status !== "completed" ? (
-            <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
-              {booking.cancellable
-                ? booking.cashOnArrival
-                  ? null
-                  : tr("myBooking.cancelForfeit")
-                : tr("myBooking.cancelTooLate")}
-              {booking.cancellable && !booking.cashOnArrival ? " " : null}
-              {booking.editable
-                ? tr("myBooking.editUntilAssigned")
-                : tr("myBooking.editTooLate")}
-            </p>
+          {!isCancelled && !isCompleted ? (
+            <div className="mt-5 flex items-start gap-2.5 rounded-2xl border border-border/60 bg-brand-surface/80 p-3.5 text-xs leading-relaxed text-muted-foreground">
+              <InfoIcon className="size-4 shrink-0 text-brand/60 mt-0.5" />
+              <p>
+                {booking.cancellable
+                  ? booking.cashOnArrival
+                    ? null
+                    : tr("myBooking.cancelForfeit")
+                  : tr("myBooking.cancelTooLate")}
+                {booking.cancellable && !booking.cashOnArrival ? " " : null}
+                {booking.editable
+                  ? tr("myBooking.editUntilAssigned")
+                  : tr("myBooking.editTooLate")}
+              </p>
+            </div>
           ) : null}
         </div>
 
-        <div className="grid gap-8 p-5 sm:p-7 md:grid-cols-2">
-          <div>
-            <h2 className="mb-3 text-sm font-extrabold text-brand">
+        {/* Content Body Grid */}
+        <div className="grid gap-8 p-6 sm:p-8 md:grid-cols-2">
+          {/* Timeline Column */}
+          <div className="rounded-2xl border border-border/70 bg-brand-page/40 p-5 sm:p-6">
+            <h3 className="mb-4 flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider text-brand">
+              <ClockIcon className="size-4 text-brand-accent" />
               {tr("myBooking.status")}
-            </h2>
+            </h3>
             <ManagedStatusTimeline
               status={booking.status}
               timeline={booking.timeline}
@@ -424,12 +512,15 @@ function BookingManagePanel({
             />
           </div>
 
+          {/* Trip, Payment & Driver Column */}
           <div className="flex flex-col gap-5">
-            <div>
-              <h2 className="mb-3 text-sm font-extrabold text-brand">
+            {/* Trip Details */}
+            <div className="rounded-2xl border border-border/70 bg-brand-page/40 p-5 sm:p-6">
+              <h3 className="mb-4 flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider text-brand">
+                <MapPinIcon className="size-4 text-brand-accent" />
                 {tr("myBooking.trip")}
-              </h2>
-              <dl className="flex flex-col gap-2.5 text-sm">
+              </h3>
+              <dl className="flex flex-col">
                 <InfoRow
                   label={tr("myBooking.direction")}
                   value={booking.directionLabel}
@@ -444,11 +535,13 @@ function BookingManagePanel({
                 />
                 {booking.flightNumber && (
                   <InfoRow
+                    icon={PlaneIcon}
                     label={tr("myBooking.flight")}
                     value={booking.flightNumber}
                   />
                 )}
                 <InfoRow
+                  icon={CarIcon}
                   label={tr("myBooking.vehicle")}
                   value={`${booking.vehicleLabel}${
                     booking.meetAndGreet
@@ -457,6 +550,7 @@ function BookingManagePanel({
                   }`}
                 />
                 <InfoRow
+                  icon={UsersIcon}
                   label={tr("myBooking.party")}
                   value={tr("myBooking.partyValue", {
                     passengers: booking.passengerCount,
@@ -466,26 +560,28 @@ function BookingManagePanel({
               </dl>
             </div>
 
-            <div>
-              <h2 className="mb-3 text-sm font-extrabold text-brand">
+            {/* Payment Details */}
+            <div className="rounded-2xl border border-border/70 bg-brand-page/40 p-5 sm:p-6">
+              <h3 className="mb-4 flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider text-brand">
+                <CreditCardIcon className="size-4 text-brand-accent" />
                 {tr("myBooking.payment")}
-              </h2>
-              <dl className="flex flex-col gap-2 rounded-2xl bg-brand-page px-4 py-3.5 text-sm">
+              </h3>
+              <dl className="flex flex-col gap-2.5 rounded-xl border border-border/80 bg-brand-surface p-4 text-sm shadow-2xs">
                 <div className="flex justify-between gap-3">
-                  <span className="text-muted-foreground">
+                  <span className="text-muted-foreground font-medium">
                     {tr("myBooking.total")}
                   </span>
-                  <span className="font-semibold tabular-nums text-brand">
+                  <span className="font-bold tabular-nums text-brand">
                     {formatMoney(booking.totalPrice, booking.currency)}
                   </span>
                 </div>
                 {booking.paymentStatus === "fully_paid" ||
                 booking.paymentStatus === "paid" ? (
-                  <div className="flex justify-between gap-3">
-                    <span className="text-muted-foreground">
+                  <div className="flex justify-between gap-3 border-t border-border/50 pt-2">
+                    <span className="text-muted-foreground font-medium">
                       {tr("myBooking.paidInFull")}
                     </span>
-                    <span className="font-semibold tabular-nums text-brand">
+                    <span className="font-extrabold tabular-nums text-brand-accent">
                       {formatMoney(
                         booking.depositPaid || booking.totalPrice,
                         booking.currency,
@@ -495,8 +591,8 @@ function BookingManagePanel({
                 ) : (
                   <>
                     {!booking.cashOnArrival ? (
-                      <div className="flex justify-between gap-3">
-                        <span className="text-muted-foreground">
+                      <div className="flex justify-between gap-3 border-t border-border/50 pt-2">
+                        <span className="text-muted-foreground font-medium">
                           {tr("myBooking.depositPaid")}
                         </span>
                         <span className="font-semibold tabular-nums text-brand">
@@ -504,11 +600,11 @@ function BookingManagePanel({
                         </span>
                       </div>
                     ) : null}
-                    <div className="flex justify-between gap-3">
-                      <span className="text-muted-foreground">
+                    <div className="flex justify-between gap-3 border-t border-border/50 pt-2">
+                      <span className="text-muted-foreground font-medium">
                         {tr("myBooking.balanceDue")}
                       </span>
-                      <span className="font-extrabold tabular-nums text-brand-accent">
+                      <span className="font-black tabular-nums text-brand-accent">
                         {formatMoney(booking.balanceDue, booking.currency)}
                       </span>
                     </div>
@@ -517,25 +613,34 @@ function BookingManagePanel({
               </dl>
             </div>
 
+            {/* Assigned Driver Card */}
             {booking.driver && (
-              <div className="rounded-2xl border border-border bg-brand-page p-4">
-                <h2 className="mb-2 flex items-center gap-1.5 text-sm font-extrabold text-brand">
-                  <CarIcon className="size-4 text-brand-accent" />
-                  {tr("myBooking.yourDriver")}
-                </h2>
-                <p className="text-sm font-bold text-brand">{booking.driver.name}</p>
-                <p className="text-xs text-muted-foreground">
-                  {booking.driver.vehicleMake} {booking.driver.vehicleModel} ·{" "}
-                  <span className="font-mono">{booking.driver.plateNumber}</span>
-                </p>
+              <div className="rounded-2xl border border-brand-accent/25 bg-brand-accent/[0.04] p-5 sm:p-6 shadow-2xs">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-brand-accent">
+                      <CarIcon className="size-3.5" />
+                      {tr("myBooking.yourDriver")}
+                    </h3>
+                    <p className="mt-1.5 text-base font-extrabold text-brand">
+                      {booking.driver.name}
+                    </p>
+                    <p className="mt-0.5 text-xs font-medium text-muted-foreground">
+                      {booking.driver.vehicleMake} {booking.driver.vehicleModel}
+                    </p>
+                  </div>
+                  <span className="inline-block rounded-md border border-border/80 bg-brand-surface px-2.5 py-1 font-mono text-xs font-bold text-brand shadow-2xs">
+                    {booking.driver.plateNumber}
+                  </span>
+                </div>
                 {booking.driver.whatsappUrl && (
                   <a
                     href={booking.driver.whatsappUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="mt-3 inline-flex h-9 items-center justify-center gap-1.5 rounded-full border border-border bg-brand-surface px-3.5 text-xs font-bold text-brand transition-colors hover:bg-muted"
+                    className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-full bg-[#25D366] px-4 text-xs font-extrabold text-white shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#20ba59] active:scale-[0.98] sm:w-auto"
                   >
-                    <MessageCircleIcon className="size-3.5" />
+                    <MessageCircleIcon className="size-4" />
                     {tr("myBooking.messageWhatsApp")}
                   </a>
                 )}
@@ -570,13 +675,24 @@ function BookingManagePanel({
   )
 }
 
-function InfoRow({ label, value }: { label: string; value: string }) {
+function InfoRow({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon?: React.ComponentType<{ className?: string }>
+  label: string
+  value: React.ReactNode
+}) {
   return (
-    <div className="grid gap-0.5 sm:grid-cols-[6.5rem_1fr] sm:gap-2">
-      <dt className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-        {label}
+    <div className="grid gap-1 border-b border-border/40 py-2.5 sm:grid-cols-[7rem_1fr] sm:gap-3 last:border-none">
+      <dt className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+        {Icon ? <Icon className="size-3.5 shrink-0 text-brand/60" /> : null}
+        <span>{label}</span>
       </dt>
-      <dd className="min-w-0 break-words font-medium text-brand">{value}</dd>
+      <dd className="min-w-0 break-words text-sm font-semibold text-brand">
+        {value}
+      </dd>
     </div>
   )
 }
@@ -622,21 +738,26 @@ function CancelBookingDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="rounded-3xl sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{tr("myBooking.cancelTitle")}</DialogTitle>
-          <DialogDescription>
+          <div className="mb-2 flex size-10 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+            <AlertCircleIcon className="size-5" />
+          </div>
+          <DialogTitle className="font-brand text-xl font-extrabold text-brand">
+            {tr("myBooking.cancelTitle")}
+          </DialogTitle>
+          <DialogDescription className="mt-1 text-sm leading-relaxed text-muted-foreground">
             {booking.cashOnArrival
               ? tr("myBooking.cancelCashDesc")
               : tr("myBooking.cancelDesc")}
           </DialogDescription>
         </DialogHeader>
-        <DialogFooter className="gap-2 sm:gap-2">
+        <DialogFooter className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-2">
           <DialogClose
             render={
               <Button
                 variant="outline"
-                className="h-11 rounded-full border border-border bg-brand-page px-5 text-sm font-bold text-brand shadow-none hover:bg-muted"
+                className="h-11 w-full rounded-full border border-border/80 bg-brand-surface px-5 text-sm font-bold text-brand shadow-none hover:bg-muted active:scale-[0.98] sm:w-auto"
               />
             }
           >
@@ -644,7 +765,7 @@ function CancelBookingDialog({
           </DialogClose>
           <Button
             disabled={pending}
-            className="h-11 rounded-full bg-destructive px-5 text-sm font-extrabold text-white shadow-none hover:bg-destructive/90"
+            className="h-11 w-full rounded-full bg-destructive px-5 text-sm font-extrabold text-white shadow-none transition-all hover:bg-destructive/90 active:scale-[0.98] sm:w-auto"
             onClick={() => void confirmCancel()}
           >
             {pending
@@ -710,14 +831,21 @@ function EditBookingDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="rounded-3xl sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{tr("myBooking.editTitle")}</DialogTitle>
-          <DialogDescription>{tr("myBooking.editDesc")}</DialogDescription>
+          <div className="mb-2 flex size-10 items-center justify-center rounded-full bg-brand-accent/10 text-brand-accent">
+            <CalendarIcon className="size-5" />
+          </div>
+          <DialogTitle className="font-brand text-xl font-extrabold text-brand">
+            {tr("myBooking.editTitle")}
+          </DialogTitle>
+          <DialogDescription className="mt-1 text-sm leading-relaxed text-muted-foreground">
+            {tr("myBooking.editDesc")}
+          </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col gap-1.5">
-          <Label className="text-sm font-bold text-brand">
+        <div className="mt-2 flex flex-col gap-2">
+          <Label className="text-xs font-extrabold uppercase tracking-wider text-brand/80">
             {tr("myBooking.pickupDateTime")}
           </Label>
           <HeroDateTimePicker
@@ -731,12 +859,12 @@ function EditBookingDialog({
                 type="button"
                 onClick={() => setCalendarOpen(true)}
                 className={cn(
-                  "flex h-12 w-full items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-left text-sm transition-colors hover:bg-muted/50",
+                  "flex h-12 w-full items-center gap-3 rounded-xl border border-border/80 bg-brand-page/40 px-3.5 py-2 text-left text-sm transition-colors hover:bg-white hover:border-brand-accent/50",
                   calendarOpen &&
-                    "border-brand-accent ring-2 ring-brand-accent ring-offset-2",
+                    "border-brand-accent bg-white ring-2 ring-brand-accent/20",
                 )}
               >
-                <CalendarIcon className="size-4 shrink-0 text-muted-foreground" />
+                <CalendarIcon className="size-4 shrink-0 text-brand-accent" />
                 <span
                   className={cn(
                     "flex-1 font-semibold",
@@ -750,12 +878,12 @@ function EditBookingDialog({
           />
         </div>
 
-        <DialogFooter className="gap-2 sm:gap-2">
+        <DialogFooter className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-2">
           <DialogClose
             render={
               <Button
                 variant="outline"
-                className="h-11 rounded-full border border-border bg-brand-page px-5 text-sm font-bold text-brand shadow-none hover:bg-muted"
+                className="h-11 w-full rounded-full border border-border/80 bg-brand-surface px-5 text-sm font-bold text-brand shadow-none hover:bg-muted active:scale-[0.98] sm:w-auto"
               />
             }
           >
@@ -763,10 +891,17 @@ function EditBookingDialog({
           </DialogClose>
           <Button
             disabled={pending || !pickupDateTime}
-            className="h-11 rounded-full bg-brand-accent px-5 text-sm font-extrabold text-white shadow-none hover:bg-brand-accent-hover disabled:opacity-50"
+            className="h-11 w-full rounded-full bg-brand-accent px-5 text-sm font-extrabold text-white shadow-none transition-all hover:bg-brand-accent-hover hover:brightness-95 active:scale-[0.98] disabled:opacity-50 sm:w-auto"
             onClick={() => void save()}
           >
-            {pending ? tr("myBooking.saving") : tr("myBooking.saveDate")}
+            {pending ? (
+              <>
+                <Loader2Icon className="size-4 animate-spin" data-icon="inline-start" />
+                {tr("myBooking.saving")}
+              </>
+            ) : (
+              tr("myBooking.saveDate")
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

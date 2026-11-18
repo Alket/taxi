@@ -32,7 +32,7 @@ export async function generateMetadata(): Promise<Metadata> {
 function MyBookingFallback() {
   return (
     <div>
-      <div className="-mt-24 h-[min(48svh,26rem)] min-h-[18rem] bg-brand-panel md:h-[min(44svh,30rem)]" />
+      <div className="-mt-24 h-[min(48svh,26rem)] min-h-[19rem] bg-brand-panel md:h-[min(44svh,30rem)]" />
       <MarketingContainer className="flex flex-col gap-6 py-10 md:py-14">
         <Skeleton className="h-64 w-full rounded-3xl" />
       </MarketingContainer>

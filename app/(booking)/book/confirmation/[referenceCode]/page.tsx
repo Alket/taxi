@@ -127,11 +127,11 @@ function directionLabel(locale: Locale, direction: Direction) {
 
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="grid gap-0.5 sm:grid-cols-[8rem_1fr] sm:gap-3">
-      <dt className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+    <div className="grid gap-1 py-0.5 sm:grid-cols-[8.5rem_1fr] sm:gap-4">
+      <dt className="text-xs font-bold tracking-wider text-muted-foreground uppercase">
         {label}
       </dt>
-      <dd className="min-w-0 break-words text-sm text-foreground">{value}</dd>
+      <dd className="min-w-0 break-words text-sm font-medium text-brand">{value}</dd>
     </div>
   )
 }
@@ -144,26 +144,28 @@ function NotFoundState({
   locale: Locale
 }) {
   return (
-    <div className="mx-auto flex w-full max-w-lg flex-col items-center gap-5 px-4 py-16 text-center md:px-6">
-      <AlertCircleIcon className="size-12 text-muted-foreground" />
+    <div className="mx-auto flex w-full max-w-lg flex-col items-center gap-6 px-4 py-16 text-center md:px-6">
+      <div className="flex size-16 items-center justify-center rounded-full bg-muted text-muted-foreground">
+        <AlertCircleIcon className="size-8" />
+      </div>
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
+        <h1 className="font-brand text-2xl font-extrabold tracking-tight text-brand">
           {t(locale, "confirm.notFoundTitle")}
         </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
+        <p className="mt-2 text-sm text-brand/75 dark:text-muted-foreground">
           {t(locale, "confirm.notFoundBody", { code: referenceCode })}
         </p>
       </div>
-      <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-center">
+      <div className="flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-center">
         <Link
           href={localePath("/my-booking", locale)}
-          className="inline-flex h-10 w-full items-center justify-center rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/80 sm:h-9 sm:w-auto"
+          className="inline-flex h-12 w-full items-center justify-center rounded-full bg-brand-accent px-6 text-sm font-extrabold text-white shadow-xs transition-all hover:bg-brand-accent-hover hover:brightness-95 active:scale-[0.98] sm:w-auto"
         >
           {t(locale, "confirm.manage")}
         </Link>
         <Link
           href={localePath("/", locale)}
-          className="inline-flex h-10 w-full items-center justify-center rounded-lg border px-3 text-sm font-medium hover:bg-muted sm:h-9 sm:w-auto"
+          className="inline-flex h-12 w-full items-center justify-center rounded-full border border-border/80 bg-brand-surface px-6 text-sm font-bold text-brand shadow-xs transition-all hover:bg-muted active:scale-[0.98] sm:w-auto"
         >
           {t(locale, "cta.bookTransfer")}
         </Link>
@@ -182,12 +184,14 @@ function PendingPaymentState({
   return (
     <div className="mx-auto flex w-full max-w-lg flex-col gap-6 px-4 py-10 md:px-6">
       <div className="flex flex-col items-center gap-3 text-center">
-        <ClockIcon className="size-12 text-amber-600" />
+        <div className="flex size-16 items-center justify-center rounded-full bg-amber-500/10 text-amber-600 ring-8 ring-amber-500/5 sm:size-20">
+          <ClockIcon className="size-9 sm:size-11" strokeWidth={2.2} />
+        </div>
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
+          <h1 className="font-brand text-2xl font-extrabold tracking-tight text-brand sm:text-3xl">
             {t(locale, "confirm.pendingTitle")}
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-2 text-sm text-brand/75 dark:text-muted-foreground">
             {t(locale, "confirm.pendingBody", {
               amount: formatMoney(booking.depositAmount, booking.currency),
             })}
@@ -200,25 +204,25 @@ function PendingPaymentState({
         pickupPin={booking.pickupPin ?? undefined}
       />
 
-      <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-950 dark:text-amber-100">
+      <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm font-medium text-amber-950 dark:text-amber-100">
         {t(locale, "confirm.depositDue")}:{" "}
-        <span className="font-semibold tabular-nums">
+        <span className="font-bold tabular-nums">
           {formatMoney(booking.depositAmount, booking.currency)}
         </span>
       </div>
 
       <TripSummary booking={booking} locale={locale} />
 
-      <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-center">
+      <div className="flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-center">
         <Link
           href={localePath("/my-booking", locale)}
-          className="inline-flex h-10 w-full items-center justify-center rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/80 sm:h-9 sm:w-auto"
+          className="inline-flex h-12 w-full items-center justify-center rounded-full bg-brand-accent px-6 text-sm font-extrabold text-white shadow-xs transition-all hover:bg-brand-accent-hover hover:brightness-95 active:scale-[0.98] sm:w-auto"
         >
           {t(locale, "confirm.manage")}
         </Link>
         <Link
           href={localePath("/", locale)}
-          className="inline-flex h-10 w-full items-center justify-center rounded-lg border px-3 text-sm font-medium hover:bg-muted sm:h-9 sm:w-auto"
+          className="inline-flex h-12 w-full items-center justify-center rounded-full border border-border/80 bg-brand-surface px-6 text-sm font-bold text-brand shadow-xs transition-all hover:bg-muted active:scale-[0.98] sm:w-auto"
         >
           {t(locale, "confirm.bookAnother")}
         </Link>
@@ -246,59 +250,59 @@ function TripSummary({
       : "confirm.partyValue"
 
   return (
-    <div className="rounded-xl border bg-card p-5">
-      <h2 className="text-sm font-semibold">
-        {t(locale, "confirm.tripSummary")}
-      </h2>
-      <dl className="mt-4 flex flex-col gap-3">
-        <SummaryRow
-          label={t(locale, "confirm.direction")}
-          value={directionLabel(locale, booking.direction)}
-        />
-        <SummaryRow
-          label={t(locale, "confirm.route")}
-          value={`${booking.pickupAddress} → ${booking.dropoffAddress}`}
-        />
-        <SummaryRow
-          label={t(locale, "confirm.pickup")}
-          value={formatDateTime(booking.pickupDateTime)}
-        />
-        {booking.flightNumber ? (
+    <div className="overflow-hidden rounded-2xl border border-border/80 bg-brand-surface shadow-xs">
+      <div className="p-6">
+        <h2 className="font-brand text-base font-extrabold text-brand sm:text-lg">
+          {t(locale, "confirm.tripSummary")}
+        </h2>
+        <dl className="mt-4 flex flex-col gap-3">
           <SummaryRow
-            label={t(locale, "confirm.flight")}
-            value={booking.flightNumber}
+            label={t(locale, "confirm.direction")}
+            value={directionLabel(locale, booking.direction)}
           />
-        ) : null}
-        <SummaryRow
-          label={t(locale, "confirm.vehicle")}
-          value={vehicleBits.join(" · ")}
-        />
-        <SummaryRow
-          label={t(locale, "confirm.party")}
-          value={t(locale, partyKey, {
-            passengers: booking.passengerCount,
-            bags: booking.luggageCount,
-          })}
-        />
-      </dl>
+          <SummaryRow
+            label={t(locale, "confirm.route")}
+            value={`${booking.pickupAddress} → ${booking.dropoffAddress}`}
+          />
+          <SummaryRow
+            label={t(locale, "confirm.pickup")}
+            value={formatDateTime(booking.pickupDateTime)}
+          />
+          {booking.flightNumber ? (
+            <SummaryRow
+              label={t(locale, "confirm.flight")}
+              value={booking.flightNumber}
+            />
+          ) : null}
+          <SummaryRow
+            label={t(locale, "confirm.vehicle")}
+            value={vehicleBits.join(" · ")}
+          />
+          <SummaryRow
+            label={t(locale, "confirm.party")}
+            value={t(locale, partyKey, {
+              passengers: booking.passengerCount,
+              bags: booking.luggageCount,
+            })}
+          />
+        </dl>
+      </div>
 
-      <Separator className="my-4" />
-
-      <div className="flex flex-col gap-2 text-sm">
+      <div className="border-t border-border/80 bg-brand-page/50 px-6 py-4 text-sm">
         <div className="flex items-center justify-between gap-3">
-          <span className="text-muted-foreground">
+          <span className="text-brand/75 dark:text-muted-foreground">
             {t(locale, "confirm.tripTotal")}
           </span>
-          <span className="font-medium tabular-nums">
+          <span className="font-bold text-brand tabular-nums">
             {formatMoney(booking.totalPrice, booking.currency)}
           </span>
         </div>
         {booking.cashOnArrival ? (
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-muted-foreground">
+          <div className="mt-2 flex items-center justify-between gap-3 border-t border-border/60 pt-2 text-brand-accent">
+            <span className="font-bold">
               {t(locale, "confirm.payOnArrival")}
             </span>
-            <span className="font-medium tabular-nums">
+            <span className="font-extrabold text-base tabular-nums">
               {formatMoney(
                 booking.balanceDue || booking.totalPrice,
                 booking.currency,
@@ -307,11 +311,11 @@ function TripSummary({
           </div>
         ) : booking.paymentStatus === "fully_paid" ||
           booking.paymentStatus === "paid" ? (
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-muted-foreground">
+          <div className="mt-2 flex items-center justify-between gap-3 border-t border-border/60 pt-2 text-brand-accent">
+            <span className="font-bold">
               {t(locale, "confirm.paidInFull")}
             </span>
-            <span className="font-medium tabular-nums">
+            <span className="font-extrabold text-base tabular-nums">
               {formatMoney(
                 booking.depositPaid || booking.totalPrice,
                 booking.currency,
@@ -319,14 +323,14 @@ function TripSummary({
             </span>
           </div>
         ) : (
-          <>
+          <div className="mt-2 flex flex-col gap-1.5 border-t border-border/60 pt-2">
             <div className="flex items-center justify-between gap-3">
-              <span className="text-muted-foreground">
+              <span className="text-brand/75 dark:text-muted-foreground">
                 {booking.paymentSucceeded
                   ? t(locale, "confirm.depositPaid")
                   : t(locale, "confirm.depositDue")}
               </span>
-              <span className="font-medium tabular-nums">
+              <span className="font-medium text-brand tabular-nums">
                 {formatMoney(
                   booking.paymentSucceeded
                     ? booking.depositPaid || booking.depositAmount
@@ -335,15 +339,13 @@ function TripSummary({
                 )}
               </span>
             </div>
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-muted-foreground">
-                {t(locale, "confirm.balanceAfter")}
-              </span>
-              <span className="font-semibold tabular-nums">
+            <div className="flex items-center justify-between gap-3 font-bold text-brand-accent">
+              <span>{t(locale, "confirm.balanceAfter")}</span>
+              <span className="font-extrabold text-base tabular-nums">
                 {formatMoney(booking.balanceDue, booking.currency)}
               </span>
             </div>
-          </>
+          </div>
         )}
       </div>
     </div>
@@ -391,17 +393,19 @@ function WhatHappensNext({
   ]
 
   return (
-    <div className="rounded-xl border bg-card p-5">
-      <h2 className="text-sm font-semibold">{t(locale, "confirm.whatNext")}</h2>
-      <ol className="mt-4 flex flex-col gap-4">
+    <div className="rounded-2xl border border-border/80 bg-brand-surface p-6 shadow-xs">
+      <h2 className="font-brand text-base font-extrabold text-brand sm:text-lg">
+        {t(locale, "confirm.whatNext")}
+      </h2>
+      <ol className="relative mt-5 flex flex-col gap-5 before:absolute before:left-4 before:top-4 before:bottom-4 before:w-0.5 before:bg-border/60">
         {steps.map((step) => (
-          <li key={step.title} className="flex gap-3">
-            <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <step.icon className="size-4" />
+          <li key={step.title} className="relative z-10 flex items-start gap-3.5">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-accent/10 text-brand-accent ring-4 ring-brand-surface">
+              <step.icon className="size-4" strokeWidth={2.2} />
             </span>
-            <div>
-              <p className="text-sm font-medium">{step.title}</p>
-              <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold text-brand">{step.title}</p>
+              <p className="mt-0.5 text-xs leading-relaxed text-brand/75 dark:text-muted-foreground sm:text-[13px]">
                 {step.body}
               </p>
             </div>
@@ -435,14 +439,16 @@ export default async function Page({ params, searchParams }: PageProps) {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-lg animate-in fade-in-0 slide-in-from-bottom-2 flex-col gap-6 px-4 py-10 duration-500 md:px-6">
-      <div className="flex flex-col items-center gap-3 text-center">
-        <CheckCircle2Icon className="size-12 text-emerald-600" />
+    <div className="mx-auto flex w-full max-w-lg animate-in fade-in-0 slide-in-from-bottom-2 flex-col gap-6 px-4 py-12 duration-500 md:max-w-xl md:px-6">
+      <div className="flex flex-col items-center gap-4 text-center">
+        <div className="flex size-16 items-center justify-center rounded-full bg-emerald-500/10 text-brand-accent ring-8 ring-emerald-500/5 sm:size-20">
+          <CheckCircle2Icon className="size-9 sm:size-11" strokeWidth={2.2} />
+        </div>
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
+          <h1 className="font-brand text-2xl font-extrabold tracking-tight text-brand sm:text-3xl">
             {t(locale, "confirm.title")}
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-2 text-sm text-brand/75 dark:text-muted-foreground sm:text-base">
             {booking.cashOnArrival
               ? t(locale, "confirm.cashBody")
               : t(locale, "confirm.depositBody")}
@@ -464,11 +470,11 @@ export default async function Page({ params, searchParams }: PageProps) {
       />
 
       {!booking.cashOnArrival ? (
-        <p className="text-center text-xs text-muted-foreground">
+        <p className="text-center text-xs text-brand/70 dark:text-muted-foreground">
           {t(locale, "confirm.cancelNote")}{" "}
           <Link
             href={localePath("/cancellation-policy", locale)}
-            className="underline underline-offset-2 hover:text-foreground"
+            className="font-semibold text-brand underline underline-offset-4 hover:text-brand-accent"
           >
             {t(locale, "confirm.readPolicy")}
           </Link>
@@ -476,16 +482,16 @@ export default async function Page({ params, searchParams }: PageProps) {
         </p>
       ) : null}
 
-      <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-center">
+      <div className="flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-center">
         <Link
           href={localePath("/my-booking", locale)}
-          className="inline-flex h-10 w-full items-center justify-center rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/80 sm:h-9 sm:w-auto"
+          className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-brand-accent px-7 text-sm font-extrabold text-white shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:bg-brand-accent-hover hover:brightness-95 active:scale-[0.98] sm:w-auto"
         >
           {t(locale, "confirm.manage")}
         </Link>
         <Link
           href={localePath("/", locale)}
-          className="inline-flex h-10 w-full items-center justify-center rounded-lg border px-3 text-sm font-medium hover:bg-muted sm:h-9 sm:w-auto"
+          className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full border border-border/80 bg-brand-surface px-7 text-sm font-bold text-brand shadow-xs transition-all duration-200 hover:bg-muted active:scale-[0.98] sm:w-auto"
         >
           {t(locale, "confirm.bookAnother")}
         </Link>

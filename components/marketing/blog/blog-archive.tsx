@@ -1,5 +1,6 @@
 import Image from "next/image"
 import { Suspense } from "react"
+import { BookOpenIcon } from "lucide-react"
 
 import { BlogCategoryFilter } from "@/components/marketing/blog/blog-category-filter"
 import { BlogFareCta } from "@/components/marketing/blog/blog-fare-cta"
@@ -43,7 +44,7 @@ export function BlogArchive({
 
   return (
     <main className="bg-brand-page pb-16 md:pb-24">
-      <header className="relative isolate -mt-24 h-[min(62svh,34rem)] min-h-[24rem] overflow-hidden md:h-[min(48svh,32rem)] md:min-h-0">
+      <header className="relative isolate -mt-24 h-[min(62svh,34rem)] min-h-[22rem] overflow-hidden md:h-[min(48svh,32rem)] md:min-h-[25rem]">
         <Image
           src={heroImage}
           alt={heroAlt}
@@ -53,17 +54,18 @@ export function BlogArchive({
           sizes="100vw"
           className="object-cover object-center"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-brand-panel via-brand-panel/55 to-brand-panel/25" />
-        <div className="absolute inset-0 bg-gradient-to-r from-brand-panel/55 via-transparent to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-brand-panel via-brand-panel/70 to-brand-panel/40" />
+        <div className="absolute inset-0 bg-gradient-to-r from-brand-panel/60 via-transparent to-transparent" />
 
         <MarketingContainer className="relative z-10 flex h-full flex-col justify-end pb-10 pt-28 text-white md:pb-14 md:pt-32">
-          <p className="text-xs font-bold tracking-[0.14em] text-white/70 uppercase">
+          <span className="mb-3 inline-flex w-fit items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3.5 py-1 text-xs font-extrabold uppercase tracking-wider text-white/90 backdrop-blur-sm">
+            <BookOpenIcon className="size-3.5" />
             {copy.hero.eyebrow}
-          </p>
-          <h1 className="mt-3 max-w-3xl font-brand text-4xl font-extrabold tracking-tight sm:text-5xl md:text-6xl">
+          </span>
+          <h1 className="max-w-3xl font-brand text-3xl font-black tracking-tight text-white sm:text-4xl md:text-5xl lg:text-6xl">
             {copy.hero.heading}
           </h1>
-          <p className="mt-3 max-w-xl text-base leading-relaxed text-white/85 md:text-lg">
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/85 sm:text-base md:text-lg">
             {copy.hero.text}
           </p>
         </MarketingContainer>
@@ -96,9 +98,17 @@ export function BlogArchive({
                 }
               />
             ) : (
-              <p className="rounded-2xl border border-border bg-brand-surface px-5 py-8 text-muted-foreground">
-                No guides published yet. Check back soon.
-              </p>
+              <div className="flex flex-col items-center justify-center rounded-3xl border border-border/80 bg-brand-surface px-6 py-12 text-center shadow-xs sm:py-16">
+                <div className="flex size-12 items-center justify-center rounded-full bg-brand-accent/10 text-brand-accent">
+                  <BookOpenIcon className="size-6" />
+                </div>
+                <p className="mt-4 text-base font-bold text-brand">
+                  No guides published yet.
+                </p>
+                <p className="mt-1 max-w-sm text-sm text-brand/70">
+                  Check back soon for our newest travel and transit guides.
+                </p>
+              </div>
             )}
           </div>
         </MarketingContainer>
@@ -110,11 +120,19 @@ export function BlogArchive({
             Guide articles
           </h2>
           {rest.length === 0 ? (
-            <p className="rounded-2xl border border-border bg-brand-surface px-5 py-8 text-muted-foreground">
-              {featured
-                ? "No more guides in this category yet. Check back soon."
-                : "No guides in this category yet. Check back soon."}
-            </p>
+            <div className="flex flex-col items-center justify-center rounded-3xl border border-border/80 bg-brand-surface px-6 py-12 text-center shadow-xs sm:py-16">
+              <div className="flex size-12 items-center justify-center rounded-full bg-brand-accent/10 text-brand-accent">
+                <BookOpenIcon className="size-6" />
+              </div>
+              <p className="mt-4 text-base font-bold text-brand">
+                {featured
+                  ? "No more guides in this category yet."
+                  : "No guides in this category yet."}
+              </p>
+              <p className="mt-1 max-w-sm text-sm text-brand/70">
+                Check back soon for new route insights and airport transit tips across Albania.
+              </p>
+            </div>
           ) : (
             <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {rest.map((post) => (

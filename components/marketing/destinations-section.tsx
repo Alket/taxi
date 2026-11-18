@@ -1,7 +1,9 @@
 "use client"
 
+import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
-import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react"
+import { ArrowRight, ChevronLeft, ChevronRight, MapPin } from "lucide-react"
+import type { EmblaCarouselType } from "embla-carousel"
 
 import { DestinationCard } from "@/components/marketing/destination-card"
 import {
@@ -30,68 +32,168 @@ export function DestinationsSection({
   destinations?: Destination[]
   className?: string
 }) {
-  const { emblaRef, scrollPrev, scrollNext } = useMarketingCarousel()
+  const {
+    emblaRef,
+    emblaApi,
+    scrollPrev,
+    scrollNext,
+    canScrollPrev,
+    canScrollNext,
+  } = useMarketingCarousel()
   const locale = useLocale()
   const destinationsHref = localePath("/destinations", locale)
+
+  const [selectedIndex, setSelectedIndex] = useState(0)
+  const [scrollSnaps, setScrollSnaps] = useState<number[]>([])
+
+  const onSelect = useCallback((api: EmblaCarouselType) => {
+    setSelectedIndex(api.selectedScrollSnap())
+  }, [])
+
+  const onInit = useCallback((api: EmblaCarouselType) => {
+    setScrollSnaps(api.scrollSnapList())
+    setSelectedIndex(api.selectedScrollSnap())
+  }, [])
+
+  useEffect(() => {
+    if (!emblaApi) return
+    onInit(emblaApi)
+    emblaApi.on("reInit", onInit)
+    emblaApi.on("select", onSelect)
+    return () => {
+      emblaApi.off("reInit", onInit)
+      emblaApi.off("select", onSelect)
+    }
+  }, [emblaApi, onInit, onSelect])
 
   return (
     <section
       id="destinations"
-      className={cn("bg-white py-10 md:pt-24 md:pb-0", className)}
+      className={cn(
+        "scroll-mt-24 border-b border-border/60 bg-brand-page py-14 font-brand md:py-20 lg:py-24",
+        className,
+      )}
     >
       <MarketingContainer>
-        <div className="mb-8 flex items-end justify-between gap-4 md:mb-12">
+        <div className="mb-8 flex flex-col justify-between gap-6 sm:flex-row sm:items-end md:mb-12">
           <div className="min-w-0 flex-1">
+            <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-brand-accent/25 bg-brand-accent/10 px-3 py-1 text-xs font-extrabold tracking-wider text-brand-accent uppercase">
+              <MapPin className="size-3.5" aria-hidden />
+              <span>{t(locale, "nav.destinations")}</span>
+            </div>
             <h2 className={MARKETING_SECTION_TITLE}>{heading}</h2>
-            <p className="mt-3 max-w-xl text-base leading-relaxed text-muted-foreground md:mt-2">
-              {text}
-            </p>
+            {text ? (
+              <p className="mt-3 max-w-2xl text-base leading-relaxed text-brand/80 dark:text-muted-foreground md:text-lg">
+                {text}
+              </p>
+            ) : null}
           </div>
 
-          <div className="flex shrink-0 items-center gap-2 md:gap-6">
+          <div className="flex shrink-0 items-center justify-between gap-3 sm:justify-end md:gap-4">
             <Link
               href={destinationsHref}
-              className="hidden items-center gap-2 text-sm font-extrabold text-primary transition-colors hover:text-primary/80 md:inline-flex"
+              className="group hidden h-11 items-center gap-2 rounded-full border border-border/80 bg-brand-surface px-5 text-sm font-extrabold text-brand shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-accent/40 hover:bg-brand-accent/5 hover:text-brand-accent active:scale-[0.98] md:inline-flex"
             >
-              {t(locale, "cta.viewAll")}
-              <ArrowRight className="size-4" />
+              <span>{t(locale, "cta.viewAll")}</span>
+              <ArrowRight
+                className="size-4 text-brand-accent transition-transform duration-200 group-hover:translate-x-1"
+                aria-hidden
+              />
             </Link>
-            <div className="flex gap-1.5 sm:gap-2">
+
+            <div className="flex items-center gap-2">
               <button
                 type="button"
-                aria-label="Previous destinations"
-                className="flex size-9 items-center justify-center rounded-full border border-border bg-card text-brand transition-colors hover:bg-muted sm:size-10"
+                aria-label="Previous destination slides"
+                disabled={!canScrollPrev}
+                aria-disabled={!canScrollPrev}
+                className={cn(
+                  "flex size-10 items-center justify-center rounded-full border border-border/80 bg-brand-surface text-brand shadow-2xs transition-all duration-200 sm:size-11",
+                  "hover:-translate-y-0.5 hover:border-brand-accent/40 hover:text-brand-accent hover:shadow-xs active:scale-95",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent focus-visible:ring-offset-2",
+                  "disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:translate-y-0 disabled:hover:border-border/80 disabled:hover:text-brand disabled:hover:shadow-2xs disabled:active:scale-100",
+                )}
                 onClick={scrollPrev}
               >
-                <ChevronLeft className="size-4 sm:size-5" />
+                <ChevronLeft className="size-5" aria-hidden />
               </button>
               <button
                 type="button"
-                aria-label="Next destinations"
-                className="flex size-9 items-center justify-center rounded-full border border-border bg-card text-brand transition-colors hover:bg-muted sm:size-10"
+                aria-label="Next destination slides"
+                disabled={!canScrollNext}
+                aria-disabled={!canScrollNext}
+                className={cn(
+                  "flex size-10 items-center justify-center rounded-full border border-border/80 bg-brand-surface text-brand shadow-2xs transition-all duration-200 sm:size-11",
+                  "hover:-translate-y-0.5 hover:border-brand-accent/40 hover:text-brand-accent hover:shadow-xs active:scale-95",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent focus-visible:ring-offset-2",
+                  "disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:translate-y-0 disabled:hover:border-border/80 disabled:hover:text-brand disabled:hover:shadow-2xs disabled:active:scale-100",
+                )}
                 onClick={scrollNext}
               >
-                <ChevronRight className="size-4 sm:size-5" />
+                <ChevronRight className="size-5" aria-hidden />
               </button>
             </div>
           </div>
         </div>
 
-        <MarketingCarousel emblaRef={emblaRef}>
-          {destinations.map((destination) => (
-            <div key={destination.id} className={MARKETING_CAROUSEL_SLIDE}>
-              <DestinationCard destination={destination} />
+        <MarketingCarousel
+          emblaRef={emblaRef}
+          viewportClassName="py-4 -my-4 px-1 -mx-1"
+        >
+          {destinations.map((destination, index) => (
+            <div
+              key={destination.id}
+              className={cn(
+                MARKETING_CAROUSEL_SLIDE,
+                "flex h-auto max-[749px]:flex-[0_0_88%]",
+              )}
+            >
+              <DestinationCard destination={destination} priority={index < 2} />
             </div>
           ))}
         </MarketingCarousel>
 
-        <div className="mt-6 md:hidden">
+        {scrollSnaps.length > 1 ? (
+          <div
+            className="mt-6 flex items-center justify-center gap-2"
+            role="group"
+            aria-label="Carousel pagination"
+          >
+            {scrollSnaps.map((_, idx) => {
+              const isActive = idx === selectedIndex
+              return (
+                <button
+                  key={idx}
+                  type="button"
+                  aria-label={`Go to slide ${idx + 1}`}
+                  aria-current={isActive ? "true" : undefined}
+                  onClick={() => emblaApi?.scrollTo(idx)}
+                  className="group flex py-2 focus-visible:outline-none"
+                >
+                  <span
+                    className={cn(
+                      "h-2 rounded-full transition-all duration-300",
+                      isActive
+                        ? "w-7 bg-brand-accent"
+                        : "w-2 bg-border group-hover:bg-brand/40",
+                    )}
+                  />
+                </button>
+              )
+            })}
+          </div>
+        ) : null}
+
+        <div className="mt-6 flex justify-center md:hidden">
           <Link
             href={destinationsHref}
-            className="inline-flex items-center gap-2 text-sm font-extrabold text-primary"
+            className="group inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full border border-border/80 bg-brand-surface px-6 py-3.5 text-sm font-extrabold text-brand shadow-xs transition-all duration-200 hover:border-brand-accent/40 hover:text-brand-accent active:scale-[0.98]"
           >
-            {t(locale, "cta.viewAllDestinations")}
-            <ArrowRight className="size-4" />
+            <span>{t(locale, "cta.viewAllDestinations")}</span>
+            <ArrowRight
+              className="size-4 text-brand-accent transition-transform duration-200 group-hover:translate-x-1"
+              aria-hidden
+            />
           </Link>
         </div>
       </MarketingContainer>

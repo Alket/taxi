@@ -25,24 +25,16 @@ function BenefitCard({
   return (
     <div
       className={cn(
-        "flex items-center gap-3 rounded-xl px-4 py-3.5",
+        "flex items-center gap-3 rounded-2xl border border-brand-accent/20 bg-brand-accent/10 p-4 text-brand",
         className,
       )}
-      style={{
-        backgroundColor:
-          "color-mix(in srgb, var(--brand-accent) 14%, white)",
-        color: "var(--brand-ink)",
-        fontFamily: "var(--font-brand)",
-      }}
     >
-      <Icon
-        className="size-6 shrink-0"
-        style={{ color: "var(--brand-ink)" }}
-        strokeWidth={1.75}
-      />
-      <p className="min-w-0 text-[13px] leading-snug">
-        <span className="font-bold">{title}</span>{" "}
-        <span className="font-medium opacity-80">{description}</span>
+      <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white text-brand-accent shadow-xs">
+        <Icon className="size-5" strokeWidth={2} />
+      </div>
+      <p className="min-w-0 text-xs leading-snug sm:text-[13px]">
+        <span className="font-bold text-brand">{title}</span>{" "}
+        <span className="text-brand/80">{description}</span>
       </p>
     </div>
   )
@@ -137,18 +129,18 @@ export function BookingHeaderBenefits() {
       </div>
 
       {/* Desktop / tablet grid */}
-      <div className="hidden rounded-xl shadow-sm bg-white p-4 text-brand-ink sm:block md:p-6 lg:rounded-2xl">
+      <div className="hidden rounded-2xl border border-border/80 bg-brand-surface p-4 text-brand shadow-xs sm:block md:p-5">
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-3 md:gap-8">
           {benefits.map(({ icon: Icon, title, description }) => (
-            <div key={title} className="flex items-center gap-2">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-brand-surface/10 sm:size-12">
-                <Icon className="size-5 text-brand-accent sm:size-6" />
+            <div key={title} className="flex items-center gap-3">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-accent/10 text-brand-accent sm:size-11">
+                <Icon className="size-5" strokeWidth={2} />
               </div>
               <div className="min-w-0">
-                <p className="text-xs font-bold leading-tight sm:text-[13px]">
+                <p className="text-xs font-bold leading-tight text-brand sm:text-[13px]">
                   {title}
                 </p>
-                <p className="mt-0.5 text-[10px] text-brand-ink sm:text-xs">
+                <p className="mt-0.5 text-[11px] leading-snug text-brand/75 dark:text-muted-foreground sm:text-xs">
                   {description}
                 </p>
               </div>

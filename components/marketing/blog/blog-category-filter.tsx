@@ -30,7 +30,7 @@ export function BlogCategoryFilter({
 
   return (
     <nav aria-label="Filter guides by category" className="w-full">
-      <ul className="flex flex-wrap gap-2">
+      <ul className="flex flex-wrap items-center gap-2.5">
         {filters.map((filter) => {
           const selected = active === filter.id
           return (
@@ -40,10 +40,10 @@ export function BlogCategoryFilter({
                 scroll={false}
                 aria-current={selected ? "page" : undefined}
                 className={cn(
-                  "inline-flex min-h-10 items-center rounded-full px-4 text-sm font-bold transition-colors",
+                  "inline-flex min-h-10 items-center justify-center rounded-full px-4 text-xs sm:text-sm transition-all duration-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent focus-visible:ring-offset-2",
                   selected
-                    ? "bg-brand-accent text-white"
-                    : "border border-border bg-brand-surface text-brand hover:bg-muted",
+                    ? "bg-brand-accent font-extrabold text-white shadow-xs"
+                    : "border border-border/80 bg-brand-surface font-bold text-brand/80 shadow-2xs hover:border-brand-accent/40 hover:bg-muted hover:text-brand",
                 )}
               >
                 {filter.label}

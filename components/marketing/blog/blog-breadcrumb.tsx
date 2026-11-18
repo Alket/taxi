@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { ChevronRightIcon } from "lucide-react"
 
 import {
   BLOG_CATEGORY_LABELS,
@@ -28,7 +29,7 @@ export function BlogBreadcrumb({
     <nav aria-label="Breadcrumb" className={cn("w-full", className)}>
       <ol
         className={cn(
-          "flex flex-wrap items-center gap-1.5 text-sm",
+          "flex flex-wrap items-center gap-1.5 text-xs sm:text-sm",
           onDark ? "text-white/80" : "text-muted-foreground",
         )}
       >
@@ -37,18 +38,19 @@ export function BlogBreadcrumb({
           return (
             <li key={`${item.name}-${index}`} className="flex items-center gap-1.5">
               {index > 0 ? (
-                <span
+                <ChevronRightIcon
                   aria-hidden
-                  className={onDark ? "text-white/50" : "text-muted-foreground/70"}
-                >
-                  /
-                </span>
+                  className={cn(
+                    "size-3 shrink-0",
+                    onDark ? "text-white/50" : "text-muted-foreground/60",
+                  )}
+                />
               ) : null}
               {item.href && !last ? (
                 <Link
                   href={item.href}
                   className={cn(
-                    "font-semibold transition-colors",
+                    "font-bold transition-colors",
                     onDark ? "hover:text-white" : "hover:text-brand",
                   )}
                 >
@@ -57,7 +59,7 @@ export function BlogBreadcrumb({
               ) : (
                 <span
                   className={cn(
-                    last && "line-clamp-1 font-semibold",
+                    last && "line-clamp-1 font-bold",
                     last && (onDark ? "text-white" : "text-brand"),
                   )}
                   aria-current={last ? "page" : undefined}

@@ -1,4 +1,5 @@
 import Image from "next/image"
+import { CalendarIcon, ClockIcon } from "lucide-react"
 
 import { BlogArticleBody } from "@/components/marketing/blog/blog-article-body"
 import { BlogAuthorBio } from "@/components/marketing/blog/blog-author-bio"
@@ -48,7 +49,8 @@ export function BlogPostView({
 
   return (
     <main className="bg-brand-page pb-16 md:pb-24">
-      <header className="relative isolate -mt-24 min-h-[min(62svh,34rem)] overflow-hidden md:min-h-[min(58svh,38rem)]">
+      {/* Editorial Hero Header */}
+      <header className="relative isolate -mt-24 min-h-[22rem] overflow-hidden md:min-h-[26rem] lg:min-h-[28rem]">
         <Image
           src={post.heroImage.src}
           alt={post.heroImage.alt}
@@ -58,51 +60,57 @@ export function BlogPostView({
           sizes="100vw"
           className="object-cover object-center"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-brand-panel via-brand-panel/55 to-brand-panel/25" />
-        <div className="absolute inset-0 bg-gradient-to-r from-brand-panel/55 via-transparent to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-brand-panel via-brand-panel/75 to-brand-panel/40" />
+        <div className="absolute inset-0 bg-gradient-to-r from-brand-panel/65 via-transparent to-transparent" />
 
-        <MarketingContainer className="relative z-10 flex min-h-[min(62svh,34rem)] flex-col justify-end pb-10 pt-28 text-white md:min-h-[min(58svh,38rem)] md:pb-14 md:pt-32">
+        <MarketingContainer className="relative z-10 flex min-h-[22rem] flex-col justify-end pb-10 pt-28 text-white md:min-h-[26rem] md:pb-14 md:pt-32 lg:min-h-[28rem]">
           <BlogBreadcrumb items={breadcrumbs} tone="onDark" />
 
-          <div className="mt-5 flex flex-wrap items-center gap-2 text-xs font-bold tracking-wide text-white/75 uppercase">
-            <span className="rounded-full bg-white/15 px-3 py-1 text-white backdrop-blur-sm">
+          <div className="mt-5 flex flex-wrap items-center gap-2 text-xs font-bold tracking-wide uppercase text-white/80">
+            <span className="rounded-full border border-white/20 bg-white/15 px-3 py-1 font-extrabold text-white backdrop-blur-sm">
               {label}
             </span>
-            <time dateTime={post.publishedAt}>
-              {t(locale, "blog.published", {
-                date: formatBlogDate(post.publishedAt, locale),
-              })}
-            </time>
+            <span className="flex items-center gap-1.5 text-white/85">
+              <CalendarIcon className="size-3 text-white/70" />
+              <time dateTime={post.publishedAt}>
+                {t(locale, "blog.published", {
+                  date: formatBlogDate(post.publishedAt, locale),
+                })}
+              </time>
+            </span>
             {post.updatedAt !== post.publishedAt ? (
               <>
-                <span aria-hidden>·</span>
-                <time dateTime={post.updatedAt}>
+                <span aria-hidden className="text-white/50">·</span>
+                <time dateTime={post.updatedAt} className="text-white/75">
                   Updated {formatBlogDate(post.updatedAt, locale)}
                 </time>
               </>
             ) : null}
-            <span aria-hidden>·</span>
-            <span>
+            <span aria-hidden className="text-white/50">·</span>
+            <span className="flex items-center gap-1.5 text-white/85">
+              <ClockIcon className="size-3 text-white/70" />
               {t(locale, "blog.minRead", { minutes: post.readTimeMinutes })}
             </span>
-            <span aria-hidden>·</span>
-            <span>{author.name}</span>
+            <span aria-hidden className="text-white/50">·</span>
+            <span className="text-white/90">By {author.name}</span>
           </div>
 
-          <h1 className="mt-4 max-w-4xl font-brand text-3xl font-extrabold tracking-tight text-white sm:text-4xl md:text-5xl md:leading-[1.15]">
+          <h1 className="mt-4 max-w-4xl font-brand text-3xl font-black tracking-tight text-white sm:text-4xl md:text-5xl lg:text-[3.25rem] md:leading-[1.12]">
             {post.title}
           </h1>
         </MarketingContainer>
       </header>
 
+      {/* Quick Takeaway Banner */}
       {post.quickTakeaway.trim() ? (
         <MarketingContainer className="mt-8 md:mt-10">
           <BlogQuickTakeaway text={post.quickTakeaway} locale={locale} />
         </MarketingContainer>
       ) : null}
 
+      {/* Main Layout Grid */}
       <MarketingContainer className="mt-10 md:mt-14">
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_16rem] lg:gap-12">
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_18rem] lg:gap-12 xl:grid-cols-[minmax(0,1fr)_20rem]">
           <article className="min-w-0 max-w-full">
             <BlogArticleBody post={post} locale={locale} />
           </article>
@@ -111,6 +119,7 @@ export function BlogPostView({
           </aside>
         </div>
 
+        {/* Postscript Stack */}
         <div className="mt-12 space-y-12 md:mt-16 md:space-y-16">
           <BlogAuthorBio author={author} locale={locale} />
           <BlogRelatedRoutes

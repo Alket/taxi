@@ -2,6 +2,14 @@ import type { Metadata } from "next"
 import Image from "next/image"
 import Link from "next/link"
 import { notFound, permanentRedirect } from "next/navigation"
+import {
+  ArrowRightIcon,
+  CheckCircle2Icon,
+  ChevronRightIcon,
+  ClockIcon,
+  MapPinIcon,
+  NavigationIcon,
+} from "lucide-react"
 
 import { HashLink } from "@/components/marketing/hash-link"
 import { BlogFaq } from "@/components/marketing/blog/blog-faq"
@@ -240,7 +248,7 @@ export default async function DestinationPage({ params }: PageProps) {
             return (
               <section
                 key={section.id}
-                className="relative isolate -mt-24 h-[70vh] min-h-[70vh] overflow-hidden sm:h-[60vh] sm:min-h-[60vh]"
+                className="relative isolate -mt-24 min-h-[26rem] overflow-hidden md:min-h-[28rem] lg:min-h-[32rem]"
               >
                 <Image
                   src={image}
@@ -251,65 +259,75 @@ export default async function DestinationPage({ params }: PageProps) {
                   sizes="100vw"
                   className="object-cover object-center"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-brand-panel/90 via-brand-panel/40 to-brand-panel/20" />
-                <MarketingContainer className="relative z-10 flex h-full flex-col justify-end py-12 pb-[max(4rem,env(safe-area-inset-bottom))] text-white">
-                  <nav aria-label="Breadcrumb" className="mb-2">
-                    <ol className="flex flex-wrap items-center gap-1.5 text-xs font-semibold text-white/80">
+                <div className="absolute inset-0 bg-gradient-to-t from-brand-panel via-brand-panel/75 to-brand-panel/40" />
+                <div className="absolute inset-0 bg-gradient-to-r from-brand-panel/65 via-transparent to-transparent" />
+                <MarketingContainer className="relative z-10 flex min-h-[26rem] flex-col justify-end pb-12 pt-28 text-white md:min-h-[28rem] md:pb-16 md:pt-32 lg:min-h-[32rem]">
+                  <nav aria-label="Breadcrumb" className="mb-4">
+                    <ol className="flex flex-wrap items-center gap-1.5 text-xs font-bold text-white/80">
                       <li>
                         <Link
                           href={localePath("/", locale)}
-                          className="hover:text-white"
+                          className="transition-colors hover:text-white"
                         >
                           {homeLabel}
                         </Link>
                       </li>
                       <li aria-hidden className="text-white/50">
-                        /
+                        <ChevronRightIcon className="size-3" />
                       </li>
                       <li>
                         <Link
                           href={localePath("/destinations", locale)}
-                          className="hover:text-white"
+                          className="transition-colors hover:text-white"
                         >
                           {destinationsLabel}
                         </Link>
                       </li>
                       <li aria-hidden className="text-white/50">
-                        /
+                        <ChevronRightIcon className="size-3" />
                       </li>
-                      <li aria-current="page" className="text-white">
+                      <li aria-current="page" className="line-clamp-1 text-white">
                         {pageHeading}
                       </li>
                     </ol>
                   </nav>
-                  <p className="text-xs font-extrabold tracking-widest text-white uppercase">
-                    {region}
-                  </p>
-                  <h1 className="mt-2 font-brand text-4xl font-extrabold tracking-tight sm:text-5xl">
+
+                  <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3.5 py-1 text-xs font-extrabold uppercase tracking-wider text-white/95 backdrop-blur-sm">
+                    <MapPinIcon className="size-3.5 text-white/90" />
+                    <span>{region}</span>
+                  </span>
+
+                  <h1 className="mt-3 max-w-4xl font-brand text-3xl font-black tracking-tight text-white sm:text-4xl md:text-5xl lg:text-6xl">
                     {pageHeading}
                   </h1>
-                  <p className="mt-3 max-w-xl text-base text-white/85">
+                  <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/85 sm:text-base md:text-lg">
                     {description}
                   </p>
-                  <HashLink
-                    href={localePath(
-                      `/?destination=${encodeURIComponent(destination.id)}#book`,
-                      locale,
-                    )}
-                    className="mt-6 inline-flex h-11 w-fit items-center justify-center rounded-full bg-primary px-5 text-sm font-extrabold text-primary-foreground"
-                  >
-                    {t(locale, "cta.bookTransferFrom", { price: priceFrom })}
-                  </HashLink>
+
+                  <div className="mt-6 flex flex-wrap items-center gap-4">
+                    <HashLink
+                      href={localePath(
+                        `/?destination=${encodeURIComponent(destination.id)}#book`,
+                        locale,
+                      )}
+                      className="group inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-brand-accent px-8 text-base font-extrabold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:brightness-95 active:scale-[0.98]"
+                    >
+                      <span>{t(locale, "cta.bookTransferFrom", { price: priceFrom })}</span>
+                      <ArrowRightIcon className="size-4 transition-transform duration-200 group-hover:translate-x-1" aria-hidden />
+                    </HashLink>
+                  </div>
+
                   {transferLink ? (
-                    <p className="mt-3 max-w-xl text-sm text-white/85">
+                    <p className="mt-4 max-w-xl text-sm text-white/90">
                       <Link
                         href={localePath(
                           `/transfers/${transferLink.transferSlug}`,
                           locale,
                         )}
-                        className="font-semibold text-white underline underline-offset-2 hover:text-white/90"
+                        className="group inline-flex items-center gap-1.5 font-bold text-white underline decoration-white/50 underline-offset-4 transition-colors hover:text-white hover:decoration-white"
                       >
-                        {transferLink.anchor}
+                        <span>{transferLink.anchor}</span>
+                        <ArrowRightIcon className="size-3.5 transition-transform duration-200 group-hover:translate-x-0.5" />
                       </Link>
                     </p>
                   ) : null}
@@ -319,40 +337,58 @@ export default async function DestinationPage({ params }: PageProps) {
           case "route_details":
             if (!hasRouteContent) return null
             return (
-              <section key={section.id} className="py-8 md:py-10">
+              <section key={section.id} className="py-12 md:py-16">
                 <MarketingContainer>
-                  <h2 className="font-brand text-2xl font-extrabold tracking-tight text-brand sm:text-3xl">
-                    {routeHeading}
-                  </h2>
-                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <div className="max-w-2xl">
+                    <h2 className="font-brand text-2xl font-black tracking-tight text-brand sm:text-3xl">
+                      {routeHeading}
+                    </h2>
+                  </div>
+                  <div className="mt-6 grid gap-6 sm:grid-cols-2">
                     {routeDistance || routeDuration ? (
-                      <dl className="grid gap-3 rounded-2xl border border-border bg-brand-surface p-5 sm:grid-cols-2">
+                      <dl className="grid gap-4 rounded-3xl border border-border/80 bg-brand-surface p-6 shadow-xs sm:grid-cols-2 sm:p-7">
                         {routeDistance ? (
-                          <div>
-                            <dt className="text-xs font-bold tracking-wide text-muted-foreground uppercase">
-                              {t(locale, "destinations.distance")}
-                            </dt>
-                            <dd className="mt-1 text-sm font-semibold text-brand">
-                              {routeDistance}
-                            </dd>
+                          <div className="flex items-start gap-3">
+                            <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-brand-accent/10 text-brand-accent shadow-2xs">
+                              <NavigationIcon className="size-5" aria-hidden />
+                            </span>
+                            <div>
+                              <dt className="text-xs font-black uppercase tracking-wider text-muted-foreground">
+                                {t(locale, "destinations.distance")}
+                              </dt>
+                              <dd className="mt-1 font-mono text-base font-extrabold text-brand sm:text-lg">
+                                {routeDistance}
+                              </dd>
+                            </div>
                           </div>
                         ) : null}
                         {routeDuration ? (
-                          <div>
-                            <dt className="text-xs font-bold tracking-wide text-muted-foreground uppercase">
-                              {t(locale, "destinations.travelTime")}
-                            </dt>
-                            <dd className="mt-1 text-sm font-semibold text-brand">
-                              {routeDuration}
-                            </dd>
+                          <div className="flex items-start gap-3">
+                            <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-brand-accent/10 text-brand-accent shadow-2xs">
+                              <ClockIcon className="size-5" aria-hidden />
+                            </span>
+                            <div>
+                              <dt className="text-xs font-black uppercase tracking-wider text-muted-foreground">
+                                {t(locale, "destinations.travelTime")}
+                              </dt>
+                              <dd className="mt-1 font-mono text-base font-extrabold text-brand sm:text-lg">
+                                {routeDuration}
+                              </dd>
+                            </div>
                           </div>
                         ) : null}
                       </dl>
                     ) : null}
                     {routeWhyBook ? (
-                      <p className="rounded-2xl border border-border bg-brand-surface p-5 text-sm leading-relaxed text-muted-foreground sm:col-span-1">
-                        {routeWhyBook}
-                      </p>
+                      <div className="flex flex-col justify-center rounded-3xl border border-brand-accent/25 bg-brand-surface p-6 shadow-xs sm:col-span-1 sm:p-7">
+                        <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-brand-accent">
+                          <CheckCircle2Icon className="size-4" aria-hidden />
+                          <span>{t(locale, "destinations.readyEyebrow")}</span>
+                        </div>
+                        <p className="mt-2 text-sm font-medium leading-relaxed text-brand/80 sm:text-base">
+                          {routeWhyBook}
+                        </p>
+                      </div>
                     ) : null}
                   </div>
                 </MarketingContainer>

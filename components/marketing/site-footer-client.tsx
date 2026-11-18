@@ -76,22 +76,23 @@ function FacebookIcon() {
 const FOOTER_EASE = "ease-[cubic-bezier(0.16,1,0.3,1)]"
 
 const navLinkClass = cn(
-  "w-fit text-[14.5px] text-muted-foreground",
-  "transition-colors duration-300",
-  FOOTER_EASE,
-  "hover:text-brand",
+  "w-fit text-[14.5px] text-brand/75",
+  "transition-colors duration-200",
+  "hover:text-brand-accent",
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent focus-visible:ring-offset-2 rounded-sm",
 )
 
 const contactLinkClass = cn(
   navLinkClass,
-  "inline-flex items-center gap-2 [&_svg]:text-brand-accent",
+  "inline-flex items-center gap-2.5 [&_svg]:text-brand-accent",
 )
 
 const socialIconClass = cn(
-  "flex size-9 items-center justify-center rounded-full border border-border bg-brand/5 text-brand",
-  "transition-[color,background-color,border-color,transform,box-shadow] duration-300",
-  FOOTER_EASE,
-  "hover:-translate-y-0.5 hover:border-brand hover:bg-brand hover:text-white",
+  "flex size-9 items-center justify-center rounded-full border border-border/80 bg-brand-surface text-brand shadow-xs",
+  "transition-all duration-200",
+  "hover:-translate-y-0.5 hover:border-brand-accent hover:bg-brand-accent hover:text-white hover:shadow-sm",
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent focus-visible:ring-offset-2",
+  "active:scale-95",
 )
 
 export function SiteFooterClient({
@@ -141,7 +142,7 @@ export function SiteFooterClient({
   ] as const
 
   return (
-    <footer className="border-t border-border bg-[color-mix(in_srgb,var(--brand-accent)_10%,white)] pt-14 pb-[max(2rem,env(safe-area-inset-bottom))] text-brand md:pt-20 md:pb-10">
+    <footer className="border-t border-border/70 bg-brand-page pt-14 pb-[max(2.5rem,env(safe-area-inset-bottom))] font-brand text-brand md:pt-20 md:pb-12">
       <MarketingContainer>
         <div className="mb-12 grid gap-12 md:mb-16 md:grid-cols-[1.2fr_2fr] md:gap-16">
           <div className="flex flex-col items-start">
@@ -149,21 +150,21 @@ export function SiteFooterClient({
               href={localePath("/", locale)}
               className={cn(
                 "mb-4 inline-flex items-center gap-2.5 opacity-100",
-                "transition-[opacity,transform] duration-300",
-                FOOTER_EASE,
+                "transition-opacity duration-200",
                 "hover:opacity-80",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent focus-visible:ring-offset-2 rounded-lg",
               )}
               aria-label={tr("footer.homepageAria", { company: companyName })}
             >
               <Image
                 src="/marketing/logo.svg"
-                alt=""
+                alt={`${companyName} logo`}
                 width={207}
                 height={150}
                 className="h-9 w-auto shrink-0 sm:h-10"
               />
             </Link>
-            <p className="m-0 max-w-[280px] text-sm leading-relaxed text-muted-foreground">
+            <p className="m-0 max-w-[280px] text-sm leading-relaxed text-brand/75 dark:text-muted-foreground">
               {tr("footer.tagline")}
             </p>
           </div>
@@ -173,7 +174,7 @@ export function SiteFooterClient({
             aria-label={tr("footer.navAria")}
           >
             <div className="flex flex-col gap-3">
-              <span className="mb-1 text-xs font-bold tracking-[0.08em] text-muted-foreground/80 uppercase">
+              <span className="mb-1 text-xs font-bold tracking-[0.12em] text-brand uppercase">
                 {tr("footer.explore")}
               </span>
               {exploreLinks.map(({ href, label }) => (
@@ -184,7 +185,7 @@ export function SiteFooterClient({
             </div>
 
             <div className="flex flex-col gap-3">
-              <span className="mb-1 text-xs font-bold tracking-[0.08em] text-muted-foreground/80 uppercase">
+              <span className="mb-1 text-xs font-bold tracking-[0.12em] text-brand uppercase">
                 {tr("footer.legal")}
               </span>
               {legalLinks.map(({ href, label }) =>
@@ -201,14 +202,14 @@ export function SiteFooterClient({
             </div>
 
             <div className="flex flex-col gap-3">
-              <span className="mb-1 text-xs font-bold tracking-[0.08em] text-muted-foreground/80 uppercase">
+              <span className="mb-1 text-xs font-bold tracking-[0.12em] text-brand uppercase">
                 {tr("footer.contact")}
               </span>
 
               {supportPhone ? (
                 <a href={`tel:${telHref}`} className={contactLinkClass}>
                   <PhoneIcon />
-                  {supportPhone}
+                  <span>{supportPhone}</span>
                 </a>
               ) : null}
 
@@ -218,7 +219,7 @@ export function SiteFooterClient({
                   className={contactLinkClass}
                 >
                   <MailIcon />
-                  {supportEmail}
+                  <span>{supportEmail}</span>
                 </a>
               ) : null}
 
@@ -226,12 +227,12 @@ export function SiteFooterClient({
                 <a
                   href={whatsappUrl}
                   className={cn(
-                    "mt-1.5 inline-flex w-fit items-center gap-2 rounded-full bg-primary px-[18px] py-2.5 text-[13.5px] font-bold text-white",
-                    "shadow-[0_4px_14px_rgba(37,211,102,0.3)]",
-                    "transition-[transform,box-shadow,filter] duration-500",
-                    FOOTER_EASE,
-                    "hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(37,211,102,0.45)] hover:brightness-[1.06]",
-                    "active:translate-y-0 active:brightness-100",
+                    "mt-2 inline-flex w-fit items-center gap-2 rounded-full bg-brand-accent px-5 py-2.5 text-[13.5px] font-bold text-white",
+                    "shadow-[0_4px_14px_color-mix(in_srgb,var(--brand-accent)_35%,transparent)]",
+                    "transition-all duration-200",
+                    "hover:-translate-y-0.5 hover:bg-brand-accent-hover hover:brightness-95 hover:shadow-[0_6px_20px_color-mix(in_srgb,var(--brand-accent)_45%,transparent)]",
+                    "active:translate-y-0 active:scale-[0.98]",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent focus-visible:ring-offset-2",
                   )}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -244,16 +245,16 @@ export function SiteFooterClient({
           </nav>
         </div>
 
-        <div className="flex flex-col-reverse flex-wrap items-start justify-between gap-5 border-t border-border pt-8 sm:flex-row sm:items-center">
+        <div className="flex flex-col-reverse flex-wrap items-start justify-between gap-5 border-t border-border/80 pt-8 sm:flex-row sm:items-center">
           <div className="flex flex-col gap-2">
-            <p className="m-0 text-[13px] text-muted-foreground/80">
+            <p className="m-0 text-[13px] text-brand/70 dark:text-muted-foreground">
               &copy; {year} {companyName}. {tr("footer.location")}{" "}
               {tr("footer.rights")}
             </p>
             <button
               type="button"
               onClick={() => openCookiePreferences()}
-              className="w-fit text-left text-[13px] font-semibold text-muted-foreground underline-offset-2 transition-colors hover:text-brand hover:underline"
+              className="w-fit text-left text-[13px] font-semibold text-brand/75 underline-offset-4 transition-colors hover:text-brand-accent hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent rounded-xs"
             >
               {tr("cookies.settings")}
             </button>
@@ -262,6 +263,7 @@ export function SiteFooterClient({
           <div className="flex gap-3">
             <a
               href="#"
+              onClick={(e) => e.preventDefault()}
               className={socialIconClass}
               aria-label={tr("footer.instagramAria")}
             >
@@ -269,6 +271,7 @@ export function SiteFooterClient({
             </a>
             <a
               href="#"
+              onClick={(e) => e.preventDefault()}
               className={socialIconClass}
               aria-label={tr("footer.facebookAria")}
             >
@@ -287,6 +290,7 @@ export function SiteFooterClient({
             ) : (
               <a
                 href="#"
+                onClick={(e) => e.preventDefault()}
                 className={socialIconClass}
                 aria-label={tr("footer.whatsappAria")}
               >

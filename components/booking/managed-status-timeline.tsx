@@ -1,6 +1,6 @@
 "use client"
 
-import { Check } from "lucide-react"
+import { Check, X } from "lucide-react"
 
 import { BOOKING_STATUS_FLOW } from "@/lib/booking-status"
 import { BOOKING_STATUS_LABELS, formatDateTime } from "@/lib/format"
@@ -79,51 +79,53 @@ function TimelineRow({
   last?: boolean
 }) {
   return (
-    <li className="flex gap-3">
+    <li className="flex gap-3.5">
       <div className="flex flex-col items-center">
         <span
           className={cn(
-            "flex size-5 shrink-0 items-center justify-center rounded-full border-2",
+            "flex size-6 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
             state === "done" &&
-              "border-success bg-success text-success-foreground",
+              "border-brand-accent bg-brand-accent text-white shadow-xs",
             state === "current" &&
-              "border-primary bg-primary text-primary-foreground",
-            state === "upcoming" && "border-border bg-background",
+              "border-brand-accent bg-brand-accent/10 text-brand-accent ring-4 ring-brand-accent/20",
+            state === "upcoming" && "border-border/80 bg-brand-surface text-muted-foreground",
             state === "cancelled" &&
               "border-destructive bg-destructive/10 text-destructive",
           )}
         >
-          {state === "done" && <Check className="size-3" />}
+          {state === "done" && <Check className="size-3.5 stroke-[2.5]" />}
           {state === "current" && (
-            <span className="size-1.5 rounded-full bg-current" />
+            <span className="size-2 rounded-full bg-brand-accent" />
           )}
-          {state === "cancelled" && (
-            <span className="text-[10px] font-bold leading-none">×</span>
-          )}
+          {state === "cancelled" && <X className="size-3.5 stroke-[2.5]" />}
         </span>
         {!last && (
           <span
             className={cn(
-              "w-0.5 flex-1",
-              state === "done" ? "bg-success/40" : "bg-border",
+              "my-1 w-0.5 flex-1 min-h-[1.5rem]",
+              state === "done" ? "bg-brand-accent/40" : "bg-border/80",
             )}
           />
         )}
       </div>
-      <div className={cn("pb-5", last && "pb-0")}>
+      <div className={cn("min-w-0 pb-6", last && "pb-0")}>
         <p
           className={cn(
             "text-sm leading-5",
             state === "upcoming"
               ? "text-muted-foreground"
-              : "font-medium text-foreground",
+              : state === "current"
+                ? "font-extrabold text-brand"
+                : "font-bold text-brand",
           )}
         >
           {label}
         </p>
-        <p className="text-xs text-muted-foreground">
-          {timestamp ? formatDateTime(timestamp) : "Pending"}
-        </p>
+        {timestamp ? (
+          <p className="mt-0.5 text-xs font-medium text-muted-foreground">
+            {formatDateTime(timestamp)}
+          </p>
+        ) : null}
       </div>
     </li>
   )

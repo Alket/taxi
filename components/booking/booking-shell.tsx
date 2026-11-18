@@ -88,19 +88,19 @@ function MobileSummaryBar({
     basePrice == null ? null : Number((basePrice + seatAddon).toFixed(2))
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur supports-backdrop-filter:bg-background/80 md:hidden">
+    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border/80 bg-background/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md supports-backdrop-filter:bg-background/80 md:hidden">
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetTrigger
           render={
             <button
               type="button"
-              className="mx-auto flex w-full max-w-[1280px] items-center justify-between gap-3 rounded-xl border bg-brand-surface px-3.5 py-2.5 text-left shadow-sm transition-colors hover:bg-muted/40"
+              className="mx-auto flex w-full max-w-[1280px] items-center justify-between gap-3 rounded-2xl border border-border/80 bg-brand-surface px-4 py-2.5 text-left shadow-xs transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent"
               aria-expanded={open}
             />
           }
         >
           <div className="min-w-0">
-            <p className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+            <p className="text-[11px] font-bold tracking-wider text-muted-foreground uppercase">
               {quotedPrice !== null
                 ? tr("book.estimatedTotal")
                 : tr("book.fromLabel")}
@@ -108,22 +108,27 @@ function MobileSummaryBar({
             {quoteStatus === "loading" ? (
               <Skeleton className="mt-1 h-6 w-20" />
             ) : (
-              <p className="text-lg font-semibold tabular-nums">
+              <p className="text-lg font-extrabold text-brand tabular-nums">
                 {mobilePrice === null ? "—" : formatMoney(mobilePrice)}
               </p>
             )}
           </div>
-          <span className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-muted-foreground">
-            {tr("book.summary")}
-            <ChevronUpIcon className="size-4" aria-hidden />
+          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-brand-accent/20 bg-brand-accent/10 px-3 py-1 text-xs font-bold text-brand-accent">
+            <span>{tr("book.summary")}</span>
+            <ChevronUpIcon
+              className={cn("size-3.5 transition-transform duration-200", open && "rotate-180")}
+              aria-hidden
+            />
           </span>
         </SheetTrigger>
         <SheetContent
           side="bottom"
-          className="max-h-[min(85vh,40rem)] gap-0 rounded-t-2xl pb-[env(safe-area-inset-bottom)]"
+          className="max-h-[min(85vh,40rem)] gap-0 rounded-t-3xl pb-[env(safe-area-inset-bottom)]"
         >
-          <SheetHeader className="border-b pb-3 text-left">
-            <SheetTitle>{tr("book.tripSummary")}</SheetTitle>
+          <SheetHeader className="border-b border-border/80 pb-3 text-left">
+            <SheetTitle className="font-brand font-extrabold text-brand">
+              {tr("book.tripSummary")}
+            </SheetTitle>
           </SheetHeader>
           <div className="overflow-y-auto overscroll-contain p-4">
             <BookingSummaryContent />
@@ -245,7 +250,8 @@ export function BookingShell({
       {leaveDialog}
 
       {!isHero && (
-        <header className="flex flex-col gap-6 pt-12">
+        <header className="flex flex-col gap-6 pt-6 sm:pt-8 md:pt-10">
+          <BookingStepIndicator />
           <BookingHeaderBenefits />
         </header>
       )}
@@ -262,7 +268,7 @@ export function BookingShell({
             className={
               isHero
                 ? "rounded-2xl border border-black/5 bg-brand-surface p-4 text-brand shadow-sm sm:p-5"
-                : "rounded-xl border-0 bg-brand-surface p-6 shadow-sm"
+                : "rounded-2xl border border-border/80 bg-brand-surface p-6 shadow-xs sm:p-8"
             }
           >
             {!isHero && (
@@ -271,13 +277,13 @@ export function BookingShell({
                   <button
                     type="button"
                     onClick={goPrev}
-                    className="mb-3 inline-flex items-center gap-1.5 text-sm font-bold text-muted-foreground transition-colors hover:text-brand"
+                    className="mb-3 inline-flex items-center gap-1.5 text-sm font-bold text-muted-foreground transition-colors hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent rounded-sm"
                   >
                     <ChevronLeftIcon className="size-4" />
                     {tr("book.backToDetails")}
                   </button>
                 )}
-                <h2 className="text-2xl font-bold tracking-tight text-brand">
+                <h2 className="font-brand text-2xl font-extrabold tracking-tight text-brand md:text-3xl">
                   {stepTitle}
                 </h2>
               </div>
@@ -286,9 +292,9 @@ export function BookingShell({
             {currentStep === 1 ? (
               <div className="flex flex-col gap-10">
                 <RouteStep />
-                <div className={startedFromHero ? undefined : "border-t pt-8"}>
+                <div className={startedFromHero ? undefined : "border-t border-border/80 pt-8"}>
                   {!startedFromHero && (
-                    <h3 className="mb-6 text-lg font-bold tracking-tight text-brand">
+                    <h3 className="mb-6 font-brand text-lg font-bold tracking-tight text-brand md:text-xl">
                       {tr("book.yourDetails")}
                     </h3>
                   )}
@@ -298,10 +304,10 @@ export function BookingShell({
                   <Button
                     type="button"
                     size="lg"
-                    className="h-12 w-full rounded-xl font-extrabold bg-brand-accent text-white hover:bg-brand-accent-hover"
+                    className="h-12 w-full rounded-full font-extrabold bg-brand-accent text-white shadow-[0_4px_14px_color-mix(in_srgb,var(--brand-accent)_35%,transparent)] transition-all duration-200 active:scale-[0.98] hover:-translate-y-0.5 hover:bg-brand-accent-hover hover:brightness-95 hover:shadow-[0_6px_20px_color-mix(in_srgb,var(--brand-accent)_45%,transparent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent focus-visible:ring-offset-2"
                     onClick={handleContinue}
                   >
-                    {tr("book.continue")}
+                    <span>{tr("book.continue")}</span>
                     <ChevronRightIcon data-icon="inline-end" />
                   </Button>
                 )}

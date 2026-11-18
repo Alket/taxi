@@ -6,6 +6,7 @@ import useSWR from "swr"
 import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 import {
+  ArrowRightIcon,
   ArrowUpDownIcon,
   BriefcaseIcon,
   CalendarIcon,
@@ -14,6 +15,7 @@ import {
   MapPinIcon,
   MinusIcon,
   PlusIcon,
+  ShieldCheckIcon,
   UsersIcon,
 } from "lucide-react"
 
@@ -181,24 +183,26 @@ function Stepper({
   onChange: (n: number) => void
 }) {
   return (
-    <div className="flex flex-1 flex-col gap-2">
-      <span className="text-sm font-bold text-brand">{label}</span>
-      <div className="flex h-11 items-center justify-between rounded-xl border border-border px-1">
+    <div className="flex flex-1 flex-col gap-1.5">
+      <span className="text-xs font-extrabold tracking-wider text-brand/80 uppercase">
+        {label}
+      </span>
+      <div className="flex h-11 items-center justify-between rounded-xl border border-border/80 bg-brand-page/40 px-1">
         <button
           type="button"
-          className="flex size-9 items-center justify-center rounded-lg text-brand hover:bg-muted disabled:opacity-40"
+          className="flex size-9 items-center justify-center rounded-lg text-brand transition-colors hover:bg-brand-surface hover:text-brand-accent active:scale-95 disabled:opacity-35 disabled:hover:bg-transparent disabled:hover:text-brand"
           disabled={value <= min}
           onClick={() => onChange(Math.max(min, value - 1))}
           aria-label={`Decrease ${label}`}
         >
           <MinusIcon className="size-4" />
         </button>
-        <span className="min-w-6 text-center text-sm font-bold tabular-nums">
+        <span className="min-w-6 text-center font-mono text-sm font-extrabold tabular-nums text-brand">
           {value}
         </span>
         <button
           type="button"
-          className="flex size-9 items-center justify-center rounded-lg text-brand hover:bg-muted disabled:opacity-40"
+          className="flex size-9 items-center justify-center rounded-lg text-brand transition-colors hover:bg-brand-surface hover:text-brand-accent active:scale-95 disabled:opacity-35 disabled:hover:bg-transparent disabled:hover:text-brand"
           disabled={value >= max}
           onClick={() => onChange(Math.min(max, value + 1))}
           aria-label={`Increase ${label}`}
@@ -763,18 +767,18 @@ export function HeroBookingCard() {
         })
 
   return (
-    <div className="relative z-20 w-full rounded-2xl bg-brand-surface text-brand shadow-[0_20px_50px_rgba(0,0,0,0.28)]">
+    <div className="relative z-20 w-full rounded-3xl border border-white/20 bg-brand-surface text-brand shadow-[0_24px_60px_rgba(0,0,0,0.32)]">
       {showReloader ? <HeroStepReloader /> : null}
-      <div className="p-5 sm:p-6 pb-4 sm:pb-5">
-        <div className="grid grid-cols-2 rounded-full bg-muted p-1">
+      <div className="p-5 pb-5 sm:p-6 sm:pb-6">
+        <div className="grid grid-cols-2 rounded-full border border-border/60 bg-brand-page p-1">
           <button
             type="button"
             onClick={() => setRoundTrip(false)}
             className={cn(
-              "rounded-full py-2.5 text-sm font-bold transition-all",
+              "rounded-full py-2.5 text-sm font-extrabold transition-all duration-200",
               !isRoundTrip
-                ? "bg-brand-surface text-brand shadow-sm"
-                : "text-muted-foreground hover:text-brand",
+                ? "bg-brand-surface text-brand shadow-xs"
+                : "text-brand/65 hover:text-brand",
             )}
           >
             {tr("book.oneWay")}
@@ -783,23 +787,29 @@ export function HeroBookingCard() {
             type="button"
             onClick={() => setRoundTrip(true)}
             className={cn(
-              "rounded-full py-2.5 text-sm font-bold transition-all",
+              "rounded-full py-2.5 text-sm font-extrabold transition-all duration-200",
               isRoundTrip
-                ? "bg-brand-surface text-brand shadow-sm"
-                : "text-muted-foreground hover:text-brand",
+                ? "bg-brand-surface text-brand shadow-xs"
+                : "text-brand/65 hover:text-brand",
             )}
           >
             {tr("book.return")}
           </button>
         </div>
 
-        <div className="relative mt-4 rounded-xl border border-border">
+        <div className="relative mt-4 rounded-2xl border border-border/90 bg-brand-surface shadow-2xs">
           <div className="relative">
+            {/* Vertical dashed route connector between From and To icons */}
+            <span
+              aria-hidden
+              className="pointer-events-none absolute top-9 bottom-9 left-[1.1875rem] z-0 border-l-2 border-dashed border-brand-accent/35"
+            />
+
             <div
               ref={fromRowAnchor}
-              className="relative z-10 flex items-center gap-3 border-b border-border px-3 py-3.5 pr-14"
+              className="relative z-10 flex items-center gap-3 rounded-t-2xl border-b border-border/80 px-3.5 py-3.5 pr-14 transition-colors hover:bg-brand-page/40"
             >
-              <CircleIcon className="size-4 shrink-0 fill-none stroke-muted-foreground stroke-[2.5]" />
+              <CircleIcon className="size-4 shrink-0 fill-brand-surface stroke-brand-accent stroke-[2.75]" />
               <div className="min-w-0 flex-1">
                 <HeroFieldSelect
                   value={fromKey}
@@ -828,8 +838,8 @@ export function HeroBookingCard() {
               aria-label={tr("book.swap")}
               title={tr("book.swap")}
               className={cn(
-                "absolute top-1/2 right-3 z-20 flex size-9 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-brand-surface text-brand shadow-sm transition-colors",
-                "hover:bg-muted disabled:pointer-events-none disabled:opacity-40",
+                "absolute top-1/2 right-3 z-20 flex size-9 -translate-y-1/2 items-center justify-center rounded-full border border-border/90 bg-brand-surface text-brand shadow-xs transition-all duration-200",
+                "hover:border-brand-accent/50 hover:bg-brand-page hover:text-brand-accent active:scale-95 disabled:pointer-events-none disabled:opacity-35",
               )}
             >
               <ArrowUpDownIcon className="size-4" />
@@ -837,9 +847,9 @@ export function HeroBookingCard() {
 
             <div
               ref={toRowAnchor}
-              className="relative z-10 flex items-center gap-3 border-b border-border px-3 py-3.5 pr-14"
+              className="relative z-10 flex items-center gap-3 border-b border-border/80 px-3.5 py-3.5 pr-14 transition-colors hover:bg-brand-page/40"
             >
-              <MapPinIcon className="size-4 shrink-0 text-brand" />
+              <MapPinIcon className="size-4 shrink-0 text-brand-accent" />
               <div className="min-w-0 flex-1">
                 <HeroFieldSelect
                   value={toKey}
@@ -873,16 +883,16 @@ export function HeroBookingCard() {
                 type="button"
                 onClick={() => requestPickupCalendar(true)}
                 className={cn(
-                  "relative z-10 flex w-full items-center gap-3 px-3 py-3.5 text-left transition-colors hover:bg-muted",
-                  isRoundTrip ? "border-b border-border" : "rounded-b-xl",
-                  calendarOpen && "ring-2 ring-inset ring-black",
+                  "relative z-10 flex w-full items-center gap-3 px-3.5 py-3.5 text-left transition-colors hover:bg-brand-page/40",
+                  isRoundTrip ? "border-b border-border/80" : "rounded-b-2xl",
+                  calendarOpen && "ring-2 ring-inset ring-brand-accent",
                 )}
               >
-                <CalendarIcon className="size-4 shrink-0 text-brand" />
+                <CalendarIcon className="size-4 shrink-0 text-brand-accent" />
                 <span
                   className={cn(
                     "text-sm font-bold",
-                    pickupDateTime ? "text-brand" : "text-muted-foreground",
+                    pickupDateTime ? "text-brand" : "text-brand/60",
                   )}
                 >
                   {pickupDateTime
@@ -908,15 +918,15 @@ export function HeroBookingCard() {
                   type="button"
                   onClick={() => requestReturnCalendar(true)}
                   className={cn(
-                    "relative z-10 flex w-full items-center gap-3 rounded-b-xl px-3 py-3.5 text-left transition-colors hover:bg-muted",
-                    returnCalendarOpen && "ring-2 ring-inset ring-black",
+                    "relative z-10 flex w-full items-center gap-3 rounded-b-2xl px-3.5 py-3.5 text-left transition-colors hover:bg-brand-page/40",
+                    returnCalendarOpen && "ring-2 ring-inset ring-brand-accent",
                   )}
                 >
-                  <CalendarIcon className="size-4 shrink-0 text-brand" />
+                  <CalendarIcon className="size-4 shrink-0 text-brand-accent" />
                   <span
                     className={cn(
                       "text-sm font-bold",
-                      returnDateTime ? "text-brand" : "text-muted-foreground",
+                      returnDateTime ? "text-brand" : "text-brand/60",
                     )}
                   >
                     {returnDateTime
@@ -935,15 +945,15 @@ export function HeroBookingCard() {
               type="button"
               onClick={() => setPassengersOpen(true)}
               className={cn(
-                "mt-4 flex w-full items-center gap-3 rounded-xl border border-border px-3 py-3.5 text-left touch-manipulation transition-colors hover:bg-muted",
-                passengersOpen && "ring-2 ring-inset ring-black",
+                "mt-4 flex w-full items-center gap-3 rounded-2xl border border-border/90 bg-brand-page/40 px-3.5 py-3.5 text-left touch-manipulation transition-colors hover:bg-brand-page",
+                passengersOpen && "ring-2 ring-inset ring-brand-accent",
               )}
             >
-              <UsersIcon className="size-4 shrink-0 text-brand" />
+              <UsersIcon className="size-4 shrink-0 text-brand-accent" />
               <span className="min-w-0 flex-1 text-base font-bold text-[color:var(--brand-ink)]">
                 {passengersLabel}
               </span>
-              <BriefcaseIcon className="size-4 shrink-0 text-muted-foreground" />
+              <BriefcaseIcon className="size-4 shrink-0 text-brand/60" />
             </button>
 
             <Sheet
@@ -988,7 +998,7 @@ export function HeroBookingCard() {
                     <Button
                       type="button"
                       size="lg"
-                      className="h-12 w-full rounded-xl bg-brand-accent text-base font-extrabold text-white hover:bg-brand-accent-hover"
+                      className="h-12 w-full rounded-full bg-brand-accent text-base font-extrabold text-white shadow-sm hover:bg-brand-accent-hover active:scale-[0.98]"
                       disabled={busy}
                       onClick={() => void onContinue({ fromPassengersSheet: true })}
                     >
@@ -1010,7 +1020,7 @@ export function HeroBookingCard() {
             </Sheet>
           </>
         ) : (
-          <div className="mt-4 grid grid-cols-2 gap-4">
+          <div className="mt-4 grid grid-cols-2 gap-3.5">
             <Stepper
               label={tr("book.passengers")}
               value={passengerCount}
@@ -1029,12 +1039,12 @@ export function HeroBookingCard() {
         )}
 
         {quoteStatus === "uncovered" && (
-          <p className="mt-3 text-xs text-amber-700 text-center font-medium">
+          <p className="mt-3 text-center text-xs font-semibold text-amber-700">
             {tr("book.notCovered")}
           </p>
         )}
         {quoteStatus === "error" && (
-          <p className="mt-3 text-xs text-red-600 text-center font-medium">
+          <p className="mt-3 text-center text-xs font-semibold text-red-600">
             {quoteError || tr("book.couldNotLoadPrices")}
           </p>
         )}
@@ -1042,7 +1052,13 @@ export function HeroBookingCard() {
         <Button
           type="button"
           size="lg"
-          className="mt-5 h-12 w-full rounded-xl bg-brand-accent text-base font-extrabold text-white hover:bg-brand-accent-hover transition-all shadow-sm"
+          className={cn(
+            "group mt-5 h-12 w-full rounded-full bg-brand-accent text-base font-extrabold text-white",
+            "shadow-[0_4px_14px_color-mix(in_srgb,var(--brand-accent)_35%,transparent)]",
+            "transition-all duration-200 active:scale-[0.98]",
+            "hover:-translate-y-0.5 hover:bg-brand-accent-hover hover:brightness-95",
+            "hover:shadow-[0_6px_20px_color-mix(in_srgb,var(--brand-accent)_45%,transparent)]",
+          )}
           disabled={busy}
           onClick={() => void onContinue()}
         >
@@ -1054,18 +1070,23 @@ export function HeroBookingCard() {
                 : tr("book.continueEllipsis")}
             </>
           ) : (
-            tr("book.continue")
+            <>
+              <span>{tr("book.continue")}</span>
+              <ArrowRightIcon
+                className="size-4 transition-transform duration-200 group-hover:translate-x-1"
+                data-icon="inline-end"
+                aria-hidden
+              />
+            </>
           )}
         </Button>
       </div>
 
-      <div className="mt-1 flex items-center gap-3 rounded-b-2xl bg-brand-surface px-5 py-4 text-[13px] leading-tight text-muted-foreground sm:px-6">
-        <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-brand-surface shadow-sm">
-          <UsersIcon className="size-4 text-muted-foreground" />
+      <div className="flex items-center gap-3 rounded-b-3xl border-t border-border/70 bg-brand-page/70 px-5 py-3.5 text-xs font-bold leading-snug text-brand/80 sm:px-6">
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-accent/15 text-brand-accent">
+          <ShieldCheckIcon className="size-4" aria-hidden />
         </div>
-        <span>
-          {tr("book.fixedPrices")}
-        </span>
+        <span>{tr("book.fixedPrices")}</span>
       </div>
     </div>
   )

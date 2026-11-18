@@ -34,7 +34,12 @@ export function BlogFaq({
           return (
             <div
               key={itemId}
-              className="rounded-2xl border border-border bg-brand-page"
+              className={cn(
+                "rounded-2xl border transition-all duration-200",
+                open
+                  ? "border-brand-accent/40 bg-brand-surface shadow-xs ring-1 ring-brand-accent/20"
+                  : "border-border/80 bg-brand-surface shadow-2xs hover:border-brand-accent/30",
+              )}
             >
               <button
                 type="button"
@@ -43,16 +48,30 @@ export function BlogFaq({
                 className="flex min-h-14 w-full touch-manipulation items-center justify-between gap-4 px-5 py-4 text-left sm:px-6 sm:py-5"
                 onClick={() => setOpenId(open ? null : itemId)}
               >
-                <span className="font-brand text-lg font-extrabold leading-snug text-brand">
+                <span
+                  className={cn(
+                    "font-brand text-base font-bold leading-snug transition-colors sm:text-lg",
+                    open ? "text-brand-accent" : "text-brand",
+                  )}
+                >
                   {item.question}
                 </span>
-                <ChevronDownIcon
+                <span
                   className={cn(
-                    "size-5 shrink-0 text-muted-foreground transition-transform duration-300 ease-out sm:size-6",
-                    open && "rotate-180",
+                    "flex size-8 shrink-0 items-center justify-center rounded-full transition-colors",
+                    open
+                      ? "bg-brand-accent/10 text-brand-accent"
+                      : "bg-brand-page text-muted-foreground",
                   )}
-                  aria-hidden
-                />
+                >
+                  <ChevronDownIcon
+                    className={cn(
+                      "size-4 transition-transform duration-300 ease-out",
+                      open && "rotate-180",
+                    )}
+                    aria-hidden
+                  />
+                </span>
               </button>
               <div
                 id={panelId}
@@ -66,7 +85,7 @@ export function BlogFaq({
                 <div className="min-h-0 overflow-hidden">
                   <p
                     className={cn(
-                      "px-5 pb-5 text-base leading-relaxed text-muted-foreground whitespace-pre-line transition-opacity duration-300 ease-out md:px-6 md:pb-6",
+                      "px-5 pb-5 text-sm sm:text-base leading-relaxed text-brand/75 whitespace-pre-line transition-opacity duration-300 ease-out md:px-6 md:pb-6",
                       open ? "opacity-100" : "opacity-0",
                     )}
                   >

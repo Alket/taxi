@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { ChevronDownIcon, ListIcon } from "lucide-react"
 
 import { useLocale } from "@/lib/i18n/use-locale"
 import { t } from "@/lib/i18n/t"
@@ -46,7 +47,7 @@ export function BlogToc({
   if (headings.length === 0) return null
 
   const list = (
-    <ol className="flex flex-col gap-2">
+    <ol className="flex flex-col gap-1.5">
       {headings.map((heading) => {
         const active = activeId === heading.id
         return (
@@ -54,13 +55,22 @@ export function BlogToc({
             <a
               href={`#${heading.id}`}
               className={cn(
-                "block text-sm leading-snug transition-colors",
+                "group flex items-start gap-2.5 rounded-lg px-2.5 py-1.5 text-sm leading-snug transition-all duration-200",
                 active
-                  ? "font-bold text-brand-accent"
-                  : "font-medium text-muted-foreground hover:text-brand",
+                  ? "bg-brand-accent/10 font-bold text-brand-accent"
+                  : "font-medium text-brand/70 hover:bg-muted/70 hover:text-brand",
               )}
             >
-              {heading.text}
+              <span
+                className={cn(
+                  "mt-1.5 size-1.5 shrink-0 rounded-full transition-all duration-200",
+                  active
+                    ? "bg-brand-accent scale-125"
+                    : "bg-transparent group-hover:bg-brand/40",
+                )}
+                aria-hidden
+              />
+              <span className="line-clamp-2">{heading.text}</span>
             </a>
           </li>
         )
@@ -70,21 +80,26 @@ export function BlogToc({
 
   return (
     <>
-      <details className="rounded-2xl border border-border bg-brand-surface p-4 lg:hidden">
-        <summary className="cursor-pointer list-none font-brand text-sm font-extrabold text-brand">
-          {t(locale, "blog.onThisPage")}
+      <details className="group rounded-2xl border border-border/80 bg-brand-surface p-4 shadow-xs lg:hidden">
+        <summary className="flex cursor-pointer list-none items-center justify-between font-brand text-sm font-extrabold text-brand">
+          <span className="flex items-center gap-2">
+            <ListIcon className="size-4 text-brand-accent" />
+            {t(locale, "blog.onThisPage")}
+          </span>
+          <ChevronDownIcon className="size-4 text-muted-foreground transition-transform duration-200 group-open:rotate-180" />
         </summary>
-        <nav aria-label={t(locale, "blog.onThisPage")} className="mt-3">
+        <nav aria-label={t(locale, "blog.onThisPage")} className="mt-4 border-t border-border/50 pt-3">
           {list}
         </nav>
       </details>
 
       <nav
         aria-label={t(locale, "blog.onThisPage")}
-        className="sticky top-28 hidden rounded-2xl border border-border bg-brand-surface p-5 lg:block"
+        className="sticky top-28 hidden rounded-3xl border border-border/80 bg-brand-surface p-6 shadow-xs lg:block"
       >
-        <p className="mb-3 text-xs font-bold tracking-[0.14em] text-muted-foreground uppercase">
-          {t(locale, "blog.onThisPage")}
+        <p className="mb-4 flex items-center gap-2 text-xs font-black uppercase tracking-wider text-muted-foreground">
+          <ListIcon className="size-3.5 text-brand-accent" />
+          <span>{t(locale, "blog.onThisPage")}</span>
         </p>
         {list}
       </nav>

@@ -56,14 +56,14 @@ export function BlogArticleBody({
     <div
       className={cn(
         "min-w-0 max-w-full font-brand text-brand",
-        "[&_a]:font-semibold [&_a]:text-primary [&_a]:underline-offset-2 hover:[&_a]:underline",
+        "[&_a]:font-bold [&_a]:text-brand-accent [&_a]:underline-offset-4 hover:[&_a]:underline [&_a]:decoration-brand-accent/50 hover:[&_a]:decoration-brand-accent",
         "[&_strong]:font-extrabold [&_strong]:text-brand [&_b]:font-extrabold [&_b]:text-brand",
         "[&_em]:italic [&_i]:italic",
-        "[&_code]:rounded-md [&_code]:bg-muted [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-[0.9em]",
-        "[&_ul]:my-3 [&_ul]:list-disc [&_ul]:space-y-2 [&_ul]:pl-5",
-        "[&_ol]:my-3 [&_ol]:list-decimal [&_ol]:space-y-2 [&_ol]:pl-5",
-        "[&_li]:leading-relaxed",
-        "[&_img]:my-2 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-xl",
+        "[&_code]:rounded-md [&_code]:bg-muted/80 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-[0.9em]",
+        "[&_ul]:my-4 [&_ul]:list-disc [&_ul]:space-y-2 [&_ul]:pl-5",
+        "[&_ol]:my-4 [&_ol]:list-decimal [&_ol]:space-y-2 [&_ol]:pl-5",
+        "[&_li]:leading-relaxed [&_li]:text-brand/80",
+        "[&_img]:my-6 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-2xl [&_img]:border [&_img]:border-border/60 [&_img]:shadow-xs",
       )}
     >
       {blocks.map((block, index) => {
@@ -74,7 +74,7 @@ export function BlogArticleBody({
                 key={index}
                 as="div"
                 html={block.text}
-                className="mb-5 text-base leading-relaxed text-muted-foreground md:text-[1.05rem]"
+                className="mb-5 text-base leading-relaxed text-brand/80 md:text-[1.0625rem]"
               />
             )
           case "image":
@@ -85,7 +85,7 @@ export function BlogArticleBody({
                   src={block.src}
                   alt={block.alt}
                   loading="lazy"
-                  className="h-auto max-w-full rounded-xl"
+                  className="h-auto max-w-full rounded-2xl border border-border/60 shadow-xs"
                 />
               </figure>
             )
@@ -96,7 +96,7 @@ export function BlogArticleBody({
                 as="h2"
                 id={block.headingId}
                 html={block.text}
-                className="mt-10 mb-4 scroll-mt-28 text-2xl font-extrabold tracking-tight text-brand md:text-3xl"
+                className="mt-10 mb-4 scroll-mt-28 border-b border-border/50 pb-2.5 font-brand text-2xl font-black tracking-tight text-brand md:text-3xl"
               />
             )
           case "h3":
@@ -105,14 +105,14 @@ export function BlogArticleBody({
                 key={index}
                 as="h3"
                 html={block.text}
-                className="mt-7 mb-3 text-xl font-bold tracking-tight text-brand"
+                className="mt-8 mb-3 font-brand text-xl font-extrabold tracking-tight text-brand"
               />
             )
           case "ul":
             return (
               <ul
                 key={index}
-                className="mb-5 list-disc space-y-2 pl-5 text-base leading-relaxed text-muted-foreground"
+                className="mb-5 list-disc space-y-2 pl-5 text-base leading-relaxed text-brand/80 md:text-[1.0625rem]"
               >
                 {block.items.map((item, itemIndex) => (
                   <RichHtml key={itemIndex} as="li" html={item} />
@@ -123,7 +123,7 @@ export function BlogArticleBody({
             return (
               <ol
                 key={index}
-                className="mb-5 list-decimal space-y-2 pl-5 text-base leading-relaxed text-muted-foreground"
+                className="mb-5 list-decimal space-y-2 pl-5 text-base leading-relaxed text-brand/80 md:text-[1.0625rem]"
               >
                 {block.items.map((item, itemIndex) => (
                   <RichHtml key={itemIndex} as="li" html={item} />
@@ -134,21 +134,21 @@ export function BlogArticleBody({
             return (
               <aside
                 key={index}
-                className="mb-6 rounded-2xl border border-border bg-brand-page px-5 py-4"
+                className="my-6 rounded-2xl border border-brand-accent/25 bg-brand-surface p-5 sm:p-6 shadow-2xs"
               >
                 {block.title ? (
                   <RichHtml
                     as="div"
                     html={block.title}
-                    className="text-sm font-extrabold text-brand"
+                    className="font-brand text-sm font-extrabold text-brand"
                   />
                 ) : null}
                 <RichHtml
                   as="div"
                   html={block.text}
                   className={cn(
-                    "text-base leading-relaxed text-muted-foreground",
-                    block.title && "mt-1",
+                    "text-base leading-relaxed text-brand/80",
+                    block.title && "mt-1.5",
                   )}
                 />
               </aside>
@@ -157,11 +157,11 @@ export function BlogArticleBody({
             return (
               <div
                 key={index}
-                className="mb-6 max-w-full overflow-x-auto overscroll-x-contain rounded-2xl border border-border [-webkit-overflow-scrolling:touch]"
+                className="my-6 max-w-full overflow-x-auto overscroll-x-contain rounded-2xl border border-border/80 bg-brand-surface shadow-2xs [-webkit-overflow-scrolling:touch]"
               >
                 <table className="w-full min-w-0 border-collapse text-left text-sm md:min-w-[24rem]">
                   {block.caption ? (
-                    <caption className="bg-brand-page px-4 py-3 text-left text-xs font-bold tracking-wide text-muted-foreground uppercase">
+                    <caption className="bg-brand-page/70 px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">
                       <span
                         dangerouslySetInnerHTML={{
                           __html: sanitizeBlogHtml(block.caption),
@@ -175,7 +175,7 @@ export function BlogArticleBody({
                         <th
                           key={headerIndex}
                           scope="col"
-                          className="max-w-[12rem] px-3 py-2.5 font-extrabold break-words sm:max-w-none sm:px-4 sm:py-3"
+                          className="max-w-[12rem] px-4 py-3 font-extrabold break-words sm:max-w-none"
                           dangerouslySetInnerHTML={{
                             __html: sanitizeBlogHtml(header),
                           }}
@@ -187,14 +187,14 @@ export function BlogArticleBody({
                     {block.rows.map((row, rowIndex) => (
                       <tr
                         key={rowIndex}
-                        className="border-t border-border odd:bg-brand-surface even:bg-brand-page/60"
+                        className="border-t border-border/60 odd:bg-brand-surface even:bg-brand-page/40"
                       >
                         {row.map((cell, cellIndex) => (
                           <RichHtml
                             key={`${rowIndex}-${cellIndex}`}
                             as="td"
                             html={cell}
-                            className="max-w-[12rem] px-3 py-2.5 align-top break-words text-muted-foreground sm:max-w-none sm:px-4 sm:py-3"
+                            className="max-w-[12rem] px-4 py-3 align-top break-words text-brand/80 font-medium sm:max-w-none"
                           />
                         ))}
                       </tr>
