@@ -110,13 +110,9 @@ export function UberAltSection({ copy }: { copy: UberAltCopy }) {
           {/* Left Column: Copy, Feature Cards & CTA */}
           <div>
             {copy.eyebrow ? (
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-brand-accent/25 bg-brand-accent/10 px-3.5 py-1 text-xs font-extrabold tracking-wider text-brand-accent uppercase">
-                <span
-                  className="size-1.5 shrink-0 rounded-full bg-brand-accent motion-safe:animate-pulse"
-                  aria-hidden
-                />
-                <span>{copy.eyebrow}</span>
-              </div>
+              <span className="mb-3 block text-xs font-extrabold tracking-[0.14em] text-brand-accent uppercase">
+                {copy.eyebrow}
+              </span>
             ) : null}
 
             <h2
@@ -170,11 +166,9 @@ export function UberAltSection({ copy }: { copy: UberAltCopy }) {
                   type="button"
                   onClick={() => scrollToHashId("book")}
                   className={cn(
-                    "group inline-flex min-h-12 w-full items-center justify-center gap-2.5 rounded-full bg-brand-accent px-8 py-4 text-base font-extrabold text-white sm:w-auto",
-                    "shadow-[0_4px_14px_color-mix(in_srgb,var(--brand-accent)_35%,transparent)]",
+                    "group inline-flex min-h-12 w-full items-center justify-center gap-2.5 rounded-full bg-brand-accent px-8 py-4 text-base font-extrabold text-white shadow-sm sm:w-auto",
                     "transition-all duration-200 active:scale-[0.98]",
-                    "hover:-translate-y-0.5 hover:bg-brand-accent-hover hover:brightness-95",
-                    "hover:shadow-[0_6px_20px_color-mix(in_srgb,var(--brand-accent)_45%,transparent)]",
+                    "hover:-translate-y-0.5 hover:bg-brand-accent-hover hover:brightness-95 hover:shadow-md",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent focus-visible:ring-offset-2",
                   )}
                 >
@@ -191,7 +185,7 @@ export function UberAltSection({ copy }: { copy: UberAltCopy }) {
 
           {/* Right Column: Framed Image + Floating Arrival Telemetry Badge */}
           <div className="relative">
-            <div className="group relative overflow-hidden rounded-3xl border border-border/80 bg-muted shadow-[0_20px_45px_-12px_rgba(0,0,0,0.14)]">
+            <div className="group relative overflow-hidden rounded-3xl border border-border/80 bg-muted shadow-lg">
               <div className="relative aspect-[4/5] w-full sm:aspect-[5/6] lg:aspect-auto lg:h-[520px]">
                 <Image
                   src={copy.image}
@@ -207,16 +201,12 @@ export function UberAltSection({ copy }: { copy: UberAltCopy }) {
               </div>
 
               {copy.floatingBadge.title || copy.floatingBadge.text ? (
-                <div className="absolute right-4 bottom-4 left-4 flex max-w-sm items-center gap-3.5 rounded-2xl border border-white/70 bg-brand-surface/95 px-4 py-3.5 shadow-[0_12px_32px_rgba(0,0,0,0.16)] backdrop-blur-md sm:right-auto sm:bottom-5 sm:left-5 sm:px-5">
-                  <span className="relative flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-accent text-white shadow-xs">
+                <div className="absolute right-4 bottom-4 left-4 flex max-w-sm items-center gap-3.5 rounded-2xl border border-white/70 bg-brand-surface/95 px-4 py-3.5 shadow-lg backdrop-blur-md sm:right-auto sm:bottom-5 sm:left-5 sm:px-5">
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-accent/10 text-brand-accent">
                     <PlaneIcon
                       className="size-5"
                       strokeWidth={2.2}
                       aria-hidden
-                    />
-                    <span
-                      aria-hidden
-                      className="absolute -top-1 -right-1 size-2.5 rounded-full border-2 border-white bg-emerald-400"
                     />
                   </span>
                   <div className="min-w-0">

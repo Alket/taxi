@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ArrowRightIcon, SparklesIcon } from "lucide-react"
+import { ArrowRightIcon } from "lucide-react"
 
 import type { BlogArchiveCopy } from "@/lib/page-content-shared"
 import type { Locale } from "@/lib/i18n/locales"
@@ -18,15 +18,14 @@ export function BlogFareCta({
   return (
     <aside
       aria-label={copy.heading}
-      className="overflow-hidden rounded-3xl border border-border/80 bg-brand-surface shadow-xs transition-shadow hover:shadow-sm"
+      className="overflow-hidden rounded-3xl border border-border/80 bg-brand-surface shadow-xs"
     >
       <div className="flex flex-col gap-6 px-6 py-7 sm:px-8 sm:py-9 md:flex-row md:items-center md:justify-between md:gap-10">
         <div className="max-w-2xl">
-          <div className="inline-flex items-center gap-1.5 rounded-full border border-brand-accent/25 bg-brand-accent/10 px-3 py-0.5 text-xs font-black uppercase tracking-wider text-brand-accent">
-            <SparklesIcon className="size-3" />
-            <span>{copy.eyebrow}</span>
-          </div>
-          <h2 className="mt-3 font-brand text-2xl font-black tracking-tight text-brand md:text-3xl">
+          <p className="text-xs font-extrabold tracking-[0.14em] text-brand-accent uppercase">
+            {copy.eyebrow}
+          </p>
+          <h2 className="mt-2 font-brand text-2xl font-extrabold tracking-tight text-brand md:text-3xl">
             {copy.heading}
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-brand/75 sm:text-base">
@@ -39,7 +38,10 @@ export function BlogFareCta({
             className="group inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-brand-accent px-7 text-sm font-extrabold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:brightness-95 active:scale-[0.98]"
           >
             <span>{primaryButtonLabel}</span>
-            <ArrowRightIcon className="size-4 transition-transform duration-200 group-hover:translate-x-1" aria-hidden />
+            <ArrowRightIcon
+              className="size-4 transition-transform duration-200 group-hover:translate-x-1"
+              aria-hidden
+            />
           </Link>
           <Link
             href={localePath("/#book", locale)}
@@ -49,10 +51,6 @@ export function BlogFareCta({
           </Link>
         </div>
       </div>
-      <div
-        className="h-1.5 w-full bg-gradient-to-r from-brand-accent/20 via-brand-accent to-brand-accent/20"
-        aria-hidden
-      />
     </aside>
   )
 }

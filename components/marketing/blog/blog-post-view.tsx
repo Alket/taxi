@@ -50,7 +50,7 @@ export function BlogPostView({
   return (
     <main className="bg-brand-page pb-16 md:pb-24">
       {/* Editorial Hero Header */}
-      <header className="relative isolate -mt-24 min-h-[22rem] overflow-hidden md:min-h-[26rem] lg:min-h-[28rem]">
+      <header className="relative isolate -mt-24 min-h-[max(68svh,30rem)] overflow-hidden md:min-h-[max(58svh,32rem)]">
         <Image
           src={post.heroImage.src}
           alt={post.heroImage.alt}
@@ -63,7 +63,7 @@ export function BlogPostView({
         <div className="absolute inset-0 bg-gradient-to-t from-brand-panel via-brand-panel/75 to-brand-panel/40" />
         <div className="absolute inset-0 bg-gradient-to-r from-brand-panel/65 via-transparent to-transparent" />
 
-        <MarketingContainer className="relative z-10 flex min-h-[22rem] flex-col justify-end pb-10 pt-28 text-white md:min-h-[26rem] md:pb-14 md:pt-32 lg:min-h-[28rem]">
+        <MarketingContainer className="relative z-10 flex min-h-[max(68svh,30rem)] flex-col justify-end pt-36 pb-10 text-white sm:pt-32 md:min-h-[max(58svh,32rem)] md:pb-14">
           <BlogBreadcrumb items={breadcrumbs} tone="onDark" />
 
           <div className="mt-5 flex flex-wrap items-center gap-2 text-xs font-bold tracking-wide uppercase text-white/80">

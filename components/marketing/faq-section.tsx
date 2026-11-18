@@ -1,16 +1,13 @@
 "use client"
 
 import { useId, useState } from "react"
-import { ArrowRightIcon, ChevronDownIcon, HelpCircleIcon } from "lucide-react"
+import { ChevronDownIcon } from "lucide-react"
 
 import {
   MarketingContainer,
   MARKETING_SECTION_TITLE,
 } from "@/components/marketing/marketing-container"
-import { useLocale } from "@/lib/i18n/use-locale"
-import { t } from "@/lib/i18n/t"
 import type { PageSection } from "@/lib/page-content-shared"
-import { scrollToHashId } from "@/lib/smooth-hash-scroll"
 import { cn } from "@/lib/utils"
 
 export function FaqSection({
@@ -20,7 +17,6 @@ export function FaqSection({
   items: PageSection[]
   heading?: string
 }) {
-  const locale = useLocale()
   const reactId = useId()
   const [openId, setOpenId] = useState<string | null>(null)
 
@@ -33,10 +29,6 @@ export function FaqSection({
     >
       <MarketingContainer>
         <div className="mb-8 max-w-2xl md:mb-12">
-          <span className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-brand-accent/20 bg-brand-accent/10 px-3.5 py-1 text-xs font-bold tracking-wide text-brand-accent uppercase">
-            <HelpCircleIcon className="size-3.5 text-brand-accent" aria-hidden />
-            <span>{t(locale, "nav.faq")}</span>
-          </span>
           <h2 className={MARKETING_SECTION_TITLE}>{heading}</h2>
         </div>
 
@@ -116,31 +108,6 @@ export function FaqSection({
               </div>
             )
           })}
-        </div>
-
-        <div className="mt-10 rounded-3xl border border-dashed border-border/80 bg-brand-page/60 p-6 text-center sm:mt-14 sm:p-8">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-accent/20 bg-brand-accent/10 px-3 py-0.5 text-xs font-extrabold tracking-wider text-brand-accent uppercase">
-            {t(locale, "destinations.readyEyebrow")}
-          </span>
-          <p className="mt-2 font-brand text-lg font-extrabold text-brand sm:text-xl">
-            {t(locale, "destinations.readyTitle")}
-          </p>
-          <p className="mx-auto mt-1.5 max-w-md text-sm text-brand/75 dark:text-muted-foreground">
-            {t(locale, "destinations.readyText")}
-          </p>
-          <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
-            <button
-              type="button"
-              onClick={() => scrollToHashId("book")}
-              className="group inline-flex min-h-11 items-center gap-2 rounded-full bg-brand-accent px-7 py-2.5 text-sm font-extrabold text-white shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:bg-brand-accent-hover hover:brightness-95 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent focus-visible:ring-offset-2"
-            >
-              <span>{t(locale, "cta.bookTransfer")}</span>
-              <ArrowRightIcon
-                className="size-4 transition-transform duration-200 group-hover:translate-x-1"
-                aria-hidden
-              />
-            </button>
-          </div>
         </div>
       </MarketingContainer>
     </section>

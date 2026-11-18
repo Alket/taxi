@@ -24,7 +24,7 @@ export function PeaceOfMindSection({ copy }: { copy: PeaceCopy }) {
       <MarketingContainer>
         <div className="mb-8 max-w-2xl md:mb-14">
           {copy.eyebrow ? (
-            <span className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-brand-accent/20 bg-brand-accent/10 px-3.5 py-1 text-xs font-bold tracking-wide text-brand-accent uppercase">
+            <span className="mb-2 block text-xs font-extrabold tracking-[0.14em] text-brand-accent uppercase">
               {copy.eyebrow}
             </span>
           ) : null}

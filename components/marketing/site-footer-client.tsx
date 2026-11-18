@@ -227,10 +227,9 @@ export function SiteFooterClient({
                 <a
                   href={whatsappUrl}
                   className={cn(
-                    "mt-2 inline-flex w-fit items-center gap-2 rounded-full bg-brand-accent px-5 py-2.5 text-[13.5px] font-bold text-white",
-                    "shadow-[0_4px_14px_color-mix(in_srgb,var(--brand-accent)_35%,transparent)]",
+                    "mt-2 inline-flex w-fit items-center gap-2 rounded-full bg-brand-accent px-5 py-2.5 text-[13.5px] font-bold text-white shadow-sm",
                     "transition-all duration-200",
-                    "hover:-translate-y-0.5 hover:bg-brand-accent-hover hover:brightness-95 hover:shadow-[0_6px_20px_color-mix(in_srgb,var(--brand-accent)_45%,transparent)]",
+                    "hover:-translate-y-0.5 hover:bg-brand-accent-hover hover:brightness-95 hover:shadow-md",
                     "active:translate-y-0 active:scale-[0.98]",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent focus-visible:ring-offset-2",
                   )}

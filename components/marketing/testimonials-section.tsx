@@ -6,7 +6,6 @@ import {
   ChevronLeft,
   ChevronRight,
   MapPinIcon,
-  MessageSquareQuote,
   StarIcon,
 } from "lucide-react"
 
@@ -237,10 +236,9 @@ export function TestimonialsSection({
     <section className="border-b border-border/60 bg-brand-surface py-14 font-brand md:py-20 lg:py-24">
       <MarketingContainer>
         <div className="mb-8 md:mb-12">
-          <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-brand-accent/25 bg-brand-accent/10 px-3 py-1 text-xs font-extrabold tracking-wider text-brand-accent uppercase">
-            <MessageSquareQuote className="size-3.5" aria-hidden />
-            <span>{eyebrow}</span>
-          </div>
+          <span className="mb-2 block text-xs font-extrabold tracking-[0.14em] text-brand-accent uppercase">
+            {eyebrow}
+          </span>
           <h2 className={MARKETING_SECTION_TITLE}>{title}</h2>
         </div>
 

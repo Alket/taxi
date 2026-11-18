@@ -2,7 +2,6 @@
 
 import { Suspense, useEffect, type ReactNode } from "react"
 import Image from "next/image"
-import { BanknoteIcon, PlaneIcon, SparklesIcon } from "lucide-react"
 
 import { ComparisonSection } from "@/components/marketing/comparison-section"
 import { CookieConsentBanner } from "@/components/marketing/cookie-consent-banner"
@@ -19,25 +18,20 @@ import { TestimonialsSection } from "@/components/marketing/testimonials-section
 import { UberAltSection } from "@/components/marketing/uber-alt-section"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { Destination } from "@/lib/destinations"
-import { useLocale } from "@/lib/i18n/use-locale"
-import { t } from "@/lib/i18n/t"
 import type { HomeMarketingCopy } from "@/lib/page-content-shared"
 import { scrollToHashId } from "@/lib/smooth-hash-scroll"
 
 function HeroBookingFallback() {
   return (
-    <div className="overflow-hidden rounded-3xl border border-white/20 bg-brand-surface shadow-[0_24px_60px_rgba(0,0,0,0.32)]">
-      <div className="space-y-4 p-5 sm:p-6">
+    <div className="rounded-2xl bg-brand-surface p-6 shadow-xl">
+      <div className="space-y-4">
         <Skeleton className="h-11 w-full rounded-full" />
-        <Skeleton className="h-28 w-full rounded-2xl" />
+        <Skeleton className="h-28 w-full rounded-xl" />
         <div className="grid grid-cols-2 gap-3">
-          <Skeleton className="h-14 w-full rounded-xl" />
-          <Skeleton className="h-14 w-full rounded-xl" />
+          <Skeleton className="h-12 w-full rounded-xl" />
+          <Skeleton className="h-12 w-full rounded-xl" />
         </div>
-        <Skeleton className="h-12 w-full rounded-full bg-brand-accent/25" />
-      </div>
-      <div className="border-t border-border/70 bg-brand-page/70 px-6 py-4">
-        <Skeleton className="h-4 w-48 rounded-full" />
+        <Skeleton className="h-12 w-full rounded-xl bg-brand-accent/20" />
       </div>
     </div>
   )
@@ -65,8 +59,6 @@ export function HomeLanding({
   showCustomerReviews?: boolean
   showTrustpilotTestimonials?: boolean
 }) {
-  const locale = useLocale()
-
   useEffect(() => {
     const id = window.location.hash.replace(/^#/, "")
     if (!id) return
@@ -75,12 +67,6 @@ export function HomeLanding({
     })
     return () => window.cancelAnimationFrame(frame)
   }, [])
-
-  const heroPills = [
-    { label: t(locale, "transfer.payCash"), icon: BanknoteIcon },
-    { label: t(locale, "transfer.flightTracking"), icon: PlaneIcon },
-    { label: t(locale, "transfer.meetGreet"), icon: SparklesIcon },
-  ] as const
 
   return (
     <div className="brand-frontend min-h-svh bg-white font-brand text-brand antialiased">
@@ -129,7 +115,7 @@ export function HomeLanding({
           <h1 className="sr-only">{copy.hero.heading.replace(/\n/g, " ")}</h1>
 
           {/* Mobile: shorter image + overlapping form. Desktop: full-viewport hero (6rem offsets -mt-24). */}
-          <div className="home-hero-bg relative h-[66svh] min-h-[24rem] sm:h-[70svh] md:absolute md:inset-0 md:h-auto md:min-h-0">
+          <div className="home-hero-bg relative h-[65svh] min-h-[22rem] sm:h-[70svh] md:absolute md:inset-0 md:h-auto md:min-h-0">
             <Image
               src={copy.hero.image}
               alt={copy.hero.imageAlt || "Albania private airport transfer"}
@@ -139,24 +125,17 @@ export function HomeLanding({
               sizes="100vw"
               className="object-cover object-[72%_center] md:object-[80%_center]"
             />
-            <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(8,18,22,0.68)_0%,rgba(8,18,22,0.42)_45%,rgba(8,18,22,0.82)_100%)] md:bg-[linear-gradient(105deg,rgba(8,18,22,0.86)_0%,rgba(8,18,22,0.62)_48%,rgba(8,18,22,0.25)_100%)]" />
+            <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(8,18,22,0.62)_0%,rgba(8,18,22,0.38)_45%,rgba(8,18,22,0.75)_100%)] md:bg-[linear-gradient(105deg,rgba(8,18,22,0.8)_0%,rgba(8,18,22,0.58)_45%,rgba(8,18,22,0.25)_100%)]" />
 
-            <div className="absolute inset-0 z-10 flex flex-col justify-center px-5 pt-[calc(80px+2rem)] pb-12 sm:px-6 md:hidden">
+            <div className="absolute inset-0 z-10 flex flex-col justify-center px-5 pt-[calc(80px+2.5rem)] pb-12 sm:px-6 md:hidden">
               <div className="home-fade-up flex w-full flex-col items-start text-white">
-                <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3.5 py-1 text-[11px] font-extrabold tracking-wider text-white/95 uppercase backdrop-blur-md">
-                  <span
-                    className="size-1.5 shrink-0 rounded-full bg-emerald-400 motion-safe:animate-pulse"
-                    aria-hidden
-                  />
-                  <span>{t(locale, "destinations.readyEyebrow")}</span>
-                </div>
                 <p
                   aria-hidden
-                  className="font-brand text-[1.9rem] font-black leading-[1.1] tracking-tight text-balance sm:text-4xl"
+                  className="font-brand text-[1.85rem] font-extrabold leading-[1.1] tracking-tight text-balance sm:text-3xl"
                 >
                   {headingLines(copy.hero.heading)}
                 </p>
-                <p className="home-fade-up-delay mt-3 max-w-md text-sm leading-relaxed text-white/90 sm:text-base">
+                <p className="home-fade-up-delay mt-3 max-w-sm text-sm leading-relaxed text-white/90 sm:text-base">
                   {copy.hero.text}
                 </p>
                 {copy.hero.showTrustpilot ? (
@@ -166,42 +145,20 @@ export function HomeLanding({
             </div>
           </div>
 
-          <MarketingContainer className="relative z-20 -mt-8 pb-10 md:mt-0 md:flex md:flex-1 md:items-center md:pb-14 md:pt-32 lg:pt-36">
-            <div className="grid w-full gap-0 md:grid-cols-[minmax(0,1fr)_minmax(21rem,25rem)] md:items-center md:gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(23rem,26.5rem)] lg:gap-14">
+          <MarketingContainer className="relative z-20 -mt-6 pb-8 md:mt-0 md:flex md:flex-1 md:items-center md:pb-12 md:pt-32 lg:pt-36">
+            <div className="grid w-full gap-0 md:grid-cols-[minmax(0,1fr)_minmax(20rem,24rem)] md:items-center md:gap-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(22rem,26rem)] lg:gap-14">
               <div className="home-fade-up hidden max-w-3xl text-white md:block">
-                <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs font-extrabold tracking-wider text-white/95 uppercase backdrop-blur-md">
-                  <span
-                    className="size-2 shrink-0 rounded-full bg-emerald-400 motion-safe:animate-pulse"
-                    aria-hidden
-                  />
-                  <span>{t(locale, "destinations.readyEyebrow")}</span>
-                </div>
-
                 <p
                   aria-hidden
-                  className="font-brand text-[clamp(2.5rem,5.2vw,4.25rem)] font-black leading-[1.06] tracking-tight text-white text-balance"
+                  className="font-brand text-[clamp(2.5rem,5.5vw,4.25rem)] font-extrabold leading-[1.06] tracking-tight text-white text-balance"
                 >
                   {headingLines(copy.hero.heading)}
                 </p>
-
                 <p className="home-fade-up-delay mt-4 max-w-xl text-base leading-relaxed text-white/90 md:text-lg">
                   {copy.hero.text}
                 </p>
-
-                <ul className="home-fade-up-delay mt-6 flex flex-wrap items-center gap-2.5">
-                  {heroPills.map(({ label, icon: Icon }) => (
-                    <li
-                      key={label}
-                      className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3.5 py-1.5 text-xs font-bold text-white/95 backdrop-blur-sm"
-                    >
-                      <Icon className="size-3.5 shrink-0 text-emerald-300" aria-hidden />
-                      <span>{label}</span>
-                    </li>
-                  ))}
-                </ul>
-
                 {copy.hero.showTrustpilot ? (
-                  <TrustpilotReviewCollector className="home-fade-up-delay mt-7 -ml-4 w-fit max-w-full" />
+                  <TrustpilotReviewCollector className="home-fade-up-delay mt-8 -ml-4 w-fit max-w-full" />
                 ) : null}
               </div>
 

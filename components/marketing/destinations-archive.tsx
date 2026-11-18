@@ -206,10 +206,10 @@ export function DestinationsArchive({
         >
           <div className="flex flex-col gap-6 px-6 py-7 sm:px-8 sm:py-9 md:flex-row md:items-center md:justify-between md:gap-10">
             <div className="max-w-2xl">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-accent/20 bg-brand-accent/10 px-3 py-1 text-xs font-bold text-brand-accent uppercase">
+              <p className="text-xs font-extrabold tracking-[0.14em] text-brand-accent uppercase">
                 {t(locale, "destinations.readyEyebrow")}
-              </span>
-              <h2 className="mt-3 font-brand text-2xl font-extrabold tracking-tight text-brand md:text-3xl">
+              </p>
+              <h2 className="mt-2 font-brand text-2xl font-extrabold tracking-tight text-brand md:text-3xl">
                 {t(locale, "destinations.readyTitle")}
               </h2>
               <p className="mt-2 text-base leading-relaxed text-brand/80 dark:text-muted-foreground">
@@ -219,11 +219,9 @@ export function DestinationsArchive({
             <Link
               href={localePath("/#book", locale)}
               className={cn(
-                "group inline-flex min-h-12 w-full shrink-0 items-center justify-center gap-2 rounded-full bg-brand-accent px-8 text-sm font-extrabold text-white sm:w-auto",
-                "shadow-[0_4px_14px_color-mix(in_srgb,var(--brand-accent)_35%,transparent)]",
+                "group inline-flex min-h-12 w-full shrink-0 items-center justify-center gap-2 rounded-full bg-brand-accent px-8 text-sm font-extrabold text-white shadow-sm sm:w-auto",
                 "transition-all duration-200 active:scale-[0.98]",
-                "hover:-translate-y-0.5 hover:bg-brand-accent-hover hover:brightness-95",
-                "hover:shadow-[0_6px_20px_color-mix(in_srgb,var(--brand-accent)_45%,transparent)]",
+                "hover:-translate-y-0.5 hover:bg-brand-accent-hover hover:brightness-95 hover:shadow-md",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent focus-visible:ring-offset-2",
               )}
             >
@@ -231,10 +229,6 @@ export function DestinationsArchive({
               <ArrowRight className="size-4 transition-transform duration-200 group-hover:translate-x-1" aria-hidden />
             </Link>
           </div>
-          <div
-            className="h-1.5 w-full bg-[color-mix(in_srgb,var(--brand-accent)_35%,transparent)]"
-            aria-hidden
-          />
         </aside>
       </MarketingContainer>
     </div>

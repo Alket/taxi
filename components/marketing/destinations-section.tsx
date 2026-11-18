@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
-import { ArrowRight, ChevronLeft, ChevronRight, MapPin } from "lucide-react"
+import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react"
 import type { EmblaCarouselType } from "embla-carousel"
 
 import { DestinationCard } from "@/components/marketing/destination-card"
@@ -77,10 +77,6 @@ export function DestinationsSection({
       <MarketingContainer>
         <div className="mb-8 flex flex-col justify-between gap-6 sm:flex-row sm:items-end md:mb-12">
           <div className="min-w-0 flex-1">
-            <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-brand-accent/25 bg-brand-accent/10 px-3 py-1 text-xs font-extrabold tracking-wider text-brand-accent uppercase">
-              <MapPin className="size-3.5" aria-hidden />
-              <span>{t(locale, "nav.destinations")}</span>
-            </div>
             <h2 className={MARKETING_SECTION_TITLE}>{heading}</h2>
             {text ? (
               <p className="mt-3 max-w-2xl text-base leading-relaxed text-brand/80 dark:text-muted-foreground md:text-lg">

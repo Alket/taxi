@@ -7,7 +7,6 @@ import {
   CheckCircle2Icon,
   ChevronRightIcon,
   ClockIcon,
-  MapPinIcon,
   NavigationIcon,
 } from "lucide-react"
 
@@ -248,7 +247,7 @@ export default async function DestinationPage({ params }: PageProps) {
             return (
               <section
                 key={section.id}
-                className="relative isolate -mt-24 min-h-[26rem] overflow-hidden md:min-h-[28rem] lg:min-h-[32rem]"
+                className="relative isolate -mt-24 min-h-[max(72svh,34rem)] overflow-hidden sm:min-h-[max(60svh,30rem)] lg:min-h-[34rem]"
               >
                 <Image
                   src={image}
@@ -261,8 +260,8 @@ export default async function DestinationPage({ params }: PageProps) {
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-brand-panel via-brand-panel/75 to-brand-panel/40" />
                 <div className="absolute inset-0 bg-gradient-to-r from-brand-panel/65 via-transparent to-transparent" />
-                <MarketingContainer className="relative z-10 flex min-h-[26rem] flex-col justify-end pb-12 pt-28 text-white md:min-h-[28rem] md:pb-16 md:pt-32 lg:min-h-[32rem]">
-                  <nav aria-label="Breadcrumb" className="mb-4">
+                <MarketingContainer className="relative z-10 flex min-h-[max(72svh,34rem)] flex-col justify-end pt-36 pb-12 text-white sm:min-h-[max(60svh,30rem)] sm:pt-32 md:pb-16 lg:min-h-[34rem]">
+                  <nav aria-label="Breadcrumb" className="mb-3">
                     <ol className="flex flex-wrap items-center gap-1.5 text-xs font-bold text-white/80">
                       <li>
                         <Link
@@ -292,12 +291,11 @@ export default async function DestinationPage({ params }: PageProps) {
                     </ol>
                   </nav>
 
-                  <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3.5 py-1 text-xs font-extrabold uppercase tracking-wider text-white/95 backdrop-blur-sm">
-                    <MapPinIcon className="size-3.5 text-white/90" />
-                    <span>{region}</span>
-                  </span>
+                  <p className="text-xs font-extrabold tracking-widest text-white/90 uppercase">
+                    {region}
+                  </p>
 
-                  <h1 className="mt-3 max-w-4xl font-brand text-3xl font-black tracking-tight text-white sm:text-4xl md:text-5xl lg:text-6xl">
+                  <h1 className="mt-2 max-w-4xl font-brand text-3xl font-black tracking-tight text-white sm:text-4xl md:text-5xl lg:text-6xl">
                     {pageHeading}
                   </h1>
                   <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/85 sm:text-base md:text-lg">

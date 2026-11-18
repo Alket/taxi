@@ -802,7 +802,7 @@ export function HeroBookingCard() {
             {/* Vertical dashed route connector between From and To icons */}
             <span
               aria-hidden
-              className="pointer-events-none absolute top-9 bottom-9 left-[1.1875rem] z-0 border-l-2 border-dashed border-brand-accent/35"
+              className="pointer-events-none absolute top-[calc(25%+8px)] bottom-[calc(25%+8px)] left-[1.375rem] z-0 -translate-x-1/2 border-l-2 border-dashed border-brand-accent/40"
             />
 
             <div

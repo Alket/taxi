@@ -26,9 +26,9 @@ function CompareCard({ column }: { column: HomeCompareColumn }) {
   return (
     <article
       className={cn(
-        "relative flex flex-col justify-between rounded-3xl p-7 sm:p-8 transition-all duration-300",
+        "relative flex flex-col justify-between rounded-3xl p-7 transition-all duration-300 sm:p-8",
         isPremium
-          ? "z-[1] bg-brand-accent text-white shadow-[0_20px_45px_-10px_color-mix(in_srgb,var(--brand-accent)_40%,transparent)] md:scale-[1.03] hover:-translate-y-1 hover:shadow-[0_28px_55px_-12px_color-mix(in_srgb,var(--brand-accent)_50%,transparent)]"
+          ? "z-[1] bg-brand-accent text-white shadow-lg hover:-translate-y-1 hover:shadow-xl md:scale-[1.03]"
           : "border border-border/80 bg-brand-surface text-brand/75 shadow-xs hover:-translate-y-0.5 hover:border-border hover:shadow-md",
       )}
     >
@@ -130,7 +130,7 @@ export function ComparisonSection({ copy }: { copy: CompareCopy }) {
       <MarketingContainer>
         <div className="mx-auto mb-10 max-w-2xl text-left md:mb-14 md:text-center">
           {copy.eyebrow ? (
-            <span className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-brand-accent/20 bg-brand-accent/10 px-3.5 py-1 text-xs font-bold tracking-wide text-brand-accent uppercase">
+            <span className="mb-2 block text-xs font-extrabold tracking-[0.14em] text-brand-accent uppercase">
               {copy.eyebrow}
             </span>
           ) : null}
