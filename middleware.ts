@@ -34,6 +34,15 @@ function withLocaleHeaders(
   return response
 }
 
+function requestWithLocaleHeader(
+  request: NextRequest,
+  locale: Locale,
+): Headers {
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set(LOCALE_HEADER, locale)
+  return requestHeaders
+}
+
 function applyPublicLocale(request: NextRequest): NextResponse | null {
   const pathname = request.nextUrl.pathname
 
@@ -69,12 +78,16 @@ function applyPublicLocale(request: NextRequest): NextResponse | null {
     const rest = segments.slice(1).join("/")
     const url = request.nextUrl.clone()
     url.pathname = rest ? `/${rest}` : "/"
-    const rewrite = NextResponse.rewrite(url)
+    const rewrite = NextResponse.rewrite(url, {
+      request: { headers: requestWithLocaleHeader(request, locale) },
+    })
     return withLocaleHeaders(rewrite, locale)
   }
 
   // Default English (unprefixed).
-  const response = NextResponse.next()
+  const response = NextResponse.next({
+    request: { headers: requestWithLocaleHeader(request, DEFAULT_LOCALE) },
+  })
   return withLocaleHeaders(response, DEFAULT_LOCALE)
 }
 
