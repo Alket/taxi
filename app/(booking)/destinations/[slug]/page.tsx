@@ -26,7 +26,7 @@ import {
 } from "@/lib/destination-document"
 import { DESTINATION_SLUG_ALIASES } from "@/lib/destinations"
 import { getRequestLocale } from "@/lib/i18n/get-locale"
-import { localePath, localizedAlternates } from "@/lib/i18n/locales"
+import { OG_LOCALE, localePath, localizedAlternates } from "@/lib/i18n/locales"
 import { t } from "@/lib/i18n/t"
 import {
   pageMetadataFields,
@@ -121,6 +121,7 @@ export async function generateMetadata({
           ...meta.openGraph,
           title: title.absolute,
           description,
+          locale: OG_LOCALE[locale],
           images: [
             {
               url: hero?.src || page.ogImage || destination.image,

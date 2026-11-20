@@ -37,7 +37,7 @@ const museoSans = Mulish({
   display: "swap",
 })
 
-const FALLBACK_BRAND = "Albania Transfers"
+const FALLBACK_BRAND = "Landed Albania"
 const FALLBACK_FAVICON = "/marketing/favicon.png"
 
 async function resolveBrandName() {
@@ -90,7 +90,7 @@ export async function generateMetadata(): Promise<Metadata> {
         : "image/png"
 
   const description =
-    "Book airport transfers across Albania, or manage operations from the admin console."
+    "Book a private Tirana Airport transfer across Albania. Fixed fares, flight tracking, meet-and-greet, and cash on arrival."
 
   return {
     metadataBase: new URL(getAppBaseUrl()),

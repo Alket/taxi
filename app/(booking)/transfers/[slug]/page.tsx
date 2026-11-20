@@ -21,6 +21,7 @@ import {
 import { getRequestLocale } from "@/lib/i18n/get-locale"
 import {
   DEFAULT_LOCALE,
+  OG_LOCALE,
   englishOnlyAlternates,
   localizedAlternates,
   localePath,
@@ -97,7 +98,7 @@ export async function generateMetadata({
       title: title.absolute,
       description,
       url: alternates.canonical,
-      locale: locale === DEFAULT_LOCALE ? "en_US" : undefined,
+      locale: OG_LOCALE[locale],
       images: [
         {
           url: route.heroImageUrl,

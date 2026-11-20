@@ -12,6 +12,7 @@ import { getRelatedDestinations } from "@/lib/blog"
 import { getRequestLocale } from "@/lib/i18n/get-locale"
 import {
   DEFAULT_LOCALE,
+  OG_LOCALE,
   englishOnlyAlternates,
   localePath,
   localizedAlternates,
@@ -79,6 +80,7 @@ export async function generateMetadata({
       title: title.absolute,
       description,
       url: `${base}${localePath(path, locale)}`,
+      locale: OG_LOCALE[locale],
       type: "article",
       publishedTime: post.publishedAt,
       modifiedTime: post.updatedAt,

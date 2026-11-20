@@ -9,6 +9,8 @@ import {
 } from "@/lib/blog/catalog"
 import { getRequestLocale } from "@/lib/i18n/get-locale"
 import {
+  DEFAULT_LOCALE,
+  OG_LOCALE,
   canonicalOnly,
   localePath,
   localizedAlternates,
@@ -20,7 +22,7 @@ import {
   resolvePageContent,
 } from "@/lib/page-content"
 import { buildBreadcrumbJsonLd } from "@/lib/structured-data"
-import { searchTitle } from "@/lib/seo/search-meta"
+import { localizeFallbackSearchCopy, searchTitle } from "@/lib/seo/search-meta"
 
 export const dynamic = "force-dynamic"
 
@@ -49,14 +51,27 @@ export async function generateMetadata({
       : `${base}${ogSource}`
     : undefined
 
-  const title = searchTitle(
-    page?.title || "Tirana Airport Transport Guides",
-  )
+  const enFallbackTitle = "Tirana Airport Transport Guides"
+  const enFallbackDesc =
+    "TIA transit tips, destination routes, and fixed-price airport transfer guides for Albania travellers."
+  const localized =
+    locale !== DEFAULT_LOCALE && !page?.hasLocaleRow
+      ? localizeFallbackSearchCopy(
+          locale,
+          page?.title || enFallbackTitle,
+          page?.description || enFallbackDesc,
+          enFallbackTitle,
+          enFallbackDesc,
+        )
+      : {
+          title: page?.title || enFallbackTitle,
+          description: page?.description || enFallbackDesc,
+        }
+
+  const title = searchTitle(localized.title)
   return {
     title,
-    description:
-      page?.description ||
-      "TIA transit tips, destination routes, and fixed-price airport transfer guides for Albania travellers.",
+    description: localized.description,
     // Category filters are the same archive. Canonical points at /blog and
     // hreflang is omitted so the filter URL is not a second language version.
     // Category filters repeat the archive. Canonical points at /blog so
@@ -67,10 +82,9 @@ export async function generateMetadata({
         : localizedAlternates("/blog", locale),
     openGraph: {
       title: title.absolute,
-      description:
-        page?.description ||
-        "Practical Tirana Airport guides—routes, meet & greet, and fixed-price transfers.",
+      description: localized.description,
       url: `${base}${localePath("/blog", locale)}`,
+      locale: OG_LOCALE[locale],
       type: "website",
       ...(ogImage
         ? {

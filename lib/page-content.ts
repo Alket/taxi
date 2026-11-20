@@ -9,6 +9,7 @@ import {
 } from "@/lib/blog/cms"
 import {
   DEFAULT_LOCALE,
+  OG_LOCALE,
   type Locale,
   englishOnlyAlternates,
   isLocale,
@@ -103,7 +104,7 @@ function section(
 
 /** Used when a page has no CMS-set `ogImage` — keeps social share cards from being blank. */
 export const DEFAULT_OG_IMAGE =
-  "https://www.welcomepickups.com/wp-content/themes/welcomepickups_new/images/conversion-v2/hero_photo_desktop_2.jpg"
+  "/uploads/pages/book-your-tirana-airport-transfer.webp"
 
 const HOME_DEFAULTS: PageDefinition["defaults"] = {
   title: "Tirana Airport Transfers & Taxi",
@@ -119,7 +120,7 @@ const HOME_DEFAULTS: PageDefinition["defaults"] = {
       body: "Personalised airport transfers designed for travel across Albania.",
     }),
     section("image", "hero.image", {
-      src: "https://www.welcomepickups.com/wp-content/themes/welcomepickups_new/images/conversion-v2/hero_photo_desktop_2.jpg",
+      src: DEFAULT_OG_IMAGE,
     }),
     section("text", "hero.showTrustpilot", {
       body: "true",
@@ -1414,6 +1415,7 @@ export function pageMetadataFields(page: PageContentRecord) {
     openGraph: {
       title: title.absolute,
       description: page.description,
+      locale: OG_LOCALE[pageLocale],
       images: [
         { url: ogImage, width: 1200, height: 630, alt: title.absolute },
       ],

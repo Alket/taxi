@@ -5,7 +5,7 @@ import { JsonLd } from "@/components/marketing/json-ld"
 import { HomeLanding } from "@/components/marketing/home-landing"
 import { SiteFooter } from "@/components/marketing/site-footer"
 import { getRequestLocale } from "@/lib/i18n/get-locale"
-import { canonicalOnly, localizedAlternates } from "@/lib/i18n/locales"
+import { OG_LOCALE, canonicalOnly, localizedAlternates } from "@/lib/i18n/locales"
 import {
   pageMetadataFields,
   resolveDestinationCards,
@@ -63,6 +63,7 @@ export async function generateMetadata({
       ...base.openGraph,
       title: title.absolute,
       description,
+      locale: OG_LOCALE[locale],
     },
     twitter: {
       ...base.twitter,
