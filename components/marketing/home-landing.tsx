@@ -19,6 +19,7 @@ import { UberAltSection } from "@/components/marketing/uber-alt-section"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { Destination } from "@/lib/destinations"
 import type { HomeMarketingCopy } from "@/lib/page-content-shared"
+import type { PublicReviewItem } from "@/lib/reviews"
 import { scrollToHashId } from "@/lib/smooth-hash-scroll"
 
 function HeroBookingFallback() {
@@ -52,12 +53,14 @@ export function HomeLanding({
   footer,
   showCustomerReviews = true,
   showTrustpilotTestimonials = false,
+  initialReviews,
 }: {
   copy: HomeMarketingCopy
   destinations: Destination[]
   footer?: ReactNode
   showCustomerReviews?: boolean
   showTrustpilotTestimonials?: boolean
+  initialReviews?: PublicReviewItem[]
 }) {
   useEffect(() => {
     const id = window.location.hash.replace(/^#/, "")
@@ -157,6 +160,7 @@ export function HomeLanding({
             heading={copy.testimonials.heading}
             showCustomerReviews={showCustomerReviews}
             showTrustpilotTestimonials={showTrustpilotTestimonials}
+            initialReviews={initialReviews}
           />
         ) : null}
 

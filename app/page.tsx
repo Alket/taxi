@@ -12,6 +12,7 @@ import {
   resolveHomeMarketingCopy,
   resolvePageContent,
 } from "@/lib/page-content"
+import { listPublicReviews } from "@/lib/reviews"
 import { getSettings } from "@/lib/settings"
 import { homeSearchCopy, searchTitle } from "@/lib/seo/search-meta"
 import {
@@ -80,10 +81,11 @@ export async function generateMetadata({
 
 export default async function HomePage() {
   const locale = await getRequestLocale()
-  const [page, destinations, settings] = await Promise.all([
+  const [page, destinations, settings, initialReviews] = await Promise.all([
     loadHomeContent(locale),
     resolveDestinationCards(locale, { featuredOnly: true }),
     getSettings().catch(() => null),
+    listPublicReviews({ limit: 6 }).catch(() => []),
   ])
   const copy = await resolveHomeMarketingCopy(
     page?.sections ?? [],
@@ -115,6 +117,7 @@ export default async function HomePage() {
         showTrustpilotTestimonials={
           settings?.trustpilotTestimonialsVisibleOnSite ?? false
         }
+        initialReviews={initialReviews}
       />
     </>
   )

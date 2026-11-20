@@ -54,3 +54,53 @@ export function serializePublicReview(review: {
     createdAt: review.createdAt.toISOString(),
   }
 }
+
+export type PublicReviewItem = ReturnType<typeof serializePublicReview>
+
+export async function listPublicReviews(options?: {
+  destination?: string
+  limit?: number
+}): Promise<PublicReviewItem[]> {
+  const destination = options?.destination?.trim() ?? ""
+  const limit = Math.min(24, Math.max(1, options?.limit ?? 6))
+
+  const reviews = await prisma.review.findMany({
+    where: {
+      status: "approved",
+      ...(destination
+        ? {
+            booking: {
+              OR: [
+                {
+                  dropoffAddress: {
+                    contains: destination,
+                    mode: "insensitive",
+                  },
+                },
+                {
+                  pickupAddress: {
+                    contains: destination,
+                    mode: "insensitive",
+                  },
+                },
+              ],
+            },
+          }
+        : {}),
+    },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    include: {
+      driver: { select: { name: true, avgRating: true } },
+      booking: {
+        select: {
+          pickupAddress: true,
+          dropoffAddress: true,
+          customer: { select: { name: true } },
+        },
+      },
+    },
+  })
+
+  return reviews.map(serializePublicReview)
+}

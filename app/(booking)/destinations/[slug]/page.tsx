@@ -36,6 +36,7 @@ import {
   resolveDestinationPage,
 } from "@/lib/page-content"
 import { resolveDestinationTransferLink } from "@/lib/transfers/routes"
+import { listPublicReviews } from "@/lib/reviews"
 import { getSettings } from "@/lib/settings"
 import { destinationSearchCopy, searchTitle } from "@/lib/seo/search-meta"
 import {
@@ -253,6 +254,11 @@ export default async function DestinationPage({ params }: PageProps) {
   )
 
   const reviewKeyword = destination.reviewKeywords[0] ?? destination.name
+  const initialReviews = showCustomerReviews
+    ? await listPublicReviews({ destination: reviewKeyword, limit: 6 }).catch(
+        () => [],
+      )
+    : []
   const moreDestinations = destinationCards.filter(
     (d) => d.id !== destination.id,
   )
@@ -472,6 +478,7 @@ export default async function DestinationPage({ params }: PageProps) {
                     destination={reviewKeyword}
                     showCustomerReviews={showCustomerReviews}
                     showTrustpilotTestimonials={showTrustpilotTestimonials}
+                    initialReviews={initialReviews}
                   />
                 ) : null}
               </div>
