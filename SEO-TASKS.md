@@ -10,7 +10,7 @@ This document contains every technical SEO, multilingual (`hreflang`/canonical),
 - [x] **Task 1 (P0):** Forward `x-locale` on request headers in `middleware.ts` so stateless crawlers (Googlebot) and first-time visitors receive localized SSR metadata, canonicals, and content instead of English.
 - [x] **Task 2 (P0):** Preserve the requested `locale` on code-default CMS pages in `lib/page-content.ts` so localized pages (`/it/terms`, `/de/privacy-policy`, etc.) do not emit English canonical tags.
 - [x] **Task 3 (P0):** Prevent transient database errors from flipping the live site to `noindex` / `Disallow: /` / empty sitemap in `app/layout.tsx`, `app/robots.ts`, and `app/sitemap.ts`.
-- [ ] **Task 4 (P0):** Remove the SSR full-screen blocking `MarketingPreloader` and remove `opacity: 0` initial animations from the Hero LCP image and page wrapper (`components/marketing/marketing-preloader.tsx`, `components/marketing/home-landing.tsx`, `app/globals.css`).
+- [x] **Task 4 (P0):** Remove the SSR full-screen blocking `MarketingPreloader` and remove `opacity: 0` initial animations from the Hero LCP image and page wrapper (`components/marketing/marketing-preloader.tsx`, `components/marketing/home-landing.tsx`, `app/globals.css`).
 
 ### Priority 1 — High-Impact On-Page & International SEO (`EN, IT, DE, PL, TR, UK, RU`)
 - [ ] **Task 5 (P1):** Respect Admin CMS SEO Title, Meta Description, and Hero `H1` overrides on Destination (`/destinations/[slug]`) and Transfer (`/transfers/[slug]`) pages instead of unconditionally overriding them with hardcoded templates.

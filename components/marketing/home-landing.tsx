@@ -73,24 +73,17 @@ export function HomeLanding({
       <MarketingPreloader scope="home" />
       <style>{`
         @keyframes home-fade-up {
-          from { opacity: 0; transform: translateY(16px); }
+          from { opacity: 0.01; transform: translateY(12px); }
           to { opacity: 1; transform: translateY(0); }
         }
-        @keyframes home-fade-in {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
         .home-fade-up {
-          animation: home-fade-up 0.75s cubic-bezier(0.22, 1, 0.36, 1) both;
+          animation: home-fade-up 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
         }
         .home-fade-up-delay {
-          animation: home-fade-up 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both;
+          animation: home-fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.05s both;
         }
         .home-card-enter {
-          animation: home-fade-up 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both;
-        }
-        .home-hero-bg {
-          animation: home-fade-in 1.2s ease both;
+          animation: home-fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.08s both;
         }
         @media (prefers-reduced-motion: reduce) {
           .home-fade-up,

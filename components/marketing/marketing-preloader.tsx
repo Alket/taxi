@@ -1,10 +1,8 @@
 "use client"
 
-import { useEffect, useRef, useState, type CSSProperties } from "react"
+import type { CSSProperties } from "react"
 import Image from "next/image"
-import { usePathname } from "next/navigation"
 
-import { stripLocalePrefix } from "@/lib/i18n/locales"
 import { cn } from "@/lib/utils"
 
 /** Set before client nav from the homepage hero so /book does not open a second preloader. */
@@ -25,41 +23,6 @@ export function markMarketingPreloaderHandoff() {
   } catch {
     /* private mode / blocked storage */
   }
-}
-
-function isMarketingPreloaderHandoffActive() {
-  const now = Date.now()
-  if (handoffUntil > now) return true
-  try {
-    const raw = sessionStorage.getItem(MARKETING_PRELOADER_HANDOFF_KEY)
-    if (!raw) return false
-    const until = Number(raw)
-    if (Number.isFinite(until) && until > now) {
-      handoffUntil = until
-      return true
-    }
-    sessionStorage.removeItem(MARKETING_PRELOADER_HANDOFF_KEY)
-  } catch {
-    /* ignore */
-  }
-  return false
-}
-
-function clearMarketingPreloaderHandoff() {
-  handoffUntil = 0
-  try {
-    sessionStorage.removeItem(MARKETING_PRELOADER_HANDOFF_KEY)
-  } catch {
-    /* ignore */
-  }
-}
-
-function isHomePathname(pathname: string) {
-  return stripLocalePrefix(pathname) === "/"
-}
-
-function isBookingConfirmationPath(pathname: string) {
-  return stripLocalePrefix(pathname).startsWith("/book/confirmation")
 }
 
 export function MarketingPreloaderMark({
@@ -102,94 +65,13 @@ export function MarketingPreloaderMark({
 
 /**
  * Full-screen branded preloader for marketing pages.
- * Shows on first visit and briefly on route changes within the same scope.
+ * Disabled on initial SSR / route renders so the Hero LCP element paints on the
+ * very first frame for users, Core Web Vitals, and search engine crawlers.
+ * Explicit booking transitions still use `MarketingPreloaderMark` directly.
  */
-export function MarketingPreloader({
-  scope = "all",
-}: {
+export function MarketingPreloader(_props: {
   /** `home` only reacts while on the homepage; `booking` only off-home routes. */
   scope?: "all" | "home" | "booking"
 }) {
-  const pathname = usePathname()
-  const [visible, setVisible] = useState(() => {
-    // Path-based skips must match SSR and client to avoid hydration mismatch.
-    if (scope === "booking" && isBookingConfirmationPath(pathname)) return false
-    if (scope === "home" && !isHomePathname(pathname)) return false
-    if (scope === "booking" && isHomePathname(pathname)) return false
-    // Handoff uses sessionStorage — client-only; keep SSR/client aligned by
-    // defaulting visible and letting the effect hide after mount when handoff.
-    if (typeof window !== "undefined") {
-      if (scope === "booking" && isMarketingPreloaderHandoffActive()) return false
-    }
-    return true
-  })
-  const [leaving, setLeaving] = useState(false)
-  const isFirst = useRef(
-    scope === "booking" && isBookingConfirmationPath(pathname)
-      ? false
-      : typeof window === "undefined"
-        ? true
-        : !(scope === "booking" && isMarketingPreloaderHandoffActive()),
-  )
-  const timers = useRef<number[]>([])
-
-  useEffect(() => {
-    timers.current.forEach((id) => window.clearTimeout(id))
-    timers.current = []
-
-    const onHome = isHomePathname(pathname)
-    if (scope === "home" && !onHome) {
-      setVisible(false)
-      setLeaving(false)
-      return
-    }
-    if (scope === "booking" && onHome) {
-      setVisible(false)
-      setLeaving(false)
-      return
-    }
-
-    // Confirmation uses BookingConfirmingScreen / loading.tsx only — no logo stack.
-    if (scope === "booking" && isBookingConfirmationPath(pathname)) {
-      isFirst.current = false
-      setVisible(false)
-      setLeaving(false)
-      return
-    }
-
-    // Hero → /book already shows a branded cover; don't stack a second one.
-    if (isMarketingPreloaderHandoffActive()) {
-      isFirst.current = false
-      setVisible(false)
-      setLeaving(false)
-      const clearId = window.setTimeout(
-        clearMarketingPreloaderHandoff,
-        Math.max(0, handoffUntil - Date.now()),
-      )
-      timers.current = [clearId]
-      return () => {
-        timers.current.forEach((id) => window.clearTimeout(id))
-        timers.current = []
-      }
-    }
-
-    setVisible(true)
-    setLeaving(false)
-
-    const holdMs = isFirst.current ? 700 : 320
-    isFirst.current = false
-
-    const leaveId = window.setTimeout(() => setLeaving(true), holdMs)
-    const hideId = window.setTimeout(() => setVisible(false), holdMs + 420)
-    timers.current = [leaveId, hideId]
-
-    return () => {
-      timers.current.forEach((id) => window.clearTimeout(id))
-      timers.current = []
-    }
-  }, [pathname, scope])
-
-  if (!visible) return null
-
-  return <MarketingPreloaderMark leaving={leaving} />
+  return null
 }
