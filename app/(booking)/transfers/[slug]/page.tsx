@@ -21,10 +21,12 @@ import {
 import { getRequestLocale } from "@/lib/i18n/get-locale"
 import {
   DEFAULT_LOCALE,
+  englishOnlyAlternates,
   localizedAlternates,
   localePath,
 } from "@/lib/i18n/locales"
 import { t } from "@/lib/i18n/t"
+import { hasTransferLocaleRow } from "@/lib/transfers/cms"
 import {
   getRelatedRoutes,
   getRouteData,
@@ -80,7 +82,12 @@ export async function generateMetadata({
   const title = searchTitle(seo.heading)
   const description = seo.description
   const path = `/transfers/${route.slug}`
-  const alternates = localizedAlternates(path, locale)
+  const isTranslated =
+    locale === DEFAULT_LOCALE ||
+    (await hasTransferLocaleRow(route.slug, locale))
+  const alternates = isTranslated
+    ? localizedAlternates(path, locale)
+    : englishOnlyAlternates(path)
 
   return {
     title,

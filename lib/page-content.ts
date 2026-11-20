@@ -10,6 +10,7 @@ import {
 import {
   DEFAULT_LOCALE,
   type Locale,
+  englishOnlyAlternates,
   isLocale,
   localePath,
   localizedAlternates,
@@ -1397,14 +1398,19 @@ export function pageMetadataFields(page: PageContentRecord) {
       : pathForSlug(page.slug)
   const ogImage = page.ogImage || DEFAULT_OG_IMAGE
   const title = searchTitle(page.title)
+  const pageLocale = (page.locale as Locale) || DEFAULT_LOCALE
+  const isTranslated =
+    pageLocale === DEFAULT_LOCALE ||
+    Boolean(page.hasLocaleRow) ||
+    page.slug === "home" ||
+    isDestinationSlug(page.slug)
 
   return {
     title,
     description: page.description,
-    alternates: localizedAlternates(
-      path,
-      (page.locale as Locale) || DEFAULT_LOCALE,
-    ),
+    alternates: isTranslated
+      ? localizedAlternates(path, pageLocale)
+      : englishOnlyAlternates(path),
     openGraph: {
       title: title.absolute,
       description: page.description,

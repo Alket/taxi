@@ -12,6 +12,7 @@ import { getRelatedDestinations } from "@/lib/blog"
 import { getRequestLocale } from "@/lib/i18n/get-locale"
 import {
   DEFAULT_LOCALE,
+  englishOnlyAlternates,
   localePath,
   localizedAlternates,
 } from "@/lib/i18n/locales"
@@ -19,6 +20,7 @@ import { getAppBaseUrl } from "@/lib/mail"
 import {
   getBlogPostFromCms,
   resolveDestinationCards,
+  resolvePageContent,
 } from "@/lib/page-content"
 import {
   localizeFallbackSearchCopy,
@@ -41,11 +43,12 @@ export async function generateMetadata({
 }: PageProps): Promise<Metadata> {
   const { slug } = await params
   const locale = await getRequestLocale()
-  const [post, englishPost] = await Promise.all([
+  const [post, englishPost, pageRecord] = await Promise.all([
     getBlogPostFromCms(slug, locale),
     locale === DEFAULT_LOCALE
       ? Promise.resolve(null)
       : getBlogPostFromCms(slug, DEFAULT_LOCALE),
+    resolvePageContent(`blog/${slug}`, locale),
   ])
   if (!post) return { title: "Guide not found" }
 
@@ -64,10 +67,14 @@ export async function generateMetadata({
   )
   const title = searchTitle(localized.title)
   const description = localized.description
+  const isTranslated =
+    locale === DEFAULT_LOCALE || Boolean(pageRecord?.hasLocaleRow)
   return {
     title,
     description,
-    alternates: localizedAlternates(path, locale),
+    alternates: isTranslated
+      ? localizedAlternates(path, locale)
+      : englishOnlyAlternates(path),
     openGraph: {
       title: title.absolute,
       description,
