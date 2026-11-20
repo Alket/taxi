@@ -26,7 +26,20 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: ["/admin/", "/api/", "/driver/"],
+      disallow: [
+        "/admin/",
+        "/api/",
+        "/driver/",
+        "/book/confirmation/",
+        "/*/book/confirmation/",
+        "/book/continue/",
+        "/*/book/continue/",
+        "/book/payment/",
+        "/*/book/payment/",
+        "/book/lookup",
+        "/*/book/lookup",
+        "/bookings/",
+      ],
     },
     sitemap: `${getAppBaseUrl().replace(/\/+$/, "")}/sitemap.xml`,
   }

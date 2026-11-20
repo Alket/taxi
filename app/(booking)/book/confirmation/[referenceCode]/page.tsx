@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import Link from "next/link"
 import {
   AlertCircleIcon,
@@ -18,6 +19,10 @@ import { type Locale, localePath } from "@/lib/i18n/locales"
 import { t } from "@/lib/i18n/t"
 import { shouldRevealPickupPin } from "@/lib/pickup-pin"
 import type { Direction, VehicleType } from "@/lib/types"
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+}
 
 type PageProps = {
   params: Promise<{ referenceCode: string }>
