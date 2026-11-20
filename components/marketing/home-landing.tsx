@@ -128,7 +128,7 @@ export function HomeLanding({
                   {copy.hero.text}
                 </p>
                 {copy.hero.showTrustpilot ? (
-                  <TrustpilotReviewCollector className="home-fade-up-delay mt-4 -ml-4 w-fit max-w-full md:mt-8" />
+                  <TrustpilotReviewCollector className="mt-4 -ml-4 w-fit max-w-full md:mt-8" />
                 ) : null}
               </div>
 

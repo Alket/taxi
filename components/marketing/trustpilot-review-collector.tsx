@@ -79,21 +79,34 @@ export function TrustpilotReviewCollector({
       return true
     }
 
+    let loaded = false
     const load = () => {
-      window.Trustpilot?.loadFromElement(widget, true)
+      if (loaded || !window.Trustpilot) return
+      loaded = true
+      window.Trustpilot.loadFromElement(widget, true)
       pinIframeLeft()
     }
     load()
-    const t1 = window.setTimeout(load, 500)
-    const t2 = window.setTimeout(load, 1500)
+    const boot = document.querySelector<HTMLScriptElement>(
+      'script[src*="widget.trustpilot.com/bootstrap"]',
+    )
+    boot?.addEventListener("load", load)
+    const wait = window.setInterval(() => {
+      if (window.Trustpilot) {
+        load()
+        window.clearInterval(wait)
+      }
+    }, 100)
+    const stopWait = window.setTimeout(() => window.clearInterval(wait), 5000)
     const observer = new MutationObserver(() => {
       pinIframeLeft()
     })
     observer.observe(widget, { childList: true, subtree: true })
 
     return () => {
-      window.clearTimeout(t1)
-      window.clearTimeout(t2)
+      boot?.removeEventListener("load", load)
+      window.clearInterval(wait)
+      window.clearTimeout(stopWait)
       observer.disconnect()
       host.replaceChildren()
     }
