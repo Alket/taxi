@@ -1,3 +1,5 @@
+import Image from "next/image"
+
 import {
   MarketingContainer,
   MARKETING_SECTION_TITLE,
@@ -25,12 +27,12 @@ export function DestinationAttractionsSection({
             >
               {attraction.image ? (
                 <div className="relative aspect-[16/10] overflow-hidden bg-muted">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
+                  <Image
                     src={attraction.image}
                     alt={attraction.imageAlt || attraction.title}
-                    className="size-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
-                    loading="lazy"
+                    fill
+                    sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                    className="object-cover transition-transform duration-500 ease-out group-hover:scale-105"
                   />
                 </div>
               ) : null}

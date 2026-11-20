@@ -1,3 +1,4 @@
+import Image from "next/image"
 import Link from "next/link"
 import {
   ArrowLeft,
@@ -89,12 +90,17 @@ export function LegalDocumentView({
   return (
     <div>
       <section className="relative isolate -mt-24 h-[min(48svh,26rem)] min-h-[18rem] overflow-hidden md:h-[min(44svh,30rem)]">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={heroImage}
-          alt=""
-          className="absolute inset-0 size-full object-cover object-center"
-        />
+        {heroImage ? (
+          <Image
+            src={heroImage}
+            alt={title}
+            fill
+            priority
+            fetchPriority="high"
+            sizes="100vw"
+            className="object-cover object-center"
+          />
+        ) : null}
         <div className="absolute inset-0 bg-gradient-to-t from-brand-panel via-brand-panel/60 to-brand-panel/30" />
         <div className="absolute inset-0 bg-gradient-to-r from-brand-panel/55 via-transparent to-transparent" />
 
