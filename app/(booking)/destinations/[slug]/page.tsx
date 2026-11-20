@@ -78,11 +78,35 @@ export async function generateMetadata({
         `/destinations/${publicSlug}`,
         locale,
       )
-      const seo = destinationSearchCopy(destination.id, locale)
-      const title = searchTitle(
-        seo?.heading || page.title || document.meta.title || "Airport transfer",
+      const seo = destinationSearchCopy(
+        destination.id,
+        locale,
+        destination.name,
       )
-      const description = seo?.description || page.description || meta.description
+      const seedDefaultTitle = `${destination.name} airport transfer`.toLowerCase()
+      const cmsTitle = page.title?.trim()
+      const cmsDesc = page.description?.trim()
+      const useCmsTitle =
+        Boolean(cmsTitle) &&
+        page.hasLocaleRow &&
+        cmsTitle.toLowerCase() !== seedDefaultTitle
+      const useCmsDesc =
+        Boolean(cmsDesc) &&
+        page.hasLocaleRow &&
+        cmsDesc !== destination.description?.trim()
+
+      const title = searchTitle(
+        (useCmsTitle ? cmsTitle : null) ||
+          seo?.heading ||
+          cmsTitle ||
+          document.meta.title ||
+          "Airport transfer",
+      )
+      const description =
+        (useCmsDesc ? cmsDesc : null) ||
+        seo?.description ||
+        cmsDesc ||
+        meta.description
       return {
         ...meta,
         title,
@@ -108,7 +132,7 @@ export async function generateMetadata({
         },
       }
     }
-    const seo = destinationSearchCopy(destination.id, locale)
+    const seo = destinationSearchCopy(destination.id, locale, destination.name)
     const title = searchTitle(
       seo?.heading ||
         t(locale, "destinations.airportTransfer", { name: destination.name }),
@@ -169,10 +193,20 @@ export default async function DestinationPage({ params }: PageProps) {
     "/marketing/logo.svg"
   const imageAlt = hero?.alt || name
   const priceFrom = meta.priceFrom || destination.priceFrom
-  // H1 matches the search title so Google does not replace it with a
-  // different heading. The route phrase is the page's main title.
-  const seoHeading = destinationSearchCopy(destination.id, locale)?.heading
+  // H1 matches the search title unless a custom Hero Heading is set in CMS for this locale.
+  const seoHeading = destinationSearchCopy(
+    destination.id,
+    locale,
+    name,
+  )?.heading
+  const customHeroHeading =
+    resolved.page.hasLocaleRow &&
+    hero?.heading?.trim() &&
+    hero.heading.trim() !== destination.name
+      ? hero.heading.trim()
+      : null
   const pageHeading =
+    customHeroHeading ||
     seoHeading ||
     hero?.heading?.trim() ||
     t(locale, "destinations.airportTransfer", { name })
