@@ -1,3 +1,4 @@
+import { cache } from "react"
 import type { Metadata } from "next"
 
 import { LegalDocumentView } from "@/components/marketing/legal-document-view"
@@ -19,16 +20,20 @@ export const revalidate = 3600
 
 const SLUG = "terms"
 
+const loadTermsPage = cache((locale: string) =>
+  resolvePageContent(SLUG, locale),
+)
+
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getRequestLocale()
-  const page = await resolvePageContent(SLUG, locale)
+  const page = await loadTermsPage(locale)
   if (!page) return { title: "Terms & Conditions" }
   return pageMetadataFields(page)
 }
 
 export default async function TermsPage() {
   const locale = await getRequestLocale()
-  const page = await resolvePageContent(SLUG, locale)
+  const page = await loadTermsPage(locale)
   const sections = page?.sections ?? []
 
   const title = sectionHeading(sections, "title") || "Terms & Conditions"

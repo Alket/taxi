@@ -1,3 +1,4 @@
+import { cache } from "react"
 import type { Metadata } from "next"
 import Image from "next/image"
 import Link from "next/link"
@@ -56,6 +57,10 @@ type PageProps = {
  */
 export const dynamic = "force-dynamic"
 
+const loadRouteData = cache((slug: string, locale: string) =>
+  getRouteData(slug, locale),
+)
+
 function bookHref(
   route: { destinationId: string; zoneName: string; slug: string },
   locale: Awaited<ReturnType<typeof getRequestLocale>>,
@@ -69,7 +74,7 @@ export async function generateMetadata({
 }: PageProps): Promise<Metadata> {
   const { slug } = await params
   const locale = await getRequestLocale()
-  const route = await getRouteData(slug, locale)
+  const route = await loadRouteData(slug, locale)
   if (!route) {
     return { title: "Airport transfer" }
   }
@@ -120,7 +125,7 @@ export async function generateMetadata({
 export default async function TransferRoutePage({ params }: PageProps) {
   const { slug } = await params
   const locale = await getRequestLocale()
-  const route = await getRouteData(slug, locale)
+  const route = await loadRouteData(slug, locale)
   if (!route) notFound()
 
   const seo = transferSearchCopy(

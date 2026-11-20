@@ -1,3 +1,4 @@
+import { cache } from "react"
 import type { Metadata } from "next"
 import Image from "next/image"
 import Link from "next/link"
@@ -56,6 +57,21 @@ type PageProps = {
  */
 export const dynamic = "force-dynamic"
 
+const loadDestinationCards = cache((locale: string) =>
+  resolveDestinationCards(locale),
+)
+
+const loadDestinationPage = cache((id: string, locale: string) =>
+  resolveDestinationPage(id, locale),
+)
+
+async function findDestination(slugOrId: string, locale: string) {
+  const cards = await loadDestinationCards(locale)
+  return (
+    cards.find((card) => card.slug === slugOrId || card.id === slugOrId) ?? null
+  )
+}
+
 export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
@@ -65,9 +81,9 @@ export async function generateMetadata({
     return {}
   }
   const locale = await getRequestLocale()
-  const destination = await resolveDestination(slug, locale)
+  const destination = await findDestination(slug, locale)
   if (destination) {
-    const resolved = await resolveDestinationPage(destination.id, locale)
+    const resolved = await loadDestinationPage(destination.id, locale)
     if (resolved) {
       const { page, document } = resolved
       const hero = getDestinationHero(document)
@@ -161,12 +177,12 @@ export default async function DestinationPage({ params }: PageProps) {
     permanentRedirect(localePath(`/destinations/${aliasTarget}`, locale))
   }
 
-  const destination = await resolveDestination(slug, locale)
+  const destination = await findDestination(slug, locale)
   if (!destination) notFound()
 
   const [resolved, destinationCards, settings] = await Promise.all([
-    resolveDestinationPage(destination.id, locale),
-    resolveDestinationCards(locale),
+    loadDestinationPage(destination.id, locale),
+    loadDestinationCards(locale),
     getSettings().catch(() => null),
   ])
   if (!resolved) notFound()

@@ -1,3 +1,4 @@
+import { cache } from "react"
 import type { Metadata } from "next"
 
 import { LegalDocumentView } from "@/components/marketing/legal-document-view"
@@ -16,16 +17,20 @@ export const revalidate = 3600
 
 const SLUG = "cookies"
 
+const loadCookiesPage = cache((locale: string) =>
+  resolvePageContent(SLUG, locale),
+)
+
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getRequestLocale()
-  const page = await resolvePageContent(SLUG, locale)
+  const page = await loadCookiesPage(locale)
   if (!page) return { title: "Cookie Policy" }
   return pageMetadataFields(page)
 }
 
 export default async function CookiesPage() {
   const locale = await getRequestLocale()
-  const page = await resolvePageContent(SLUG, locale)
+  const page = await loadCookiesPage(locale)
   const sections = page?.sections ?? []
 
   const title = sectionHeading(sections, "title") || "Cookie Policy"

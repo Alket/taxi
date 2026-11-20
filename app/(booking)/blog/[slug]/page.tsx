@@ -1,3 +1,4 @@
+import { cache } from "react"
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 
@@ -8,6 +9,7 @@ import {
   categoryLabelFromCatalog,
   getBlogCatalog,
 } from "@/lib/blog/catalog"
+import { pageContentToBlogPost } from "@/lib/blog/cms"
 import { getRelatedDestinations } from "@/lib/blog"
 import { getRequestLocale } from "@/lib/i18n/get-locale"
 import {
@@ -20,7 +22,6 @@ import {
 import { t } from "@/lib/i18n/t"
 import { getAppBaseUrl } from "@/lib/mail"
 import {
-  getBlogPostFromCms,
   resolveDestinationCards,
   resolvePageContent,
 } from "@/lib/page-content"
@@ -36,6 +37,10 @@ import {
 
 export const dynamic = "force-dynamic"
 
+const loadBlogPageRecord = cache((slug: string, locale: string) =>
+  resolvePageContent(`blog/${slug}`, locale),
+)
+
 type PageProps = {
   params: Promise<{ slug: string }>
 }
@@ -45,13 +50,14 @@ export async function generateMetadata({
 }: PageProps): Promise<Metadata> {
   const { slug } = await params
   const locale = await getRequestLocale()
-  const [post, englishPost, pageRecord] = await Promise.all([
-    getBlogPostFromCms(slug, locale),
+  const [pageRecord, englishRecord] = await Promise.all([
+    loadBlogPageRecord(slug, locale),
     locale === DEFAULT_LOCALE
       ? Promise.resolve(null)
-      : getBlogPostFromCms(slug, DEFAULT_LOCALE),
-    resolvePageContent(`blog/${slug}`, locale),
+      : loadBlogPageRecord(slug, DEFAULT_LOCALE),
   ])
+  const post = pageRecord ? pageContentToBlogPost(pageRecord) : null
+  const englishPost = englishRecord ? pageContentToBlogPost(englishRecord) : null
   if (!post) return { title: "Guide not found" }
 
   const path = `/blog/${post.slug}`
@@ -106,11 +112,12 @@ export async function generateMetadata({
 export default async function BlogPostPage({ params }: PageProps) {
   const { slug } = await params
   const locale = await getRequestLocale()
-  const [post, catalog, destinationCards] = await Promise.all([
-    getBlogPostFromCms(slug, locale),
+  const [pageRecord, catalog, destinationCards] = await Promise.all([
+    loadBlogPageRecord(slug, locale),
     getBlogCatalog(),
     resolveDestinationCards(locale),
   ])
+  const post = pageRecord ? pageContentToBlogPost(pageRecord) : null
   if (!post) notFound()
 
   const author = authorFromCatalog(catalog, post.authorId)

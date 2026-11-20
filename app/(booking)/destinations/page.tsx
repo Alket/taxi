@@ -1,3 +1,4 @@
+import { cache } from "react"
 import type { Metadata } from "next"
 import { permanentRedirect } from "next/navigation"
 
@@ -19,6 +20,10 @@ import { searchTitle } from "@/lib/seo/search-meta"
 // revalidatePath) keeps this fast without re-querying the DB on every hit.
 export const revalidate = 3600
 
+const loadDestinationCards = cache((locale: string) =>
+  resolveDestinationCards(locale),
+)
+
 type PageProps = {
   searchParams: Promise<{ page?: string }>
 }
@@ -32,7 +37,7 @@ export async function generateMetadata({
 }: PageProps): Promise<Metadata> {
   const locale = await getRequestLocale()
   const { page: pageParam } = await searchParams
-  const destinations = await resolveDestinationCards(locale)
+  const destinations = await loadDestinationCards(locale)
   const totalPages = Math.max(
     1,
     Math.ceil(destinations.length / DESTINATIONS_PAGE_SIZE),
@@ -67,7 +72,7 @@ export default async function DestinationsArchivePage({
 }: PageProps) {
   const locale = await getRequestLocale()
   const { page: pageParam } = await searchParams
-  const destinations = await resolveDestinationCards(locale)
+  const destinations = await loadDestinationCards(locale)
   const totalCount = destinations.length
   const totalPages = Math.max(1, Math.ceil(totalCount / DESTINATIONS_PAGE_SIZE))
 

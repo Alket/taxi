@@ -1,3 +1,4 @@
+import { cache } from "react"
 import type { Metadata } from "next"
 
 import { BlogArchive } from "@/components/marketing/blog/blog-archive"
@@ -27,6 +28,14 @@ import { localizeFallbackSearchCopy, searchTitle } from "@/lib/seo/search-meta"
 
 export const dynamic = "force-dynamic"
 
+const loadBlogArchivePage = cache((locale: string) =>
+  resolvePageContent("blog", locale),
+)
+
+const loadBlogPosts = cache((locale: string) =>
+  listBlogPostsFromCms(locale),
+)
+
 type PageProps = {
   searchParams: Promise<{ category?: string }>
 }
@@ -38,8 +47,8 @@ export async function generateMetadata({
   const { category } = await searchParams
   const filter = parseBlogFilter(category)
   const [page, posts] = await Promise.all([
-    resolvePageContent("blog", locale),
-    listBlogPostsFromCms(locale),
+    loadBlogArchivePage(locale),
+    loadBlogPosts(locale),
   ])
   const { featured } = archivePostsFromList(posts, filter)
   const base = getAppBaseUrl().replace(/\/+$/, "")
@@ -115,8 +124,8 @@ export default async function BlogArchivePage({ searchParams }: PageProps) {
   const filter = parseBlogFilter(category)
   const blogPath = localePath("/blog", locale)
   const [page, posts, catalog] = await Promise.all([
-    resolvePageContent("blog", locale),
-    listBlogPostsFromCms(locale),
+    loadBlogArchivePage(locale),
+    loadBlogPosts(locale),
     getBlogCatalog(),
   ])
   const { featured, rest } = archivePostsFromList(posts, filter)

@@ -404,9 +404,12 @@ export async function getRelatedRoutes(
   limit = 3,
   locale?: string | null,
 ): Promise<TransferRoute[]> {
-  const { listCmsTransferSlugs } = await import("@/lib/transfers/cms")
-  const current = await getRouteData(slug, locale)
-  const preferred = current?.relatedSlugs ?? getTransferSeed(slug)?.relatedSlugs ?? []
+  const { listCmsTransferSlugs, resolveTransferSeed } = await import(
+    "@/lib/transfers/cms"
+  )
+  const currentSeed = await resolveTransferSeed(slug, locale)
+  const preferred =
+    currentSeed?.relatedSlugs ?? getTransferSeed(slug)?.relatedSlugs ?? []
   const cmsSlugs = await listCmsTransferSlugs()
   const all = [
     ...new Set([
