@@ -990,7 +990,7 @@ function assembleDestinationPage(
     const hero = destinationHeroImage(document)
     return {
       slug: def.slug,
-      locale: DEFAULT_LOCALE,
+      locale,
       label: def.label,
       title: def.defaults.title,
       description: def.defaults.description,
@@ -1088,7 +1088,7 @@ export async function resolvePageContent(
     if (isCustomBlog) return null
     return {
       slug: def.slug,
-      locale: DEFAULT_LOCALE,
+      locale,
       label: def.label,
       title: def.defaults.title,
       description: def.defaults.description,
