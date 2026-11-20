@@ -15,12 +15,12 @@ import { getSettings, isSearchIndexingEnabled } from "@/lib/settings"
 import "./globals.css"
 
 const inter = Inter({
-  subsets: ["latin"],
+  subsets: ["latin", "latin-ext", "cyrillic"],
   variable: "--font-inter",
   display: "swap",
 })
 const jetbrainsMono = JetBrains_Mono({
-  subsets: ["latin"],
+  subsets: ["latin", "latin-ext", "cyrillic"],
   variable: "--font-jetbrains-mono",
   display: "swap",
 })
@@ -31,7 +31,7 @@ const jetbrainsMono = JetBrains_Mono({
  * (homepage + /book), not admin.
  */
 const museoSans = Mulish({
-  subsets: ["latin"],
+  subsets: ["latin", "latin-ext", "cyrillic"],
   weight: ["500", "600", "700", "800"],
   variable: "--font-museo-sans",
   display: "swap",

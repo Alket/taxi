@@ -25,7 +25,7 @@ This document contains every technical SEO, multilingual (`hreflang`/canonical),
 - [x] **Task 12 (P2):** Add `robots: { index: false, follow: false }` metadata to transactional and staff routes (`/book/confirmation/[referenceCode]`, `/book/continue/[referenceCode]`, `/review`, `/admin`, `/driver`) and add corresponding `Disallow` rules in `app/robots.ts`.
 
 ### Priority 3 — Core Web Vitals, TTFB, Font Subsets & Security Hygiene
-- [ ] **Task 13 (P3):** Add `"latin-ext"` and `"cyrillic"` Google Font subsets in `app/layout.tsx` for Polish, Turkish, Albanian, Ukrainian, and Russian glyph rendering without fallback CLS.
+- [x] **Task 13 (P3):** Add `"latin-ext"` and `"cyrillic"` Google Font subsets in `app/layout.tsx` for Polish, Turkish, Albanian, Ukrainian, and Russian glyph rendering without fallback CLS.
 - [ ] **Task 14 (P3):** Wrap server data loaders (`resolvePageContent`, `resolveDestinationCards`, `resolveDestinationPage`, `getRouteData`, `getBlogPostFromCms`) in React `cache()` to eliminate 2×–3× duplicate Prisma queries per request.
 - [ ] **Task 15 (P3):** Remove `priority` (`fetchPriority="high"`) from below-the-fold `DestinationCard` images and preloader logos, and replace raw `<img>` tags on legal pages and attraction cards with `next/image`.
 - [ ] **Task 16 (P3):** Server-render initial customer reviews / testimonials (or reserve layout height) to eliminate client-side `useSWR` layout shift and expose review copy to search engine crawlers, and scope Trustpilot `<head>` scripts away from `/admin` and `/driver`.
