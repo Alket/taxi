@@ -15,6 +15,7 @@ import {
   localePath,
   localizedAlternates,
 } from "@/lib/i18n/locales"
+import { t } from "@/lib/i18n/t"
 import { getAppBaseUrl } from "@/lib/mail"
 import {
   blogArchiveCopyFromSections,
@@ -126,8 +127,8 @@ export default async function BlogArchivePage({ searchParams }: PageProps) {
     <>
       <JsonLd
         data={buildBreadcrumbJsonLd([
-          { name: "Home", url: localePath("/", locale) },
-          { name: "Blog", url: blogPath },
+          { name: t(locale, "nav.home") || "Home", url: localePath("/", locale) },
+          { name: t(locale, "nav.blog") || "Blog", url: blogPath },
         ])}
       />
       <BlogArchive

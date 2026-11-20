@@ -91,7 +91,7 @@ export default async function HomePage() {
   )
 
   const localBusinessJsonLd = buildLocalBusinessJsonLd({
-    name: settings?.companyName || "Albania Transfers",
+    name: settings?.companyName || "Landed Albania",
     description: page?.description,
     telephone: settings?.supportPhone || undefined,
     email: settings?.supportEmail || undefined,

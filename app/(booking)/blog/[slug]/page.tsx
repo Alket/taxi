@@ -17,6 +17,7 @@ import {
   localePath,
   localizedAlternates,
 } from "@/lib/i18n/locales"
+import { t } from "@/lib/i18n/t"
 import { getAppBaseUrl } from "@/lib/mail"
 import {
   getBlogPostFromCms,
@@ -134,8 +135,8 @@ export default async function BlogPostPage({ params }: PageProps) {
       />
       <JsonLd
         data={buildBreadcrumbJsonLd([
-          { name: "Home", url: localePath("/", locale) },
-          { name: "Blog", url: localePath("/blog", locale) },
+          { name: t(locale, "nav.home") || "Home", url: localePath("/", locale) },
+          { name: t(locale, "nav.blog") || "Blog", url: localePath("/blog", locale) },
           {
             name: categoryLabel,
             url: localePath(`/blog?category=${post.category}`, locale),
