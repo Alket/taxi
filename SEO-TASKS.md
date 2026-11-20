@@ -29,7 +29,7 @@ This document contains every technical SEO, multilingual (`hreflang`/canonical),
 - [x] **Task 14 (P3):** Wrap server data loaders (`resolvePageContent`, `resolveDestinationCards`, `resolveDestinationPage`, `getRouteData`, `getBlogPostFromCms`) in React `cache()` to eliminate 2×–3× duplicate Prisma queries per request.
 - [x] **Task 15 (P3):** Remove `priority` (`fetchPriority="high"`) from below-the-fold `DestinationCard` images and preloader logos, and replace raw `<img>` tags on legal pages and attraction cards with `next/image`.
 - [x] **Task 16 (P3):** Server-render initial customer reviews / testimonials (or reserve layout height) to eliminate client-side `useSWR` layout shift and expose review copy to search engine crawlers, and scope Trustpilot `<head>` scripts away from `/admin` and `/driver`.
-- [ ] **Task 17 (P3):** Rotate and remove plaintext credentials/secrets from `.env` and ensure production secrets (`JWT_SECRET`, `CRON_SECRET`, `SMTP_PASS`, `DATABASE_URL`, `VAPID_PRIVATE_KEY`) are managed exclusively via environment secret injection.
+- [x] **Task 17 (P3):** Rotate and remove plaintext credentials/secrets from `.env` and ensure production secrets (`JWT_SECRET`, `CRON_SECRET`, `SMTP_PASS`, `DATABASE_URL`, `VAPID_PRIVATE_KEY`) are managed exclusively via environment secret injection.
 
 ---
 
