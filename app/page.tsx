@@ -38,13 +38,17 @@ export async function generateMetadata({
   const hasDestinationPrefill = Boolean(destination?.trim())
   const page = await loadHomeContent(locale)
 
-  const home = homeSearchCopy(locale)
-  const title = searchTitle(home.heading)
+  // Admin Pages → home → SEO Title/Description per language is the source of
+  // truth. Code copy is only used when those fields are empty.
+  const fallback = homeSearchCopy(locale)
+  const description =
+    page?.description?.trim() || fallback.description
+  const title = searchTitle(page?.title?.trim() || fallback.heading)
   const base: Metadata = page
     ? pageMetadataFields(page)
     : {
         title,
-        description: home.description,
+        description,
         alternates: localizedAlternates("/", locale),
       }
 
@@ -54,16 +58,16 @@ export async function generateMetadata({
   return {
     ...base,
     title,
-    description: home.description,
+    description,
     openGraph: {
       ...base.openGraph,
       title: title.absolute,
-      description: home.description,
+      description,
     },
     twitter: {
       ...base.twitter,
       title: title.absolute,
-      description: home.description,
+      description,
     },
     // Same page as the clean homepage. rel=canonical consolidates it;
     // noindex would drop the signals instead of passing them on.
