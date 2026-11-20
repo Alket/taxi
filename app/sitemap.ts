@@ -5,7 +5,7 @@ import { DESTINATION_SLUG_ALIASES } from "@/lib/destinations"
 import { getAppBaseUrl } from "@/lib/mail"
 import { LOCALES, localePath } from "@/lib/i18n/locales"
 import { listAdminPages, resolveDestinationCards } from "@/lib/page-content"
-import { getSettings } from "@/lib/settings"
+import { isSearchIndexingEnabled } from "@/lib/settings"
 
 /**
  * Sitemap locs must be the URL the page itself declares as canonical.
@@ -34,13 +34,7 @@ export const dynamic = "force-dynamic"
  * explicitly here.
  */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  let indexingEnabled = false
-  try {
-    const settings = await getSettings()
-    indexingEnabled = settings.searchIndexingEnabled === true
-  } catch {
-    indexingEnabled = false
-  }
+  const indexingEnabled = await isSearchIndexingEnabled()
 
   // Keep the sitemap empty (rather than erroring) when indexing is disabled —
   // robots.txt already disallows crawling in that case.

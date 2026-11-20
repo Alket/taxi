@@ -11,7 +11,7 @@ import { TrustpilotWidgetBootstrap } from "@/components/marketing/trustpilot-wid
 import { getRequestLocale } from "@/lib/i18n/get-locale"
 import { getAppBaseUrl } from "@/lib/mail"
 import { DEFAULT_OG_IMAGE } from "@/lib/page-content"
-import { getSettings } from "@/lib/settings"
+import { getSettings, isSearchIndexingEnabled } from "@/lib/settings"
 import "./globals.css"
 
 const inter = Inter({
@@ -61,12 +61,7 @@ async function resolveFaviconUrl() {
 }
 
 async function resolveSearchIndexingEnabled() {
-  try {
-    const settings = await getSettings()
-    return settings.searchIndexingEnabled === true
-  } catch {
-    return false
-  }
+  return isSearchIndexingEnabled()
 }
 
 async function resolveGtmContainerId() {
