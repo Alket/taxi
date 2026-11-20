@@ -19,7 +19,7 @@ This document contains every technical SEO, multilingual (`hreflang`/canonical),
 - [x] **Task 8 (P1):** Replace the competitor-hosted `DEFAULT_OG_IMAGE` (`welcomepickups.com`) with a first-party image, fix the root fallback brand/description in `app/layout.tsx`, and add `generateMetadata()` / `openGraph.locale` across public routes (`/book`, `/blog`, etc.).
 
 ### Priority 2 — Structured Data (JSON-LD), Semantic Headings & Crawl Hygiene
-- [ ] **Task 9 (P2):** Add missing `FAQPage` and `Service` (`Offer`) JSON-LD to Destination pages (`app/(booking)/destinations/[slug]/page.tsx`).
+- [x] **Task 9 (P2):** Add missing `FAQPage` and `Service` (`Offer`) JSON-LD to Destination pages (`app/(booking)/destinations/[slug]/page.tsx`).
 - [ ] **Task 10 (P2):** Convert relative image paths (`/uploads/...`) to absolute URLs in `LocalBusiness` and `TouristDestination` JSON-LD (`lib/structured-data.ts`), fix the homepage `LocalBusiness` fallback name, and localize `"Home"` / `"Blog"` breadcrumb labels on `/blog` and `/blog/[slug]`.
 - [ ] **Task 11 (P2):** Fix heading hierarchy: replace the homepage `sr-only` `<h1>` + duplicate `<p aria-hidden>` hero blocks with a single visible `<h1>` (`components/marketing/home-landing.tsx`), and wrap FAQ question buttons in `<h3>` inside `components/marketing/blog/blog-faq.tsx`.
 - [ ] **Task 12 (P2):** Add `robots: { index: false, follow: false }` metadata to transactional and staff routes (`/book/confirmation/[referenceCode]`, `/book/continue/[referenceCode]`, `/review`, `/admin`, `/driver`) and add corresponding `Disallow` rules in `app/robots.ts`.

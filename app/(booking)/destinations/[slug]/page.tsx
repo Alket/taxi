@@ -39,6 +39,8 @@ import { getSettings } from "@/lib/settings"
 import { destinationSearchCopy, searchTitle } from "@/lib/seo/search-meta"
 import {
   buildBreadcrumbJsonLd,
+  buildFaqPageJsonLd,
+  buildServiceJsonLd,
   buildTouristDestinationJsonLd,
 } from "@/lib/structured-data"
 
@@ -269,6 +271,19 @@ export default async function DestinationPage({ params }: PageProps) {
         question: item.question,
         answer: item.answer,
       })) ?? []
+  const faqJsonLd = buildFaqPageJsonLd(faqItems)
+  const numericPrice = Number(String(priceFrom).replace(/[^\d.]/g, ""))
+  const serviceJsonLd =
+    Number.isFinite(numericPrice) && numericPrice > 0
+      ? buildServiceJsonLd({
+          name: pageHeading,
+          description,
+          url: localePath(`/destinations/${publicSlug}`, locale),
+          priceEur: numericPrice,
+          currency: meta.priceCurrency || "EUR",
+          providerName: settings?.companyName || "Landed Albania",
+        })
+      : null
 
   const transferLink = resolveDestinationTransferLink(destination.id, meta)
 
@@ -276,6 +291,8 @@ export default async function DestinationPage({ params }: PageProps) {
     <>
       <JsonLd data={breadcrumbJsonLd} />
       <JsonLd data={touristDestinationJsonLd} />
+      {serviceJsonLd ? <JsonLd data={serviceJsonLd} /> : null}
+      {faqJsonLd ? <JsonLd data={faqJsonLd} /> : null}
       {document.sections.map((section) => {
         switch (section.type) {
           case "hero":
