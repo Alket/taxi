@@ -13,6 +13,7 @@ import {
   resolvePageContent,
 } from "@/lib/page-content"
 import { listPublicReviews } from "@/lib/reviews"
+import { hasCookieConsentDecision } from "@/lib/cookie-consent-server"
 import { getSettings } from "@/lib/settings"
 import { homeSearchCopy, searchTitle } from "@/lib/seo/search-meta"
 import {
@@ -81,12 +82,14 @@ export async function generateMetadata({
 
 export default async function HomePage() {
   const locale = await getRequestLocale()
-  const [page, destinations, settings, initialReviews] = await Promise.all([
-    loadHomeContent(locale),
-    resolveDestinationCards(locale, { featuredOnly: true }),
-    getSettings().catch(() => null),
-    listPublicReviews({ limit: 6 }).catch(() => []),
-  ])
+  const [page, destinations, settings, initialReviews, initialConsent] =
+    await Promise.all([
+      loadHomeContent(locale),
+      resolveDestinationCards(locale, { featuredOnly: true }),
+      getSettings().catch(() => null),
+      listPublicReviews({ limit: 6 }).catch(() => []),
+      hasCookieConsentDecision(),
+    ])
   const copy = await resolveHomeMarketingCopy(
     page?.sections ?? [],
     page?.ogImage,
@@ -118,6 +121,7 @@ export default async function HomePage() {
           settings?.trustpilotTestimonialsVisibleOnSite ?? false
         }
         initialReviews={initialReviews}
+        initialConsent={initialConsent}
       />
     </>
   )

@@ -54,6 +54,7 @@ export function HomeLanding({
   showCustomerReviews = true,
   showTrustpilotTestimonials = false,
   initialReviews,
+  initialConsent = false,
 }: {
   copy: HomeMarketingCopy
   destinations: Destination[]
@@ -61,6 +62,7 @@ export function HomeLanding({
   showCustomerReviews?: boolean
   showTrustpilotTestimonials?: boolean
   initialReviews?: PublicReviewItem[]
+  initialConsent?: boolean
 }) {
   useEffect(() => {
     const id = window.location.hash.replace(/^#/, "")
@@ -168,7 +170,7 @@ export function HomeLanding({
       </MarketingPageEnter>
 
       {footer}
-      <CookieConsentBanner />
+      <CookieConsentBanner initialConsent={initialConsent} />
     </div>
   )
 }
