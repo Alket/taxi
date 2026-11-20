@@ -15,7 +15,7 @@ This document contains every technical SEO, multilingual (`hreflang`/canonical),
 ### Priority 1 — High-Impact On-Page & International SEO (`EN, IT, DE, PL, TR, UK, RU`)
 - [x] **Task 5 (P1):** Respect Admin CMS SEO Title, Meta Description, and Hero `H1` overrides on Destination (`/destinations/[slug]`) and Transfer (`/transfers/[slug]`) pages instead of unconditionally overriding them with hardcoded templates.
 - [x] **Task 6 (P1):** Stop publishing 7-language `hreflang` clusters and self-referential localized canonicals on untranslated pages (`/blog/[slug]`, `/transfers/[slug]`, legal pages) by using `englishOnlyAlternates()` when `hasLocaleRow` is `false`.
-- [ ] **Task 7 (P1):** Stop listing untranslated locale URLs in `app/sitemap.ts` and replace dynamic `new Date()` `<lastmod>` timestamps with real content modification dates.
+- [x] **Task 7 (P1):** Stop listing untranslated locale URLs in `app/sitemap.ts` and replace dynamic `new Date()` `<lastmod>` timestamps with real content modification dates.
 - [ ] **Task 8 (P1):** Replace the competitor-hosted `DEFAULT_OG_IMAGE` (`welcomepickups.com`) with a first-party image, fix the root fallback brand/description in `app/layout.tsx`, and add `generateMetadata()` / `openGraph.locale` across public routes (`/book`, `/blog`, etc.).
 
 ### Priority 2 — Structured Data (JSON-LD), Semantic Headings & Crawl Hygiene
