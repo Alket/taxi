@@ -17,6 +17,8 @@ import { sanitizeSvgMarkup } from "@/lib/sanitize-svg"
 const MAX_BYTES = 5 * 1024 * 1024
 const MAX_SVG_BYTES = 512 * 1024
 const MAX_META_CHARS = 500
+const MAX_RASTER_WIDTH = 1600
+const WEBP_QUALITY = 82
 const ALLOWED = new Map([
   ["image/jpeg", "jpg"],
   ["image/png", "png"],
@@ -24,6 +26,34 @@ const ALLOWED = new Map([
   ["image/gif", "gif"],
   ["image/svg+xml", "svg"],
 ])
+
+/**
+ * Downscale oversized raster uploads (max 1600px wide) and encode as WebP so
+ * marketing pages don't have to re-encode 2+ MB source JPEGs on the fly.
+ * Fails gracefully to the original buffer if sharp is unavailable.
+ */
+async function optimizeRasterUpload(
+  input: Buffer,
+  ext: string,
+): Promise<{ buffer: Buffer; ext: string; mimeType: string } | null> {
+  if (ext !== "jpg" && ext !== "png" && ext !== "webp") return null
+  try {
+    const sharpModule = await import("sharp")
+    const sharp = sharpModule.default
+    const optimized = await sharp(input, { failOn: "none" })
+      .rotate()
+      .resize({ width: MAX_RASTER_WIDTH, withoutEnlargement: true })
+      .webp({ quality: WEBP_QUALITY, effort: 4 })
+      .toBuffer()
+    // Only replace if the optimized WebP is actually smaller (or needed downscaling).
+    if (optimized.length > 0 && (optimized.length < input.length || ext !== "webp")) {
+      return { buffer: optimized, ext: "webp", mimeType: "image/webp" }
+    }
+    return null
+  } catch {
+    return null
+  }
+}
 
 function resolveExt(file: File): string | null {
   const byType = ALLOWED.get(file.type)
@@ -74,7 +104,10 @@ export async function POST(request: Request) {
     )
   }
 
-  let buffer = Buffer.from(await file.arrayBuffer())
+  let buffer: Buffer = Buffer.from(await file.arrayBuffer())
+  let finalExt = ext
+  let optimizedMime: string | null = null
+
   if (ext === "svg") {
     try {
       const sanitized = sanitizeSvgMarkup(buffer.toString("utf8"))
@@ -85,13 +118,20 @@ export async function POST(request: Request) {
         { status: 400 },
       )
     }
+  } else {
+    const optimized = await optimizeRasterUpload(buffer, ext)
+    if (optimized) {
+      buffer = optimized.buffer
+      finalExt = optimized.ext
+      optimizedMime = optimized.mimeType
+    }
   }
 
-  const storedName = await allocateStoredFilename(file.name, ext)
+  const storedName = await allocateStoredFilename(file.name, finalExt)
   await writeFile(path.join(MEDIA_UPLOAD_DIR, storedName), buffer)
 
   const url = `${MEDIA_URL_PREFIX}/${storedName}`
-  const displayName = originalFilenameForDisplay(file.name, ext)
+  const displayName = originalFilenameForDisplay(file.name, finalExt)
   const title =
     formString(form, "title") ||
     titleFromFilename(file.name) ||
@@ -99,7 +139,8 @@ export async function POST(request: Request) {
     "Untitled image"
   const description = formString(form, "description")
   const alt = formString(form, "alt")
-  const mimeType = file.type || ALLOWED.get(`image/${ext}`) || ""
+  const mimeType =
+    optimizedMime || file.type || ALLOWED.get(`image/${finalExt}`) || ""
 
   const asset = await prisma.mediaAsset.create({
     data: {
@@ -107,7 +148,9 @@ export async function POST(request: Request) {
       filename: displayName,
       mimeType:
         mimeType ||
-        (ext === "jpg" ? "image/jpeg" : `image/${ext === "svg" ? "svg+xml" : ext}`),
+        (finalExt === "jpg"
+          ? "image/jpeg"
+          : `image/${finalExt === "svg" ? "svg+xml" : finalExt}`),
       sizeBytes: buffer.length,
       title,
       description,

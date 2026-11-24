@@ -2,11 +2,11 @@
 set -eu
 
 UPLOAD_ROOT="${UPLOAD_DIR:-/app/public/uploads/pages}"
-mkdir -p "$UPLOAD_ROOT"
+mkdir -p "$UPLOAD_ROOT" /app/.next/cache/images
 
 # Named Docker volumes are often root-owned; fix before dropping privileges.
 if [ "$(id -u)" = "0" ]; then
-  chown -R nextjs:nodejs /app/public/uploads 2>/dev/null || true
+  chown -R nextjs:nodejs /app/public/uploads /app/.next/cache 2>/dev/null || true
   chown -R nextjs:nodejs "$UPLOAD_ROOT" 2>/dev/null || true
   exec runuser -u nextjs -- "$0" "$@"
 fi

@@ -37,8 +37,9 @@ services:
     ports:
       - "${APP_PORT:-3000}:3000"
     volumes:
-      # Persist admin media uploads across rebuilds/restarts.
+      # Persist admin media uploads and Next.js optimized image cache across rebuilds.
       - taxi_uploads:/app/public/uploads
+      - taxi_image_cache:/app/.next/cache/images
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-taxi}?schema=public
@@ -68,3 +69,4 @@ services:
 volumes:
   taxi_pg_data:
   taxi_uploads:
+  taxi_image_cache:
