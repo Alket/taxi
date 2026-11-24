@@ -160,11 +160,11 @@ export default async function RootLayout({
       <head>
         {/* Trustpilot asks for the invitejs register snippet in <head> on every page */}
         <TrustpilotInviteBootstrap integrationKey={trustpilotKey} />
-        {/* TrustBox widget bootstrap (Review Collector, etc.) */}
-        <TrustpilotWidgetBootstrap />
       </head>
       <body className="font-sans antialiased">
         <GoogleTagManager containerId={gtmContainerId} />
+        {/* TrustBox widget bootstrap (Review Collector, etc.) */}
+        <TrustpilotWidgetBootstrap />
         <AppThemeProvider>
           <TooltipProvider>{children}</TooltipProvider>
           <Toaster richColors position="top-right" />

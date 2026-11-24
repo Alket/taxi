@@ -28,14 +28,34 @@ export function TrustpilotReviewCollector({
   heightPx?: number
 }) {
   const hostRef = useRef<HTMLDivElement>(null)
-  const [mounted, setMounted] = useState(false)
+  const [visible, setVisible] = useState(false)
 
+  // Only initialize when actually visible in the active breakpoint (avoids
+  // mounting a second hidden iframe when rendered in both mobile & desktop hero).
   useEffect(() => {
-    setMounted(true)
+    const host = hostRef.current
+    if (!host) return
+
+    if (typeof IntersectionObserver === "undefined") {
+      setVisible(true)
+      return
+    }
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setVisible(true)
+          io.disconnect()
+        }
+      },
+      { rootMargin: "100px" },
+    )
+    io.observe(host)
+    return () => io.disconnect()
   }, [])
 
   useEffect(() => {
-    if (!mounted) return
+    if (!visible) return
     const host = hostRef.current
     if (!host) return
 
@@ -79,25 +99,45 @@ export function TrustpilotReviewCollector({
       return true
     }
 
+    let pinned = false
+    const observer = new MutationObserver(() => {
+      if (pinIframeLeft()) {
+        pinned = true
+        observer.disconnect()
+      }
+    })
+    observer.observe(widget, { childList: true, subtree: true })
+
     const load = () => {
-      window.Trustpilot?.loadFromElement(widget, true)
-      pinIframeLeft()
+      if (pinned || widget.querySelector("iframe")) {
+        if (pinIframeLeft()) {
+          pinned = true
+          observer.disconnect()
+        }
+        return
+      }
+      if (window.Trustpilot?.loadFromElement) {
+        window.Trustpilot.loadFromElement(widget, true)
+        if (pinIframeLeft()) {
+          pinned = true
+          observer.disconnect()
+        }
+      }
     }
+
     load()
     const t1 = window.setTimeout(load, 500)
     const t2 = window.setTimeout(load, 1500)
-    const observer = new MutationObserver(() => {
-      pinIframeLeft()
-    })
-    observer.observe(widget, { childList: true, subtree: true })
+    const t3 = window.setTimeout(load, 3000)
 
     return () => {
       window.clearTimeout(t1)
       window.clearTimeout(t2)
+      window.clearTimeout(t3)
       observer.disconnect()
       host.replaceChildren()
     }
-  }, [mounted, widthPx, heightPx])
+  }, [visible, widthPx, heightPx])
 
   return (
     <div
@@ -111,7 +151,7 @@ export function TrustpilotReviewCollector({
         justifyContent: "flex-start",
         marginRight: "auto",
       }}
-      aria-hidden={!mounted}
+      aria-hidden={!visible}
     />
   )
 }

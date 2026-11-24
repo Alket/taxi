@@ -1,13 +1,15 @@
+import Script from "next/script"
+
 /**
  * Trustpilot TrustBox bootstrap (widgets). Distinct from invitejs.
- * Loaded in <head> so TrustBoxes on the page can render.
+ * Deferred via lazyOnload so it does not compete with LCP on mobile.
  */
 export function TrustpilotWidgetBootstrap() {
   return (
-    <script
-      type="text/javascript"
+    <Script
+      id="trustpilot-widget-bootstrap"
       src="https://widget.trustpilot.com/bootstrap/v5/tp.widget.bootstrap.min.js"
-      async
+      strategy="lazyOnload"
     />
   )
 }

@@ -136,7 +136,7 @@ export function DestinationsSection({
           emblaRef={emblaRef}
           viewportClassName="py-4 -my-4 px-1 -mx-1"
         >
-          {destinations.map((destination, index) => (
+          {destinations.map((destination) => (
             <div
               key={destination.id}
               className={cn(
@@ -144,7 +144,7 @@ export function DestinationsSection({
                 "flex h-auto max-[749px]:flex-[0_0_88%]",
               )}
             >
-              <DestinationCard destination={destination} priority={index < 2} />
+              <DestinationCard destination={destination} />
             </div>
           ))}
         </MarketingCarousel>

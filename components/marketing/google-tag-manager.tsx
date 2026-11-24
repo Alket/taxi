@@ -127,7 +127,11 @@ export function GoogleTagManager({
 
   return (
     <>
-      <Script id="google-tag-manager" strategy="afterInteractive">
+      <Script
+        id="google-tag-manager"
+        strategy="lazyOnload"
+        onReady={() => applyGoogleConsentUpdate(getCookieConsentSnapshot())}
+      >
         {bootstrap}
       </Script>
       <noscript>

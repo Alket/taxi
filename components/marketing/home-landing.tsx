@@ -1,25 +1,36 @@
-"use client"
-
-import { Suspense, useEffect, type ReactNode } from "react"
+import { Suspense, type ReactNode } from "react"
+import dynamic from "next/dynamic"
 import Image from "next/image"
 
 import { ComparisonSection } from "@/components/marketing/comparison-section"
 import { CookieConsentBanner } from "@/components/marketing/cookie-consent-banner"
-import { DestinationsSection } from "@/components/marketing/destinations-section"
-import { FaqSection } from "@/components/marketing/faq-section"
 import { HeroBookingCard } from "@/components/marketing/hero-booking-card"
+import { InitialHashScroll } from "@/components/marketing/initial-hash-scroll"
 import { MarketingContainer } from "@/components/marketing/marketing-container"
 import { TrustpilotReviewCollector } from "@/components/marketing/trustpilot-review-collector"
 import { MarketingPageEnter } from "@/components/marketing/marketing-page-enter"
 import { MarketingPreloader } from "@/components/marketing/marketing-preloader"
 import { PeaceOfMindSection } from "@/components/marketing/peace-of-mind-section"
 import { SiteHeader } from "@/components/marketing/site-header"
-import { TestimonialsSection } from "@/components/marketing/testimonials-section"
 import { UberAltSection } from "@/components/marketing/uber-alt-section"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { Destination } from "@/lib/destinations"
+import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/locales"
 import type { HomeMarketingCopy } from "@/lib/page-content-shared"
-import { scrollToHashId } from "@/lib/smooth-hash-scroll"
+
+const DestinationsSection = dynamic(() =>
+  import("@/components/marketing/destinations-section").then(
+    (m) => m.DestinationsSection,
+  ),
+)
+const TestimonialsSection = dynamic(() =>
+  import("@/components/marketing/testimonials-section").then(
+    (m) => m.TestimonialsSection,
+  ),
+)
+const FaqSection = dynamic(() =>
+  import("@/components/marketing/faq-section").then((m) => m.FaqSection),
+)
 
 function HeroBookingFallback() {
   return (
@@ -50,26 +61,20 @@ export function HomeLanding({
   copy,
   destinations,
   footer,
+  locale = DEFAULT_LOCALE,
   showCustomerReviews = true,
   showTrustpilotTestimonials = false,
 }: {
   copy: HomeMarketingCopy
   destinations: Destination[]
   footer?: ReactNode
+  locale?: Locale
   showCustomerReviews?: boolean
   showTrustpilotTestimonials?: boolean
 }) {
-  useEffect(() => {
-    const id = window.location.hash.replace(/^#/, "")
-    if (!id) return
-    const frame = window.requestAnimationFrame(() => {
-      scrollToHashId(id, { updateUrl: false })
-    })
-    return () => window.cancelAnimationFrame(frame)
-  }, [])
-
   return (
     <div className="brand-frontend min-h-svh bg-white font-brand text-brand antialiased">
+      <InitialHashScroll />
       <MarketingPreloader scope="home" />
       <style>{`
         @keyframes home-fade-up {
@@ -115,7 +120,7 @@ export function HomeLanding({
           <h1 className="sr-only">{copy.hero.heading.replace(/\n/g, " ")}</h1>
 
           {/* Mobile: shorter image + overlapping form. Desktop: full-viewport hero (6rem offsets -mt-24). */}
-          <div className="home-hero-bg relative h-[65svh] min-h-[22rem] sm:h-[70svh] md:absolute md:inset-0 md:h-auto md:min-h-0">
+          <div className="relative h-[65svh] min-h-[22rem] sm:h-[70svh] md:absolute md:inset-0 md:h-auto md:min-h-0">
             <Image
               src={copy.hero.image}
               alt={copy.hero.imageAlt || "Albania private airport transfer"}
@@ -182,7 +187,7 @@ export function HomeLanding({
           destinations={destinations}
         />
 
-        <ComparisonSection copy={copy.compare} />
+        <ComparisonSection copy={copy.compare} locale={locale} />
 
         <PeaceOfMindSection copy={copy.peace} />
 

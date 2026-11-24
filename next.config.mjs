@@ -7,6 +7,7 @@ const nextConfig = {
   // Allow the app to be reached via ngrok during local PayPal testing.
   allowedDevOrigins: ["wriggle-dollhouse-unhidden.ngrok-free.dev"],
   images: {
+    formats: ["image/avif", "image/webp"],
     // Local /uploads/* are same-origin. External CMS heroes are limited to
     // hosts we actually use — not a wildcard HTTPS allowlist.
     remotePatterns: [

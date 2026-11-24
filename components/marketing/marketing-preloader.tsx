@@ -112,9 +112,10 @@ export function MarketingPreloader({
 }) {
   const pathname = usePathname()
   const [visible, setVisible] = useState(() => {
+    // Never block initial homepage LCP paint with a full-screen cover.
+    if (scope === "home") return false
     // Path-based skips must match SSR and client to avoid hydration mismatch.
     if (scope === "booking" && isBookingConfirmationPath(pathname)) return false
-    if (scope === "home" && !isHomePathname(pathname)) return false
     if (scope === "booking" && isHomePathname(pathname)) return false
     // Handoff uses sessionStorage — client-only; keep SSR/client aligned by
     // defaulting visible and letting the effect hide after mount when handoff.
@@ -138,7 +139,8 @@ export function MarketingPreloader({
     timers.current = []
 
     const onHome = isHomePathname(pathname)
-    if (scope === "home" && !onHome) {
+    if (scope === "home") {
+      isFirst.current = false
       setVisible(false)
       setLeaving(false)
       return

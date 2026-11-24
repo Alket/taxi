@@ -40,7 +40,7 @@ export function DestinationCard({
           fill
           priority={priority}
           fetchPriority={priority ? "high" : "auto"}
-          sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+          sizes="(min-width: 1200px) 384px, (min-width: 750px) 46vw, 340px"
           className="object-cover transition-transform duration-700 ease-out [@media(hover:hover)]:group-hover:scale-105"
         />
         <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-black/30 to-transparent" />

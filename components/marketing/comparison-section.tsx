@@ -1,15 +1,13 @@
-"use client"
-
 import { ArrowRight, CheckIcon, XIcon } from "lucide-react"
 
+import { HashLink } from "@/components/marketing/hash-link"
 import {
   MarketingContainer,
   MARKETING_SECTION_TITLE,
 } from "@/components/marketing/marketing-container"
-import { useLocale } from "@/lib/i18n/use-locale"
+import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/locales"
 import { t } from "@/lib/i18n/t"
 import type { HomeCompareColumn } from "@/lib/page-content-shared"
-import { scrollToHashId } from "@/lib/smooth-hash-scroll"
 import { cn } from "@/lib/utils"
 
 type CompareCopy = {
@@ -19,8 +17,13 @@ type CompareCopy = {
   columns: HomeCompareColumn[]
 }
 
-function CompareCard({ column }: { column: HomeCompareColumn }) {
-  const locale = useLocale()
+function CompareCard({
+  column,
+  locale,
+}: {
+  column: HomeCompareColumn
+  locale: Locale
+}) {
   const isPremium = column.tone === "positive"
 
   return (
@@ -104,21 +107,26 @@ function CompareCard({ column }: { column: HomeCompareColumn }) {
 
       {isPremium ? (
         <div className="mt-8 border-t border-white/20 pt-5">
-          <button
-            type="button"
-            onClick={() => scrollToHashId("book")}
+          <HashLink
+            href="#book"
             className="group flex w-full items-center justify-center gap-2 rounded-full bg-white py-3.5 text-sm font-extrabold text-brand-accent shadow-sm transition-all duration-200 hover:bg-white/95 hover:shadow-md active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-accent"
           >
             <span>{t(locale, "cta.bookTransfer")}</span>
             <ArrowRight className="size-4 transition-transform duration-200 group-hover:translate-x-1" aria-hidden />
-          </button>
+          </HashLink>
         </div>
       ) : null}
     </article>
   )
 }
 
-export function ComparisonSection({ copy }: { copy: CompareCopy }) {
+export function ComparisonSection({
+  copy,
+  locale = DEFAULT_LOCALE,
+}: {
+  copy: CompareCopy
+  locale?: Locale
+}) {
   if (!copy.heading) return null
 
   return (
@@ -146,7 +154,7 @@ export function ComparisonSection({ copy }: { copy: CompareCopy }) {
 
         <div className="grid grid-cols-1 items-stretch gap-6 md:grid-cols-3 lg:gap-7">
           {copy.columns.map((column) => (
-            <CompareCard key={column.title} column={column} />
+            <CompareCard key={column.title} column={column} locale={locale} />
           ))}
         </div>
       </MarketingContainer>

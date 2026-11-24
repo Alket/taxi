@@ -1,5 +1,3 @@
-"use client"
-
 import Image from "next/image"
 import {
   ArrowRightIcon,
@@ -10,11 +8,11 @@ import {
   type LucideIcon,
 } from "lucide-react"
 
+import { HashLink } from "@/components/marketing/hash-link"
 import {
   MarketingContainer,
   MARKETING_SECTION_TITLE,
 } from "@/components/marketing/marketing-container"
-import { scrollToHashId } from "@/lib/smooth-hash-scroll"
 import { cn } from "@/lib/utils"
 
 type UberAltFeature = {
@@ -162,9 +160,8 @@ export function UberAltSection({ copy }: { copy: UberAltCopy }) {
 
             {copy.cta ? (
               <div>
-                <button
-                  type="button"
-                  onClick={() => scrollToHashId("book")}
+                <HashLink
+                  href="#book"
                   className={cn(
                     "group inline-flex min-h-12 w-full items-center justify-center gap-2.5 rounded-full bg-brand-accent px-8 py-4 text-base font-extrabold text-white shadow-sm sm:w-auto",
                     "transition-all duration-200 active:scale-[0.98]",
@@ -178,7 +175,7 @@ export function UberAltSection({ copy }: { copy: UberAltCopy }) {
                     strokeWidth={2.5}
                     aria-hidden
                   />
-                </button>
+                </HashLink>
               </div>
             ) : null}
           </div>
