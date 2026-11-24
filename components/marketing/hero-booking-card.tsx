@@ -823,7 +823,7 @@ export function HeroBookingCard() {
                   onChange={onFromChange}
                   anchor={fromRowAnchor}
                   mobileSheet
-                  sheetTitle={tr("book.chooseDestination")}
+                  sheetTitle={tr("book.fromPlaceholder")}
                   open={fromOpen}
                   onOpenChange={setFromOpen}
                   onAfterSelect={() => afterPlaceSelect("from")}
