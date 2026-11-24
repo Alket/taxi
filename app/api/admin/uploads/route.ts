@@ -18,6 +18,7 @@ const MAX_BYTES = 5 * 1024 * 1024
 const MAX_SVG_BYTES = 512 * 1024
 const MAX_META_CHARS = 500
 const MAX_RASTER_WIDTH = 1600
+const MAX_INPUT_PIXELS = 40_000_000
 const WEBP_QUALITY = 82
 const ALLOWED = new Map([
   ["image/jpeg", "jpg"],
@@ -27,31 +28,42 @@ const ALLOWED = new Map([
   ["image/svg+xml", "svg"],
 ])
 
+type RasterOptimizeResult =
+  | { status: "ok"; buffer: Buffer; ext: "webp"; mimeType: "image/webp" }
+  | { status: "skipped" }
+  | { status: "invalid" }
+
 /**
- * Downscale oversized raster uploads (max 1600px wide) and encode as WebP so
- * marketing pages don't have to re-encode 2+ MB source JPEGs on the fly.
- * Fails gracefully to the original buffer if sharp is unavailable.
+ * Downscale oversized raster uploads (max 1600px wide), strip EXIF/GPS metadata,
+ * and encode as WebP. Enforces a 40 MP input cap against decompression bombs
+ * and rejects corrupt/polyglot files that fail strict decoding.
  */
 async function optimizeRasterUpload(
   input: Buffer,
   ext: string,
-): Promise<{ buffer: Buffer; ext: string; mimeType: string } | null> {
-  if (ext !== "jpg" && ext !== "png" && ext !== "webp") return null
+): Promise<RasterOptimizeResult> {
+  if (ext !== "jpg" && ext !== "png" && ext !== "webp") {
+    return { status: "skipped" }
+  }
+
+  let sharp: (typeof import("sharp"))["default"]
   try {
     const sharpModule = await import("sharp")
-    const sharp = sharpModule.default
-    const optimized = await sharp(input, { failOn: "none" })
+    sharp = sharpModule.default
+  } catch {
+    return { status: "skipped" }
+  }
+
+  try {
+    const optimized = await sharp(input, { limitInputPixels: MAX_INPUT_PIXELS })
       .rotate()
       .resize({ width: MAX_RASTER_WIDTH, withoutEnlargement: true })
       .webp({ quality: WEBP_QUALITY, effort: 4 })
       .toBuffer()
-    // Only replace if the optimized WebP is actually smaller (or needed downscaling).
-    if (optimized.length > 0 && (optimized.length < input.length || ext !== "webp")) {
-      return { buffer: optimized, ext: "webp", mimeType: "image/webp" }
-    }
-    return null
+    if (optimized.length === 0) return { status: "invalid" }
+    return { status: "ok", buffer: optimized, ext: "webp", mimeType: "image/webp" }
   } catch {
-    return null
+    return { status: "invalid" }
   }
 }
 
@@ -119,11 +131,17 @@ export async function POST(request: Request) {
       )
     }
   } else {
-    const optimized = await optimizeRasterUpload(buffer, ext)
-    if (optimized) {
-      buffer = optimized.buffer
-      finalExt = optimized.ext
-      optimizedMime = optimized.mimeType
+    const result = await optimizeRasterUpload(buffer, ext)
+    if (result.status === "invalid") {
+      return NextResponse.json(
+        { error: "Invalid or corrupted image file." },
+        { status: 400 },
+      )
+    }
+    if (result.status === "ok") {
+      buffer = result.buffer
+      finalExt = result.ext
+      optimizedMime = result.mimeType
     }
   }
 
