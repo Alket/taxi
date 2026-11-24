@@ -70,9 +70,16 @@ export function stripLocalePrefix(pathname: string): string {
 }
 
 /** Build `alternates.canonical` + `alternates.languages` for a given path/locale (hreflang). */
-export function localizedAlternates(path: string, locale: Locale) {
+export function localizedAlternates(
+  path: string,
+  locale: Locale,
+  availableLocales: readonly Locale[] = LOCALES,
+) {
+  const locales = availableLocales.includes(DEFAULT_LOCALE)
+    ? availableLocales
+    : [DEFAULT_LOCALE, ...availableLocales]
   const languages: Record<string, string> = {}
-  for (const code of LOCALES) {
+  for (const code of locales) {
     languages[code] = localePath(path, code)
   }
   languages["x-default"] = localePath(path, DEFAULT_LOCALE)

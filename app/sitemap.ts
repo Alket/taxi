@@ -106,6 +106,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         ? LOCALES.filter((code) => code === "en" || Boolean(slugMap?.has(code)))
         : LOCALES
     const finalPath = canonicalPath(path)
+    // Emit xhtml:link hreflang alternates strictly matching the locales listed
+    // for this path so Googlebot discovers the reciprocal language cluster.
+    const languages: Record<string, string> = {}
+    if (locales.length > 1) {
+      languages["x-default"] = `${baseUrl}${localePath(finalPath, "en")}`
+      for (const code of locales) {
+        languages[code] = `${baseUrl}${localePath(finalPath, code)}`
+      }
+    }
     for (const locale of locales) {
       const url = `${baseUrl}${localePath(finalPath, locale)}`
       const localeUpdatedAt =
@@ -118,6 +127,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         lastModified: localeUpdatedAt,
         changeFrequency: options?.changeFrequency ?? "weekly",
         priority: options?.priority ?? 0.5,
+        ...(locales.length > 1 ? { alternates: { languages } } : {}),
       }
       const previous = byUrl.get(url)
       // Blog posts are also CMS pages, so they are visited twice. Keep the

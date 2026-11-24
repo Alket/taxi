@@ -9,6 +9,7 @@ import {
 } from "@/lib/blog/cms"
 import {
   DEFAULT_LOCALE,
+  LOCALES,
   OG_LOCALE,
   type Locale,
   englishOnlyAlternates,
@@ -2050,4 +2051,27 @@ export async function resolveHomeMarketingCopy(
   })
 
   return copy
+}
+
+/**
+ * Return the locales that have a persisted translation row for `cmsSlug`
+ * (always including `en`), in canonical `LOCALES` order. Used to keep
+ * `hreflang` clusters strictly reciprocal with `sitemap.xml` and canonicals.
+ */
+export async function getAvailablePageLocales(
+  cmsSlug: string,
+): Promise<Locale[]> {
+  try {
+    const rows = await prisma.pageContent.findMany({
+      where: { slug: cmsSlug },
+      select: { locale: true },
+    })
+    const set = new Set<Locale>([DEFAULT_LOCALE])
+    for (const row of rows) {
+      if (isLocale(row.locale)) set.add(row.locale)
+    }
+    return LOCALES.filter((code) => set.has(code))
+  } catch {
+    return [DEFAULT_LOCALE]
+  }
 }

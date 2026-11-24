@@ -28,6 +28,8 @@ import {
   localePath,
 } from "@/lib/i18n/locales"
 import { t } from "@/lib/i18n/t"
+import { DESTINATION_SLUG_ALIASES, getDestination } from "@/lib/destinations"
+import { getAvailablePageLocales } from "@/lib/page-content"
 import { hasTransferLocaleRow } from "@/lib/transfers/cms"
 import {
   getRelatedRoutes,
@@ -91,8 +93,11 @@ export async function generateMetadata({
   const isTranslated =
     locale === DEFAULT_LOCALE ||
     (await hasTransferLocaleRow(route.slug, locale))
+  const availableLocales = isTranslated
+    ? await getAvailablePageLocales(`transfers/${route.slug}`)
+    : [DEFAULT_LOCALE]
   const alternates = isTranslated
-    ? localizedAlternates(path, locale)
+    ? localizedAlternates(path, locale, availableLocales)
     : englishOnlyAlternates(path)
 
   return {
@@ -104,6 +109,7 @@ export async function generateMetadata({
       description,
       url: alternates.canonical,
       locale: OG_LOCALE[locale],
+      type: "website",
       images: [
         {
           url: route.heroImageUrl,
@@ -161,6 +167,14 @@ export default async function TransferRoutePage({ params }: PageProps) {
     priceEur: route.priceEur,
   })
   const faqJsonLd = buildFaqPageJsonLd(route.routeFaqs)
+
+  const canonicalDestSlug = route.destinationId
+    ? DESTINATION_SLUG_ALIASES[route.destinationId.toLowerCase()] ??
+      route.destinationId
+    : null
+  const destinationGuide = canonicalDestSlug
+    ? getDestination(canonicalDestSlug)
+    : null
 
   return (
     <main>
@@ -228,7 +242,7 @@ export default async function TransferRoutePage({ params }: PageProps) {
             {route.travelDescription}
           </p>
 
-          <div className="mt-6">
+          <div className="mt-6 flex flex-wrap items-center gap-4">
             <Link
               href={ctaHref}
               className="group inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-brand-accent px-8 text-base font-extrabold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:brightness-95 active:scale-[0.98]"
@@ -236,6 +250,17 @@ export default async function TransferRoutePage({ params }: PageProps) {
               <span>{t(locale, "transfer.bookCta", { price: route.priceEur })}</span>
               <ArrowRightIcon className="size-4 transition-transform duration-200 group-hover:translate-x-1" aria-hidden />
             </Link>
+            {destinationGuide ? (
+              <Link
+                href={localePath(`/destinations/${destinationGuide.slug}`, locale)}
+                className="group inline-flex min-h-12 items-center gap-1.5 text-sm font-bold text-white/90 underline decoration-white/50 underline-offset-4 transition-colors hover:text-white hover:decoration-white"
+              >
+                <span>
+                  {destinationGuide.name} — {t(locale, "nav.destinations")}
+                </span>
+                <ArrowRightIcon className="size-3.5 transition-transform duration-200 group-hover:translate-x-0.5" aria-hidden />
+              </Link>
+            ) : null}
           </div>
         </MarketingContainer>
       </header>
@@ -395,7 +420,9 @@ export default async function TransferRoutePage({ params }: PageProps) {
                     <div className="relative aspect-[16/10] overflow-hidden bg-muted">
                       <Image
                         src={item.heroImageUrl}
-                        alt={`Tirana Airport to ${item.destinationName}`}
+                        alt={t(locale, "transfer.relatedAnchor", {
+                          destination: item.destinationName,
+                        })}
                         fill
                         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                         className="object-cover transition-transform duration-500 ease-out group-hover:scale-105"

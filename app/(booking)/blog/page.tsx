@@ -110,9 +110,7 @@ export async function generateMetadata({
     twitter: {
       card: "summary_large_image",
       title: title.absolute,
-      description:
-        page?.description ||
-        "TIA transit tips and fixed-price transfer guides for Albania.",
+      description: localized.description,
       ...(ogImage ? { images: [ogImage] } : {}),
     },
   }

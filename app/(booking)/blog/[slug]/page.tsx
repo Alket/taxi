@@ -22,6 +22,7 @@ import {
 import { t } from "@/lib/i18n/t"
 import { getAppBaseUrl } from "@/lib/mail"
 import {
+  getAvailablePageLocales,
   resolveDestinationCards,
   resolvePageContent,
 } from "@/lib/page-content"
@@ -77,11 +78,14 @@ export async function generateMetadata({
   const description = localized.description
   const isTranslated =
     locale === DEFAULT_LOCALE || Boolean(pageRecord?.hasLocaleRow)
+  const availableLocales = isTranslated
+    ? await getAvailablePageLocales(`blog/${post.slug}`)
+    : [DEFAULT_LOCALE]
   return {
     title,
     description,
     alternates: isTranslated
-      ? localizedAlternates(path, locale)
+      ? localizedAlternates(path, locale, availableLocales)
       : englishOnlyAlternates(path),
     openGraph: {
       title: title.absolute,
@@ -138,16 +142,13 @@ export default async function BlogPostPage({ params }: PageProps) {
           datePublished: post.publishedAt,
           dateModified: post.updatedAt,
           authorName: author.name,
+          inLanguage: locale,
         })}
       />
       <JsonLd
         data={buildBreadcrumbJsonLd([
           { name: t(locale, "nav.home") || "Home", url: localePath("/", locale) },
           { name: t(locale, "nav.blog") || "Blog", url: localePath("/blog", locale) },
-          {
-            name: categoryLabel,
-            url: localePath(`/blog?category=${post.category}`, locale),
-          },
           { name: post.title, url: localizedPath },
         ])}
       />

@@ -19,6 +19,7 @@ import { homeSearchCopy, searchTitle } from "@/lib/seo/search-meta"
 import {
   buildFaqPageJsonLd,
   buildLocalBusinessJsonLd,
+  buildWebSiteJsonLd,
 } from "@/lib/structured-data"
 
 /** Always read live CMS content (destination cards, homepage copy). */
@@ -95,8 +96,13 @@ export default async function HomePage() {
     page?.ogImage,
   )
 
+  const companyName = settings?.companyName || "Landed Albania"
+  const webSiteJsonLd = buildWebSiteJsonLd({
+    name: companyName,
+    inLanguage: locale,
+  })
   const localBusinessJsonLd = buildLocalBusinessJsonLd({
-    name: settings?.companyName || "Landed Albania",
+    name: companyName,
     description: page?.description,
     telephone: settings?.supportPhone || undefined,
     email: settings?.supportEmail || undefined,
@@ -110,6 +116,7 @@ export default async function HomePage() {
 
   return (
     <>
+      <JsonLd data={webSiteJsonLd} />
       <JsonLd data={localBusinessJsonLd} />
       {faqJsonLd ? <JsonLd data={faqJsonLd} /> : null}
       <HomeLanding

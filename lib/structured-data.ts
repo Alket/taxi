@@ -13,6 +13,25 @@ function absoluteUrl(pathOrUrl: string): string {
   return `${site}${pathOrUrl.startsWith("/") ? "" : "/"}${pathOrUrl}`
 }
 
+/** Raster logo fallback — Google Rich Results does not support SVG logos. */
+const DEFAULT_RASTER_LOGO = "/marketing/favicon.png"
+
+export function buildWebSiteJsonLd(input: {
+  name: string
+  alternateName?: string
+  inLanguage?: string
+}): JsonLdObject {
+  const site = baseUrl()
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: input.name,
+    ...(input.alternateName ? { alternateName: input.alternateName } : {}),
+    url: site,
+    ...(input.inLanguage ? { inLanguage: input.inLanguage } : {}),
+  }
+}
+
 export function buildLocalBusinessJsonLd(input: {
   name: string
   description?: string
@@ -20,18 +39,37 @@ export function buildLocalBusinessJsonLd(input: {
   email?: string
   image?: string
   url?: string
+  logoUrl?: string
+  sameAs?: string[]
 }): JsonLdObject {
   const site = baseUrl()
   return {
     "@context": "https://schema.org",
-    "@type": "LocalBusiness",
+    "@type": ["LocalBusiness", "TaxiService"],
     name: input.name,
     description: input.description,
     url: input.url ? absoluteUrl(input.url) : site,
-    logo: `${site}/marketing/logo.svg`,
+    logo: absoluteUrl(input.logoUrl || DEFAULT_RASTER_LOGO),
     ...(input.telephone ? { telephone: input.telephone } : {}),
     ...(input.email ? { email: input.email } : {}),
     ...(input.image ? { image: absoluteUrl(input.image) } : {}),
+    ...(input.sameAs?.length ? { sameAs: input.sameAs } : {}),
+    openingHoursSpecification: [
+      {
+        "@type": "OpeningHoursSpecification",
+        dayOfWeek: [
+          "Monday",
+          "Tuesday",
+          "Wednesday",
+          "Thursday",
+          "Friday",
+          "Saturday",
+          "Sunday",
+        ],
+        opens: "00:00",
+        closes: "23:59",
+      },
+    ],
     address: {
       "@type": "PostalAddress",
       addressLocality: "Tirana",
@@ -95,7 +133,6 @@ export function buildTouristDestinationJsonLd(input: {
 export function buildBreadcrumbJsonLd(
   items: { name: string; url: string }[],
 ): JsonLdObject {
-  const site = baseUrl()
   return {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
@@ -103,7 +140,7 @@ export function buildBreadcrumbJsonLd(
       "@type": "ListItem",
       position: index + 1,
       name: item.name,
-      item: `${site}${item.url}`,
+      item: absoluteUrl(item.url),
     })),
   }
 }
@@ -158,19 +195,16 @@ export function buildBlogPostingJsonLd(input: {
   datePublished: string
   dateModified: string
   authorName: string
+  authorType?: "Person" | "Organization"
+  authorUrl?: string
+  inLanguage?: string
   publisherName?: string
   publisherLogoUrl?: string
 }): JsonLdObject {
   const site = baseUrl()
-  const pageUrl = input.url.startsWith("http")
-    ? input.url
-    : `${site}${input.url}`
-  const imageUrl = input.image.startsWith("http")
-    ? input.image
-    : `${site}${input.image}`
-  const logoUrl =
-    input.publisherLogoUrl ??
-    `${site}/marketing/logo.svg`
+  const pageUrl = absoluteUrl(input.url)
+  const imageUrl = absoluteUrl(input.image)
+  const logoUrl = absoluteUrl(input.publisherLogoUrl || DEFAULT_RASTER_LOGO)
 
   return {
     "@context": "https://schema.org",
@@ -180,9 +214,11 @@ export function buildBlogPostingJsonLd(input: {
     image: [imageUrl],
     datePublished: input.datePublished,
     dateModified: input.dateModified,
+    ...(input.inLanguage ? { inLanguage: input.inLanguage } : {}),
     author: {
-      "@type": "Person",
+      "@type": input.authorType ?? "Organization",
       name: input.authorName,
+      url: input.authorUrl ? absoluteUrl(input.authorUrl) : site,
     },
     publisher: {
       "@type": "Organization",
