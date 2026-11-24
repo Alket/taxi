@@ -5,13 +5,15 @@ import { JsonLd } from "@/components/marketing/json-ld"
 import { HomeLanding } from "@/components/marketing/home-landing"
 import { SiteFooter } from "@/components/marketing/site-footer"
 import { getRequestLocale } from "@/lib/i18n/get-locale"
-import { canonicalOnly, localizedAlternates } from "@/lib/i18n/locales"
+import { OG_LOCALE, canonicalOnly, localizedAlternates } from "@/lib/i18n/locales"
 import {
   pageMetadataFields,
   resolveDestinationCards,
   resolveHomeMarketingCopy,
   resolvePageContent,
 } from "@/lib/page-content"
+import { listPublicReviews } from "@/lib/reviews"
+import { hasCookieConsentDecision } from "@/lib/cookie-consent-server"
 import { getSettings } from "@/lib/settings"
 import { homeSearchCopy, searchTitle } from "@/lib/seo/search-meta"
 import {
@@ -38,13 +40,17 @@ export async function generateMetadata({
   const hasDestinationPrefill = Boolean(destination?.trim())
   const page = await loadHomeContent(locale)
 
-  const home = homeSearchCopy(locale)
-  const title = searchTitle(home.heading)
+  // Admin Pages → home → SEO Title/Description per language is the source of
+  // truth. Code copy is only used when those fields are empty.
+  const fallback = homeSearchCopy(locale)
+  const description =
+    page?.description?.trim() || fallback.description
+  const title = searchTitle(page?.title?.trim() || fallback.heading)
   const base: Metadata = page
     ? pageMetadataFields(page)
     : {
         title,
-        description: home.description,
+        description,
         alternates: localizedAlternates("/", locale),
       }
 
@@ -54,16 +60,17 @@ export async function generateMetadata({
   return {
     ...base,
     title,
-    description: home.description,
+    description,
     openGraph: {
       ...base.openGraph,
       title: title.absolute,
-      description: home.description,
+      description,
+      locale: OG_LOCALE[locale],
     },
     twitter: {
       ...base.twitter,
       title: title.absolute,
-      description: home.description,
+      description,
     },
     // Same page as the clean homepage. rel=canonical consolidates it;
     // noindex would drop the signals instead of passing them on.
@@ -75,18 +82,21 @@ export async function generateMetadata({
 
 export default async function HomePage() {
   const locale = await getRequestLocale()
-  const [page, destinations, settings] = await Promise.all([
-    loadHomeContent(locale),
-    resolveDestinationCards(locale, { featuredOnly: true }),
-    getSettings().catch(() => null),
-  ])
+  const [page, destinations, settings, initialReviews, initialConsent] =
+    await Promise.all([
+      loadHomeContent(locale),
+      resolveDestinationCards(locale, { featuredOnly: true }),
+      getSettings().catch(() => null),
+      listPublicReviews({ limit: 6 }).catch(() => []),
+      hasCookieConsentDecision(),
+    ])
   const copy = await resolveHomeMarketingCopy(
     page?.sections ?? [],
     page?.ogImage,
   )
 
   const localBusinessJsonLd = buildLocalBusinessJsonLd({
-    name: settings?.companyName || "Albania Transfers",
+    name: settings?.companyName || "Landed Albania",
     description: page?.description,
     telephone: settings?.supportPhone || undefined,
     email: settings?.supportEmail || undefined,
@@ -111,6 +121,8 @@ export default async function HomePage() {
         showTrustpilotTestimonials={
           settings?.trustpilotTestimonialsVisibleOnSite ?? false
         }
+        initialReviews={initialReviews}
+        initialConsent={initialConsent}
       />
     </>
   )

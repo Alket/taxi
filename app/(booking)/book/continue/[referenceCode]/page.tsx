@@ -1,7 +1,12 @@
 import { Suspense } from "react"
+import type { Metadata } from "next"
 
 import ContinueBookingPage from "./continue-client"
 import { Skeleton } from "@/components/ui/skeleton"
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+}
 
 function Fallback() {
   return (

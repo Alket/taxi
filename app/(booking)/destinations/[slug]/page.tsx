@@ -1,3 +1,4 @@
+import { cache } from "react"
 import type { Metadata } from "next"
 import Image from "next/image"
 import Link from "next/link"
@@ -26,7 +27,7 @@ import {
 } from "@/lib/destination-document"
 import { DESTINATION_SLUG_ALIASES } from "@/lib/destinations"
 import { getRequestLocale } from "@/lib/i18n/get-locale"
-import { localePath, localizedAlternates } from "@/lib/i18n/locales"
+import { OG_LOCALE, localePath, localizedAlternates } from "@/lib/i18n/locales"
 import { t } from "@/lib/i18n/t"
 import {
   pageMetadataFields,
@@ -35,10 +36,13 @@ import {
   resolveDestinationPage,
 } from "@/lib/page-content"
 import { resolveDestinationTransferLink } from "@/lib/transfers/routes"
+import { listPublicReviews } from "@/lib/reviews"
 import { getSettings } from "@/lib/settings"
 import { destinationSearchCopy, searchTitle } from "@/lib/seo/search-meta"
 import {
   buildBreadcrumbJsonLd,
+  buildFaqPageJsonLd,
+  buildServiceJsonLd,
   buildTouristDestinationJsonLd,
 } from "@/lib/structured-data"
 
@@ -54,6 +58,21 @@ type PageProps = {
  */
 export const dynamic = "force-dynamic"
 
+const loadDestinationCards = cache((locale: string) =>
+  resolveDestinationCards(locale),
+)
+
+const loadDestinationPage = cache((id: string, locale: string) =>
+  resolveDestinationPage(id, locale),
+)
+
+async function findDestination(slugOrId: string, locale: string) {
+  const cards = await loadDestinationCards(locale)
+  return (
+    cards.find((card) => card.slug === slugOrId || card.id === slugOrId) ?? null
+  )
+}
+
 export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
@@ -63,9 +82,9 @@ export async function generateMetadata({
     return {}
   }
   const locale = await getRequestLocale()
-  const destination = await resolveDestination(slug, locale)
+  const destination = await findDestination(slug, locale)
   if (destination) {
-    const resolved = await resolveDestinationPage(destination.id, locale)
+    const resolved = await loadDestinationPage(destination.id, locale)
     if (resolved) {
       const { page, document } = resolved
       const hero = getDestinationHero(document)
@@ -78,11 +97,35 @@ export async function generateMetadata({
         `/destinations/${publicSlug}`,
         locale,
       )
-      const seo = destinationSearchCopy(destination.id, locale)
-      const title = searchTitle(
-        seo?.heading || page.title || document.meta.title || "Airport transfer",
+      const seo = destinationSearchCopy(
+        destination.id,
+        locale,
+        destination.name,
       )
-      const description = seo?.description || page.description || meta.description
+      const seedDefaultTitle = `${destination.name} airport transfer`.toLowerCase()
+      const cmsTitle = page.title?.trim()
+      const cmsDesc = page.description?.trim()
+      const useCmsTitle =
+        Boolean(cmsTitle) &&
+        page.hasLocaleRow &&
+        cmsTitle.toLowerCase() !== seedDefaultTitle
+      const useCmsDesc =
+        Boolean(cmsDesc) &&
+        page.hasLocaleRow &&
+        cmsDesc !== destination.description?.trim()
+
+      const title = searchTitle(
+        (useCmsTitle ? cmsTitle : null) ||
+          seo?.heading ||
+          cmsTitle ||
+          document.meta.title ||
+          "Airport transfer",
+      )
+      const description =
+        (useCmsDesc ? cmsDesc : null) ||
+        seo?.description ||
+        cmsDesc ||
+        meta.description
       return {
         ...meta,
         title,
@@ -97,6 +140,7 @@ export async function generateMetadata({
           ...meta.openGraph,
           title: title.absolute,
           description,
+          locale: OG_LOCALE[locale],
           images: [
             {
               url: hero?.src || page.ogImage || destination.image,
@@ -108,7 +152,7 @@ export async function generateMetadata({
         },
       }
     }
-    const seo = destinationSearchCopy(destination.id, locale)
+    const seo = destinationSearchCopy(destination.id, locale, destination.name)
     const title = searchTitle(
       seo?.heading ||
         t(locale, "destinations.airportTransfer", { name: destination.name }),
@@ -134,12 +178,12 @@ export default async function DestinationPage({ params }: PageProps) {
     permanentRedirect(localePath(`/destinations/${aliasTarget}`, locale))
   }
 
-  const destination = await resolveDestination(slug, locale)
+  const destination = await findDestination(slug, locale)
   if (!destination) notFound()
 
   const [resolved, destinationCards, settings] = await Promise.all([
-    resolveDestinationPage(destination.id, locale),
-    resolveDestinationCards(locale),
+    loadDestinationPage(destination.id, locale),
+    loadDestinationCards(locale),
     getSettings().catch(() => null),
   ])
   if (!resolved) notFound()
@@ -169,10 +213,20 @@ export default async function DestinationPage({ params }: PageProps) {
     "/marketing/logo.svg"
   const imageAlt = hero?.alt || name
   const priceFrom = meta.priceFrom || destination.priceFrom
-  // H1 matches the search title so Google does not replace it with a
-  // different heading. The route phrase is the page's main title.
-  const seoHeading = destinationSearchCopy(destination.id, locale)?.heading
+  // H1 matches the search title unless a custom Hero Heading is set in CMS for this locale.
+  const seoHeading = destinationSearchCopy(
+    destination.id,
+    locale,
+    name,
+  )?.heading
+  const customHeroHeading =
+    resolved.page.hasLocaleRow &&
+    hero?.heading?.trim() &&
+    hero.heading.trim() !== destination.name
+      ? hero.heading.trim()
+      : null
   const pageHeading =
+    customHeroHeading ||
     seoHeading ||
     hero?.heading?.trim() ||
     t(locale, "destinations.airportTransfer", { name })
@@ -200,6 +254,11 @@ export default async function DestinationPage({ params }: PageProps) {
   )
 
   const reviewKeyword = destination.reviewKeywords[0] ?? destination.name
+  const initialReviews = showCustomerReviews
+    ? await listPublicReviews({ destination: reviewKeyword, limit: 6 }).catch(
+        () => [],
+      )
+    : []
   const moreDestinations = destinationCards.filter(
     (d) => d.id !== destination.id,
   )
@@ -234,6 +293,19 @@ export default async function DestinationPage({ params }: PageProps) {
         question: item.question,
         answer: item.answer,
       })) ?? []
+  const faqJsonLd = buildFaqPageJsonLd(faqItems)
+  const numericPrice = Number(String(priceFrom).replace(/[^\d.]/g, ""))
+  const serviceJsonLd =
+    Number.isFinite(numericPrice) && numericPrice > 0
+      ? buildServiceJsonLd({
+          name: pageHeading,
+          description,
+          url: localePath(`/destinations/${publicSlug}`, locale),
+          priceEur: numericPrice,
+          currency: meta.priceCurrency || "EUR",
+          providerName: settings?.companyName || "Landed Albania",
+        })
+      : null
 
   const transferLink = resolveDestinationTransferLink(destination.id, meta)
 
@@ -241,6 +313,8 @@ export default async function DestinationPage({ params }: PageProps) {
     <>
       <JsonLd data={breadcrumbJsonLd} />
       <JsonLd data={touristDestinationJsonLd} />
+      {serviceJsonLd ? <JsonLd data={serviceJsonLd} /> : null}
+      {faqJsonLd ? <JsonLd data={faqJsonLd} /> : null}
       {document.sections.map((section) => {
         switch (section.type) {
           case "hero":
@@ -404,6 +478,7 @@ export default async function DestinationPage({ params }: PageProps) {
                     destination={reviewKeyword}
                     showCustomerReviews={showCustomerReviews}
                     showTrustpilotTestimonials={showTrustpilotTestimonials}
+                    initialReviews={initialReviews}
                   />
                 ) : null}
               </div>

@@ -1,9 +1,35 @@
 import { Suspense } from "react"
+import type { Metadata } from "next"
 
 import { BookingShell } from "@/components/booking/booking-shell"
 import { MARKETING_CONTAINER } from "@/components/marketing/marketing-container"
 import { Skeleton } from "@/components/ui/skeleton"
+import { getRequestLocale } from "@/lib/i18n/get-locale"
+import { OG_LOCALE, localizedAlternates } from "@/lib/i18n/locales"
+import { t } from "@/lib/i18n/t"
+import { homeSearchCopy, searchTitle } from "@/lib/seo/search-meta"
 import { cn } from "@/lib/utils"
+
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale()
+  const fallback = homeSearchCopy(locale)
+  const title = searchTitle(`${t(locale, "nav.book")} — ${fallback.heading}`)
+  return {
+    title,
+    description: fallback.description,
+    alternates: localizedAlternates("/book", locale),
+    openGraph: {
+      title: title.absolute,
+      description: fallback.description,
+      locale: OG_LOCALE[locale],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: title.absolute,
+      description: fallback.description,
+    },
+  }
+}
 
 function BookPageFallback() {
   return (

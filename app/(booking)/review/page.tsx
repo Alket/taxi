@@ -1,7 +1,12 @@
 import { Suspense } from "react"
+import type { Metadata } from "next"
 
 import { ReviewFormView } from "@/components/booking/review-form-view"
 import { Skeleton } from "@/components/ui/skeleton"
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+}
 
 export default function ReviewPage() {
   return (

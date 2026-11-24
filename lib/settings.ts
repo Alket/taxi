@@ -260,6 +260,30 @@ export const getSettings = cache(async function getSettings(): Promise<Settings>
   return serializeSettings(await getSettingsRow())
 })
 
+/**
+ * Resolve searchIndexingEnabled for robots.txt, sitemap.xml, and meta robots.
+ * If a transient database error occurs on the production origin
+ * (landedalbania.com), fail-open to true so a brief DB hiccup never flips the
+ * live website to noindex / Disallow: /.
+ */
+export async function isSearchIndexingEnabled(): Promise<boolean> {
+  try {
+    const settings = await getSettings()
+    return settings.searchIndexingEnabled === true
+  } catch (error) {
+    console.error(
+      "[seo] getSettings failed while checking searchIndexingEnabled",
+      error,
+    )
+    const appUrl =
+      process.env.EMAIL_PUBLIC_URL ||
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      process.env.NEXT_PUBLIC_APP_URL ||
+      ""
+    return appUrl.includes("landedalbania.com")
+  }
+}
+
 export async function getBookingPolicy() {
   const row = await getSettingsRow()
   return {

@@ -14,7 +14,16 @@ import {
   readCookieConsent,
   writeCookieConsent,
   type CookieConsentCategories,
+  type CookieConsentState,
 } from "@/lib/cookie-consent"
+
+/** Stable server snapshot so a saved choice is hidden in the first HTML. */
+const CONSENT_ON_SERVER: CookieConsentState = {
+  version: 2,
+  decided: true,
+  updatedAt: "",
+  categories: DEFAULT_REJECTED_CONSENT,
+}
 import { localePath } from "@/lib/i18n/locales"
 import { useLocale, useT } from "@/lib/i18n/use-locale"
 import { cn } from "@/lib/utils"
@@ -71,13 +80,18 @@ function CategoryToggle({
   )
 }
 
-export function CookieConsentBanner() {
+export function CookieConsentBanner({
+  initialConsent = false,
+}: {
+  /** From the consent cookie, so reload does not paint the banner then hide it. */
+  initialConsent?: boolean
+}) {
   const tr = useT()
   const locale = useLocale()
   const consent = useSyncExternalStore(
     subscribeConsent,
     getCookieConsentSnapshot,
-    () => null,
+    () => (initialConsent ? CONSENT_ON_SERVER : null),
   )
   const [forceOpen, setForceOpen] = useState(false)
   const [customize, setCustomize] = useState(false)

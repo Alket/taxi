@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next"
 
 import { getAppBaseUrl } from "@/lib/mail"
-import { getSettings } from "@/lib/settings"
+import { isSearchIndexingEnabled } from "@/lib/settings"
 
 // Must re-read Admin → Settings on every request (indexing can be toggled live).
 export const dynamic = "force-dynamic"
@@ -11,13 +11,7 @@ export const dynamic = "force-dynamic"
  * When indexing is off, disallow everything (safe for pre-launch).
  */
 export default async function robots(): Promise<MetadataRoute.Robots> {
-  let indexing = false
-  try {
-    const settings = await getSettings()
-    indexing = settings.searchIndexingEnabled === true
-  } catch {
-    indexing = false
-  }
+  const indexing = await isSearchIndexingEnabled()
 
   if (!indexing) {
     return {
@@ -32,7 +26,20 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: ["/admin/", "/api/", "/driver/"],
+      disallow: [
+        "/admin/",
+        "/api/",
+        "/driver/",
+        "/book/confirmation/",
+        "/*/book/confirmation/",
+        "/book/continue/",
+        "/*/book/continue/",
+        "/book/payment/",
+        "/*/book/payment/",
+        "/book/lookup",
+        "/*/book/lookup",
+        "/bookings/",
+      ],
     },
     sitemap: `${getAppBaseUrl().replace(/\/+$/, "")}/sitemap.xml`,
   }

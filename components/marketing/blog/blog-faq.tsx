@@ -41,38 +41,40 @@ export function BlogFaq({
                   : "border-border/80 bg-brand-surface shadow-2xs hover:border-brand-accent/30",
               )}
             >
-              <button
-                type="button"
-                aria-expanded={open}
-                aria-controls={panelId}
-                className="flex min-h-14 w-full touch-manipulation items-center justify-between gap-4 px-5 py-4 text-left sm:px-6 sm:py-5"
-                onClick={() => setOpenId(open ? null : itemId)}
-              >
-                <span
-                  className={cn(
-                    "font-brand text-base font-bold leading-snug transition-colors sm:text-lg",
-                    open ? "text-brand-accent" : "text-brand",
-                  )}
+              <h3 className="m-0">
+                <button
+                  type="button"
+                  aria-expanded={open}
+                  aria-controls={panelId}
+                  className="flex min-h-14 w-full touch-manipulation items-center justify-between gap-4 px-5 py-4 text-left sm:px-6 sm:py-5"
+                  onClick={() => setOpenId(open ? null : itemId)}
                 >
-                  {item.question}
-                </span>
-                <span
-                  className={cn(
-                    "flex size-8 shrink-0 items-center justify-center rounded-full transition-colors",
-                    open
-                      ? "bg-brand-accent/10 text-brand-accent"
-                      : "bg-brand-page text-muted-foreground",
-                  )}
-                >
-                  <ChevronDownIcon
+                  <span
                     className={cn(
-                      "size-4 transition-transform duration-300 ease-out",
-                      open && "rotate-180",
+                      "font-brand text-base font-bold leading-snug transition-colors sm:text-lg",
+                      open ? "text-brand-accent" : "text-brand",
                     )}
-                    aria-hidden
-                  />
-                </span>
-              </button>
+                  >
+                    {item.question}
+                  </span>
+                  <span
+                    className={cn(
+                      "flex size-8 shrink-0 items-center justify-center rounded-full transition-colors",
+                      open
+                        ? "bg-brand-accent/10 text-brand-accent"
+                        : "bg-brand-page text-muted-foreground",
+                    )}
+                  >
+                    <ChevronDownIcon
+                      className={cn(
+                        "size-4 transition-transform duration-300 ease-out",
+                        open && "rotate-180",
+                      )}
+                      aria-hidden
+                    />
+                  </span>
+                </button>
+              </h3>
               <div
                 id={panelId}
                 role="region"

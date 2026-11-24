@@ -178,12 +178,9 @@ export function DestinationsArchive({
 
         {destinations.length > 0 ? (
           <ul className="mt-8 grid list-none grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6 lg:mt-10 lg:grid-cols-3 lg:gap-7">
-            {destinations.map((destination, index) => (
+            {destinations.map((destination) => (
               <li key={destination.id} className="flex">
-                <DestinationCard
-                  destination={destination}
-                  priority={index < 3}
-                />
+                <DestinationCard destination={destination} />
               </li>
             ))}
           </ul>

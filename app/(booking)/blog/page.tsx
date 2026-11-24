@@ -1,3 +1,4 @@
+import { cache } from "react"
 import type { Metadata } from "next"
 
 import { BlogArchive } from "@/components/marketing/blog/blog-archive"
@@ -9,10 +10,13 @@ import {
 } from "@/lib/blog/catalog"
 import { getRequestLocale } from "@/lib/i18n/get-locale"
 import {
+  DEFAULT_LOCALE,
+  OG_LOCALE,
   canonicalOnly,
   localePath,
   localizedAlternates,
 } from "@/lib/i18n/locales"
+import { t } from "@/lib/i18n/t"
 import { getAppBaseUrl } from "@/lib/mail"
 import {
   blogArchiveCopyFromSections,
@@ -20,9 +24,17 @@ import {
   resolvePageContent,
 } from "@/lib/page-content"
 import { buildBreadcrumbJsonLd } from "@/lib/structured-data"
-import { searchTitle } from "@/lib/seo/search-meta"
+import { localizeFallbackSearchCopy, searchTitle } from "@/lib/seo/search-meta"
 
 export const dynamic = "force-dynamic"
+
+const loadBlogArchivePage = cache((locale: string) =>
+  resolvePageContent("blog", locale),
+)
+
+const loadBlogPosts = cache((locale: string) =>
+  listBlogPostsFromCms(locale),
+)
 
 type PageProps = {
   searchParams: Promise<{ category?: string }>
@@ -35,8 +47,8 @@ export async function generateMetadata({
   const { category } = await searchParams
   const filter = parseBlogFilter(category)
   const [page, posts] = await Promise.all([
-    resolvePageContent("blog", locale),
-    listBlogPostsFromCms(locale),
+    loadBlogArchivePage(locale),
+    loadBlogPosts(locale),
   ])
   const { featured } = archivePostsFromList(posts, filter)
   const base = getAppBaseUrl().replace(/\/+$/, "")
@@ -49,14 +61,27 @@ export async function generateMetadata({
       : `${base}${ogSource}`
     : undefined
 
-  const title = searchTitle(
-    page?.title || "Tirana Airport Transport Guides",
-  )
+  const enFallbackTitle = "Tirana Airport Transport Guides"
+  const enFallbackDesc =
+    "TIA transit tips, destination routes, and fixed-price airport transfer guides for Albania travellers."
+  const localized =
+    locale !== DEFAULT_LOCALE && !page?.hasLocaleRow
+      ? localizeFallbackSearchCopy(
+          locale,
+          page?.title || enFallbackTitle,
+          page?.description || enFallbackDesc,
+          enFallbackTitle,
+          enFallbackDesc,
+        )
+      : {
+          title: page?.title || enFallbackTitle,
+          description: page?.description || enFallbackDesc,
+        }
+
+  const title = searchTitle(localized.title)
   return {
     title,
-    description:
-      page?.description ||
-      "TIA transit tips, destination routes, and fixed-price airport transfer guides for Albania travellers.",
+    description: localized.description,
     // Category filters are the same archive. Canonical points at /blog and
     // hreflang is omitted so the filter URL is not a second language version.
     // Category filters repeat the archive. Canonical points at /blog so
@@ -67,10 +92,9 @@ export async function generateMetadata({
         : localizedAlternates("/blog", locale),
     openGraph: {
       title: title.absolute,
-      description:
-        page?.description ||
-        "Practical Tirana Airport guides—routes, meet & greet, and fixed-price transfers.",
+      description: localized.description,
       url: `${base}${localePath("/blog", locale)}`,
+      locale: OG_LOCALE[locale],
       type: "website",
       ...(ogImage
         ? {
@@ -100,8 +124,8 @@ export default async function BlogArchivePage({ searchParams }: PageProps) {
   const filter = parseBlogFilter(category)
   const blogPath = localePath("/blog", locale)
   const [page, posts, catalog] = await Promise.all([
-    resolvePageContent("blog", locale),
-    listBlogPostsFromCms(locale),
+    loadBlogArchivePage(locale),
+    loadBlogPosts(locale),
     getBlogCatalog(),
   ])
   const { featured, rest } = archivePostsFromList(posts, filter)
@@ -112,8 +136,8 @@ export default async function BlogArchivePage({ searchParams }: PageProps) {
     <>
       <JsonLd
         data={buildBreadcrumbJsonLd([
-          { name: "Home", url: localePath("/", locale) },
-          { name: "Blog", url: blogPath },
+          { name: t(locale, "nav.home") || "Home", url: localePath("/", locale) },
+          { name: t(locale, "nav.blog") || "Blog", url: blogPath },
         ])}
       />
       <BlogArchive

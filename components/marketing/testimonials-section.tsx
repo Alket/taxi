@@ -93,7 +93,13 @@ function ReviewCard({ review }: { review: PublicReview }) {
   )
 }
 
-function CustomerReviewsCarousel({ destination }: { destination?: string }) {
+function CustomerReviewsCarousel({
+  destination,
+  initialReviews,
+}: {
+  destination?: string
+  initialReviews?: PublicReview[]
+}) {
   const {
     emblaRef,
     emblaApi,
@@ -108,8 +114,9 @@ function CustomerReviewsCarousel({ destination }: { destination?: string }) {
   const { data } = useSWR<{ reviews: PublicReview[] }>(
     `/api/reviews/public?${params.toString()}`,
     fetcher,
+    initialReviews ? { fallbackData: { reviews: initialReviews } } : undefined,
   )
-  const reviews = data?.reviews ?? []
+  const reviews = data?.reviews ?? initialReviews ?? []
 
   useEffect(() => {
     emblaApi?.reInit()
@@ -180,12 +187,14 @@ export function TestimonialsSection({
   heading,
   showCustomerReviews = true,
   showTrustpilotTestimonials = false,
+  initialReviews,
 }: {
   destination?: string
   eyebrow?: string
   heading?: string
   showCustomerReviews?: boolean
   showTrustpilotTestimonials?: boolean
+  initialReviews?: PublicReview[]
 }) {
   const params = new URLSearchParams({ limit: "6" })
   if (destination) params.set("destination", destination)
@@ -193,6 +202,7 @@ export function TestimonialsSection({
   const { data: customerData } = useSWR<{ reviews: PublicReview[] }>(
     showCustomerReviews ? `/api/reviews/public?${params.toString()}` : null,
     fetcher,
+    initialReviews ? { fallbackData: { reviews: initialReviews } } : undefined,
   )
   const { data: trustpilotData } = useSWR<PublicTpResponse>(
     showTrustpilotTestimonials ? "/api/trustpilot-testimonials/public" : null,
@@ -200,7 +210,8 @@ export function TestimonialsSection({
   )
 
   const hasCustomer =
-    showCustomerReviews && (customerData?.reviews?.length ?? 0) > 0
+    showCustomerReviews &&
+    ((customerData?.reviews ?? initialReviews)?.length ?? 0) > 0
   const hasTrustpilot =
     showTrustpilotTestimonials &&
     Boolean(trustpilotData?.visible) &&
@@ -244,7 +255,10 @@ export function TestimonialsSection({
 
         <div className="flex flex-col gap-10 md:gap-12">
           {showCustomerReviews ? (
-            <CustomerReviewsCarousel destination={destination} />
+            <CustomerReviewsCarousel
+              destination={destination}
+              initialReviews={initialReviews}
+            />
           ) : null}
           {showTrustpilotTestimonials ? (
             <TrustpilotTestimonialsContent />

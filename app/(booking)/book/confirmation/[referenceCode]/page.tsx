@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import Link from "next/link"
 import {
   AlertCircleIcon,
@@ -19,9 +20,24 @@ import { t } from "@/lib/i18n/t"
 import { shouldRevealPickupPin } from "@/lib/pickup-pin"
 import type { Direction, VehicleType } from "@/lib/types"
 
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+}
+
 type PageProps = {
   params: Promise<{ referenceCode: string }>
   searchParams: Promise<{ email?: string }>
+}
+
+type ConfirmationLeg = {
+  referenceCode: string
+  pickupPin: string | null
+  direction: Direction
+  pickupAddress: string
+  dropoffAddress: string
+  pickupDateTime: string
+  flightNumber: string | null
+  totalPrice: number
 }
 
 type ConfirmationView = {
@@ -37,6 +53,7 @@ type ConfirmationView = {
   luggageCount: number
   meetAndGreet: boolean
   isRoundTrip: boolean
+  legs: ConfirmationLeg[]
   currency: string
   totalPrice: number
   depositAmount: number
@@ -47,6 +64,42 @@ type ConfirmationView = {
   cashOnArrival: boolean
 }
 
+const confirmationLegSelect = {
+  referenceCode: true,
+  pickupPin: true,
+  direction: true,
+  pickupAddress: true,
+  dropoffAddress: true,
+  pickupDateTime: true,
+  flightNumber: true,
+  vehicleType: true,
+  passengerCount: true,
+  luggageCount: true,
+  meetAndGreet: true,
+  isRoundTrip: true,
+  totalPrice: true,
+  depositAmount: true,
+  depositPaid: true,
+  balanceDue: true,
+  currency: true,
+  status: true,
+  paymentStatus: true,
+  notes: true,
+} as const
+
+function sumMoney(
+  rows: { totalPrice: unknown; depositAmount: unknown; depositPaid: unknown; balanceDue: unknown }[],
+) {
+  const add = (field: "totalPrice" | "depositAmount" | "depositPaid" | "balanceDue") =>
+    Number(rows.reduce((sum, row) => sum + Number(row[field]), 0).toFixed(2))
+  return {
+    totalPrice: add("totalPrice"),
+    depositAmount: add("depositAmount"),
+    depositPaid: add("depositPaid"),
+    balanceDue: add("balanceDue"),
+  }
+}
+
 async function loadConfirmation(
   referenceCode: string,
   email: string,
@@ -54,32 +107,28 @@ async function loadConfirmation(
   const booking = await prisma.booking.findUnique({
     where: { referenceCode },
     select: {
-      referenceCode: true,
-      pickupPin: true,
-      direction: true,
-      pickupAddress: true,
-      dropoffAddress: true,
-      pickupDateTime: true,
-      flightNumber: true,
-      vehicleType: true,
-      passengerCount: true,
-      luggageCount: true,
-      meetAndGreet: true,
-      isRoundTrip: true,
-      totalPrice: true,
-      depositAmount: true,
-      depositPaid: true,
-      balanceDue: true,
-      currency: true,
-      status: true,
-      paymentStatus: true,
-      notes: true,
+      ...confirmationLegSelect,
+      customerId: true,
+      roundTripId: true,
       customer: { select: { email: true } },
     },
   })
 
   if (!booking) return null
   if (!email || booking.customer.email.toLowerCase() !== email) return null
+
+  const siblings = booking.roundTripId
+    ? await prisma.booking.findMany({
+        where: {
+          roundTripId: booking.roundTripId,
+          customerId: booking.customerId,
+          status: { not: "cancelled" },
+        },
+        select: confirmationLegSelect,
+        orderBy: { pickupDateTime: "asc" },
+      })
+    : []
+  const rows = siblings.length > 0 ? siblings : [booking]
 
   const paymentSucceeded =
     booking.paymentStatus === "deposit_paid" ||
@@ -91,6 +140,18 @@ async function loadConfirmation(
     booking.status !== "pending" &&
     booking.status !== "cancelled" &&
     (booking.notes?.toLowerCase().includes("cash on arrival") ?? false)
+
+  const money = sumMoney(rows)
+  const legs: ConfirmationLeg[] = rows.map((row) => ({
+    referenceCode: row.referenceCode,
+    pickupPin: shouldRevealPickupPin(row) ? row.pickupPin : null,
+    direction: row.direction as Direction,
+    pickupAddress: row.pickupAddress,
+    dropoffAddress: row.dropoffAddress,
+    pickupDateTime: row.pickupDateTime.toISOString(),
+    flightNumber: row.flightNumber?.trim() || null,
+    totalPrice: Number(row.totalPrice),
+  }))
 
   return {
     referenceCode: booking.referenceCode,
@@ -104,12 +165,10 @@ async function loadConfirmation(
     passengerCount: booking.passengerCount,
     luggageCount: booking.luggageCount,
     meetAndGreet: booking.meetAndGreet,
-    isRoundTrip: booking.isRoundTrip,
+    isRoundTrip: legs.length > 1,
+    legs,
     currency: booking.currency,
-    totalPrice: Number(booking.totalPrice),
-    depositAmount: Number(booking.depositAmount),
-    depositPaid: Number(booking.depositPaid),
-    balanceDue: Number(booking.balanceDue),
+    ...money,
     paymentStatus: booking.paymentStatus,
     paymentSucceeded,
     cashOnArrival,
@@ -199,10 +258,28 @@ function PendingPaymentState({
         </div>
       </div>
 
-      <CopyableReference
-        referenceCode={booking.referenceCode}
-        pickupPin={booking.pickupPin ?? undefined}
-      />
+      {booking.isRoundTrip ? (
+        <div className="flex flex-col gap-4">
+          {booking.legs.map((leg, index) => (
+            <div key={leg.referenceCode} className="flex flex-col gap-2">
+              <p className="text-center text-xs font-extrabold tracking-wider text-muted-foreground uppercase">
+                {index === 0
+                  ? t(locale, "confirm.outbound")
+                  : t(locale, "confirm.return")}
+              </p>
+              <CopyableReference
+                referenceCode={leg.referenceCode}
+                pickupPin={leg.pickupPin ?? undefined}
+              />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <CopyableReference
+          referenceCode={booking.referenceCode}
+          pickupPin={booking.pickupPin ?? undefined}
+        />
+      )}
 
       <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm font-medium text-amber-950 dark:text-amber-100">
         {t(locale, "confirm.depositDue")}:{" "}
@@ -255,6 +332,69 @@ function TripSummary({
         <h2 className="font-brand text-base font-extrabold text-brand sm:text-lg">
           {t(locale, "confirm.tripSummary")}
         </h2>
+        {booking.isRoundTrip ? (
+          <div className="mt-4 flex flex-col gap-6">
+            {booking.legs.map((leg, index) => (
+              <div
+                key={leg.referenceCode}
+                className={index > 0 ? "border-t border-border/80 pt-6" : undefined}
+              >
+                <h3 className="text-sm font-extrabold text-brand">
+                  {index === 0
+                    ? t(locale, "confirm.outbound")
+                    : t(locale, "confirm.return")}
+                </h3>
+                <dl className="mt-3 flex flex-col gap-3">
+                  <SummaryRow
+                    label={t(locale, "confirm.direction")}
+                    value={directionLabel(locale, leg.direction)}
+                  />
+                  <SummaryRow
+                    label={t(locale, "confirm.route")}
+                    value={`${leg.pickupAddress} → ${leg.dropoffAddress}`}
+                  />
+                  <SummaryRow
+                    label={t(locale, "confirm.pickup")}
+                    value={formatDateTime(leg.pickupDateTime)}
+                  />
+                  {leg.flightNumber ? (
+                    <SummaryRow
+                      label={t(locale, "confirm.flight")}
+                      value={leg.flightNumber}
+                    />
+                  ) : null}
+                  <SummaryRow
+                    label={t(locale, "confirm.reference")}
+                    value={leg.referenceCode}
+                  />
+                  {leg.pickupPin ? (
+                    <SummaryRow
+                      label={t(locale, "confirm.pin")}
+                      value={leg.pickupPin}
+                    />
+                  ) : null}
+                  <SummaryRow
+                    label={t(locale, "confirm.legFare")}
+                    value={formatMoney(leg.totalPrice, booking.currency)}
+                  />
+                </dl>
+              </div>
+            ))}
+            <dl className="flex flex-col gap-3 border-t border-border/80 pt-6">
+              <SummaryRow
+                label={t(locale, "confirm.vehicle")}
+                value={vehicleBits.join(" · ")}
+              />
+              <SummaryRow
+                label={t(locale, "confirm.party")}
+                value={t(locale, partyKey, {
+                  passengers: booking.passengerCount,
+                  bags: booking.luggageCount,
+                })}
+              />
+            </dl>
+          </div>
+        ) : (
         <dl className="mt-4 flex flex-col gap-3">
           <SummaryRow
             label={t(locale, "confirm.direction")}
@@ -286,6 +426,7 @@ function TripSummary({
             })}
           />
         </dl>
+        )}
       </div>
 
       <div className="border-t border-border/80 bg-brand-page/50 px-6 py-4 text-sm">
@@ -456,15 +597,33 @@ export default async function Page({ params, searchParams }: PageProps) {
         </div>
       </div>
 
-      <CopyableReference
-        referenceCode={booking.referenceCode}
-        pickupPin={booking.pickupPin ?? undefined}
-      />
+      {booking.isRoundTrip ? (
+        <div className="flex flex-col gap-4">
+          {booking.legs.map((leg, index) => (
+            <div key={leg.referenceCode} className="flex flex-col gap-2">
+              <p className="text-center text-xs font-extrabold tracking-wider text-muted-foreground uppercase">
+                {index === 0
+                  ? t(locale, "confirm.outbound")
+                  : t(locale, "confirm.return")}
+              </p>
+              <CopyableReference
+                referenceCode={leg.referenceCode}
+                pickupPin={leg.pickupPin ?? undefined}
+              />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <CopyableReference
+          referenceCode={booking.referenceCode}
+          pickupPin={booking.pickupPin ?? undefined}
+        />
+      )}
 
       <TripSummary booking={booking} locale={locale} />
 
       <WhatHappensNext
-        hasFlight={Boolean(booking.flightNumber)}
+        hasFlight={booking.legs.some((leg) => Boolean(leg.flightNumber))}
         cashOnArrival={booking.cashOnArrival}
         locale={locale}
       />

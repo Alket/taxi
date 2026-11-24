@@ -99,41 +99,40 @@ export function TrustpilotReviewCollector({
       return true
     }
 
-    let pinned = false
+    let loaded = false
     const observer = new MutationObserver(() => {
       if (pinIframeLeft()) {
-        pinned = true
         observer.disconnect()
       }
     })
     observer.observe(widget, { childList: true, subtree: true })
 
     const load = () => {
-      if (pinned || widget.querySelector("iframe")) {
-        if (pinIframeLeft()) {
-          pinned = true
-          observer.disconnect()
-        }
-        return
-      }
-      if (window.Trustpilot?.loadFromElement) {
-        window.Trustpilot.loadFromElement(widget, true)
-        if (pinIframeLeft()) {
-          pinned = true
-          observer.disconnect()
-        }
+      if (loaded || !window.Trustpilot?.loadFromElement) return
+      loaded = true
+      window.Trustpilot.loadFromElement(widget, true)
+      if (pinIframeLeft()) {
+        observer.disconnect()
       }
     }
 
     load()
-    const t1 = window.setTimeout(load, 500)
-    const t2 = window.setTimeout(load, 1500)
-    const t3 = window.setTimeout(load, 3000)
+    const boot = document.querySelector<HTMLScriptElement>(
+      'script[src*="widget.trustpilot.com/bootstrap"]',
+    )
+    boot?.addEventListener("load", load)
+    const wait = window.setInterval(() => {
+      if (window.Trustpilot) {
+        load()
+        window.clearInterval(wait)
+      }
+    }, 100)
+    const stopWait = window.setTimeout(() => window.clearInterval(wait), 5000)
 
     return () => {
-      window.clearTimeout(t1)
-      window.clearTimeout(t2)
-      window.clearTimeout(t3)
+      boot?.removeEventListener("load", load)
+      window.clearInterval(wait)
+      window.clearTimeout(stopWait)
       observer.disconnect()
       host.replaceChildren()
     }

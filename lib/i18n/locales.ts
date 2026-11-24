@@ -17,6 +17,16 @@ export const LOCALE_LABELS: Record<Locale, { label: string; short: string }> = {
   ru: { label: "Russian", short: "RU" },
 }
 
+export const OG_LOCALE: Record<Locale, string> = {
+  en: "en_US",
+  it: "it_IT",
+  de: "de_DE",
+  pl: "pl_PL",
+  tr: "tr_TR",
+  uk: "uk_UA",
+  ru: "ru_RU",
+}
+
 export function isLocale(value: string | null | undefined): value is Locale {
   return Boolean(value && (LOCALES as readonly string[]).includes(value))
 }

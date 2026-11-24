@@ -11,16 +11,16 @@ import { TrustpilotWidgetBootstrap } from "@/components/marketing/trustpilot-wid
 import { getRequestLocale } from "@/lib/i18n/get-locale"
 import { getAppBaseUrl } from "@/lib/mail"
 import { DEFAULT_OG_IMAGE } from "@/lib/page-content"
-import { getSettings } from "@/lib/settings"
+import { getSettings, isSearchIndexingEnabled } from "@/lib/settings"
 import "./globals.css"
 
 const inter = Inter({
-  subsets: ["latin"],
+  subsets: ["latin", "latin-ext", "cyrillic"],
   variable: "--font-inter",
   display: "swap",
 })
 const jetbrainsMono = JetBrains_Mono({
-  subsets: ["latin"],
+  subsets: ["latin", "latin-ext", "cyrillic"],
   variable: "--font-jetbrains-mono",
   display: "swap",
 })
@@ -31,13 +31,13 @@ const jetbrainsMono = JetBrains_Mono({
  * (homepage + /book), not admin.
  */
 const museoSans = Mulish({
-  subsets: ["latin"],
+  subsets: ["latin", "latin-ext", "cyrillic"],
   weight: ["500", "600", "700", "800"],
   variable: "--font-museo-sans",
   display: "swap",
 })
 
-const FALLBACK_BRAND = "Albania Transfers"
+const FALLBACK_BRAND = "Landed Albania"
 const FALLBACK_FAVICON = "/marketing/favicon.png"
 
 async function resolveBrandName() {
@@ -61,12 +61,7 @@ async function resolveFaviconUrl() {
 }
 
 async function resolveSearchIndexingEnabled() {
-  try {
-    const settings = await getSettings()
-    return settings.searchIndexingEnabled === true
-  } catch {
-    return false
-  }
+  return isSearchIndexingEnabled()
 }
 
 async function resolveGtmContainerId() {
@@ -95,7 +90,7 @@ export async function generateMetadata(): Promise<Metadata> {
         : "image/png"
 
   const description =
-    "Book airport transfers across Albania, or manage operations from the admin console."
+    "Book a private Tirana Airport transfer across Albania. Fixed fares, flight tracking, meet-and-greet, and cash on arrival."
 
   return {
     metadataBase: new URL(getAppBaseUrl()),

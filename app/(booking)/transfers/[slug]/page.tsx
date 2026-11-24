@@ -1,3 +1,4 @@
+import { cache } from "react"
 import type { Metadata } from "next"
 import Image from "next/image"
 import Link from "next/link"
@@ -21,10 +22,13 @@ import {
 import { getRequestLocale } from "@/lib/i18n/get-locale"
 import {
   DEFAULT_LOCALE,
+  OG_LOCALE,
+  englishOnlyAlternates,
   localizedAlternates,
   localePath,
 } from "@/lib/i18n/locales"
 import { t } from "@/lib/i18n/t"
+import { hasTransferLocaleRow } from "@/lib/transfers/cms"
 import {
   getRelatedRoutes,
   getRouteData,
@@ -53,6 +57,10 @@ type PageProps = {
  */
 export const dynamic = "force-dynamic"
 
+const loadRouteData = cache((slug: string, locale: string) =>
+  getRouteData(slug, locale),
+)
+
 function bookHref(
   route: { destinationId: string; zoneName: string; slug: string },
   locale: Awaited<ReturnType<typeof getRequestLocale>>,
@@ -66,7 +74,7 @@ export async function generateMetadata({
 }: PageProps): Promise<Metadata> {
   const { slug } = await params
   const locale = await getRequestLocale()
-  const route = await getRouteData(slug, locale)
+  const route = await loadRouteData(slug, locale)
   if (!route) {
     return { title: "Airport transfer" }
   }
@@ -80,7 +88,12 @@ export async function generateMetadata({
   const title = searchTitle(seo.heading)
   const description = seo.description
   const path = `/transfers/${route.slug}`
-  const alternates = localizedAlternates(path, locale)
+  const isTranslated =
+    locale === DEFAULT_LOCALE ||
+    (await hasTransferLocaleRow(route.slug, locale))
+  const alternates = isTranslated
+    ? localizedAlternates(path, locale)
+    : englishOnlyAlternates(path)
 
   return {
     title,
@@ -90,7 +103,7 @@ export async function generateMetadata({
       title: title.absolute,
       description,
       url: alternates.canonical,
-      locale: locale === DEFAULT_LOCALE ? "en_US" : undefined,
+      locale: OG_LOCALE[locale],
       images: [
         {
           url: route.heroImageUrl,
@@ -112,7 +125,7 @@ export async function generateMetadata({
 export default async function TransferRoutePage({ params }: PageProps) {
   const { slug } = await params
   const locale = await getRequestLocale()
-  const route = await getRouteData(slug, locale)
+  const route = await loadRouteData(slug, locale)
   if (!route) notFound()
 
   const seo = transferSearchCopy(

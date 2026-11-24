@@ -247,8 +247,9 @@ export function homeSearchCopy(locale: Locale): Copy {
 export function destinationSearchCopy(
   id: string,
   locale: Locale,
+  fallbackName?: string,
 ): Copy | null {
-  const city = CITY[id]?.[locale]
+  const city = CITY[id]?.[locale] || fallbackName?.trim()
   if (!city) return null
   return {
     heading: fill(DESTINATION_HEADING[locale], { city }),

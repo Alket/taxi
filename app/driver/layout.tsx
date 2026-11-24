@@ -4,6 +4,7 @@ export const metadata: Metadata = {
   title: "Driver",
   // iOS “Add to Home Screen” uses the manifest start_url — keep /driver, not /.
   manifest: "/driver.webmanifest",
+  robots: { index: false, follow: false },
   appleWebApp: {
     capable: true,
     title: "Driver",

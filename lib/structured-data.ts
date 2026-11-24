@@ -7,6 +7,12 @@ function baseUrl() {
   return getAppBaseUrl().replace(/\/+$/, "")
 }
 
+function absoluteUrl(pathOrUrl: string): string {
+  if (/^https?:\/\//i.test(pathOrUrl)) return pathOrUrl
+  const site = baseUrl()
+  return `${site}${pathOrUrl.startsWith("/") ? "" : "/"}${pathOrUrl}`
+}
+
 export function buildLocalBusinessJsonLd(input: {
   name: string
   description?: string
@@ -21,12 +27,14 @@ export function buildLocalBusinessJsonLd(input: {
     "@type": "LocalBusiness",
     name: input.name,
     description: input.description,
-    url: input.url ?? site,
+    url: input.url ? absoluteUrl(input.url) : site,
+    logo: `${site}/marketing/logo.svg`,
     ...(input.telephone ? { telephone: input.telephone } : {}),
     ...(input.email ? { email: input.email } : {}),
-    ...(input.image ? { image: input.image } : {}),
+    ...(input.image ? { image: absoluteUrl(input.image) } : {}),
     address: {
       "@type": "PostalAddress",
+      addressLocality: "Tirana",
       addressCountry: "AL",
     },
     areaServed: {
@@ -68,8 +76,8 @@ export function buildTouristDestinationJsonLd(input: {
     "@type": "TouristDestination",
     name: input.name,
     description: input.description,
-    ...(input.image ? { image: input.image } : {}),
-    url: `${baseUrl()}${input.url}`,
+    ...(input.image ? { image: absoluteUrl(input.image) } : {}),
+    url: absoluteUrl(input.url),
     touristType: "Airport transfer travellers",
     includesAttraction: (input.attractions ?? [])
       .filter((a) => typeof a.name === "string" && a.name.trim())
@@ -79,7 +87,7 @@ export function buildTouristDestinationJsonLd(input: {
         ...(attraction.description
           ? { description: attraction.description }
           : {}),
-        ...(attraction.image ? { image: attraction.image } : {}),
+        ...(attraction.image ? { image: absoluteUrl(attraction.image) } : {}),
       })),
   }
 }

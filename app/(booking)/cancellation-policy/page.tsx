@@ -1,3 +1,4 @@
+import { cache } from "react"
 import type { Metadata } from "next"
 
 import { CancellationPolicyView } from "@/components/marketing/cancellation-policy-view"
@@ -16,9 +17,13 @@ import { getSettingsRow } from "@/lib/settings"
 // revalidatePath) keeps this fast without re-querying the DB on every hit.
 export const revalidate = 3600
 
+const loadCancellationPage = cache((locale: string) =>
+  resolvePageContent("cancellation-policy", locale),
+)
+
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getRequestLocale()
-  const page = await resolvePageContent("cancellation-policy", locale)
+  const page = await loadCancellationPage(locale)
   if (!page) return { title: "Cancellation Policy" }
   return pageMetadataFields(page)
 }
@@ -26,7 +31,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function CancellationPolicyPage() {
   const locale = await getRequestLocale()
   const [page, settings] = await Promise.all([
-    resolvePageContent("cancellation-policy", locale),
+    loadCancellationPage(locale),
     getSettingsRow(),
   ])
   const sections = page?.sections ?? []

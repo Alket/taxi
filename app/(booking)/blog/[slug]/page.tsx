@@ -1,3 +1,4 @@
+import { cache } from "react"
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 
@@ -8,17 +9,21 @@ import {
   categoryLabelFromCatalog,
   getBlogCatalog,
 } from "@/lib/blog/catalog"
+import { pageContentToBlogPost } from "@/lib/blog/cms"
 import { getRelatedDestinations } from "@/lib/blog"
 import { getRequestLocale } from "@/lib/i18n/get-locale"
 import {
   DEFAULT_LOCALE,
+  OG_LOCALE,
+  englishOnlyAlternates,
   localePath,
   localizedAlternates,
 } from "@/lib/i18n/locales"
+import { t } from "@/lib/i18n/t"
 import { getAppBaseUrl } from "@/lib/mail"
 import {
-  getBlogPostFromCms,
   resolveDestinationCards,
+  resolvePageContent,
 } from "@/lib/page-content"
 import {
   localizeFallbackSearchCopy,
@@ -32,6 +37,10 @@ import {
 
 export const dynamic = "force-dynamic"
 
+const loadBlogPageRecord = cache((slug: string, locale: string) =>
+  resolvePageContent(`blog/${slug}`, locale),
+)
+
 type PageProps = {
   params: Promise<{ slug: string }>
 }
@@ -41,12 +50,14 @@ export async function generateMetadata({
 }: PageProps): Promise<Metadata> {
   const { slug } = await params
   const locale = await getRequestLocale()
-  const [post, englishPost] = await Promise.all([
-    getBlogPostFromCms(slug, locale),
+  const [pageRecord, englishRecord] = await Promise.all([
+    loadBlogPageRecord(slug, locale),
     locale === DEFAULT_LOCALE
       ? Promise.resolve(null)
-      : getBlogPostFromCms(slug, DEFAULT_LOCALE),
+      : loadBlogPageRecord(slug, DEFAULT_LOCALE),
   ])
+  const post = pageRecord ? pageContentToBlogPost(pageRecord) : null
+  const englishPost = englishRecord ? pageContentToBlogPost(englishRecord) : null
   if (!post) return { title: "Guide not found" }
 
   const path = `/blog/${post.slug}`
@@ -64,14 +75,19 @@ export async function generateMetadata({
   )
   const title = searchTitle(localized.title)
   const description = localized.description
+  const isTranslated =
+    locale === DEFAULT_LOCALE || Boolean(pageRecord?.hasLocaleRow)
   return {
     title,
     description,
-    alternates: localizedAlternates(path, locale),
+    alternates: isTranslated
+      ? localizedAlternates(path, locale)
+      : englishOnlyAlternates(path),
     openGraph: {
       title: title.absolute,
       description,
       url: `${base}${localePath(path, locale)}`,
+      locale: OG_LOCALE[locale],
       type: "article",
       publishedTime: post.publishedAt,
       modifiedTime: post.updatedAt,
@@ -96,11 +112,12 @@ export async function generateMetadata({
 export default async function BlogPostPage({ params }: PageProps) {
   const { slug } = await params
   const locale = await getRequestLocale()
-  const [post, catalog, destinationCards] = await Promise.all([
-    getBlogPostFromCms(slug, locale),
+  const [pageRecord, catalog, destinationCards] = await Promise.all([
+    loadBlogPageRecord(slug, locale),
     getBlogCatalog(),
     resolveDestinationCards(locale),
   ])
+  const post = pageRecord ? pageContentToBlogPost(pageRecord) : null
   if (!post) notFound()
 
   const author = authorFromCatalog(catalog, post.authorId)
@@ -125,8 +142,8 @@ export default async function BlogPostPage({ params }: PageProps) {
       />
       <JsonLd
         data={buildBreadcrumbJsonLd([
-          { name: "Home", url: localePath("/", locale) },
-          { name: "Blog", url: localePath("/blog", locale) },
+          { name: t(locale, "nav.home") || "Home", url: localePath("/", locale) },
+          { name: t(locale, "nav.blog") || "Blog", url: localePath("/blog", locale) },
           {
             name: categoryLabel,
             url: localePath(`/blog?category=${post.category}`, locale),
