@@ -8,6 +8,7 @@ const nextConfig = {
   allowedDevOrigins: ["wriggle-dollhouse-unhidden.ngrok-free.dev"],
   images: {
     formats: ["image/avif", "image/webp"],
+    minimumCacheTTL: 60 * 60 * 24 * 30,
     // Local /uploads/* are same-origin. External CMS heroes are limited to
     // hosts we actually use — not a wildcard HTTPS allowlist.
     remotePatterns: [
