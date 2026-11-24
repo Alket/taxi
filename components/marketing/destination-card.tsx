@@ -47,7 +47,7 @@ export function DestinationCard({
 
         <div className="relative z-10 flex items-start justify-between gap-2 p-4">
           {destination.badge ? (
-            <span className="rounded-full bg-white/95 px-3 py-1 text-[11px] font-extrabold tracking-wide text-brand shadow-xs backdrop-blur-md">
+            <span className="rounded-full bg-white/95 px-3 py-1 text-[11px] font-extrabold tracking-wide text-brand shadow-xs">
               {destination.badge}
             </span>
           ) : (
@@ -55,7 +55,7 @@ export function DestinationCard({
           )}
 
           {destination.travelTime ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-panel/80 px-3 py-1 text-xs font-bold text-white shadow-xs backdrop-blur-md">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-panel/90 px-3 py-1 text-xs font-bold text-white shadow-xs">
               <ClockIcon className="size-3.5 shrink-0 text-white/85" aria-hidden />
               <span>{destination.travelTime}</span>
             </span>

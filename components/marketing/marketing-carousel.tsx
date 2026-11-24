@@ -83,10 +83,14 @@ export function MarketingCarousel({
   viewportClassName?: string
 }) {
   return (
-    <div className={cn("overflow-hidden", viewportClassName)} ref={emblaRef}>
+    <div
+      className={cn("overflow-hidden touch-pan-y", viewportClassName)}
+      style={{ touchAction: "pan-y pinch-zoom" }}
+      ref={emblaRef}
+    >
       <div
         className={cn(
-          "flex touch-pan-y [backface-visibility:hidden]",
+          "flex touch-pan-y",
           "-ml-4 min-[750px]:-ml-[1.6rem] min-[1200px]:-ml-8",
           className,
         )}

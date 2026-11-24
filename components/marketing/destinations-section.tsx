@@ -70,7 +70,7 @@ export function DestinationsSection({
     <section
       id="destinations"
       className={cn(
-        "scroll-mt-24 border-b border-border/60 bg-brand-page py-14 font-brand md:py-20 lg:py-24",
+        "scroll-mt-24 overflow-x-clip border-b border-border/60 bg-brand-page py-14 font-brand md:py-20 lg:py-24",
         className,
       )}
     >

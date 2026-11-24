@@ -120,7 +120,7 @@ function restoreAllStyles() {
   body.style.touchAction = savedBodyTouchAction
   body.style.scrollBehavior = savedBodyScrollBehavior
 
-  window.scrollTo(0, savedScrollY)
+  window.scrollTo({ top: savedScrollY, left: 0, behavior: "instant" })
   stylesCaptured = false
 }
 
@@ -154,7 +154,7 @@ function releaseLock(strategy: LockStrategy) {
     if (fixedCount === 0 && lockCount > 1) {
       // Other locks still active — drop fixed freeze, keep overflow lock.
       clearFixedLock()
-      window.scrollTo(0, savedScrollY)
+      window.scrollTo({ top: savedScrollY, left: 0, behavior: "instant" })
     }
   }
 
@@ -200,7 +200,7 @@ export function forceUnlockDocumentScroll(options?: { scrollTop?: number }) {
   body.style.scrollBehavior = ""
 
   const top = options?.scrollTop ?? window.scrollY
-  window.scrollTo(0, top)
+  window.scrollTo({ top, left: 0, behavior: "instant" })
 }
 
 /**
