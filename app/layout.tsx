@@ -6,6 +6,7 @@ import { AppThemeProvider } from "@/components/admin/theme-provider"
 import {
   GoogleTagManager,
 } from "@/components/marketing/google-tag-manager"
+import { RouteProgressBar } from "@/components/marketing/route-progress-bar"
 import { TrustpilotInviteBootstrap } from "@/components/marketing/trustpilot-invite-bootstrap"
 import { TrustpilotWidgetBootstrap } from "@/components/marketing/trustpilot-widget-bootstrap"
 import { getRequestLocale } from "@/lib/i18n/get-locale"
@@ -157,6 +158,7 @@ export default async function RootLayout({
         <TrustpilotInviteBootstrap integrationKey={trustpilotKey} />
       </head>
       <body className="font-sans antialiased">
+        <RouteProgressBar />
         <GoogleTagManager containerId={gtmContainerId} />
         {/* TrustBox widget bootstrap (Review Collector, etc.) */}
         <TrustpilotWidgetBootstrap />
