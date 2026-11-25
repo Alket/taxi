@@ -4,12 +4,18 @@ import * as React from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import useSWR from "swr"
 import {
+  AlertCircleIcon,
+  ArrowRightIcon,
+  CalendarIcon,
   ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   CircleDollarSignIcon,
+  ClockIcon,
   ListFilterIcon,
+  RefreshCwIcon,
   SlidersHorizontalIcon,
+  UserIcon,
   XIcon,
 } from "lucide-react"
 
@@ -29,6 +35,7 @@ import {
 import {
   BOOKING_STATUS_LABELS,
   PAYMENT_STATUS_LABELS,
+  formatMoney,
   formatTime,
 } from "@/lib/format"
 import type { Booking, Driver, PaymentStatus } from "@/lib/types"
@@ -78,14 +85,14 @@ const PAYMENT_OPTIONS: { value: string; label: string }[] = [
 ]
 
 const statusAccent: Record<Booking["status"], string> = {
-  pending: "border-l-warning",
-  confirmed: "border-l-info",
-  driver_assigned: "border-l-warning",
-  driver_accepted: "border-l-primary",
-  en_route: "border-l-primary",
+  pending: "border-l-amber-500",
+  confirmed: "border-l-sky-500",
+  driver_assigned: "border-l-amber-500",
+  driver_accepted: "border-l-sky-500",
+  en_route: "border-l-sky-500",
   arrived: "border-l-primary",
   in_progress: "border-l-primary",
-  completed: "border-l-success",
+  completed: "border-l-emerald-500",
   cancelled: "border-l-destructive",
   abandoned: "border-l-muted-foreground",
 }
@@ -150,48 +157,96 @@ function EventChip({
   selected?: boolean
   onSelect: () => void
 }) {
+  if (dense) {
+    return (
+      <button
+        type="button"
+        onClick={onSelect}
+        className={cn(
+          "group w-full rounded-md border border-border/70 border-l-[3px] bg-background/95 px-1.5 py-1 text-left text-foreground shadow-2xs transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          statusAccent[booking.status],
+          !booking.driver &&
+            booking.status !== "cancelled" &&
+            booking.status !== "abandoned" &&
+            "border-amber-500/40 bg-amber-500/[0.05] hover:bg-amber-500/10",
+          selected && "ring-2 ring-ring",
+        )}
+      >
+        <div className="flex items-center justify-between gap-1 text-[10px] leading-tight font-semibold tabular-nums">
+          <div className="flex min-w-0 items-center gap-1">
+            <span className="shrink-0">
+              {formatTime(booking.pickupDateTime)}
+            </span>
+            <span className="truncate font-normal text-muted-foreground">
+              {booking.referenceCode}
+            </span>
+          </div>
+          {!booking.driver &&
+          booking.status !== "cancelled" &&
+          booking.status !== "abandoned" ? (
+            <span
+              className="size-1.5 shrink-0 rounded-full bg-amber-500"
+              aria-hidden
+            />
+          ) : null}
+        </div>
+        <p className="mt-0.5 truncate text-[10px] text-muted-foreground">
+          {booking.customer.name}
+        </p>
+      </button>
+    )
+  }
+
   return (
     <button
       type="button"
       onClick={onSelect}
       className={cn(
-        "w-full rounded-md border border-border/70 border-l-4 bg-white text-left text-foreground transition-colors hover:bg-white/90",
+        "group flex w-full items-center gap-3 rounded-xl border border-border/80 border-l-4 bg-card p-3.5 text-left text-foreground shadow-xs transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-4",
         statusAccent[booking.status],
-        dense ? "px-1.5 py-1" : "px-2.5 py-2",
         selected && "ring-2 ring-ring",
       )}
     >
-      <div
-        className={cn(
-          "flex items-center gap-1.5 font-medium tabular-nums",
-          dense ? "text-[10px] leading-tight" : "text-xs",
-        )}
-      >
-        <span className="shrink-0 text-foreground">
-          {formatTime(booking.pickupDateTime)}
-        </span>
-        <span className="truncate text-foreground/70">
-          {booking.referenceCode}
-        </span>
-      </div>
-      {!dense ? (
-        <div className="mt-1 space-y-1">
-          <p className="truncate text-xs font-medium text-foreground">
-            {booking.customer.name}
-          </p>
-          <p className="truncate text-[11px] text-foreground/70">
-            {booking.driver?.name ?? "Unassigned"}
-          </p>
-          <div className="flex flex-wrap gap-1 pt-0.5">
+      <div className="min-w-0 flex-1 space-y-1.5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="inline-flex items-center gap-1 text-sm font-semibold tabular-nums">
+              <ClockIcon className="size-3.5 text-muted-foreground" />
+              {formatTime(booking.pickupDateTime)}
+            </span>
             <BookingStatusBadge status={booking.status} />
             <PaymentStatusBadge status={booking.paymentStatus} />
           </div>
+          <span className="text-sm font-bold tabular-nums text-foreground">
+            {formatMoney(booking.totalPrice, booking.currency)}
+          </span>
         </div>
-      ) : (
-        <p className="mt-0.5 truncate text-[10px] text-foreground/70">
-          {booking.customer.name}
+
+        <p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-sm leading-snug font-medium text-foreground">
+          <span className="break-words">{booking.pickupAddress}</span>
+          <ArrowRightIcon className="size-3.5 shrink-0 text-muted-foreground" />
+          <span className="break-words">{booking.dropoffAddress}</span>
         </p>
-      )}
+
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+          <span className="font-mono">{booking.referenceCode}</span>
+          <span className="inline-flex items-center gap-1">
+            <UserIcon className="size-3" />
+            <span className="truncate">{booking.customer.name}</span>
+          </span>
+          {booking.driver ? (
+            <Badge variant="secondary" className="font-normal">
+              {booking.driver.name}
+            </Badge>
+          ) : (
+            <Badge variant="destructive" className="font-normal">
+              Unassigned
+            </Badge>
+          )}
+        </div>
+      </div>
+
+      <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
     </button>
   )
 }
@@ -318,14 +373,23 @@ export function BookingsCalendarView() {
     rangeInvalid,
   ])
 
-  const { data, isLoading, mutate } = useSWR<BookingsResponse>(
-    query ? `/api/admin/bookings?${query}` : null,
-    fetcher,
-  )
+  const { data, error, isLoading, isValidating, mutate } =
+    useSWR<BookingsResponse>(
+      query ? `/api/admin/bookings?${query}` : null,
+      fetcher,
+    )
 
   const bookings = data?.bookings ?? []
   const total = data?.total ?? 0
   const byDay = React.useMemo(() => groupBookingsByDay(bookings), [bookings])
+  const unassignedInView = React.useMemo(
+    () =>
+      bookings.filter(
+        (b) =>
+          !b.driver && b.status !== "cancelled" && b.status !== "abandoned",
+      ).length,
+    [bookings],
+  )
 
   const advancedFilterCount = [
     status !== "all",
@@ -415,11 +479,26 @@ export function BookingsCalendarView() {
       <PageHeader
         title="Calendar"
         description="Reservations by day, week, or month"
+        actions={
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-10 touch-manipulation gap-1.5 sm:h-8"
+            disabled={isValidating || rangeInvalid}
+            onClick={() => void mutate()}
+          >
+            <RefreshCwIcon
+              className={cn("size-3.5", isValidating && "animate-spin")}
+            />
+            Refresh
+          </Button>
+        }
       />
-      <div className="flex flex-col gap-4 p-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-4 md:p-6">
-        <div className="flex flex-col gap-3 rounded-xl border bg-card p-3 sm:p-4">
+      <div className="flex w-full flex-col gap-4 p-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-4 md:p-6">
+        <div className="flex flex-col gap-3 rounded-xl border bg-card p-3 shadow-xs sm:p-4">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="inline-flex rounded-lg border bg-muted/40 p-1">
+            <div className="inline-flex rounded-lg border bg-muted/50 p-1">
               {CALENDAR_VIEW_OPTIONS.map((option) => (
                 <Button
                   key={option.value}
@@ -437,7 +516,7 @@ export function BookingsCalendarView() {
               ))}
             </div>
 
-            <div className="flex items-center justify-between gap-2 lg:justify-end">
+            <div className="flex flex-wrap items-center justify-between gap-2 lg:justify-end">
               <div className="flex items-center gap-1">
                 <Button
                   type="button"
@@ -468,28 +547,29 @@ export function BookingsCalendarView() {
                   <ChevronRightIcon className="size-4" />
                 </Button>
               </div>
-              <p className="min-w-0 truncate text-sm font-semibold">
+              <p className="min-w-0 truncate text-sm font-semibold tracking-tight sm:text-base">
                 {formatRangeLabel(view, cursor)}
               </p>
             </div>
           </div>
 
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="flex flex-col gap-2 border-t pt-2.5 sm:flex-row sm:items-center">
             <div className="flex items-center gap-2">
               <Button
                 type="button"
                 variant="outline"
-                className="h-10 flex-1 touch-manipulation justify-between sm:flex-none"
+                size="sm"
+                className="h-9 flex-1 touch-manipulation justify-between sm:flex-none"
                 onClick={() => setFiltersOpen((open) => !open)}
                 aria-expanded={filtersOpen}
               >
                 <span className="inline-flex items-center gap-2">
-                  <SlidersHorizontalIcon className="size-4" />
+                  <SlidersHorizontalIcon className="size-3.5" />
                   Filters
                   {advancedFilterCount > 0 ? (
-                    <Badge variant="secondary" className="tabular-nums">
+                    <span className="rounded-full bg-primary/15 px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-primary">
                       {advancedFilterCount}
-                    </Badge>
+                    </span>
                   ) : null}
                 </span>
                 <ChevronDownIcon
@@ -502,7 +582,8 @@ export function BookingsCalendarView() {
               {hasFilters ? (
                 <Button
                   variant="ghost"
-                  className="h-10 shrink-0 touch-manipulation"
+                  size="sm"
+                  className="h-9 shrink-0 touch-manipulation"
                   onClick={resetFilters}
                 >
                   <XIcon data-icon="inline-start" />
@@ -510,17 +591,26 @@ export function BookingsCalendarView() {
                 </Button>
               ) : null}
             </div>
-            {!isLoading && !rangeInvalid ? (
-              <p className="text-xs text-muted-foreground tabular-nums sm:ml-auto">
-                {total} {total === 1 ? "reservation" : "reservations"}
-                {total >= CALENDAR_PAGE_SIZE ? " (showing first 500)" : ""}
-              </p>
+            {!isLoading && !rangeInvalid && !error ? (
+              <div className="flex flex-wrap items-center gap-2 text-xs sm:ml-auto">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-muted/70 px-2.5 py-0.5 font-medium tabular-nums text-foreground">
+                  <CalendarIcon className="size-3 text-muted-foreground" />
+                  {total} {total === 1 ? "reservation" : "reservations"}
+                  {total >= CALENDAR_PAGE_SIZE ? " (first 500)" : ""}
+                </span>
+                {unassignedInView > 0 ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 font-medium tabular-nums text-amber-800 dark:text-amber-200">
+                    <span className="size-1.5 rounded-full bg-amber-500" />
+                    Unassigned: {unassignedInView}
+                  </span>
+                ) : null}
+              </div>
             ) : null}
           </div>
 
           <div
             className={cn(
-              "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4",
+              "grid grid-cols-1 gap-3 border-t pt-3 sm:grid-cols-2 lg:grid-cols-4",
               !filtersOpen && "hidden",
             )}
           >
@@ -580,8 +670,24 @@ export function BookingsCalendarView() {
           </div>
         </div>
 
-        {rangeInvalid ? (
-          <Empty className="rounded-xl border">
+        {error ? (
+          <div className="flex flex-col items-start justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive sm:flex-row sm:items-center">
+            <div className="flex items-center gap-2.5">
+              <AlertCircleIcon className="size-4 shrink-0" />
+              <p>Could not load calendar reservations.</p>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="border-destructive/30 bg-background text-foreground hover:bg-destructive/10"
+              onClick={() => void mutate()}
+            >
+              Try again
+            </Button>
+          </div>
+        ) : rangeInvalid ? (
+          <Empty className="rounded-xl border bg-card py-14 shadow-xs">
             <EmptyTitle>Invalid date range</EmptyTitle>
             <EmptyDescription>
               From date must be on or before To date.
@@ -590,12 +696,12 @@ export function BookingsCalendarView() {
         ) : isLoading ? (
           <Skeleton className="h-[32rem] w-full rounded-xl" />
         ) : view === "month" ? (
-          <div className="overflow-hidden rounded-xl border bg-card">
+          <div className="overflow-hidden rounded-xl border bg-card shadow-xs">
             <div className="grid grid-cols-7 border-b bg-muted/40">
               {CALENDAR_WEEKDAYS.map((day) => (
                 <div
                   key={day}
-                  className="px-1 py-2 text-center text-[10px] font-semibold tracking-wide text-muted-foreground uppercase sm:text-xs"
+                  className="px-1 py-2.5 text-center text-[10px] font-semibold tracking-wide text-muted-foreground uppercase sm:text-xs"
                 >
                   {day}
                 </div>
@@ -613,27 +719,36 @@ export function BookingsCalendarView() {
                   <div
                     key={dayKey}
                     className={cn(
-                      "min-h-24 border-r border-b p-1 sm:min-h-28 sm:p-1.5",
+                      "min-h-24 border-r border-b p-1 transition-colors [&:nth-child(7n)]:border-r-0 sm:min-h-30 sm:p-1.5",
                       !inMonth && "bg-muted/20",
+                      isToday && "bg-primary/[0.04]",
                     )}
                   >
-                    <button
-                      type="button"
-                      className={cn(
-                        "mb-1 flex size-6 items-center justify-center rounded-full text-xs font-medium tabular-nums",
-                        isToday && "bg-primary text-primary-foreground",
-                        !inMonth && "text-muted-foreground",
-                      )}
-                      onClick={() => {
-                        setView("day")
-                        setCursorKey(dayKey)
-                        pushUrl({ view: "day", date: dayKey })
-                      }}
-                      aria-label={`Open ${dayKey}`}
-                    >
-                      {dayDate.getDate()}
-                    </button>
-                    <div className="flex flex-col gap-0.5">
+                    <div className="mb-1 flex items-center justify-between gap-1">
+                      <button
+                        type="button"
+                        className={cn(
+                          "flex size-6 items-center justify-center rounded-full text-xs font-medium tabular-nums transition-colors hover:bg-muted",
+                          isToday &&
+                            "bg-primary font-semibold text-primary-foreground hover:bg-primary/90",
+                          !inMonth && !isToday && "text-muted-foreground",
+                        )}
+                        onClick={() => {
+                          setView("day")
+                          setCursorKey(dayKey)
+                          pushUrl({ view: "day", date: dayKey })
+                        }}
+                        aria-label={`Open ${dayKey}`}
+                      >
+                        {dayDate.getDate()}
+                      </button>
+                      {dayBookings.length > 0 ? (
+                        <span className="hidden rounded-full bg-muted px-1.5 text-[10px] font-medium tabular-nums text-muted-foreground sm:inline-block">
+                          {dayBookings.length}
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="flex flex-col gap-1">
                       {visible.map((booking) => (
                         <EventChip
                           key={booking.id}
@@ -646,7 +761,7 @@ export function BookingsCalendarView() {
                       {overflow > 0 ? (
                         <button
                           type="button"
-                          className="px-1 text-left text-[10px] font-medium text-muted-foreground hover:text-foreground"
+                          className="w-fit rounded bg-muted/70 px-1.5 py-0.5 text-left text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                           onClick={() => {
                             setView("day")
                             setCursorKey(dayKey)
@@ -663,19 +778,25 @@ export function BookingsCalendarView() {
             </div>
           </div>
         ) : view === "week" ? (
-          <div className="overflow-x-auto rounded-xl border bg-card">
+          <div className="overflow-x-auto rounded-xl border bg-card shadow-xs">
             <div className="grid min-w-[56rem] grid-cols-7 divide-x">
               {range.days.map((dayKey) => {
                 const dayDate = parseDateKey(dayKey)!
                 const isToday = dayKey === todayKey
                 const dayBookings = byDay.get(dayKey) ?? []
                 return (
-                  <div key={dayKey} className="flex min-h-80 flex-col">
+                  <div
+                    key={dayKey}
+                    className={cn(
+                      "flex min-h-88 flex-col",
+                      isToday && "bg-primary/[0.03]",
+                    )}
+                  >
                     <button
                       type="button"
                       className={cn(
-                        "border-b px-2 py-2 text-left hover:bg-muted/40",
-                        isToday && "bg-primary/5",
+                        "flex items-center justify-between border-b px-2.5 py-2.5 text-left transition-colors hover:bg-muted/40",
+                        isToday && "bg-primary/[0.06]",
                       )}
                       onClick={() => {
                         setView("day")
@@ -683,21 +804,30 @@ export function BookingsCalendarView() {
                         pushUrl({ view: "day", date: dayKey })
                       }}
                     >
-                      <p className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
-                        {CALENDAR_WEEKDAYS[dayDate.getDay()]}
-                      </p>
-                      <p
-                        className={cn(
-                          "text-sm font-semibold tabular-nums",
-                          isToday && "text-primary",
-                        )}
-                      >
-                        {dayDate.getDate()}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={cn(
+                            "flex size-7 items-center justify-center rounded-full text-sm font-semibold tabular-nums",
+                            isToday
+                              ? "bg-primary text-primary-foreground"
+                              : "text-foreground",
+                          )}
+                        >
+                          {dayDate.getDate()}
+                        </span>
+                        <span className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+                          {CALENDAR_WEEKDAYS[dayDate.getDay()]}
+                        </span>
+                      </div>
+                      {dayBookings.length > 0 ? (
+                        <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
+                          {dayBookings.length}
+                        </span>
+                      ) : null}
                     </button>
-                    <div className="flex flex-1 flex-col gap-1.5 p-1.5">
+                    <div className="flex flex-1 flex-col gap-1.5 p-2">
                       {dayBookings.length === 0 ? (
-                        <p className="px-1 py-2 text-[11px] text-muted-foreground">
+                        <p className="px-1 py-3 text-center text-[11px] text-muted-foreground/60">
                           No trips
                         </p>
                       ) : (
@@ -718,16 +848,19 @@ export function BookingsCalendarView() {
             </div>
           </div>
         ) : (
-          <div className="rounded-xl border bg-card">
+          <div className="rounded-xl border bg-card shadow-xs">
             {(byDay.get(range.days[0]!) ?? []).length === 0 ? (
               <Empty className="py-16">
+                <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-full bg-muted/70 text-muted-foreground">
+                  <CalendarIcon className="size-5" />
+                </div>
                 <EmptyTitle>No reservations</EmptyTitle>
                 <EmptyDescription>
                   Nothing scheduled for this day with the current filters.
                 </EmptyDescription>
               </Empty>
             ) : (
-              <div className="flex flex-col gap-2 p-3 sm:p-4">
+              <div className="flex flex-col gap-2.5 p-3 sm:p-4">
                 {(byDay.get(range.days[0]!) ?? []).map((booking) => (
                   <EventChip
                     key={booking.id}

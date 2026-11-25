@@ -4,14 +4,19 @@ import * as React from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import useSWR from "swr"
 import {
+  AlertCircleIcon,
+  ArrowRightIcon,
+  ArrowUpDownIcon,
+  CalendarX2Icon,
   ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  ArrowUpDownIcon,
   CircleDollarSignIcon,
   ListFilterIcon,
+  RefreshCwIcon,
   SearchIcon,
   SlidersHorizontalIcon,
+  UserIcon,
   XIcon,
 } from "lucide-react"
 
@@ -220,10 +225,8 @@ export function BookingsView() {
     page,
   ])
 
-  const { data, isLoading, mutate } = useSWR<BookingsResponse>(
-    `/api/admin/bookings?${query}`,
-    fetcher,
-  )
+  const { data, error, isLoading, isValidating, mutate } =
+    useSWR<BookingsResponse>(`/api/admin/bookings?${query}`, fetcher)
 
   const bookings = data?.bookings ?? []
   const total = data?.total ?? 0
@@ -265,24 +268,49 @@ export function BookingsView() {
         title="Bookings"
         description="Today and upcoming pickups first — change From to see past trips"
         actions={
-          <NewBookingSheet
-            onCreated={() => {
-              void mutate()
-            }}
-          />
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-10 touch-manipulation gap-1.5 sm:h-8"
+              disabled={isValidating}
+              onClick={() => void mutate()}
+            >
+              <RefreshCwIcon
+                className={cn("size-3.5", isValidating && "animate-spin")}
+              />
+              Refresh
+            </Button>
+            <NewBookingSheet
+              onCreated={() => {
+                void mutate()
+              }}
+            />
+          </>
         }
       />
-      <div className="flex flex-col gap-4 p-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-4 md:p-6">
-        <div className="flex flex-col gap-3 rounded-xl border bg-card p-3 sm:p-4">
+      <div className="flex w-full flex-col gap-4 p-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-4 md:p-6">
+        <div className="flex flex-col gap-3 rounded-xl border bg-card p-3 shadow-xs sm:p-4">
           <div className="relative">
             <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Search ref, name, or email"
-              className="h-11 pl-9 text-base md:h-9 md:text-sm"
+              className="h-11 pr-9 pl-9 text-base md:h-9 md:text-sm"
               aria-label="Search bookings"
             />
+            {searchInput ? (
+              <button
+                type="button"
+                onClick={() => setSearchInput("")}
+                aria-label="Clear search"
+                className="absolute top-1/2 right-2 flex size-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <XIcon className="size-3.5" />
+              </button>
+            ) : null}
           </div>
 
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -298,9 +326,9 @@ export function BookingsView() {
                   <SlidersHorizontalIcon className="size-4" />
                   Filters
                   {advancedFilterCount > 0 ? (
-                    <Badge variant="secondary" className="tabular-nums">
+                    <span className="rounded-full bg-primary/15 px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-primary">
                       {advancedFilterCount}
-                    </Badge>
+                    </span>
                   ) : null}
                 </span>
                 <ChevronDownIcon
@@ -337,7 +365,7 @@ export function BookingsView() {
 
           <div
             className={cn(
-              "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4",
+              "grid grid-cols-1 gap-3 border-t pt-3 sm:grid-cols-2 lg:grid-cols-4",
               !filtersOpen && "hidden",
             )}
           >
@@ -372,7 +400,7 @@ export function BookingsView() {
               ]}
               icon={CircleDollarSignIcon}
             />
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 sm:col-span-2 sm:grid-cols-2">
               <AdminDateField
                 label="From"
                 value={dateFrom}
@@ -390,18 +418,43 @@ export function BookingsView() {
             </div>
           </div>
 
-          {!isLoading && (
-            <p className="text-xs text-muted-foreground tabular-nums">
-              {total} {total === 1 ? "result" : "results"}
-            </p>
-          )}
+          {!isLoading && !error ? (
+            <div className="flex items-center justify-between gap-2 border-t pt-2.5 text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-muted/70 px-2.5 py-0.5 font-medium tabular-nums text-foreground">
+                {total} {total === 1 ? "booking" : "bookings"}
+              </span>
+              {dateFrom ? (
+                <span className="truncate tabular-nums">
+                  {dateTo ? `${dateFrom} → ${dateTo}` : `From ${dateFrom}`}
+                </span>
+              ) : null}
+            </div>
+          ) : null}
         </div>
+
+        {error ? (
+          <div className="flex flex-col items-start justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive sm:flex-row sm:items-center">
+            <div className="flex items-center gap-2.5">
+              <AlertCircleIcon className="size-4 shrink-0" />
+              <p>Could not load bookings.</p>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="border-destructive/30 bg-background text-foreground hover:bg-destructive/10"
+              onClick={() => void mutate()}
+            >
+              Try again
+            </Button>
+          </div>
+        ) : null}
 
         {/* Mobile card list */}
         <div className="flex flex-col gap-2.5 md:hidden">
           {isLoading ? (
             Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-28 w-full rounded-xl" />
+              <Skeleton key={i} className="h-32 w-full rounded-xl" />
             ))
           ) : bookings.length > 0 ? (
             bookings.map((b) => (
@@ -414,8 +467,11 @@ export function BookingsView() {
               />
             ))
           ) : (
-            <div className="rounded-xl border bg-card py-10">
+            <div className="rounded-xl border bg-card py-12 shadow-xs">
               <Empty>
+                <div className="mx-auto mb-2.5 flex size-11 items-center justify-center rounded-full bg-muted/70 text-muted-foreground">
+                  <CalendarX2Icon className="size-5" />
+                </div>
                 <EmptyTitle>No bookings found</EmptyTitle>
                 <EmptyDescription>
                   {hasFilters
@@ -428,7 +484,7 @@ export function BookingsView() {
         </div>
 
         {/* Desktop table */}
-        <div className="hidden overflow-hidden rounded-xl border bg-card md:block">
+        <div className="hidden overflow-x-auto rounded-xl border bg-card shadow-xs md:block">
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/40 hover:bg-muted/40">
@@ -459,7 +515,7 @@ export function BookingsView() {
                   <TableRow
                     key={b.id}
                     onClick={() => setSelectedId(b.id)}
-                    className="cursor-pointer"
+                    className="cursor-pointer transition-colors hover:bg-muted/40 data-[state=selected]:bg-primary/[0.06]"
                     data-state={selectedId === b.id ? "selected" : undefined}
                   >
                     <TableCell className="pl-4 font-mono text-xs font-medium">
@@ -487,13 +543,13 @@ export function BookingsView() {
                       />
                     </TableCell>
                     <TableCell>
-                      <span className="text-sm">
+                      <span className="text-sm tabular-nums">
                         {formatDateTime(b.pickupDateTime)}
                       </span>
                     </TableCell>
                     <TableCell>
                       {b.flightNumber ? (
-                        <span className="font-mono text-xs">
+                        <span className="rounded bg-muted/70 px-1.5 py-0.5 font-mono text-xs">
                           {b.flightNumber}
                         </span>
                       ) : (
@@ -505,7 +561,9 @@ export function BookingsView() {
                     </TableCell>
                     <TableCell>
                       {b.driver ? (
-                        <span className="text-sm">{b.driver.name}</span>
+                        <span className="text-sm font-medium">
+                          {b.driver.name}
+                        </span>
                       ) : (
                         <Badge variant="destructive" className="font-normal">
                           Unassigned
@@ -515,10 +573,10 @@ export function BookingsView() {
                     <TableCell>
                       <PaymentStatusBadge status={b.paymentStatus} />
                     </TableCell>
-                    <TableCell className="text-right tabular-nums text-sm font-medium">
+                    <TableCell className="text-right text-sm font-semibold tabular-nums">
                       {formatMoney(b.totalPrice, b.currency)}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums text-sm">
+                    <TableCell className="text-right text-sm tabular-nums">
                       {(() => {
                         const amount =
                           b.profitCollected && b.profitCollectedAmount != null
@@ -534,21 +592,18 @@ export function BookingsView() {
                             <span
                               className={
                                 b.profitCollected
-                                  ? "font-medium"
-                                  : "font-medium text-muted-foreground"
+                                  ? "font-semibold text-emerald-700 dark:text-emerald-300"
+                                  : "font-medium text-foreground"
                               }
                             >
                               {formatMoney(amount, b.currency)}
                             </span>
                             {b.profitCollected ? (
-                              <Badge
-                                variant="secondary"
-                                className="font-normal"
-                              >
+                              <span className="rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-300">
                                 Collected
-                              </Badge>
+                              </span>
                             ) : (
-                              <span className="text-[11px] text-muted-foreground">
+                              <span className="rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 dark:text-amber-200">
                                 Due
                               </span>
                             )}
@@ -565,6 +620,9 @@ export function BookingsView() {
                 <TableRow className="hover:bg-transparent">
                   <TableCell colSpan={11}>
                     <Empty className="py-12">
+                      <div className="mx-auto mb-2.5 flex size-11 items-center justify-center rounded-full bg-muted/70 text-muted-foreground">
+                        <CalendarX2Icon className="size-5" />
+                      </div>
                       <EmptyTitle>No bookings found</EmptyTitle>
                       <EmptyDescription>
                         {hasFilters
@@ -580,8 +638,8 @@ export function BookingsView() {
         </div>
 
         {!isLoading && total > 0 && (
-          <div className="flex items-center justify-between gap-3">
-            <p className="hidden text-sm text-muted-foreground sm:block">
+          <div className="flex items-center justify-between gap-3 rounded-xl border bg-card px-3.5 py-2.5 shadow-xs sm:px-4">
+            <p className="hidden text-sm text-muted-foreground tabular-nums sm:block">
               Showing {(page - 1) * PAGE_SIZE + 1}–
               {Math.min(page * PAGE_SIZE, total)} of {total}
             </p>
@@ -600,7 +658,7 @@ export function BookingsView() {
                 <ChevronLeftIcon />
                 <span className="hidden sm:inline">Previous</span>
               </Button>
-              <span className="hidden text-sm text-muted-foreground sm:inline">
+              <span className="hidden text-sm text-muted-foreground tabular-nums sm:inline">
                 Page {page} of {totalPages}
               </span>
               <Button
@@ -659,18 +717,25 @@ function BookingMobileCard({
   onSelect: () => void
   showCreated?: boolean
 }) {
+  const profitAmount =
+    b.profitCollected && b.profitCollectedAmount != null
+      ? b.profitCollectedAmount
+      : b.profit
+
   return (
     <button
       type="button"
       onClick={onSelect}
       className={cn(
-        "flex w-full flex-col gap-2.5 rounded-xl border bg-card p-3.5 text-left shadow-sm transition-colors touch-manipulation active:bg-muted/40",
-        selected && "ring-2 ring-ring/40",
+        "flex w-full flex-col gap-2.5 rounded-xl border bg-card p-3.5 text-left shadow-xs transition-colors touch-manipulation active:bg-muted/40",
+        selected && "border-primary/40 ring-2 ring-ring/40",
       )}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="truncate text-[15px] font-semibold">{b.customer.name}</p>
+          <p className="truncate text-[15px] font-semibold">
+            {b.customer.name}
+          </p>
           <p className="mt-0.5 font-mono text-xs text-muted-foreground">
             {b.referenceCode}
           </p>
@@ -683,21 +748,29 @@ function BookingMobileCard({
         <BookingStatusBadge status={b.status} />
       </div>
 
-      <div className="flex items-center gap-2 text-sm">
-        <DirectionIndicator direction={b.direction} />
-        <span className="min-w-0 truncate text-muted-foreground">
-          {formatDateTime(b.pickupDateTime)}
+      <div className="flex items-center justify-between gap-2 text-xs">
+        <div className="flex min-w-0 items-center gap-2 text-muted-foreground">
+          <DirectionIndicator direction={b.direction} />
+          <span className="truncate tabular-nums">
+            {formatDateTime(b.pickupDateTime)}
+          </span>
+        </div>
+        <span className="shrink-0 text-sm font-bold tabular-nums text-foreground">
+          {formatMoney(b.totalPrice, b.currency)}
         </span>
       </div>
 
-      <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-        {b.pickupAddress} → {b.dropoffAddress}
+      <p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs leading-relaxed text-muted-foreground">
+        <span className="truncate">{b.pickupAddress}</span>
+        <ArrowRightIcon className="size-3 shrink-0" />
+        <span className="truncate">{b.dropoffAddress}</span>
       </p>
 
       <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
         <PaymentStatusBadge status={b.paymentStatus} />
         {b.driver ? (
-          <Badge variant="secondary" className="font-normal">
+          <Badge variant="secondary" className="gap-1 font-normal">
+            <UserIcon className="size-3" />
             {b.driver.name}
           </Badge>
         ) : (
@@ -705,14 +778,22 @@ function BookingMobileCard({
             Unassigned
           </Badge>
         )}
-        <span className="text-xs text-muted-foreground">
-          {VEHICLE_LABELS[b.vehicleType]} · {formatMoney(b.totalPrice, b.currency)}
-          {b.profitCollected && b.profitCollectedAmount != null
-            ? ` · Profit ${formatMoney(b.profitCollectedAmount, b.currency)} (collected)`
-            : b.profit != null
-              ? ` · Profit ${formatMoney(b.profit, b.currency)} (due)`
-              : ""}
+        <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+          {VEHICLE_LABELS[b.vehicleType]}
         </span>
+        {profitAmount != null ? (
+          <span
+            className={cn(
+              "rounded-full px-2 py-0.5 text-[11px] font-medium tabular-nums",
+              b.profitCollected
+                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                : "bg-amber-500/10 text-amber-800 dark:text-amber-200",
+            )}
+          >
+            Profit {formatMoney(profitAmount, b.currency)}{" "}
+            {b.profitCollected ? "(collected)" : "(due)"}
+          </span>
+        ) : null}
       </div>
     </button>
   )

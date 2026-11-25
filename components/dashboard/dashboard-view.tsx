@@ -4,12 +4,16 @@ import * as React from "react"
 import useSWR from "swr"
 import Link from "next/link"
 import {
+  AlertCircle,
   AlertTriangle,
+  ArrowRight,
   ArrowUpRight,
   Banknote,
   CalendarCheck,
   CalendarDays,
+  CheckCircle2,
   ChevronDown,
+  ChevronRight,
   Clock,
   RefreshCw,
   TrendingUp,
@@ -30,9 +34,7 @@ import type { DashboardSummary } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { PageHeader } from "@/components/admin/page-header"
 import { DirectionIndicator } from "@/components/admin/direction-indicator"
-import {
-  BookingStatusBadge,
-} from "@/components/admin/status-badges"
+import { BookingStatusBadge } from "@/components/admin/status-badges"
 import { BookingDetail } from "@/components/bookings/booking-detail"
 import { Button } from "@/components/ui/button"
 import {
@@ -52,6 +54,7 @@ function StatCard({
   hint,
   href,
   tone = "primary",
+  highlight = false,
 }: {
   label: string
   value: string
@@ -59,49 +62,61 @@ function StatCard({
   hint?: string
   href?: string
   tone?: "primary" | "warning" | "success"
+  highlight?: boolean
 }) {
   const toneMap = {
     primary: "bg-primary/10 text-primary",
-    warning: "bg-warning/15 text-warning",
-    success: "bg-success/15 text-success",
+    warning: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
+    success: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
   }
   const content = (
     <Card
       className={cn(
-        "h-full transition-shadow",
-        href && "hover:ring-primary/30 hover:shadow-sm",
+        "group flex h-full flex-col justify-between shadow-xs transition-all",
+        highlight &&
+          tone === "warning" &&
+          "border-amber-500/40 bg-amber-500/[0.04]",
+        href &&
+          "hover:border-primary/40 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-ring",
       )}
     >
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardDescription>{label}</CardDescription>
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between gap-2">
+          <CardDescription className="text-[11px] font-medium tracking-wide uppercase">
+            {label}
+          </CardDescription>
           <span
             className={cn(
-              "flex size-8 items-center justify-center rounded-lg",
+              "flex size-8 shrink-0 items-center justify-center rounded-lg",
               toneMap[tone],
             )}
           >
             <Icon className="size-4" />
           </span>
         </div>
-        <CardTitle className="text-xl font-semibold tabular-nums sm:text-2xl">
+        <CardTitle className="mt-1 text-2xl font-bold tracking-tight tabular-nums sm:text-3xl">
           {value}
         </CardTitle>
       </CardHeader>
-      {hint && (
-        <CardContent className="hidden sm:block">
+      {hint ? (
+        <CardContent className="pt-0">
           <p className="flex items-center gap-1 text-xs text-muted-foreground">
-            {href && <ArrowUpRight className="size-3.5" />}
-            {hint}
+            {href ? (
+              <ArrowUpRight className="size-3.5 shrink-0 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+            ) : null}
+            <span className="line-clamp-1">{hint}</span>
           </p>
         </CardContent>
-      )}
+      ) : null}
     </Card>
   )
 
   if (href) {
     return (
-      <Link href={href} className="block focus-visible:outline-none">
+      <Link
+        href={href}
+        className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
         {content}
       </Link>
     )
@@ -115,11 +130,10 @@ export function DashboardView() {
   >(null)
   const [uncollectedOpen, setUncollectedOpen] = React.useState(false)
 
-  const { data, isLoading, mutate, isValidating } = useSWR<DashboardSummary>(
-    "/api/admin/dashboard-summary",
-    fetcher,
-    { refreshInterval: 60_000 },
-  )
+  const { data, error, isLoading, mutate, isValidating } =
+    useSWR<DashboardSummary>("/api/admin/dashboard-summary", fetcher, {
+      refreshInterval: 60_000,
+    })
 
   const today = toDateInputValue(startOfDay(new Date()))
   const weekFrom = toDateInputValue(startOfWeek(new Date()))
@@ -136,7 +150,7 @@ export function DashboardView() {
           <Button
             variant="outline"
             size="sm"
-            className="h-10 w-full touch-manipulation sm:h-8 sm:w-auto"
+            className="h-10 w-full touch-manipulation gap-1.5 sm:h-8 sm:w-auto"
             disabled={isValidating}
             onClick={() => void mutate()}
           >
@@ -147,40 +161,55 @@ export function DashboardView() {
           </Button>
         }
       />
-      <div className="flex flex-col gap-5 p-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:gap-6 sm:p-4 md:p-6">
+
+      <div className="flex w-full flex-col gap-5 p-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:gap-6 sm:p-4 md:p-6">
+        {error ? (
+          <div className="flex flex-col items-start justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive sm:flex-row sm:items-center">
+            <div className="flex items-center gap-2.5">
+              <AlertCircle className="size-4 shrink-0" />
+              <p>Could not load dashboard summary.</p>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="border-destructive/30 bg-background text-foreground hover:bg-destructive/10"
+              onClick={() => void mutate()}
+            >
+              Try again
+            </Button>
+          </div>
+        ) : null}
+
         <section className="grid grid-cols-2 gap-2.5 sm:gap-4 xl:grid-cols-3">
-          {isLoading || !data ? (
+          {isLoading && !data ? (
             Array.from({ length: 6 }).map((_, i) => (
-              <Card key={i}>
-                <CardHeader>
-                  <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-8 w-16" />
-                </CardHeader>
-              </Card>
+              <Skeleton key={i} className="h-32 rounded-xl" />
             ))
-          ) : (
+          ) : data ? (
             <>
               <StatCard
                 label="Bookings today"
                 value={String(data.bookingsToday)}
                 icon={CalendarCheck}
                 href={`/admin/bookings?dateFrom=${today}&dateTo=${today}`}
-                hint="Active pickups today (not cancelled or abandoned)"
+                hint="Active pickups today"
               />
               <StatCard
                 label="Bookings this week"
                 value={String(data.bookingsThisWeek)}
                 icon={CalendarDays}
                 href={`/admin/bookings?dateFrom=${weekFrom}&dateTo=${weekTo}`}
-                hint="Active pickups Mon–Sun (not cancelled or abandoned)"
+                hint="Active pickups Mon–Sun"
               />
               <StatCard
-                label="Unassigned bookings"
+                label="Unassigned"
                 value={String(data.unassignedCount)}
                 icon={UserX}
                 tone="warning"
+                highlight={data.unassignedCount > 0}
                 href="/admin/bookings?driverId=null&status=confirmed"
-                hint="Need a driver assigned"
+                hint="Confirmed trips needing a driver"
               />
               <StatCard
                 label="Uncollected profit"
@@ -190,8 +219,9 @@ export function DashboardView() {
                 )}
                 icon={Banknote}
                 tone="warning"
+                highlight={data.uncollectedProfitCount > 0}
                 href="/admin/bookings?status=completed&profitCollected=due&dateFrom=&dateTo="
-                hint={`${data.uncollectedProfitCount} completed trip${data.uncollectedProfitCount === 1 ? "" : "s"} with profit due`}
+                hint={`${data.uncollectedProfitCount} completed trip${data.uncollectedProfitCount === 1 ? "" : "s"} due`}
               />
               <StatCard
                 label="Revenue this month"
@@ -199,7 +229,7 @@ export function DashboardView() {
                 icon={Wallet}
                 tone="success"
                 href={`/admin/bookings?status=completed&dateFrom=${monthFrom}&dateTo=${monthTo}`}
-                hint={`${data.revenueThisMonthTripCount} completed trip${data.revenueThisMonthTripCount === 1 ? "" : "s"} — money collected (pickup this month)`}
+                hint={`${data.revenueThisMonthTripCount} completed trip${data.revenueThisMonthTripCount === 1 ? "" : "s"} collected`}
               />
               <StatCard
                 label="Profit this month"
@@ -207,38 +237,59 @@ export function DashboardView() {
                 icon={TrendingUp}
                 tone="success"
                 href={`/admin/analytics?dateFrom=${monthFrom}&dateTo=${monthTo}`}
-                hint={`${data.profitThisMonthTripCount} trip${data.profitThisMonthTripCount === 1 ? "" : "s"} with driver cost (pickups this month)`}
+                hint={`${data.profitThisMonthTripCount} trip${data.profitThisMonthTripCount === 1 ? "" : "s"} with driver cost`}
               />
             </>
-          )}
+          ) : null}
         </section>
 
-        <Card className="gap-0 py-0">
-          <CardHeader className="flex-col items-stretch gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <Card className="gap-0 py-0 shadow-xs">
+          <CardHeader className="flex-col items-stretch gap-3 py-3.5 sm:flex-row sm:items-center sm:justify-between">
             <button
               type="button"
-              className="flex min-w-0 flex-1 items-start gap-2.5 text-left touch-manipulation sm:items-center"
+              className="flex min-w-0 flex-1 items-center gap-3 rounded-lg text-left touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               onClick={() => setUncollectedOpen((open) => !open)}
               aria-expanded={uncollectedOpen}
             >
-              <Banknote className="mt-0.5 size-4 shrink-0 text-warning sm:mt-0" />
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/15 text-amber-700 dark:text-amber-300">
+                <Banknote className="size-4" />
+              </span>
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <CardTitle className="text-sm">Uncollected profit</CardTitle>
+                <div className="flex flex-wrap items-center gap-2">
+                  <CardTitle className="text-sm font-semibold">
+                    Uncollected profit
+                  </CardTitle>
                   {!isLoading && data ? (
-                    <span className="rounded-md bg-warning/15 px-1.5 py-0.5 text-xs font-medium tabular-nums text-warning">
-                      {data.uncollectedProfitCount}
-                    </span>
+                    <>
+                      <span
+                        className={cn(
+                          "rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums",
+                          data.uncollectedProfitCount > 0
+                            ? "bg-amber-500/15 text-amber-800 dark:text-amber-200"
+                            : "bg-muted text-muted-foreground",
+                        )}
+                      >
+                        {data.uncollectedProfitCount}
+                      </span>
+                      {data.uncollectedProfitCount > 0 ? (
+                        <span className="text-xs font-semibold tabular-nums text-amber-700 dark:text-amber-300">
+                          {formatMoney(
+                            data.uncollectedProfitTotal,
+                            data.currency,
+                          )}
+                        </span>
+                      ) : null}
+                    </>
                   ) : null}
                 </div>
-                <CardDescription className="text-xs">
+                <CardDescription className="mt-0.5 text-xs">
                   Completed trips with driver cost set — profit not marked
                   collected yet
                 </CardDescription>
               </div>
               <ChevronDown
                 className={cn(
-                  "mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform sm:mt-0",
+                  "size-4 shrink-0 text-muted-foreground transition-transform",
                   uncollectedOpen && "rotate-180",
                 )}
               />
@@ -261,7 +312,7 @@ export function DashboardView() {
               {isLoading ? (
                 <div className="flex flex-col gap-3 p-4">
                   {Array.from({ length: 3 }).map((_, i) => (
-                    <Skeleton key={i} className="h-16 w-full" />
+                    <Skeleton key={i} className="h-16 w-full rounded-lg" />
                   ))}
                 </div>
               ) : data && data.uncollectedProfit.length > 0 ? (
@@ -271,34 +322,38 @@ export function DashboardView() {
                       <button
                         type="button"
                         onClick={() => setSelectedBookingId(b.id)}
-                        className="flex w-full touch-manipulation gap-3 px-3 py-3.5 text-left transition-colors hover:bg-muted/50 active:bg-muted/60 sm:px-4 md:px-6"
+                        className="group flex w-full touch-manipulation items-center gap-3 px-3 py-3.5 text-left transition-colors hover:bg-muted/40 active:bg-muted/60 sm:px-4 md:px-6"
                       >
-                        <div className="flex w-16 shrink-0 flex-col items-center justify-center rounded-lg bg-warning/15 px-2 py-2 text-center">
-                          <span className="text-sm font-semibold tabular-nums text-warning">
+                        <div className="flex w-18 shrink-0 flex-col items-center justify-center rounded-lg border border-amber-500/25 bg-amber-500/10 px-2 py-2 text-center">
+                          <span className="text-sm font-bold tabular-nums text-amber-800 dark:text-amber-200">
                             {b.profit != null
                               ? formatMoney(b.profit, b.currency)
                               : "—"}
                           </span>
                         </div>
-                        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
+                        <div className="flex min-w-0 flex-1 flex-col gap-1">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex min-w-0 items-baseline gap-2">
                               <p className="truncate text-sm font-semibold">
                                 {b.customer.name}
                               </p>
-                              <p className="font-mono text-xs text-muted-foreground">
+                              <p className="shrink-0 font-mono text-xs text-muted-foreground">
                                 {b.referenceCode}
                               </p>
                             </div>
                             <BookingStatusBadge status={b.status} />
                           </div>
-                          <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-                            {b.pickupAddress} → {b.dropoffAddress}
+                          <p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground">
+                            <span className="truncate">{b.pickupAddress}</span>
+                            <ArrowRight className="size-3 shrink-0" />
+                            <span className="truncate">{b.dropoffAddress}</span>
                           </p>
-                          <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-                            <span>{formatTime(b.pickupDateTime)}</span>
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                            <span className="tabular-nums">
+                              {formatTime(b.pickupDateTime)}
+                            </span>
                             <span>·</span>
-                            <span>
+                            <span className="font-medium tabular-nums text-foreground">
                               Total {formatMoney(b.totalPrice, b.currency)}
                             </span>
                             {b.driver ? (
@@ -309,12 +364,16 @@ export function DashboardView() {
                             ) : null}
                           </div>
                         </div>
+                        <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
                       </button>
                     </li>
                   ))}
                 </ul>
               ) : (
                 <Empty className="py-10">
+                  <div className="mx-auto mb-2.5 flex size-11 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+                    <CheckCircle2 className="size-5" />
+                  </div>
                   <EmptyTitle>No uncollected profit</EmptyTitle>
                   <EmptyDescription>
                     All completed trips with a driver cost have profit marked
@@ -326,13 +385,38 @@ export function DashboardView() {
           ) : null}
         </Card>
 
-        <Card className="gap-0 py-0">
-          <CardHeader className="flex-col items-stretch gap-3 border-b py-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-start gap-2.5 sm:items-center">
-              <Clock className="mt-0.5 size-4 shrink-0 text-primary sm:mt-0" />
+        <Card className="gap-0 py-0 shadow-xs">
+          <CardHeader className="flex-col items-stretch gap-3 border-b py-3.5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <span
+                className={cn(
+                  "flex size-9 shrink-0 items-center justify-center rounded-lg",
+                  data && data.upcomingUrgent.length > 0
+                    ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                    : "bg-primary/10 text-primary",
+                )}
+              >
+                <Clock className="size-4" />
+              </span>
               <div>
-                <CardTitle className="text-sm">Urgent unassigned pickups</CardTitle>
-                <CardDescription className="text-xs">
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-sm font-semibold">
+                    Urgent unassigned pickups
+                  </CardTitle>
+                  {!isLoading && data ? (
+                    <span
+                      className={cn(
+                        "rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums",
+                        data.upcomingUrgent.length > 0
+                          ? "bg-amber-500/15 text-amber-800 dark:text-amber-200"
+                          : "bg-muted text-muted-foreground",
+                      )}
+                    >
+                      {data.upcomingUrgent.length}
+                    </span>
+                  ) : null}
+                </div>
+                <CardDescription className="mt-0.5 text-xs">
                   Next 4 hours — trips still needing a driver
                 </CardDescription>
               </div>
@@ -352,7 +436,7 @@ export function DashboardView() {
             {isLoading ? (
               <div className="flex flex-col gap-3 p-4">
                 {Array.from({ length: 3 }).map((_, i) => (
-                  <Skeleton key={i} className="h-16 w-full" />
+                  <Skeleton key={i} className="h-16 w-full rounded-lg" />
                 ))}
               </div>
             ) : data && data.upcomingUrgent.length > 0 ? (
@@ -362,20 +446,20 @@ export function DashboardView() {
                     <button
                       type="button"
                       onClick={() => setSelectedBookingId(b.id)}
-                      className="flex w-full touch-manipulation gap-3 px-3 py-3.5 text-left transition-colors hover:bg-muted/50 active:bg-muted/60 sm:px-4 md:px-6"
+                      className="group flex w-full touch-manipulation items-center gap-3 px-3 py-3.5 text-left transition-colors hover:bg-muted/40 active:bg-muted/60 sm:px-4 md:px-6"
                     >
-                      <div className="flex w-14 shrink-0 flex-col items-center justify-center rounded-lg bg-accent px-2 py-2 text-center">
-                        <span className="text-sm font-semibold tabular-nums text-accent-foreground">
+                      <div className="flex w-16 shrink-0 flex-col items-center justify-center rounded-lg border bg-muted/50 px-2 py-2 text-center">
+                        <span className="text-sm font-bold tabular-nums text-foreground">
                           {formatTime(b.pickupDateTime)}
                         </span>
                       </div>
                       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                         <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
+                          <div className="flex min-w-0 items-baseline gap-2">
                             <p className="truncate text-sm font-semibold">
                               {b.customer.name}
                             </p>
-                            <p className="font-mono text-xs text-muted-foreground">
+                            <p className="shrink-0 font-mono text-xs text-muted-foreground">
                               {b.referenceCode}
                             </p>
                           </div>
@@ -384,26 +468,32 @@ export function DashboardView() {
                             className="shrink-0"
                           />
                         </div>
-                        <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-                          {b.pickupAddress} → {b.dropoffAddress}
+                        <p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground">
+                          <span className="truncate">{b.pickupAddress}</span>
+                          <ArrowRight className="size-3 shrink-0" />
+                          <span className="truncate">{b.dropoffAddress}</span>
                         </p>
                         <div className="flex flex-wrap items-center gap-1.5">
-                          <span className="inline-flex items-center gap-1 rounded-full bg-warning/18 px-2 py-0.5 text-xs font-medium text-warning">
+                          <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-800 dark:text-amber-200">
                             <AlertTriangle className="size-3" />
                             Unassigned
                           </span>
                           <BookingStatusBadge status={b.status} />
-                          <span className="text-xs text-muted-foreground">
+                          <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
                             {VEHICLE_LABELS[b.vehicleType]}
                           </span>
                         </div>
                       </div>
+                      <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
                     </button>
                   </li>
                 ))}
               </ul>
             ) : (
-              <Empty className="py-10">
+              <Empty className="py-12">
+                <div className="mx-auto mb-2.5 flex size-11 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+                  <CheckCircle2 className="size-5" />
+                </div>
                 <EmptyTitle>No urgent unassigned pickups</EmptyTitle>
                 <EmptyDescription>
                   There are no unassigned trips scheduled in the next 4 hours.
