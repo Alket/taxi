@@ -9,6 +9,7 @@ import {
   LuggageIcon,
   MapPinIcon,
   PlaneIcon,
+  SparklesIcon,
   UsersIcon,
 } from "lucide-react"
 import { toast } from "sonner"
@@ -67,6 +68,8 @@ export type DriverTripDetail = {
   contactWhatsappUrl: string | null
   currency: string
   totalPriceLabel: string
+  platformCommissionLabel?: string | null
+  driverKeepsLabel?: string | null
   cashToCollect: number
   cashToCollectLabel: string
   cashCollected: boolean
@@ -78,6 +81,27 @@ export type DriverTripDetail = {
   canMarkCashPaid: boolean
   needsResponse: boolean
   nextStatus: "arrived" | "completed" | null
+}
+
+function statusBadgeClass(status: BookingStatus) {
+  switch (status) {
+    case "driver_assigned":
+    case "pending":
+      return "border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-200"
+    case "driver_accepted":
+    case "confirmed":
+    case "en_route":
+      return "border-sky-500/30 bg-sky-500/10 text-sky-800 dark:text-sky-200"
+    case "arrived":
+    case "in_progress":
+      return "border-primary/30 bg-primary/10 text-primary"
+    case "completed":
+      return "border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200"
+    case "cancelled":
+      return "border-destructive/30 bg-destructive/10 text-destructive"
+    default:
+      return "border-border bg-muted text-muted-foreground"
+  }
 }
 
 function cashHintLabel(
@@ -238,7 +262,12 @@ export function DriverTripDetailSheet({
                   <SheetTitle className="font-mono text-sm">
                     {trip.referenceCode}
                   </SheetTitle>
-                  <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium">
+                  <span
+                    className={cn(
+                      "rounded-full border px-2.5 py-0.5 text-xs font-medium",
+                      statusBadgeClass(trip.status),
+                    )}
+                  >
                     {statusLabel || trip.statusLabel}
                   </span>
                 </div>
@@ -248,11 +277,6 @@ export function DriverTripDetailSheet({
               <ScrollArea className="min-h-0 flex-1">
                 <div className="flex flex-col gap-6 p-4">
                   <section className="flex flex-col gap-3">
-                    {trip.flightNumber ? (
-                      <span className="font-mono text-xs text-muted-foreground">
-                        {trip.flightNumber}
-                      </span>
-                    ) : null}
                     <ol className="flex flex-col gap-3">
                       <li className="flex gap-3">
                         <div className="flex flex-col items-center pt-1">
@@ -336,7 +360,8 @@ export function DriverTripDetailSheet({
                         </div>
                       ))}
                     {trip.meetAndGreet ? (
-                      <div className="col-span-2 rounded-lg border bg-muted/30 px-2.5 py-2 text-sm font-medium">
+                      <div className="col-span-2 flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-2.5 py-2 text-sm font-medium text-primary">
+                        <SparklesIcon className="size-4 shrink-0" />
                         {t("trips.meetGreet")}
                       </div>
                     ) : null}

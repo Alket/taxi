@@ -1,9 +1,10 @@
+import { createHash, timingSafeEqual } from "node:crypto"
 import type { Driver } from "@/lib/types"
 import {
   DRIVER_SESSION_COOKIE,
   DRIVER_SESSION_MAX_AGE,
   signDriverSessionToken,
-  verifyDriverSessionToken,
+  verifyDriverSessionClaims,
 } from "@/lib/driver-session"
 import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
@@ -13,6 +14,16 @@ import { prisma } from "@/lib/db"
 import { serializeDriver } from "@/lib/drivers"
 
 export { DRIVER_SESSION_COOKIE } from "@/lib/driver-session"
+
+/** Short opaque fingerprint of pinHash so PIN resets immediately revoke prior JWTs. */
+function pinVersionFromHash(pinHash: string): string {
+  return createHash("sha256").update(pinHash).digest("hex").slice(0, 16)
+}
+
+function pinVersionsMatch(a: string | null, b: string): boolean {
+  if (!a || a.length !== b.length) return false
+  return timingSafeEqual(Buffer.from(a), Buffer.from(b))
+}
 
 export async function hashDriverPin(pin: string): Promise<string> {
   return hashPassword(pin)
@@ -25,8 +36,12 @@ export async function verifyDriverPin(
   return verifyPassword(pin, hash)
 }
 
-export async function createDriverSession(driverId: string): Promise<void> {
-  const token = await signDriverSessionToken(driverId)
+export async function createDriverSession(
+  driverId: string,
+  pinHash?: string,
+): Promise<void> {
+  const pinVersion = pinHash ? pinVersionFromHash(pinHash) : undefined
+  const token = await signDriverSessionToken(driverId, pinVersion)
   const cookieStore = await cookies()
   cookieStore.set(DRIVER_SESSION_COOKIE, token, {
     httpOnly: true,
@@ -47,11 +62,11 @@ export async function getDriverSession(): Promise<Driver | null> {
   const token = cookieStore.get(DRIVER_SESSION_COOKIE)?.value
   if (!token) return null
 
-  const driverId = await verifyDriverSessionToken(token)
-  if (!driverId) return null
+  const claims = await verifyDriverSessionClaims(token)
+  if (!claims) return null
 
   const driver = await prisma.driver.findUnique({
-    where: { id: driverId },
+    where: { id: claims.driverId },
     select: {
       id: true,
       name: true,
@@ -69,6 +84,9 @@ export async function getDriverSession(): Promise<Driver | null> {
   })
 
   if (!driver || !driver.active || !driver.pinHash) return null
+  if (!pinVersionsMatch(claims.pinVersion, pinVersionFromHash(driver.pinHash))) {
+    return null
+  }
   return serializeDriver(driver)
 }
 

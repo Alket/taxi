@@ -23,7 +23,9 @@ export async function GET(request: Request) {
   const now = new Date()
   const yearParam = Number.parseInt(searchParams.get("year") ?? "", 10)
   const monthParam = Number.parseInt(searchParams.get("month") ?? "", 10) // 1–12
-  const year = Number.isFinite(yearParam) ? yearParam : now.getFullYear()
+  const year = Number.isFinite(yearParam)
+    ? Math.min(now.getFullYear() + 2, Math.max(2020, yearParam))
+    : now.getFullYear()
   const month = Number.isFinite(monthParam)
     ? Math.min(12, Math.max(1, monthParam))
     : now.getMonth() + 1

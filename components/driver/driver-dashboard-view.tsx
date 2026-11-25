@@ -4,15 +4,22 @@ import * as React from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import useSWR from "swr"
 import {
+  AlertCircleIcon,
   ArmchairIcon,
   BanknoteIcon,
   CheckCircle2Icon,
   ChevronDownIcon,
+  ClockIcon,
   KeyRoundIcon,
   Loader2Icon,
   MapPinIcon,
   MessageSquareIcon,
+  PlaneIcon,
+  RefreshCwIcon,
+  SparklesIcon,
+  UserIcon,
   UsersIcon,
+  WalletIcon,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -75,6 +82,8 @@ type DriverTrip = {
   currency: string
   totalPrice: number
   totalPriceLabel: string
+  platformCommissionLabel?: string | null
+  driverKeepsLabel?: string | null
   depositPaid: number
   balanceDue: number
   paymentStatus: PaymentStatus
@@ -127,6 +136,26 @@ function statusLabel(t: Translate, status: BookingStatus) {
   return t(`status.${status}`)
 }
 
+function statusBadgeClass(status: BookingStatus) {
+  switch (status) {
+    case "driver_assigned":
+      return "border-amber-500/30 bg-amber-500/12 text-amber-800 dark:text-amber-300"
+    case "driver_accepted":
+    case "confirmed":
+    case "en_route":
+      return "border-sky-500/30 bg-sky-500/12 text-sky-800 dark:text-sky-300"
+    case "arrived":
+    case "in_progress":
+      return "border-primary/30 bg-primary/12 text-primary"
+    case "completed":
+      return "border-emerald-500/30 bg-emerald-500/12 text-emerald-800 dark:text-emerald-300"
+    case "cancelled":
+      return "border-destructive/30 bg-destructive/10 text-destructive"
+    default:
+      return "border-border bg-muted text-muted-foreground"
+  }
+}
+
 function cashHintLabel(
   t: Translate,
   cashAmount: number,
@@ -150,11 +179,10 @@ export function DriverDashboardView() {
     searchParams.get("bookingId") ?? searchParams.get("booking")
 
   const { data: me } = useSWR<{ driver: Driver }>("/api/driver/me", fetcher)
-  const { data, isLoading, mutate, error } = useSWR<DashboardPayload>(
-    "/api/driver/bookings",
-    fetcher,
-    { refreshInterval: 15_000 },
-  )
+  const { data, isLoading, isValidating, mutate, error } =
+    useSWR<DashboardPayload>("/api/driver/bookings", fetcher, {
+      refreshInterval: 15_000,
+    })
 
   const [pendingId, setPendingId] = React.useState<string | null>(null)
   const [cashOpen, setCashOpen] = React.useState(false)
@@ -172,6 +200,8 @@ export function DriverDashboardView() {
   const upcoming = data?.upcoming ?? []
   const history = data?.history ?? []
   const outstanding = data?.outstanding
+  const todayNeedsAction = today.some((trip) => trip.needsResponse)
+  const upcomingNeedsAction = upcoming.some((trip) => trip.needsResponse)
 
   React.useEffect(() => {
     if (!focusedTripId || !data) return
@@ -272,6 +302,8 @@ export function DriverDashboardView() {
     setRejectTrip(trip)
   }
 
+  const hasCashReady = (outstanding?.cashToCollect ?? 0) > 0
+
   return (
     <div className="flex min-h-dvh flex-col">
       <DriverPageHeader
@@ -281,64 +313,127 @@ export function DriverDashboardView() {
             ? t("trips.plate", { plate: me.driver.plateNumber })
             : t("trips.assigned")
         }
+        actions={
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => void mutate()}
+            disabled={isValidating}
+            className="gap-1.5"
+          >
+            <RefreshCwIcon
+              className={cn("size-3.5", isValidating && "animate-spin")}
+              aria-hidden
+            />
+            <span>{t("trips.refresh")}</span>
+          </Button>
+        }
       />
 
-      <div className="flex flex-1 flex-col gap-5 p-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:gap-6 sm:p-4 md:p-6">
-        <Card className="gap-0 py-0">
+      <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-5 p-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:gap-6 sm:p-4 md:p-6">
+        <Card className="gap-0 overflow-hidden border-border/80 py-0 shadow-xs">
           <button
             type="button"
-            className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left touch-manipulation md:cursor-default md:pointer-events-none"
+            className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition-colors hover:bg-muted/30 touch-manipulation md:pointer-events-none md:cursor-default md:hover:bg-transparent"
             onClick={() => setCashOpen((open) => !open)}
             aria-expanded={cashOpen}
           >
-            <div className="min-w-0">
-              <CardTitle className="text-base">{t("trips.cashBalances")}</CardTitle>
-              <CardDescription className="mt-0.5">
-                {outstanding
-                  ? t("trips.cashToCollectSuffix", {
-                      amount: outstanding.cashToCollectLabel,
-                    })
-                  : t("trips.cashBalancesHint")}
-              </CardDescription>
+            <div className="flex min-w-0 items-center gap-3">
+              <span
+                className={cn(
+                  "flex size-9 shrink-0 items-center justify-center rounded-lg border",
+                  hasCashReady
+                    ? "border-amber-500/30 bg-amber-500/12 text-amber-700 dark:text-amber-300"
+                    : "border-border bg-muted/60 text-muted-foreground",
+                )}
+              >
+                <WalletIcon className="size-4" aria-hidden />
+              </span>
+              <div className="min-w-0">
+                <CardTitle className="text-sm font-semibold sm:text-base">
+                  {t("trips.cashBalances")}
+                </CardTitle>
+                <CardDescription className="mt-0.5 text-xs sm:text-sm">
+                  {outstanding
+                    ? t("trips.cashToCollectSuffix", {
+                        amount: outstanding.cashToCollectLabel,
+                      })
+                    : t("trips.cashBalancesHint")}
+                </CardDescription>
+              </div>
             </div>
             <ChevronDownIcon
               className={cn(
-                "size-5 shrink-0 text-muted-foreground transition-transform md:hidden",
+                "size-5 shrink-0 text-muted-foreground transition-transform duration-200 md:hidden",
                 cashOpen && "rotate-180",
               )}
+              aria-hidden
             />
           </button>
           <CardContent
             className={cn(
-              "border-t px-4 pb-4 pt-3",
+              "border-t border-border/70 px-4 pt-3.5 pb-4",
               cashOpen ? "block" : "hidden md:block",
             )}
           >
             {isLoading && !outstanding ? (
-              <Skeleton className="h-20 w-full" />
+              <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
+                <Skeleton className="h-24 w-full rounded-xl" />
+                <Skeleton className="h-24 w-full rounded-xl" />
+              </div>
             ) : outstanding ? (
               <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
-                <div className="rounded-lg border bg-amber-500/5 p-3">
-                  <p className="text-[11px] tracking-wide text-muted-foreground uppercase">
-                    {t("trips.cashToCollect")}
-                  </p>
-                  <p className="mt-1 text-2xl font-semibold tabular-nums">
-                    {outstanding.cashToCollectLabel}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {t("trips.readyOnArrived")}
-                  </p>
+                <div
+                  className={cn(
+                    "flex items-start justify-between gap-3 rounded-xl border p-3.5 transition-colors",
+                    hasCashReady
+                      ? "border-amber-500/30 bg-amber-500/[0.07]"
+                      : "border-border/80 bg-muted/25",
+                  )}
+                >
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+                      {t("trips.cashToCollect")}
+                    </p>
+                    <p className="mt-1.5 text-2xl font-bold tracking-tight tabular-nums text-foreground">
+                      {outstanding.cashToCollectLabel}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {t("trips.readyOnArrived")}
+                    </p>
+                  </div>
+                  <span
+                    className={cn(
+                      "flex size-9 shrink-0 items-center justify-center rounded-lg",
+                      hasCashReady
+                        ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                        : "bg-muted text-muted-foreground",
+                    )}
+                  >
+                    <BanknoteIcon className="size-4.5" aria-hidden />
+                  </span>
                 </div>
-                <div className="rounded-lg border p-3">
-                  <p className="text-[11px] tracking-wide text-muted-foreground uppercase">
-                    {t("trips.unpaidBalances")}
-                  </p>
-                  <p className="mt-1 text-2xl font-semibold tabular-nums">
-                    {outstanding.unpaidBalancesLabel}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {plural(t, "trips.unpaidTripCount", outstanding.unpaidTripCount)}
-                  </p>
+
+                <div className="flex items-start justify-between gap-3 rounded-xl border border-border/80 bg-muted/25 p-3.5">
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+                      {t("trips.unpaidBalances")}
+                    </p>
+                    <p className="mt-1.5 text-2xl font-bold tracking-tight tabular-nums text-foreground">
+                      {outstanding.unpaidBalancesLabel}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {plural(
+                        t,
+                        "trips.unpaidTripCount",
+                        outstanding.unpaidTripCount,
+                      )}
+                    </p>
+                  </div>
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                    <WalletIcon className="size-4.5" aria-hidden />
+                  </span>
                 </div>
               </div>
             ) : null}
@@ -350,38 +445,65 @@ export function DriverDashboardView() {
         upcoming.length === 0 &&
         history.length === 0 ? (
           <div className="flex flex-col gap-3">
-            <Skeleton className="h-10 w-full rounded-lg" />
-            <Skeleton className="h-40 w-full rounded-xl" />
+            <Skeleton className="h-11 w-full rounded-xl" />
+            <div className="grid gap-3 xl:grid-cols-2">
+              <Skeleton className="h-36 w-full rounded-xl" />
+              <Skeleton className="h-36 w-full rounded-xl" />
+            </div>
           </div>
         ) : error ? (
           <Card className="border-destructive/30 bg-destructive/5">
-            <CardContent className="pt-6 text-sm text-destructive">
-              {(error as Error).message || t("trips.loadError")}
+            <CardContent className="flex flex-col items-start justify-between gap-3 py-5 sm:flex-row sm:items-center">
+              <div className="flex items-start gap-2.5 text-sm text-destructive">
+                <AlertCircleIcon
+                  className="mt-0.5 size-4 shrink-0"
+                  aria-hidden
+                />
+                <span>{(error as Error).message || t("trips.loadError")}</span>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => void mutate()}
+              >
+                {t("trips.retry")}
+              </Button>
             </CardContent>
           </Card>
         ) : (
-          <Tabs
-            value={tab}
-            onValueChange={setTab}
-            className="w-full gap-3"
-          >
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="today">
-                {t("trips.tabToday")}
-                <span className="ml-1 tabular-nums text-muted-foreground">
-                  ({today.length})
+          <Tabs value={tab} onValueChange={setTab} className="w-full gap-4">
+            <TabsList className="grid h-11 w-full grid-cols-3 p-1">
+              <TabsTrigger value="today" className="gap-1.5 text-sm">
+                <span>{t("trips.tabToday")}</span>
+                <span
+                  className={cn(
+                    "inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular-nums",
+                    todayNeedsAction
+                      ? "bg-amber-500/20 text-amber-800 dark:text-amber-300"
+                      : "bg-muted text-muted-foreground",
+                  )}
+                >
+                  {today.length}
                 </span>
               </TabsTrigger>
-              <TabsTrigger value="upcoming">
-                {t("trips.tabUpcoming")}
-                <span className="ml-1 tabular-nums text-muted-foreground">
-                  ({upcoming.length})
+              <TabsTrigger value="upcoming" className="gap-1.5 text-sm">
+                <span>{t("trips.tabUpcoming")}</span>
+                <span
+                  className={cn(
+                    "inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular-nums",
+                    upcomingNeedsAction
+                      ? "bg-amber-500/20 text-amber-800 dark:text-amber-300"
+                      : "bg-muted text-muted-foreground",
+                  )}
+                >
+                  {upcoming.length}
                 </span>
               </TabsTrigger>
-              <TabsTrigger value="history">
-                {t("trips.tabHistory")}
-                <span className="ml-1 tabular-nums text-muted-foreground">
-                  ({history.length})
+              <TabsTrigger value="history" className="gap-1.5 text-sm">
+                <span>{t("trips.tabHistory")}</span>
+                <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-muted px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-muted-foreground">
+                  {history.length}
                 </span>
               </TabsTrigger>
             </TabsList>
@@ -504,15 +626,17 @@ function TripList({
 }) {
   if (trips.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed p-8 text-center">
-        <CheckCircle2Icon className="mx-auto size-7 text-muted-foreground" />
-        <p className="mt-2 text-sm text-muted-foreground">{empty}</p>
+      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/80 bg-card/50 px-6 py-12 text-center">
+        <span className="flex size-12 items-center justify-center rounded-full bg-muted/70 text-muted-foreground">
+          <CheckCircle2Icon className="size-6" aria-hidden />
+        </span>
+        <p className="mt-3 text-sm font-medium text-muted-foreground">{empty}</p>
       </div>
     )
   }
 
   return (
-    <ul className="grid gap-3 xl:grid-cols-2">
+    <ul className="grid gap-3.5 xl:grid-cols-2">
       {trips.map((trip) => (
         <TripCard
           key={trip.id}
@@ -586,159 +710,238 @@ function TripCard({
       ref={cardRef}
       id={`trip-${trip.id}`}
       className={cn(
-        "flex flex-col gap-0 overflow-hidden rounded-xl border bg-card shadow-sm transition-shadow",
+        "flex flex-col gap-0 overflow-hidden rounded-2xl border bg-card shadow-xs transition-all",
+        trip.needsResponse && !readOnly
+          ? "border-amber-500/45 shadow-sm"
+          : "border-border/80 hover:border-border",
         focused && "ring-2 ring-primary shadow-md",
       )}
     >
       <button
         type="button"
-        className="flex w-full items-start justify-between gap-3 p-4 text-left touch-manipulation"
+        className="flex w-full items-start justify-between gap-3 p-4 text-left transition-colors hover:bg-muted/25 touch-manipulation"
         onClick={() => {
           setDetailsOpen((open) => !open)
           if (focused) onFocused?.()
         }}
         aria-expanded={detailsOpen}
       >
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="font-mono text-sm font-semibold">
-              {trip.referenceCode}
-            </p>
-            <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium">
+        <div className="min-w-0 flex-1 space-y-2">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+            <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-foreground">
+              <ClockIcon
+                className="size-3.5 shrink-0 text-muted-foreground"
+                aria-hidden
+              />
+              <span>{pickupLabel}</span>
+            </span>
+            <span
+              className={cn(
+                "inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold",
+                statusBadgeClass(trip.status),
+              )}
+            >
               {tripStatus}
             </span>
-            <span className="rounded-md border border-primary/25 bg-primary/10 px-2 py-0.5 font-mono text-sm font-bold tracking-wider tabular-nums text-foreground">
+            <span className="rounded-md border border-primary/25 bg-primary/10 px-2 py-0.5 font-mono text-xs font-bold tracking-wider tabular-nums text-foreground">
               {t("trips.pin", { pin: trip.pickupPin })}
             </span>
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">{pickupLabel}</p>
-          <p className="mt-1.5 truncate text-sm font-medium">
-            {trip.pickupAddress}
-            <span className="mx-1.5 text-muted-foreground">→</span>
-            {trip.dropoffAddress}
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {trip.contactName} · {trip.totalPriceLabel}
-            {trip.cashToCollect > 0
-              ? ` · ${trip.cashToCollectLabel}`
-              : ""}
-          </p>
+
+          <div className="flex items-baseline gap-1.5 text-sm font-medium text-foreground">
+            <span className="truncate">{trip.pickupAddress}</span>
+            <span className="shrink-0 text-muted-foreground" aria-hidden>
+              →
+            </span>
+            <span className="truncate">{trip.dropoffAddress}</span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted-foreground">
+            <span className="font-mono font-medium text-foreground/80">
+              {trip.referenceCode}
+            </span>
+            <span aria-hidden>·</span>
+            <span className="inline-flex items-center gap-1">
+              <UserIcon className="size-3 shrink-0" aria-hidden />
+              <span className="truncate">{trip.contactName}</span>
+            </span>
+            <span aria-hidden>·</span>
+            <span className="font-semibold tabular-nums text-foreground">
+              {trip.totalPriceLabel}
+            </span>
+            {trip.cashToCollect > 0 ? (
+              <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/12 px-2 py-0.5 font-semibold tabular-nums text-amber-800 dark:text-amber-300">
+                <BanknoteIcon className="size-3 shrink-0" aria-hidden />
+                {trip.cashToCollectLabel}
+              </span>
+            ) : null}
+          </div>
         </div>
         <ChevronDownIcon
           className={cn(
-            "mt-0.5 size-5 shrink-0 text-muted-foreground transition-transform",
+            "mt-0.5 size-5 shrink-0 text-muted-foreground transition-transform duration-200",
             detailsOpen && "rotate-180",
           )}
+          aria-hidden
         />
       </button>
 
       {detailsOpen ? (
-        <div className="flex flex-col gap-3 border-t p-4 pt-3">
-          <div className="flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/10 px-3 py-3">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
-              <KeyRoundIcon className="size-5" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-medium tracking-wide text-primary uppercase">
-                {t("trips.pickupPin")}
-              </p>
-              <p className="font-mono text-2xl font-bold tracking-[0.2em] tabular-nums text-foreground sm:text-3xl">
-                {trip.pickupPin}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-3">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
-              <BanknoteIcon className="size-5" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-medium tracking-wide text-emerald-700 uppercase dark:text-emerald-300">
-                {t("trips.tripTotalLabel")}
-              </p>
-              <p className="text-2xl font-bold tabular-nums text-foreground sm:text-3xl">
-                {trip.totalPriceLabel}
-              </p>
-              {trip.hadOnlineDeposit ? (
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {t("trips.depositPaid")}
+        <div className="flex flex-col gap-3.5 border-t border-border/70 p-4 pt-3.5">
+          <div className="grid gap-2.5 sm:grid-cols-2">
+            <div className="flex items-center gap-3 rounded-xl border border-primary/25 bg-primary/[0.07] px-3.5 py-3">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
+                <KeyRoundIcon className="size-5" aria-hidden />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold tracking-wider text-primary uppercase">
+                  {t("trips.pickupPin")}
                 </p>
-              ) : null}
+                <p className="font-mono text-2xl font-bold tracking-[0.18em] tabular-nums text-foreground">
+                  {trip.pickupPin}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 rounded-xl border border-emerald-500/25 bg-emerald-500/[0.07] px-3.5 py-3">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
+                <BanknoteIcon className="size-5" aria-hidden />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold tracking-wider text-emerald-700 uppercase dark:text-emerald-300">
+                  {t("trips.tripTotalLabel")}
+                </p>
+                <p className="text-2xl font-bold tabular-nums text-foreground">
+                  {trip.totalPriceLabel}
+                </p>
+                {trip.hadOnlineDeposit ? (
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {t("trips.depositPaid")}
+                  </p>
+                ) : null}
+              </div>
             </div>
           </div>
 
-          <div className="flex flex-col gap-1.5 text-sm">
-            <div className="flex gap-2">
-              <MapPinIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-              <div className="min-w-0">
-                <p className="text-xs text-muted-foreground">{t("trips.pickup")}</p>
-                <p className="break-words font-medium">{trip.pickupAddress}</p>
+          <ol className="flex flex-col gap-2.5 rounded-xl border border-border/70 bg-muted/20 p-3.5 text-sm">
+            <li className="flex gap-3">
+              <div className="flex flex-col items-center pt-1.5">
+                <span className="size-2.5 rounded-full border-2 border-primary bg-background" />
+                <span className="my-1 w-0.5 flex-1 bg-border" />
               </div>
-            </div>
-            <div className="flex gap-2">
-              <MapPinIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-              <div className="min-w-0">
-                <p className="text-xs text-muted-foreground">{t("trips.dropoff")}</p>
-                <p className="break-words font-medium">{trip.dropoffAddress}</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium text-muted-foreground">
+                  {t("trips.pickup")}
+                </p>
+                <p className="break-words font-medium text-foreground">
+                  {trip.pickupAddress}
+                </p>
               </div>
-            </div>
-          </div>
+            </li>
+            <li className="flex gap-3">
+              <div className="flex flex-col items-center pt-1">
+                <MapPinIcon
+                  className="size-3.5 text-emerald-600 dark:text-emerald-400"
+                  aria-hidden
+                />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium text-muted-foreground">
+                  {t("trips.dropoff")}
+                </p>
+                <p className="break-words font-medium text-foreground">
+                  {trip.dropoffAddress}
+                </p>
+              </div>
+            </li>
+          </ol>
 
           <div
-            className={
+            className={cn(
+              "flex items-center gap-3 rounded-xl border px-3.5 py-2.5",
               trip.cashToCollect > 0
-                ? "flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2"
+                ? "border-amber-500/30 bg-amber-500/10"
                 : trip.cashCollected
-                  ? "flex items-start gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2"
-                  : "flex items-start gap-2 rounded-lg border bg-muted/40 px-3 py-2"
-            }
+                  ? "border-emerald-500/30 bg-emerald-500/10"
+                  : "border-border/80 bg-muted/35",
+            )}
           >
-            <BanknoteIcon className="mt-0.5 size-4 shrink-0" />
-            <div className="min-w-0">
+            <BanknoteIcon
+              className={cn(
+                "size-4.5 shrink-0",
+                trip.cashToCollect > 0
+                  ? "text-amber-700 dark:text-amber-300"
+                  : trip.cashCollected
+                    ? "text-emerald-700 dark:text-emerald-300"
+                    : "text-muted-foreground",
+              )}
+              aria-hidden
+            />
+            <div className="min-w-0 flex-1">
               <p className="text-xs text-muted-foreground">{hint}</p>
-              <p className="text-base font-semibold tabular-nums">
+              <p className="text-base font-semibold tabular-nums text-foreground">
                 {cashAmountLabel}
               </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-1">
-              <UsersIcon className="size-3.5" />
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="inline-flex items-center gap-1.5 rounded-lg border border-border/70 bg-muted/40 px-2.5 py-1 font-medium text-foreground">
+              <UsersIcon
+                className="size-3.5 text-muted-foreground"
+                aria-hidden
+              />
               {t("trips.paxBags", {
                 pax: trip.passengerCount,
                 bags: trip.luggageCount,
               })}
             </span>
             {trip.flightNumber ? (
-              <span>{t("trips.flight", { flight: trip.flightNumber })}</span>
+              <span className="inline-flex items-center gap-1.5 rounded-lg border border-border/70 bg-muted/40 px-2.5 py-1 font-mono font-medium text-foreground">
+                <PlaneIcon
+                  className="size-3.5 text-muted-foreground"
+                  aria-hidden
+                />
+                {t("trips.flight", { flight: trip.flightNumber })}
+              </span>
             ) : null}
-            {trip.meetAndGreet ? <span>{t("trips.meetGreet")}</span> : null}
+            {trip.meetAndGreet ? (
+              <span className="inline-flex items-center gap-1.5 rounded-lg border border-primary/25 bg-primary/10 px-2.5 py-1 font-medium text-primary">
+                <SparklesIcon className="size-3.5" aria-hidden />
+                {t("trips.meetGreet")}
+              </span>
+            ) : null}
           </div>
 
           {trip.childSeats || trip.driverNotes ? (
             <div className="flex flex-col gap-2">
               {trip.childSeats ? (
-                <div className="flex items-start gap-2 rounded-lg border bg-muted/40 px-3 py-2">
-                  <ArmchairIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                <div className="flex items-start gap-2.5 rounded-xl border border-border/70 bg-muted/35 px-3.5 py-2.5">
+                  <ArmchairIcon
+                    className="mt-0.5 size-4 shrink-0 text-muted-foreground"
+                    aria-hidden
+                  />
                   <div className="min-w-0">
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs font-medium text-muted-foreground">
                       {t("trips.childSeats")}
                     </p>
-                    <p className="text-sm font-medium break-words">
+                    <p className="text-sm font-medium break-words text-foreground">
                       {trip.childSeats}
                     </p>
                   </div>
                 </div>
               ) : null}
               {trip.driverNotes ? (
-                <div className="flex items-start gap-2 rounded-lg border border-sky-500/25 bg-sky-500/10 px-3 py-2">
-                  <MessageSquareIcon className="mt-0.5 size-4 shrink-0 text-sky-700 dark:text-sky-300" />
+                <div className="flex items-start gap-2.5 rounded-xl border border-sky-500/25 bg-sky-500/10 px-3.5 py-2.5">
+                  <MessageSquareIcon
+                    className="mt-0.5 size-4 shrink-0 text-sky-700 dark:text-sky-300"
+                    aria-hidden
+                  />
                   <div className="min-w-0">
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs font-medium text-muted-foreground">
                       {t("trips.passengerComment")}
                     </p>
-                    <p className="text-sm font-medium break-words">
+                    <p className="text-sm font-medium break-words text-foreground">
                       {trip.driverNotes}
                     </p>
                   </div>
@@ -753,13 +956,22 @@ function TripCard({
           (trip.needsResponse ||
             trip.canMarkCashPaid ||
             trip.nextStatus) ? (
-            <div className="mt-1 flex flex-col gap-2.5 rounded-xl border border-primary/25 bg-primary/5 p-3">
-              <p className="text-xs font-medium text-muted-foreground">
-                {t("trips.statusActions")}
+            <div
+              className={cn(
+                "mt-1 flex flex-col gap-2.5 rounded-xl border p-3.5",
+                trip.needsResponse
+                  ? "border-amber-500/35 bg-amber-500/[0.07]"
+                  : "border-primary/25 bg-primary/5",
+              )}
+            >
+              <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                {trip.needsResponse
+                  ? t("trips.actionRequired")
+                  : t("trips.statusActions")}
               </p>
               {trip.needsResponse ? (
                 <>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs leading-relaxed text-muted-foreground">
                     {t("trips.needsResponse")}
                   </p>
                   <div className="grid grid-cols-2 gap-2">

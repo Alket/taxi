@@ -4,6 +4,7 @@ import { clientIpFromRequest } from "@/lib/client-ip"
 import {
   createDriverSession,
   findDriverForLoginPhone,
+  hashDriverPin,
   normalizePhone,
   verifyDriverPin,
 } from "@/lib/driver-auth"
@@ -13,6 +14,14 @@ import { serializeDriver } from "@/lib/drivers"
 import { takeRateLimit } from "@/lib/rate-limit"
 
 const INVALID = "Invalid phone or PIN."
+
+let dummyPinHashPromise: Promise<string> | null = null
+function getDummyPinHash(): Promise<string> {
+  if (!dummyPinHashPromise) {
+    dummyPinHashPromise = hashDriverPin("00000000")
+  }
+  return dummyPinHashPromise
+}
 
 /** Caps PIN spray from one client (4-digit PIN space is small). */
 const LOGIN_IP_LIMIT = 20
@@ -79,6 +88,8 @@ export async function POST(request: Request) {
   const driver = findDriverForLoginPhone(drivers, parsed.data.phone)
 
   if (!driver?.pinHash) {
+    // Equalize response timing with a real bcrypt check to avoid phone enumeration.
+    await verifyDriverPin(parsed.data.pin, await getDummyPinHash())
     return NextResponse.json({ error: INVALID }, { status: 401 })
   }
 
@@ -86,7 +97,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: INVALID }, { status: 401 })
   }
 
-  await createDriverSession(driver.id)
+  await createDriverSession(driver.id, driver.pinHash)
 
   return NextResponse.json({
     success: true,

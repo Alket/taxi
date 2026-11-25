@@ -109,7 +109,8 @@ export function DriverContactShareBlock({
   className?: string
 }) {
   const t = useDriverT()
-  const hasPhone = Boolean(trip.contactPhone)
+  const safeTel = trip.contactPhone.replace(/[^\d+*#-]/g, "")
+  const hasPhone = Boolean(safeTel)
 
   return (
     <div
@@ -124,7 +125,7 @@ export function DriverContactShareBlock({
       <div className="flex flex-wrap gap-2">
         {hasPhone ? (
           <a
-            href={`tel:${trip.contactPhone}`}
+            href={`tel:${safeTel}`}
             aria-label={t("trips.callPassenger")}
             className={cn(
               buttonVariants({ variant: "outline", size: "sm" }),

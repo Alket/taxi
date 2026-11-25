@@ -15,6 +15,8 @@ export type DriverBookingInfoSource = {
   dropoffAddress: string
   pickupDateTime: string
   totalPriceLabel: string
+  platformCommissionLabel?: string | null
+  driverKeepsLabel?: string | null
 }
 
 type Translate = (
@@ -102,12 +104,12 @@ export function formatDriverBookingInfoDateTime(
 }
 
 function line(label: string, value: string | number): string {
-  return `${label}: ${value}`
+  return `*${label}:* ${value}`
 }
 
 /**
- * Plain-text booking summary for clipboard → WhatsApp.
- * Optional fields (flight, passenger comment) are omitted when empty.
+ * WhatsApp-ready booking summary for clipboard & WhatsApp share.
+ * Optional fields (flight, passenger comment, commission/driver share) are omitted when unset.
  */
 export function buildDriverBookingInfoText(
   trip: DriverBookingInfoSource,
@@ -115,7 +117,7 @@ export function buildDriverBookingInfoText(
   locale: DriverLocale,
 ): string {
   const blocks: string[][] = [
-    [t("trips.copyHeading")],
+    [`*${t("trips.copyHeading")}*`],
     [
       line(t("trips.copyReference"), trip.referenceCode),
       line(t("trips.pickupPin"), trip.pickupPin),
@@ -145,15 +147,25 @@ export function buildDriverBookingInfoText(
   blocks.push(passengerBlock)
 
   blocks.push([
-    line(t("trips.pickup"), trip.pickupAddress),
-    line(t("trips.dropoff"), trip.dropoffAddress),
+    line(t("trips.copyPickupLocation"), trip.pickupAddress),
+    line(t("trips.copyDropoffLocation"), trip.dropoffAddress),
     line(
       t("trips.copyPickupTime"),
       formatDriverBookingInfoDateTime(trip.pickupDateTime, locale),
     ),
   ])
 
-  blocks.push([line(t("trips.copyTotal"), trip.totalPriceLabel)])
+  const paymentBlock = [line(t("trips.copyCustomerPays"), trip.totalPriceLabel)]
+  if (trip.platformCommissionLabel) {
+    paymentBlock.push(
+      line(t("trips.copyPlatformCommission"), trip.platformCommissionLabel),
+    )
+  }
+  if (trip.driverKeepsLabel) {
+    paymentBlock.push(line(t("trips.copyDriverKeeps"), trip.driverKeepsLabel))
+  }
+  blocks.push([`*${t("trips.copyPaymentBreakdown")}*`])
+  blocks.push(paymentBlock)
 
   return blocks.map((block) => block.join("\n")).join("\n\n")
 }

@@ -15,31 +15,66 @@ export type AnalyticsDateRange = {
   end: Date
 }
 
+/** Maximum span (in days) allowed for analytics queries to prevent DoS. */
+export const MAX_ANALYTICS_RANGE_DAYS = 366
+
+function parseIsoDateParts(
+  value: string | null | undefined,
+): [number, number, number] | null {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null
+  const [y, m, d] = value.split("-").map(Number)
+  if (!y || !m || !d || y < 2000 || y > 2100) return null
+  const check = new Date(y, m - 1, d, 12, 0, 0, 0)
+  if (
+    check.getFullYear() !== y ||
+    check.getMonth() !== m - 1 ||
+    check.getDate() !== d
+  ) {
+    return null
+  }
+  return [y, m, d]
+}
+
 export function parseAnalyticsDateRange(
   dateFromParam: string | null,
   dateToParam: string | null,
   fallbackFrom: Date,
   fallbackTo: Date,
 ): AnalyticsDateRange {
-  const dateFrom = dateFromParam || toDateInputValue(fallbackFrom)
-  const dateTo = dateToParam || toDateInputValue(fallbackTo)
+  const fromParts =
+    parseIsoDateParts(dateFromParam) ??
+    parseIsoDateParts(toDateInputValue(fallbackFrom))!
+  const toParts =
+    parseIsoDateParts(dateToParam) ??
+    parseIsoDateParts(toDateInputValue(fallbackTo))!
 
-  const [fromY, fromM, fromD] = dateFrom.split("-").map(Number)
-  const [toY, toM, toD] = dateTo.split("-").map(Number)
-
-  const start = new Date(fromY!, fromM! - 1, fromD!, 0, 0, 0, 0)
-  const end = new Date(toY!, toM! - 1, toD!, 23, 59, 59, 999)
+  let start = new Date(fromParts[0], fromParts[1] - 1, fromParts[2], 0, 0, 0, 0)
+  let end = new Date(toParts[0], toParts[1] - 1, toParts[2], 23, 59, 59, 999)
 
   if (start.getTime() > end.getTime()) {
-    return {
-      dateFrom: dateTo,
-      dateTo: dateFrom,
-      start: new Date(toY!, toM! - 1, toD!, 0, 0, 0, 0),
-      end: new Date(fromY!, fromM! - 1, fromD!, 23, 59, 59, 999),
-    }
+    start = new Date(toParts[0], toParts[1] - 1, toParts[2], 0, 0, 0, 0)
+    end = new Date(fromParts[0], fromParts[1] - 1, fromParts[2], 23, 59, 59, 999)
   }
 
-  return { dateFrom, dateTo, start, end }
+  const spanDays = Math.floor((end.getTime() - start.getTime()) / 86_400_000) + 1
+  if (spanDays > MAX_ANALYTICS_RANGE_DAYS) {
+    start = new Date(
+      end.getFullYear(),
+      end.getMonth(),
+      end.getDate() - (MAX_ANALYTICS_RANGE_DAYS - 1),
+      0,
+      0,
+      0,
+      0,
+    )
+  }
+
+  return {
+    dateFrom: toDateInputValue(start),
+    dateTo: toDateInputValue(end),
+    start,
+    end,
+  }
 }
 
 export function isAnalyticsPaidStatus(status: PaymentStatus): boolean {
@@ -158,9 +193,14 @@ export function buildDailySeries(
   const cursor = new Date(fromY!, fromM! - 1, fromD!, 12, 0, 0, 0)
   const end = new Date(toY!, toM! - 1, toD!, 12, 0, 0, 0)
 
-  while (cursor.getTime() <= end.getTime()) {
+  let steps = 0
+  while (
+    cursor.getTime() <= end.getTime() &&
+    steps < MAX_ANALYTICS_RANGE_DAYS
+  ) {
     byDate.set(toDateInputValue(cursor), { total: 0, cash: 0, online: 0 })
     cursor.setDate(cursor.getDate() + 1)
+    steps += 1
   }
 
   for (const payment of payments) {

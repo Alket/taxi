@@ -16,6 +16,7 @@ import {
   formatMoney,
 } from "@/lib/format"
 import type { BookingStatus, PaymentStatus } from "@/lib/types"
+import { round2 } from "@/lib/vehicles"
 
 function startOfLocalDay(d = new Date()) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0)
@@ -49,6 +50,9 @@ function serializeTrip(b: {
   totalPrice: { toString(): string } | number
   depositPaid: { toString(): string } | number
   balanceDue: { toString(): string } | number
+  driverCost: { toString(): string } | number | null
+  profitCollectedAt: Date | null
+  profitCollectedAmount: { toString(): string } | number | null
   paymentStatus: PaymentStatus
   passengerName: string | null
   passengerPhone: string | null
@@ -64,6 +68,18 @@ function serializeTrip(b: {
   const totalPrice = Number(b.totalPrice)
   const depositPaid = Number(b.depositPaid)
   const balanceDue = Number(b.balanceDue)
+  const driverCost = b.driverCost == null ? null : Number(b.driverCost)
+  const profitCollectedAmount =
+    b.profitCollectedAmount == null ? null : Number(b.profitCollectedAmount)
+  /** Match /admin/bookings Profit Collected: frozen amount once collected, else totalPrice − driverCost. */
+  const platformCommission =
+    b.profitCollectedAt != null && profitCollectedAmount != null
+      ? round2(profitCollectedAmount)
+      : driverCost != null
+        ? round2(totalPrice - driverCost)
+        : null
+  const driverKeeps =
+    platformCommission != null ? round2(totalPrice - platformCommission) : null
   const cashAmount = cashToCollect({
     totalPrice,
     balanceDue,
@@ -150,6 +166,14 @@ function serializeTrip(b: {
     currency: b.currency,
     totalPrice,
     totalPriceLabel: formatMoney(totalPrice, b.currency),
+    platformCommission,
+    platformCommissionLabel:
+      platformCommission != null
+        ? formatMoney(platformCommission, b.currency)
+        : null,
+    driverKeeps,
+    driverKeepsLabel:
+      driverKeeps != null ? formatMoney(driverKeeps, b.currency) : null,
     depositPaid,
     balanceDue,
     paymentStatus: b.paymentStatus,
@@ -187,6 +211,9 @@ const tripSelect = {
   totalPrice: true,
   depositPaid: true,
   balanceDue: true,
+  driverCost: true,
+  profitCollectedAt: true,
+  profitCollectedAmount: true,
   paymentStatus: true,
   passengerName: true,
   passengerPhone: true,

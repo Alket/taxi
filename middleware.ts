@@ -171,9 +171,8 @@ export async function middleware(request: NextRequest) {
       : false
 
     if (isLoginPage) {
-      if (authenticated) {
-        return NextResponse.redirect(new URL("/driver", request.url))
-      }
+      // Let the login page check DB-backed session (active + PIN version)
+      // to avoid a redirect loop for deactivated or PIN-rotated drivers.
       return NextResponse.next()
     }
 
